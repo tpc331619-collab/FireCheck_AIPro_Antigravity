@@ -1,0 +1,8 @@
+{
+  "name": "FireCheck AI Pro+0108",
+  "description": "專業消防設備查檢應用程式，結合 AI 智能分析與雙模組資料存取系統。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
