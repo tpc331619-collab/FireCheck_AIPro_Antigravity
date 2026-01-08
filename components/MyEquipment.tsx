@@ -34,6 +34,9 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   // UI State for QR Popup
   const [viewQr, setViewQr] = useState<{ url: string, name: string, barcode: string } | null>(null);
 
+  // UI State for Delete Confirmation
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
+
   // UI State for Toast Notification
   const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
@@ -112,47 +115,43 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, item: EquipmentDefinition) => {
     e.preventDefault();
     e.stopPropagation();
+    setDeleteConfirm({ id: item.id, name: item.name });
+  };
 
-    if (!id) {
-      showToast("錯誤：無效的設備 ID", 'error');
-      return;
-    }
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
 
-    // 1. 確認視窗
-    const isConfirmed = window.confirm(t('confirmDelete') || "確定要刪除此設備資料嗎？此操作無法還原。");
+    const { id } = deleteConfirm;
 
-    if (isConfirmed) {
-      // 保存原始狀態以備「真的失敗」時還原
-      const originalAll = [...allEquipment];
+    // 保存原始狀態以備「真的失敗」時還原
+    const originalAll = [...allEquipment];
 
-      // 2. 樂觀 UI 更新 (只更新總表，useEffect 會自動計算 filter)
-      setAllEquipment(prev => prev.filter(item => item.id !== id));
+    // 樂觀 UI 更新
+    setAllEquipment(prev => prev.filter(item => item.id !== id));
 
-      try {
-        console.log("Deleting item:", id);
-        // 3. 呼叫後端刪除
-        await StorageService.deleteEquipmentDefinition(id);
+    // 關閉視窗
+    setDeleteConfirm(null);
 
-        // 4. 成功後靜默刷新以確保同步
-        refreshData(true);
-        showToast(t('dataDeleted') || "資料已刪除", 'success');
+    try {
+      console.log("Deleting item:", id);
+      await StorageService.deleteEquipmentDefinition(id);
 
-      } catch (err: any) {
-        console.error("Delete failed:", err);
+      refreshData(true);
+      showToast(t('dataDeleted') || "資料已刪除", 'success');
 
-        // 5. 錯誤處理與還原
-        setAllEquipment(originalAll); // 還原
+    } catch (err: any) {
+      console.error("Delete failed:", err);
 
-        const errorMsg = err.code === 'permission-denied'
-          ? "權限不足，無法刪除。"
-          : `刪除失敗：${err.message || '未知錯誤'}`;
+      setAllEquipment(originalAll); // 還原
 
-        showToast(errorMsg, 'error');
-        alert(errorMsg); // 雙重提示確保看到
-      }
+      const errorMsg = err.code === 'permission-denied'
+        ? "權限不足，無法刪除。"
+        : `刪除失敗：${err.message || '未知錯誤'}`;
+
+      showToast(errorMsg, 'error');
     }
   };
 
@@ -293,7 +292,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               <QrCode className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) => handleDelete(e, item.id)}
+                              onClick={(e) => handleDeleteClick(e, item)}
                               className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
                               title={t('delete')}
                             >
@@ -363,7 +362,40 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
           </div>
         </div>
       )}
-    </div>
+
+      {/* Delete Confirmation Modal */}
+      {
+        deleteConfirm && (
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center relative animate-in zoom-in-95 duration-200 border-2 border-red-100">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 text-red-500">
+                <Trash2 className="w-8 h-8" />
+              </div>
+
+              <h3 className="font-bold text-xl text-slate-800 mb-2">刪除設備</h3>
+              <p className="text-slate-500 text-center text-sm mb-6">
+                確定要刪除 <span className="font-bold text-slate-800">{deleteConfirm.name}</span> 嗎？
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-500 transition-all shadow-lg shadow-red-200"
+                >
+                  我確定
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 };
 
