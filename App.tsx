@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import InspectionForm from './components/InspectionForm';
 import EquipmentManager from './components/EquipmentManager';
 import MyEquipment from './components/MyEquipment';
+import ChecklistInspection from './components/ChecklistInspection';
 import { UserProfile, InspectionReport, EquipmentDefinition } from './types';
 import { StorageService } from './services/storageService';
 import { auth } from './services/firebase';
@@ -13,7 +14,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT' | 'CHECKLIST_INSPECTION'>('DASHBOARD');
   const [selectedReport, setSelectedReport] = useState<InspectionReport | undefined>(undefined);
   const [editingEquipment, setEditingEquipment] = useState<EquipmentDefinition | null>(null);
   const [initializing, setInitializing] = useState(true);
@@ -41,7 +42,7 @@ const App: React.FC = () => {
       });
       return () => unsubscribe();
     } else {
-        setInitializing(false);
+      setInitializing(false);
     }
   }, []);
 
@@ -70,8 +71,8 @@ const App: React.FC = () => {
 
   const handleUserUpdate = () => {
     if (auth?.currentUser) {
-       const localAvatar = localStorage.getItem(`avatar_${auth.currentUser.uid}`);
-       setUser({
+      const localAvatar = localStorage.getItem(`avatar_${auth.currentUser.uid}`);
+      setUser({
         uid: auth.currentUser.uid,
         email: auth.currentUser.email,
         displayName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'User',
@@ -90,11 +91,11 @@ const App: React.FC = () => {
   return (
     <div className="h-screen w-full bg-slate-50 relative overflow-hidden flex flex-col font-sans">
       {currentView === 'DASHBOARD' ? (
-        <Dashboard 
-          user={user} 
+        <Dashboard
+          user={user}
           onCreateNew={() => {
             setSelectedReport(undefined);
-            setCurrentView('INSPECTION');
+            setCurrentView('CHECKLIST_INSPECTION');
           }}
           onAddEquipment={() => {
             setEditingEquipment(null);
@@ -109,40 +110,45 @@ const App: React.FC = () => {
           onUserUpdate={handleUserUpdate}
         />
       ) : currentView === 'EQUIPMENT_MANAGER' ? (
-        <EquipmentManager 
-           key={editingEquipment?.id || 'new'} 
-           user={user}
-           initialData={editingEquipment}
-           onBack={() => {
-             setEditingEquipment(null);
-             if (editingEquipment) {
-                 setCurrentView('MY_EQUIPMENT');
-             } else {
-                 setCurrentView('DASHBOARD');
-             }
-           }}
-           onSaved={() => {
-              setEditingEquipment(null);
+        <EquipmentManager
+          key={editingEquipment?.id || 'new'}
+          user={user}
+          initialData={editingEquipment}
+          onBack={() => {
+            setEditingEquipment(null);
+            if (editingEquipment) {
               setCurrentView('MY_EQUIPMENT');
-           }}
+            } else {
+              setCurrentView('DASHBOARD');
+            }
+          }}
+          onSaved={() => {
+            setEditingEquipment(null);
+            setCurrentView('MY_EQUIPMENT');
+          }}
         />
       ) : currentView === 'MY_EQUIPMENT' ? (
-        <MyEquipment 
+        <MyEquipment
           user={user}
           selectedSite={filterSite}
           selectedBuilding={filterBuilding}
           onFilterChange={(site, bld) => {
-             setFilterSite(site);
-             setFilterBuilding(bld);
+            setFilterSite(site);
+            setFilterBuilding(bld);
           }}
           onBack={() => setCurrentView('DASHBOARD')}
           onEdit={(item) => {
-              setEditingEquipment(item);
-              setCurrentView('EQUIPMENT_MANAGER');
+            setEditingEquipment(item);
+            setCurrentView('EQUIPMENT_MANAGER');
           }}
         />
+      ) : currentView === 'CHECKLIST_INSPECTION' ? (
+        <ChecklistInspection
+          user={user}
+          onBack={() => setCurrentView('DASHBOARD')}
+        />
       ) : (
-        <InspectionForm 
+        <InspectionForm
           user={user}
           report={selectedReport}
           onBack={() => setCurrentView('DASHBOARD')}

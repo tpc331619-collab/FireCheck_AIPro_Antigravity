@@ -59,6 +59,11 @@ export interface CustomCheckItem {
   category: CheckCategory;
   inputType: CheckInputType;
   unit?: string; // e.g., 'kg', 'Mpa' for numbers
+
+  // Numeric Thresholds
+  thresholdMode?: 'range' | 'gt' | 'gte' | 'lt' | 'lte';
+  val1?: number; // Primary value (Min for range, or the threshold)
+  val2?: number; // Secondary value (Max for range)
 }
 
 export interface EquipmentDefinition {
@@ -70,6 +75,8 @@ export interface EquipmentDefinition {
   barcode: string;       // 新增設備編號
   checkFrequency?: string; // 新增檢查頻率
   checkStartDate?: number; // 新增檢查起算日期
+  lastInspectedDate?: number; // 最後一次檢查日期
+  notificationEmails?: string[]; // 通知信箱 (最多3組)
   checkItems: CustomCheckItem[]; // 檢查項目列表
   updatedAt: number;
   createdAt?: number;    // 建立時間
