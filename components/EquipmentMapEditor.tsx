@@ -65,23 +65,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         return data; // Return data for chaining
     };
 
-    const handleSyncMaps = async () => {
-        setIsSaving(true);
-        try {
-            const added = await StorageService.syncMapsFromStorage(user.uid);
-            if (added > 0) {
-                alert(`同步完成，已還原 ${added} 張圖面`);
-                await loadMaps();
-            } else {
-                alert('同步完成，無新增圖面');
-            }
-        } catch (error: any) {
-            console.error(error);
-            alert('同步失敗: ' + (error.message || error));
-        } finally {
-            setIsSaving(false);
-        }
-    };
+
 
     const handleSelectFile = async (file: any) => {
         setIsStorageManagerOpen(false);
@@ -704,13 +688,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 <h3 className="text-lg font-bold text-slate-700">已上傳圖片清單</h3>
                                 <div className="flex items-center gap-4">
                                     <p className="text-sm text-slate-500">共 {maps.length} 張圖面</p>
-                                    <button
-                                        onClick={handleSyncMaps}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-bold transition-colors"
-                                    >
-                                        <RefreshCcw className="w-4 h-4" />
-                                        同步雲端
-                                    </button>
+
                                     <button
                                         onClick={() => setIsStorageManagerOpen(true)}
                                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors"

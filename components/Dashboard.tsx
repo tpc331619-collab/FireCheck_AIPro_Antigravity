@@ -9,6 +9,8 @@ import DeclarationSettingsModal from './DeclarationSettingsModal';
 import NotificationSettingsModal from './NotificationSettingsModal';
 
 import { DeclarationSettings } from '../types';
+import { RegulationFeed } from './RegulationFeed';
+import { useTheme, ThemeType } from '../contexts/ThemeContext'; // Import Theme Hook
 import {
     Plus,
     FileText,
@@ -34,7 +36,12 @@ import {
     Camera,
     Check,
     UploadCloud,
-    LayoutGrid
+    LayoutGrid,
+    Sun,
+    Moon,
+    Monitor,
+    Palette,
+    Eye
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
@@ -63,6 +70,7 @@ const CARTOON_AVATARS = [
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor }) => {
     const { t, language, setLanguage } = useLanguage();
+    const { theme, setTheme, styles } = useTheme(); // Use Theme Hook
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -327,7 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50">
+        <div className={`flex flex-col h-full ${styles.bg} ${styles.text} transition-colors duration-300`}>
             {/* Header Hero Section */}
             <div className="bg-slate-900 text-white pt-8 px-6 pb-28 rounded-b-[2.5rem] shadow-2xl relative overflow-hidden flex-shrink-0">
                 {/* Decorative background elements */}
@@ -484,88 +492,96 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </button>
                     </div>
 
-                    {/* History Section */}
-                    <div ref={historyRef} className="space-y-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                                <ClipboardList className="w-6 h-6 mr-2 text-slate-500" />
-                                {t('recentRecords')}
-                            </h2>
+                    {/* History & Regulation Feed Section */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Recent Records (Left 2/3) */}
+                        <div ref={historyRef} className="lg:col-span-2 space-y-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                                    <ClipboardList className="w-6 h-6 mr-2 text-slate-500" />
+                                    {t('recentRecords')}
+                                </h2>
 
-                            {/* Search Bar */}
-                            <div className="flex-1 max-w-md relative">
-                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                                <input
-                                    type="text"
-                                    placeholder={t('searchPlaceholder')}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all shadow-sm"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                                {/* Search Bar */}
+                                <div className="flex-1 max-w-md relative">
+                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                                    <input
+                                        type="text"
+                                        placeholder={t('searchPlaceholder')}
+                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all shadow-sm"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Filters */}
-                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                            {(['ALL', 'Pass', 'Fail'] as const).map((status) => (
-                                <button
-                                    key={status}
-                                    onClick={() => setFilterStatus(status)}
-                                    className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${filterStatus === status
-                                        ? 'bg-slate-800 text-white shadow-md'
-                                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                                        }`}
-                                >
-                                    {status === 'ALL' ? t('all') : status === 'Pass' ? t('pass') : t('fail')}
-                                </button>
-                            ))}
-                        </div>
-
-                        {loading ? (
-                            <div className="flex justify-center py-20">
-                                <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-red-600"></div>
-                            </div>
-                        ) : filteredReports.length === 0 ? (
-                            <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-300">
-                                <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                <p className="text-base font-medium">{t('noRecords')}</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredReports.map((report) => (
-                                    <div
-                                        key={report.id}
-                                        onClick={() => onSelectReport(report)}
-                                        className="group bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-red-200 transition-all cursor-pointer flex flex-col justify-between"
+                            {/* Filters */}
+                            <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                                {(['ALL', 'Pass', 'Fail'] as const).map((status) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setFilterStatus(status)}
+                                        className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${filterStatus === status
+                                            ? 'bg-slate-800 text-white shadow-md'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                            }`}
                                     >
-                                        <div className="flex justify-between items-start mb-4">
-                                            <div className="flex items-start space-x-3">
-                                                <div className={`p-2.5 rounded-xl ${report.overallStatus === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                                                    {getStatusIcon(report.overallStatus)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-bold text-lg text-slate-800 group-hover:text-red-700 transition-colors truncate">
-                                                        {report.buildingName}
-                                                    </h3>
-                                                    <p className="text-slate-500 text-sm truncate">{report.inspectorName}</p>
-                                                </div>
-                                            </div>
-                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all" />
-                                        </div>
-
-                                        <div className="mt-2 pt-3 border-t border-slate-50 flex items-center justify-between">
-                                            <div className="flex items-center text-xs text-slate-500 font-medium">
-                                                <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                                                {new Date(report.date).toLocaleDateString(language)}
-                                            </div>
-                                            <span className={`text-xs px-2.5 py-1 rounded-md font-bold border ${getStatusColor(report.overallStatus)}`}>
-                                                {report.overallStatus === 'Pass' ? t('passStatus') : report.overallStatus === 'Fail' ? t('failStatus') : t('progressStatus')}
-                                            </span>
-                                        </div>
-                                    </div>
+                                        {status === 'ALL' ? t('all') : status === 'Pass' ? t('pass') : t('fail')}
+                                    </button>
                                 ))}
                             </div>
-                        )}
+
+                            {loading ? (
+                                <div className="flex justify-center py-20">
+                                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-red-600"></div>
+                                </div>
+                            ) : filteredReports.length === 0 ? (
+                                <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-300">
+                                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                    <p className="text-base font-medium">{t('noRecords')}</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {filteredReports.map((report) => (
+                                        <div
+                                            key={report.id}
+                                            onClick={() => onSelectReport(report)}
+                                            className="group bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-red-200 transition-all cursor-pointer flex flex-col justify-between"
+                                        >
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className="flex items-start space-x-3">
+                                                    <div className={`p-2.5 rounded-xl ${report.overallStatus === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                                        {getStatusIcon(report.overallStatus)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="font-bold text-lg text-slate-800 group-hover:text-red-700 transition-colors truncate">
+                                                            {report.buildingName}
+                                                        </h3>
+                                                        <p className="text-slate-500 text-sm truncate">{report.inspectorName}</p>
+                                                    </div>
+                                                </div>
+                                                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all" />
+                                            </div>
+
+                                            <div className="mt-2 pt-3 border-t border-slate-50 flex items-center justify-between">
+                                                <div className="flex items-center text-xs text-slate-500 font-medium">
+                                                    <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                                                    {new Date(report.date).toLocaleDateString(language)}
+                                                </div>
+                                                <span className={`text-xs px-2.5 py-1 rounded-md font-bold border ${getStatusColor(report.overallStatus)}`}>
+                                                    {report.overallStatus === 'Pass' ? t('passStatus') : report.overallStatus === 'Fail' ? t('failStatus') : t('progressStatus')}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Regulation Feed (Right 1/3) */}
+                        <div className="lg:col-span-1">
+                            <RegulationFeed />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -722,6 +738,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {/* GENERAL TAB */}
                             {settingsTab === 'GENERAL' && (
                                 <div className="space-y-6">
+                                    {/* Theme Settings */}
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('theme') || '色彩主題'}</label>
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {[
+                                                { id: 'light', icon: <Sun className="w-4 h-4" />, label: '淺色', color: 'bg-white' },
+                                                { id: 'dark', icon: <Moon className="w-4 h-4" />, label: '深色', color: 'bg-slate-900' },
+                                                { id: 'blue', icon: <Palette className="w-4 h-4" />, label: '藍色', color: 'bg-blue-50' },
+                                                { id: 'high-contrast', icon: <Eye className="w-4 h-4" />, label: '對比', color: 'bg-black' },
+                                                { id: 'system', icon: <Monitor className="w-4 h-4" />, label: '系統', color: 'bg-gradient-to-br from-white to-slate-900' }
+                                            ].map((item) => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => setTheme(item.id as ThemeType)}
+                                                    className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100' : 'border-slate-100 hover:border-slate-300'}`}
+                                                    title={item.label}
+                                                >
+                                                    <div className={`w-6 h-6 rounded-full shadow-sm border border-black/10 flex items-center justify-center ${item.color}`}>
+                                                        {item.icon}
+                                                    </div>
+                                                    <span className="text-[10px] font-bold text-slate-500">{item.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
                                         <div className="grid grid-cols-2 gap-3">

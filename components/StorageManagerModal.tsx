@@ -3,7 +3,7 @@ import { X, Upload, Trash2, FileText, Check, AlertTriangle, RefreshCcw } from 'l
 import { StorageService } from '../services/storageService';
 import { UserProfile } from '../types';
 
-interface StorageFile {
+export interface StorageFile {
     name: string;
     fullPath: string;
     size: number;
@@ -131,7 +131,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                             <FileText className="w-6 h-6 mr-2 text-blue-600" />
                             雲端圖庫管理
                         </h3>
-                        <p className="text-sm text-slate-500 mt-1">直接管理 Firebase Storage 中的圖片檔案</p>
+
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
                         <X className="w-6 h-6 text-slate-500" />

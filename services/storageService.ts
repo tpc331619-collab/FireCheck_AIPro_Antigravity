@@ -537,6 +537,7 @@ export const StorageService = {
       return addedCount;
     } catch (e) {
       console.error("Sync maps error", e);
+      console.error("[StorageService] Sync maps error", e);
       throw e;
     }
   },
