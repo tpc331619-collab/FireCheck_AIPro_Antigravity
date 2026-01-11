@@ -1,6 +1,7 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy } from '../types';
-import { db } from './firebase';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap } from '../types';
+import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const LOCAL_STORAGE_KEY = 'firecheck_reports';
 const EQUIP_STORAGE_KEY = 'firecheck_equipments';
@@ -229,6 +230,196 @@ export const StorageService = {
           console.error("Error details:", e.message);
         }
         throw e;
+      }
+    }
+  },
+
+  async getDeclarationSettings(userId: string): Promise<DeclarationSettings | null> {
+    const SETTINGS_KEY = `declaration_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(SETTINGS_KEY);
+      return data ? JSON.parse(data) : null;
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `declaration_${userId}`);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          return snapshot.data() as DeclarationSettings;
+        }
+        return null;
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          console.warn("Firestore permission denied, falling back to local storage");
+          const data = localStorage.getItem(SETTINGS_KEY);
+          return data ? JSON.parse(data) : null;
+        }
+        console.error("Fetch declaration settings error", e);
+        return null;
+      }
+    }
+  },
+
+  async saveDeclarationSettings(settings: DeclarationSettings, userId: string): Promise<void> {
+    const SETTINGS_KEY = `declaration_${userId}`;
+    if (this.isGuest || !db) {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `declaration_${userId}`);
+        await setDoc(docRef, settings);
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          console.warn("Firestore permission denied, falling back to local storage");
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+          return;
+        }
+        console.error("Save declaration settings error", e);
+        throw e;
+      }
+    }
+  },
+
+  async getNotificationSettings(userId: string): Promise<string[] | null> {
+    const KEY = `notifications_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      return data ? JSON.parse(data) : [];
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `notifications_${userId}`);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          return snapshot.data().emails as string[];
+        }
+        return [];
+      } catch (e: any) {
+        console.error("Fetch notification settings error", e);
+        const data = localStorage.getItem(KEY);
+        return data ? JSON.parse(data) : [];
+      }
+    }
+  },
+
+  async saveNotificationSettings(emails: string[], userId: string): Promise<void> {
+    const KEY = `notifications_${userId}`;
+    if (this.isGuest || !db) {
+      localStorage.setItem(KEY, JSON.stringify(emails));
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `notifications_${userId}`);
+        await setDoc(docRef, { emails });
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          localStorage.setItem(KEY, JSON.stringify(emails));
+          return;
+        }
+        console.error("Save notification settings error", e);
+        throw e;
+      }
+    }
+  },
+
+  // --- Equipment Map Methods ---
+
+  async getEquipmentMaps(userId: string): Promise<EquipmentMap[]> {
+    const KEY = `maps_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      return data ? JSON.parse(data) : [];
+    } else {
+      try {
+        const q = query(collection(db, 'maps'), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as EquipmentMap));
+      } catch (e) {
+        console.error("Fetch maps error", e);
+        const data = localStorage.getItem(KEY);
+        return data ? JSON.parse(data) : [];
+      }
+    }
+  },
+
+  async saveEquipmentMap(mapData: Omit<EquipmentMap, 'id'>, userId: string): Promise<string> {
+    const KEY = `maps_${userId}`;
+    const newMap = { ...mapData, userId, updatedAt: Date.now() };
+
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      const maps: EquipmentMap[] = data ? JSON.parse(data) : [];
+      const id = 'local_map_' + Date.now();
+      maps.push({ ...newMap, id });
+      localStorage.setItem(KEY, JSON.stringify(maps));
+      return id;
+    } else {
+      try {
+        const docRef = await addDoc(collection(db, 'maps'), newMap);
+        return docRef.id;
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          const data = localStorage.getItem(KEY);
+          const maps: EquipmentMap[] = data ? JSON.parse(data) : [];
+          const id = 'local_map_' + Date.now();
+          maps.push({ ...newMap, id });
+          localStorage.setItem(KEY, JSON.stringify(maps));
+          return id;
+        }
+        console.error("Save map error", e);
+        throw e;
+      }
+    }
+  },
+
+  async updateEquipmentMap(map: EquipmentMap): Promise<void> {
+    const KEY = `maps_${map.userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      if (!data) return;
+      const maps: EquipmentMap[] = JSON.parse(data);
+      const updatedMaps = maps.map(m => m.id === map.id ? map : m);
+      localStorage.setItem(KEY, JSON.stringify(updatedMaps));
+    } else {
+      try {
+        if (map.id.startsWith('local_')) {
+          const data = localStorage.getItem(KEY);
+          if (data) {
+            const maps: EquipmentMap[] = JSON.parse(data);
+            const updatedMaps = maps.map(m => m.id === map.id ? map : m);
+            localStorage.setItem(KEY, JSON.stringify(updatedMaps));
+          }
+          return;
+        }
+
+        const docRef = doc(db, 'maps', map.id);
+        await setDoc(docRef, map, { merge: true });
+      } catch (e: any) {
+        console.error("Update map error", e);
+        const data = localStorage.getItem(KEY);
+        if (data) {
+          const maps: EquipmentMap[] = JSON.parse(data);
+          const existsLocally = maps.find(m => m.id === map.id);
+          if (existsLocally) {
+            const updatedMaps = maps.map(m => m.id === map.id ? map : m);
+            localStorage.setItem(KEY, JSON.stringify(updatedMaps));
+          }
+        }
+      }
+    }
+  },
+
+  async deleteEquipmentMap(mapId: string, userId: string): Promise<void> {
+    const KEY = `maps_${userId}`;
+    const data = localStorage.getItem(KEY);
+    if (data) {
+      const maps: EquipmentMap[] = JSON.parse(data);
+      const newMaps = maps.filter(m => m.id !== mapId);
+      localStorage.setItem(KEY, JSON.stringify(newMaps));
+    }
+
+    if (!this.isGuest && db && !mapId.startsWith('local_')) {
+      try {
+        await deleteDoc(doc(db, 'maps', mapId));
+      } catch (e) {
+        console.error("Delete map error", e);
       }
     }
   }

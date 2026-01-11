@@ -39,11 +39,6 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [eqType, setEqType] = useState('');
   const [eqDetail, setEqDetail] = useState('');
 
-  // Notification Emails
-  const [email1, setEmail1] = useState('');
-  const [email2, setEmail2] = useState('');
-  const [email3, setEmail3] = useState('');
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   // Dynamic Hierarchy State
   const [hierarchy, setHierarchy] = useState<EquipmentHierarchy>({});
@@ -137,9 +132,6 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setEqCategory('');
       setEqType('');
       setEqDetail('');
-      setEmail1('');
-      setEmail2('');
-      setEmail3('');
       setCheckItems([]);
     }
   }, [initialData]);
@@ -198,8 +190,6 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       return;
     }
 
-    // Combine emails
-    const emails = [email1, email2, email3].filter(e => e.trim() !== '').map(e => e.trim());
 
     setIsSaving(true);
     const definition: EquipmentDefinition = {
@@ -217,7 +207,6 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       equipmentType: eqType,
       equipmentDetail: eqDetail,
       lastInspectedDate: initialData?.lastInspectedDate || null, // Preserve or null
-      notificationEmails: emails,
       checkItems,
       updatedAt: Date.now(),
       createdAt: initialData?.createdAt || Date.now()
@@ -734,52 +723,6 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
             </div>
           </div>
 
-          {/* Notification Settings (Collapsible) */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden transition-all duration-300">
-            <button
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
-              className="w-full bg-white p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-            >
-              <div className="flex items-center">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 transition-colors ${isNotifOpen ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-500'}`}>
-                  <Bell className="w-5 h-5" />
-                </div>
-                <div className="text-left">
-                  <h3 className={`font-bold text-lg ${isNotifOpen ? 'text-slate-800' : 'text-slate-600'}`}>自動通知設定</h3>
-                  {!isNotifOpen && <p className="text-xs text-slate-400">設定異常通知信箱 ({[email1, email2, email3].filter(Boolean).length} 已設定)</p>}
-                </div>
-              </div>
-              {isNotifOpen ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-            </button>
-
-            {isNotifOpen && (
-              <div className="p-6 pt-0 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
-                <p className="text-sm text-slate-500 mb-4 mt-4 bg-orange-50 p-3 rounded-lg border border-orange-100 flex gap-2">
-                  <Mail className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-                  當檢查日期即將到期，或檢查結果為「異常」時，系統將自動寄送通知信至以下信箱。
-                </p>
-
-                <div className="space-y-3">
-                  {[
-                    { val: email1, set: setEmail1, idx: 1 },
-                    { val: email2, set: setEmail2, idx: 2 },
-                    { val: email3, set: setEmail3, idx: 3 }
-                  ].map((field) => (
-                    <div key={field.idx} className="relative group">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3 group-focus-within:text-blue-500 transition-colors" />
-                      <input
-                        type="email"
-                        value={field.val}
-                        onChange={(e) => field.set(e.target.value)}
-                        placeholder={`輸入 Email (${field.idx})`}
-                        className="w-full pl-10 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:outline-none focus:bg-white transition-all"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Checklist Configuration */}
           <div>

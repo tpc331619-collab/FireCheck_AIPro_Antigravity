@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Maps are stored in maps/{userId}/{filename}
+    // Only the owner (userId matching auth.uid) can read, write, or delete
+    match /maps/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

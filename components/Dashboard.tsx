@@ -4,6 +4,11 @@ import { InspectionReport, UserProfile, LanguageCode } from '../types';
 import { StorageService } from '../services/storageService';
 // Fix: Use modular imports from firebase/auth
 import { updateProfile, updatePassword } from 'firebase/auth';
+import { Mail, Bell } from 'lucide-react';
+import DeclarationSettingsModal from './DeclarationSettingsModal';
+import NotificationSettingsModal from './NotificationSettingsModal';
+import EquipmentMapEditor from './EquipmentMapEditor';
+import { DeclarationSettings } from '../types';
 import {
     Plus,
     FileText,
@@ -63,12 +68,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+    // Declaration State
+    const [declarationSettings, setDeclarationSettings] = useState<DeclarationSettings | null>(null);
+    const [isDeclarationModalOpen, setIsDeclarationModalOpen] = useState(false);
+
+    // Notification State
+    const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+
+    // Map State
+    const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+
+    useEffect(() => {
+        const fetchDeclarationSettings = async () => {
+            const settings = await StorageService.getDeclarationSettings(user.uid);
+            setDeclarationSettings(settings);
+        };
+        fetchDeclarationSettings();
+    }, [user.uid]);
+
+    const calculateCountdown = () => {
+        if (!declarationSettings) return null;
+        const now = new Date();
+        const year = now.getFullYear();
+        let target = new Date(year, declarationSettings.month - 1, declarationSettings.day);
+
+        // If target is today or past, calculate for next year
+        // Actually, if it's today, it should show 0 or "Today".
+        // If pending for this year, keep this year.
+        // If passed, next year.
+        // Let's basically say: if now > target + 1 day, then next year.
+        // Or simpler: if target < now (ignoring time), target is next year.
+        target.setHours(23, 59, 59, 999);
+        if (now > target) {
+            target = new Date(year + 1, declarationSettings.month - 1, declarationSettings.day);
+            target.setHours(23, 59, 59, 999);
+        }
+
+        const diff = target.getTime() - now.getTime();
+        const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        return days;
+    };
+
+    const countdownDays = calculateCountdown();
+
     // Settings State
     const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'SECURITY' | 'GENERAL'>('PROFILE');
     const [displayName, setDisplayName] = useState(user.displayName || '');
     const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    // const [notificationEmails, setNotificationEmails] = useState<string[]>(['', '', '']); // Removed
     const [isUpdating, setIsUpdating] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -219,6 +268,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             setIsUpdating(false);
         }
     };
+
+
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -389,6 +440,46 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <Settings className="w-6 h-6 text-teal-600 group-hover:text-white transition-colors" />
                             </div>
                             <span className="font-bold text-slate-700 z-10 text-center">設備名稱管理</span>
+                        </button>
+
+                        <button
+                            onClick={() => setIsNotificationModalOpen(true)}
+                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-12 h-12 bg-yellow-100 rounded-2xl flex items-center justify-center group-hover:bg-yellow-500 transition-colors z-10">
+                                <Bell className="w-6 h-6 text-yellow-600 group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="font-bold text-slate-700 z-10 text-center">通知設定</span>
+                        </button>
+
+                        <button
+                            onClick={() => setIsMapModalOpen(true)}
+                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 transition-colors z-10">
+                                <span className="font-bold text-blue-600 group-hover:text-white transition-colors text-lg">Map</span>
+                            </div>
+                            <span className="font-bold text-slate-700 z-10 text-center">設備位置圖</span>
+                        </button>
+
+                        <button
+                            onClick={() => setIsDeclarationModalOpen(true)}
+                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center group-hover:bg-red-600 transition-colors z-10">
+                                <Calendar className="w-6 h-6 text-red-600 group-hover:text-white transition-colors" />
+                            </div>
+                            <div className="z-10 text-center">
+                                <span className="font-bold text-slate-700 block">消防申報</span>
+                                {countdownDays !== null && (
+                                    <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-1 inline-block">
+                                        倒數 {countdownDays} 天
+                                    </span>
+                                )}
+                            </div>
                         </button>
                     </div>
 
@@ -626,6 +717,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </div>
                             )}
 
+
                             {/* GENERAL TAB */}
                             {settingsTab === 'GENERAL' && (
                                 <div className="space-y-6">
@@ -678,6 +770,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     </div>
                 </div>
             )}
+            {isDeclarationModalOpen && (
+                <DeclarationSettingsModal
+                    user={user}
+                    currentSettings={declarationSettings}
+                    onClose={() => setIsDeclarationModalOpen(false)}
+                    onSave={(settings) => setDeclarationSettings(settings)}
+                />
+            )}
+            <NotificationSettingsModal
+                user={user}
+                isOpen={isNotificationModalOpen}
+                onClose={() => setIsNotificationModalOpen(false)}
+            />
+            <EquipmentMapEditor
+                user={user}
+                isOpen={isMapModalOpen}
+                onClose={() => setIsMapModalOpen(false)}
+            />
         </div>
     );
 };

@@ -89,3 +89,29 @@ export interface EquipmentDefinition {
 
 // 設備階層結構
 export type EquipmentHierarchy = Record<string, Record<string, string[]>>;
+
+// 消防申報設定
+export interface DeclarationSettings {
+  month: number; // 1-12
+  day: number;   // 1-31
+}
+
+export interface NotificationSettings {
+  emails: string[];
+}
+
+export interface EquipmentMarker {
+  id: string; // Unique marker ID
+  equipmentId: string; // Linked equipment ID (can be empty initially)
+  x: number; // Percentage (0-100)
+  y: number; // Percentage (0-100)
+}
+
+export interface EquipmentMap {
+  id: string;
+  userId: string;
+  name: string;
+  imageUrl: string; // Base64 or URL
+  markers: EquipmentMarker[];
+  updatedAt: number;
+}
