@@ -113,5 +113,6 @@ export interface EquipmentMap {
   name: string;
   imageUrl: string; // Base64 or URL
   markers: EquipmentMarker[];
+  rotation?: number; // 0, 90, 180, 270
   updatedAt: number;
 }

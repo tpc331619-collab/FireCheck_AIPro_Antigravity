@@ -422,5 +422,23 @@ export const StorageService = {
         console.error("Delete map error", e);
       }
     }
+  },
+
+  async uploadMapImage(file: File, userId: string): Promise<string> {
+    if (this.isGuest || !storage) {
+      throw new Error("Guest mode cannot upload to Firebase Storage");
+    }
+
+    try {
+      const timestamp = Date.now();
+      const storageRef = ref(storage, `maps/${userId}/${timestamp}_${file.name}`);
+
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (e) {
+      console.error("Upload map image error", e);
+      throw e;
+    }
   }
 };
