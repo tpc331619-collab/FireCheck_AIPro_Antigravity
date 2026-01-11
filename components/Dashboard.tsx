@@ -7,7 +7,7 @@ import { updateProfile, updatePassword } from 'firebase/auth';
 import { Mail, Bell } from 'lucide-react';
 import DeclarationSettingsModal from './DeclarationSettingsModal';
 import NotificationSettingsModal from './NotificationSettingsModal';
-import EquipmentMapEditor from './EquipmentMapEditor';
+
 import { DeclarationSettings } from '../types';
 import {
     Plus,
@@ -50,6 +50,7 @@ interface DashboardProps {
     onLogout: () => void;
     onUserUpdate: () => void;
     onManageHierarchy: () => void;
+    onOpenMapEditor: () => void;
 }
 
 const CARTOON_AVATARS = [
@@ -60,7 +61,7 @@ const CARTOON_AVATARS = [
     "https://api.dicebear.com/9.x/avataaars/svg?seed=Ginger"
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor }) => {
     const { t, language, setLanguage } = useLanguage();
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
@@ -76,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
     // Map State
-    const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+
 
     useEffect(() => {
         const fetchDeclarationSettings = async () => {
@@ -454,7 +455,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </button>
 
                         <button
-                            onClick={() => setIsMapModalOpen(true)}
+                            onClick={onOpenMapEditor}
                             className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
                         >
                             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
@@ -782,11 +783,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 user={user}
                 isOpen={isNotificationModalOpen}
                 onClose={() => setIsNotificationModalOpen(false)}
-            />
-            <EquipmentMapEditor
-                user={user}
-                isOpen={isMapModalOpen}
-                onClose={() => setIsMapModalOpen(false)}
             />
         </div>
     );

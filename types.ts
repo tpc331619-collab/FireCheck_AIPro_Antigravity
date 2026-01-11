@@ -105,6 +105,8 @@ export interface EquipmentMarker {
   equipmentId: string; // Linked equipment ID (can be empty initially)
   x: number; // Percentage (0-100)
   y: number; // Percentage (0-100)
+  size?: 'small' | 'medium' | 'large';
+  color?: string;
 }
 
 export interface EquipmentMap {
@@ -114,5 +116,8 @@ export interface EquipmentMap {
   imageUrl: string; // Base64 or URL
   markers: EquipmentMarker[];
   rotation?: number; // 0, 90, 180, 270
+  markerSize?: 'small' | 'medium' | 'large';
+  markerColor?: string; // e.g. 'red', 'blue', 'green'
   updatedAt: number;
+  size?: number; // File size in bytes
 }

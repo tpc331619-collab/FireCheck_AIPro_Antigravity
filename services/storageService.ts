@@ -1,7 +1,7 @@
 import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap } from '../types';
 import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
 
 const LOCAL_STORAGE_KEY = 'firecheck_reports';
 const EQUIP_STORAGE_KEY = 'firecheck_equipments';
@@ -417,7 +417,28 @@ export const StorageService = {
 
     if (!this.isGuest && db && !mapId.startsWith('local_')) {
       try {
-        await deleteDoc(doc(db, 'maps', mapId));
+        const mapRef = doc(db, 'maps', mapId);
+
+        // 1. Get the map data first to find the image URL
+        const mapSnap = await getDoc(mapRef);
+        if (mapSnap.exists()) {
+          const mapData = mapSnap.data() as EquipmentMap;
+
+          if (mapData.imageUrl && mapData.imageUrl.includes('firebasestorage')) {
+            try {
+              // 2. Delete the image from Storage
+              const imageRef = ref(storage, mapData.imageUrl);
+              await deleteObject(imageRef);
+              console.log(`[Storage] Deleted image for map ${mapId}`);
+            } catch (err) {
+              console.warn("[Storage] Failed to delete image file:", err);
+              // Continue to delete document even if image delete fails
+            }
+          }
+        }
+
+        // 3. Delete the document
+        await deleteDoc(mapRef);
       } catch (e) {
         console.error("Delete map error", e);
       }
@@ -438,6 +459,120 @@ export const StorageService = {
       return downloadURL;
     } catch (e) {
       console.error("Upload map image error", e);
+      throw e;
+    }
+  },
+
+  async uploadBlob(blob: Blob, filename: string, userId: string): Promise<string> {
+    if (this.isGuest || !storage) throw new Error("Guest mode");
+    try {
+      const timestamp = Date.now();
+      const storageRef = ref(storage, `maps/${userId}/${timestamp}_${filename}`);
+      const snapshot = await uploadBytes(storageRef, blob);
+      return await getDownloadURL(snapshot.ref);
+    } catch (e) {
+      console.error("Upload blob error", e);
+      throw e;
+    }
+  },
+
+  async syncMapsFromStorage(userId: string): Promise<number> {
+    if (this.isGuest || !storage || !db) return 0;
+
+    try {
+      // 1. Get all existing maps to avoid duplicates
+      const existingMaps = await this.getEquipmentMaps(userId);
+      const existingUrls = new Set(existingMaps.map(m => m.imageUrl));
+
+      // 2. List all files in storage
+      const listRef = ref(storage, `maps/${userId}`);
+      const res = await listAll(listRef);
+
+      let addedCount = 0;
+
+      // 3. Check each file
+      for (const itemRef of res.items) {
+        const downloadURL = await getDownloadURL(itemRef);
+
+        // Simple check: if URL already known, skip
+        if (existingUrls.has(downloadURL)) continue;
+
+        // Double check: sometimes URL params differ, check storage path in URL?
+        // Actually, if we have the exact downloadURL it implies same token. 
+        // A better check matches the "path". 
+        // Existing maps store 'imageUrl'. 
+        // Let's assume strict equality first.
+
+        // 4. Create missing map
+        // Filename format: timestamp_name.ext
+        const fullName = itemRef.name;
+        // Try to extract real name: remove leading digits and underscore
+        const nameMatch = fullName.match(/^\d+_(.+)$/);
+        const displayName = nameMatch ? nameMatch[1].split('.')[0] : fullName.split('.')[0];
+
+        // Fetch metadata for size
+        let fileSize = 0;
+        try {
+          const metadata = await getMetadata(itemRef);
+          fileSize = metadata.size;
+        } catch (err) {
+          console.warn("Failed to get metadata for", fullName);
+        }
+
+        const newMap: Omit<EquipmentMap, 'id'> = {
+          userId,
+          name: displayName,
+          imageUrl: downloadURL,
+          markers: [],
+          updatedAt: Date.now(),
+          markerSize: 'medium',
+          markerColor: 'red',
+          size: fileSize
+        };
+
+        await addDoc(collection(db, 'maps'), newMap);
+        addedCount++;
+      }
+
+      return addedCount;
+    } catch (e) {
+      console.error("Sync maps error", e);
+      throw e;
+    }
+  },
+
+  async getStorageFiles(userId: string) {
+    if (this.isGuest || !storage) return [];
+    try {
+      const listRef = ref(storage, `maps/${userId}`);
+      const res = await listAll(listRef);
+
+      const filesPromise = res.items.map(async (itemRef) => {
+        const metadata = await getMetadata(itemRef);
+        const url = await getDownloadURL(itemRef);
+        return {
+          name: itemRef.name,
+          fullPath: itemRef.fullPath,
+          size: metadata.size,
+          timeCreated: metadata.timeCreated,
+          url: url
+        };
+      });
+
+      return Promise.all(filesPromise);
+    } catch (e) {
+      console.error("Get storage files error", e);
+      return [];
+    }
+  },
+
+  async deleteStorageFile(fullPath: string) {
+    if (this.isGuest || !storage) return;
+    try {
+      const fileRef = ref(storage, fullPath);
+      await deleteObject(fileRef);
+    } catch (e) {
+      console.error("Delete storage file error", e);
       throw e;
     }
   }

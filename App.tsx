@@ -7,6 +7,7 @@ import EquipmentManager from './components/EquipmentManager';
 import MyEquipment from './components/MyEquipment';
 import ChecklistInspection from './components/ChecklistInspection';
 import HierarchyManager from './components/HierarchyManager';
+import EquipmentMapEditor from './components/EquipmentMapEditor'; // Import added
 import { UserProfile, InspectionReport, EquipmentDefinition } from './types';
 import { StorageService } from './services/storageService';
 import { auth } from './services/firebase';
@@ -15,7 +16,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT' | 'CHECKLIST_INSPECTION' | 'HIERARCHY_MANAGER'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT' | 'CHECKLIST_INSPECTION' | 'HIERARCHY_MANAGER' | 'MAP_EDITOR'>('DASHBOARD');
   const [selectedReport, setSelectedReport] = useState<InspectionReport | undefined>(undefined);
   const [editingEquipment, setEditingEquipment] = useState<EquipmentDefinition | null>(null);
   const [initializing, setInitializing] = useState(true);
@@ -83,10 +84,34 @@ const App: React.FC = () => {
     }
   };
 
+  // Check for standalone mode (New Window)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'standalone') {
+      // We wait for auth to check user
+    }
+  }, []);
+
   if (initializing) return <div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div></div>;
 
   if (!user) {
     return <Auth onLogin={handleLogin} />;
+  }
+
+  // Standalone Editor Mode
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mode') === 'standalone') {
+    const initialMapId = urlParams.get('mapId') || undefined;
+    return (
+      <div className="h-screen w-full bg-slate-50">
+        <EquipmentMapEditor
+          user={user}
+          isOpen={true}
+          onClose={() => window.close()}
+          initialMapId={initialMapId}
+        />
+      </div>
+    );
   }
 
   return (
@@ -110,6 +135,13 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           onUserUpdate={handleUserUpdate}
           onManageHierarchy={() => setCurrentView('HIERARCHY_MANAGER')}
+          onOpenMapEditor={() => setCurrentView('MAP_EDITOR')}
+        />
+      ) : currentView === 'MAP_EDITOR' ? (
+        <EquipmentMapEditor
+          user={user}
+          isOpen={true}
+          onClose={() => setCurrentView('DASHBOARD')}
         />
       ) : currentView === 'HIERARCHY_MANAGER' ? (
         <HierarchyManager

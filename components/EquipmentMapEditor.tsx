@@ -1,17 +1,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { UserProfile, EquipmentMap, EquipmentMarker } from '../types';
+import StorageManagerModal from './StorageManagerModal';
 
 interface EquipmentMapEditorProps {
     user: UserProfile;
     isOpen: boolean;
     onClose: () => void;
     existingMap?: EquipmentMap | null;
+    initialMapId?: string;
 }
 
-const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap }) => {
+const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId }) => {
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
 
@@ -24,20 +26,35 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
     // Map Name
     const [mapName, setMapName] = useState('');
+    const [isStorageManagerOpen, setIsStorageManagerOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<'MANAGE' | 'SELECT'>('MANAGE');
 
     // Transform State
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
     const [showGrid, setShowGrid] = useState(false);
 
-    // Drag State
+    // Marker Settings
+    const [markerSize, setMarkerSize] = useState<'small' | 'medium' | 'large'>('medium');
+    const [markerColor, setMarkerColor] = useState('red');
+
+    // Drag & Selection State
     const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
+    const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (isOpen) {
-            loadMaps();
+            loadMaps().then((data) => {
+                if (initialMapId && data) {
+                    const target = data.find(m => m.id === initialMapId);
+                    if (target) {
+                        // Small delay to ensure state acts correctly
+                        setTimeout(() => editMap(target), 100);
+                    }
+                }
+            });
         }
     }, [isOpen, user.uid]);
 
@@ -45,33 +62,123 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         const data = await StorageService.getEquipmentMaps(user.uid);
         setMaps(data);
         setViewMode('LIST');
+        return data; // Return data for chaining
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSyncMaps = async () => {
+        setIsSaving(true);
+        try {
+            const added = await StorageService.syncMapsFromStorage(user.uid);
+            if (added > 0) {
+                alert(`同步完成，已還原 ${added} 張圖面`);
+                await loadMaps();
+            } else {
+                alert('同步完成，無新增圖面');
+            }
+        } catch (error: any) {
+            console.error(error);
+            alert('同步失敗: ' + (error.message || error));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSelectFile = async (file: any) => {
+        setIsStorageManagerOpen(false);
+
+        // Check if map already exists
+        const existingMap = maps.find(m => m.imageUrl === file.url);
+        if (existingMap) {
+            editMap(existingMap);
+            return;
+        }
+
+        // Create new map
+        setIsSaving(true);
+        try {
+            // Extract name logic similar to sync
+            const match = file.name.match(/^\d+_(.+)$/);
+            const displayName = match ? match[1].split('.')[0] : file.name.split('.')[0];
+
+            const newMap: Omit<EquipmentMap, 'id'> = {
+                userId: user.uid,
+                name: displayName,
+                imageUrl: file.url,
+                markers: [],
+                updatedAt: Date.now(),
+                markerSize: 'medium',
+                markerColor: 'red'
+            };
+
+            const docId = await StorageService.saveEquipmentMap(newMap, user.uid);
+            const createdMap = { ...newMap, id: docId };
+            setMaps([...maps, createdMap]);
+            editMap(createdMap);
+        } catch (error) {
+            console.error("Failed to create map from selection", error);
+            alert("建立圖面失敗");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            // File Size Limit (5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                alert('檔案大小超過 5MB，請上傳較小的圖片以確保系統穩定。');
+            // File Size Limit (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('檔案大小超過 10MB，請上傳較小的圖片以確保系統穩定。');
                 return;
             }
-            setSelectedFile(file);
-            const reader = new FileReader();
-            reader.onload = (event) => {
+
+            // Start Loading UI
+            setIsSaving(true);
+
+            try {
+                // 1. Upload immediately to Storage (Cloud)
+                const storageUrl = await StorageService.uploadMapImage(file, user.uid);
+
+                // 2. Use Local Blob for Display (Avoids CORS/Loading issues)
+                const blobUrl = URL.createObjectURL(file);
                 const img = new Image();
+                img.crossOrigin = "anonymous";
                 img.onload = () => {
                     setImage(img);
-                    // Initialize new map
-                    setCurrentMap(null);
+
+                    // 3. Set Current Map with the REAL Storage URL
+                    // This ensures handleSave uses the cloud URL, not the blob URL
+                    setCurrentMap({
+                        id: '',
+                        name: file.name.split('.')[0],
+                        imageUrl: storageUrl, // IMPORTANT: Store the remote URL
+                        markers: [],
+                        updatedAt: Date.now()
+                    });
+
                     setMarkers([]);
                     setMapName(file.name.split('.')[0]);
-                    setZoom(1);
+                    setSelectedFile(null); // Clear selected file to prevent double upload
+
+                    // Smart Fit Logic
+                    fitImageToScreen();
+
                     setRotation(0);
+                    setMarkerSize('small');
+                    setMarkerColor('red');
                     setViewMode('EDIT');
+                    setIsSaving(false);
                 };
-                img.src = event.target?.result as string;
-            };
-            reader.readAsDataURL(file);
+                img.onerror = () => {
+                    alert('圖片載入失敗，無法讀取圖片。');
+                    setIsSaving(false);
+                };
+                img.src = blobUrl; // Load local blob
+
+            } catch (error) {
+                console.error("Upload failed", error);
+                alert('圖片上傳失敗：' + (error instanceof Error ? error.message : '未知錯誤'));
+                setIsSaving(false);
+            }
         }
     };
 
@@ -103,6 +210,14 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         const x = (e.nativeEvent.offsetX / target.clientWidth) * 100;
         const y = (e.nativeEvent.offsetY / target.clientHeight) * 100;
 
+        // If clicking on background, deselect marker logic is handled elsewhere or here?
+        // Actually if we click to create a new marker, we probably want to select it?
+        // But for now, let's keep creation logic.
+
+        // Deselect any selected marker if we are clicking bg (unless we clicked a marker, handled by propagation)
+        // Checks are done in early return.
+        setSelectedMarkerId(null);
+
         const newMarker: EquipmentMarker = {
             id: Date.now().toString(),
             equipmentId: '',
@@ -111,6 +226,13 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         };
 
         setMarkers([...markers, newMarker]);
+        setSelectedMarkerId(newMarker.id); // Auto-select new marker
+    };
+
+    // Add explicit selection handler if needed, or stick to onClick
+    const handleMarkerClick = (e: React.MouseEvent, markerId: string) => {
+        e.stopPropagation();
+        setSelectedMarkerId(markerId);
     };
 
     const handleMarkerMouseDown = (e: React.MouseEvent, markerId: string) => {
@@ -217,13 +339,60 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
     };
 
-    const updateMarker = (id: string, equipmentId: string) => {
+    // Updated fitImageToScreen with robust fallback
+    const fitImageToScreen = () => {
+        if (!image || !imageContainerRef.current) return;
+
+        const img = image;
+        const container = imageContainerRef.current;
+
+        // Get container dimensions or fallback to window estimation
+        let availWidth = container.clientWidth;
+        let availHeight = container.clientHeight;
+
+        if (availWidth === 0 || availHeight === 0) {
+            // Fallback: Window - Sidebar (80px or 320px) - Padding
+            availWidth = window.innerWidth - (window.innerWidth >= 1024 ? 320 : 0) - 40;
+            availHeight = window.innerHeight - 80 - 40; // Toolbar - Padding
+        }
+
+        const scaleW = availWidth / img.naturalWidth;
+        const scaleH = availHeight / img.naturalHeight;
+
+        // "Contain" logic: Fit entirely within
+        let optimalZoom = Math.min(scaleW, scaleH);
+
+        // Safety clamps
+        if (optimalZoom < 0.1) optimalZoom = 0.1;
+        if (optimalZoom > 5) optimalZoom = 5;
+
+        setZoom(Number(optimalZoom.toFixed(2)));
+    };
+
+    // Auto-fit when image loads
+    useEffect(() => {
+        if (image) {
+            // Small timeout to ensure DOM is ready
+            setTimeout(fitImageToScreen, 100);
+        }
+    }, [image]);
+
+    const updateMarker = (id: string, updates: Partial<EquipmentMarker>) => {
+        setMarkers(markers.map(m => m.id === id ? { ...m, ...updates } : m));
+    };
+
+    const updateMarkerId = (id: string, equipmentId: string) => {
         setMarkers(markers.map(m => m.id === id ? { ...m, equipmentId } : m));
     };
 
-    const deleteMarker = (e: React.MouseEvent, id: string) => {
-        e.stopPropagation();
-        setMarkers(markers.filter(m => m.id !== id));
+    const deleteMarker = (e: React.MouseEvent | null, markerId: string) => {
+        if (e && e.stopPropagation) {
+            e.stopPropagation();
+        }
+        setMarkers(prev => prev.filter(m => m.id !== markerId));
+        if (selectedMarkerId === markerId) {
+            setSelectedMarkerId(null);
+        }
     };
 
     const handleSave = async () => {
@@ -231,21 +400,107 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         setIsSaving(true);
 
         try {
+            // Determine final image URL
             let finalImageUrl = image.src;
 
+            // Priority logic for map update
             if (selectedFile && !StorageService.isGuest) {
                 try {
                     finalImageUrl = await StorageService.uploadMapImage(selectedFile, user.uid);
                 } catch (e) {
-                    console.warn("Upload failed or guest mode, using Base64 fallback", e);
+                    console.warn("Upload failed, using Base64/Blob fallback", e);
+                }
+            } else if (currentMap?.imageUrl && currentMap.imageUrl.startsWith('http')) {
+                finalImageUrl = currentMap.imageUrl;
+            }
+
+            // --- Capture and Upload Edited Image (Snapshot) ---
+            if (!StorageService.isGuest) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        // Logic similar to Export
+                        const deg = rotation % 360;
+                        const rad = (deg * Math.PI) / 180;
+                        const isVertical = Math.abs(deg) === 90 || Math.abs(deg) === 270;
+                        const width = isVertical ? image.naturalHeight : image.naturalWidth;
+                        const height = isVertical ? image.naturalWidth : image.naturalHeight;
+                        canvas.width = width;
+                        canvas.height = height;
+
+                        // Background
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, width, height);
+
+                        // Draw Image
+                        ctx.save();
+                        ctx.translate(width / 2, height / 2);
+                        ctx.rotate(rad);
+                        ctx.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
+                        ctx.restore();
+
+                        // Draw Markers
+                        ctx.save();
+                        ctx.translate(width / 2, height / 2);
+                        ctx.rotate(rad);
+                        ctx.translate(-image.naturalWidth / 2, -image.naturalHeight / 2);
+
+                        markers.forEach((marker, idx) => {
+                            const mx = (marker.x / 100) * image.naturalWidth;
+                            const my = (marker.y / 100) * image.naturalHeight;
+                            const currentSize = marker.size || markerSize;
+                            const colorHex = '#ef4444';
+                            const radius = { small: 4, medium: 6, large: 8 }[currentSize] || 6;
+                            const fontSize = { small: 8, medium: 10, large: 12 }[currentSize] || 10;
+
+                            ctx.beginPath();
+                            ctx.arc(mx, my, radius, 0, 2 * Math.PI);
+                            ctx.fillStyle = colorHex;
+                            ctx.fill();
+
+                            ctx.save();
+                            ctx.translate(mx, my);
+                            ctx.rotate(-rad);
+                            ctx.fillStyle = 'white';
+                            ctx.font = `bold ${fontSize}px Arial`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText((idx + 1).toString(), 0, 0);
+                            ctx.restore();
+
+                            if (marker.equipmentId) {
+                                ctx.fillStyle = 'black';
+                                ctx.font = 'bold 16px Arial';
+                                ctx.strokeStyle = 'white';
+                                ctx.lineWidth = 4;
+                                ctx.strokeText(marker.equipmentId, mx, my + 35);
+                                ctx.fillText(marker.equipmentId, mx, my + 35);
+                            }
+                        });
+                        ctx.restore();
+
+                        // Upload Blob
+                        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+                        if (blob) {
+                            const editFilename = `${mapName}_Edit.jpg`;
+                            await StorageService.uploadBlob(blob, editFilename, user.uid);
+                            console.log('Saved edited snapshot:', editFilename);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to upload edited snapshot", e);
                 }
             }
+            // ------------------------------------------------
 
             const mapData: any = {
                 name: mapName,
                 imageUrl: finalImageUrl,
                 markers: markers,
-                rotation: rotation, // Save rotation
+                rotation: rotation,
+                markerSize: markerSize,
+                markerColor: markerColor,
             };
 
             if (currentMap?.id) {
@@ -306,21 +561,35 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             const mx = (marker.x / 100) * image.naturalWidth;
             const my = (marker.y / 100) * image.naturalHeight;
 
-            // Draw Red Circle
-            ctx.beginPath();
-            ctx.arc(mx, my, 20, 0, 2 * Math.PI);
-            ctx.fillStyle = 'red';
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            // Individual or Global Settings
+            const currentSize = marker.size || markerSize;
+            // Force Red Color
+            const colorHex = '#ef4444'; // Tailwind Red-500
 
-            // Draw Number
+            // Dimensions based on markerSize (Refined for "Tiny" request)
+            const radius = { small: 4, medium: 6, large: 8 }[currentSize] || 6;
+            const fontSize = { small: 8, medium: 10, large: 12 }[currentSize] || 10;
+
+            // Draw Circle
+            ctx.beginPath();
+            ctx.arc(mx, my, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = colorHex;
+            ctx.fill();
+            // No border
+
+            // Draw Number with Counter-Rotation
+            ctx.save();
+            ctx.translate(mx, my);
+            ctx.rotate(-rad);
+
             ctx.fillStyle = 'white';
-            ctx.font = 'bold 16px Arial';
+            ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText((idx + 1).toString(), mx, my);
+            ctx.fillText((idx + 1).toString(), 0, 0);
+
+            ctx.restore();
+
 
             // Draw Label
             if (marker.equipmentId) {
@@ -357,7 +626,16 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             setMarkers(map.markers);
             setMapName(map.name);
             setRotation(map.rotation || 0); // Load rotation
-            setZoom(1);
+            setMarkerSize(map.markerSize || 'medium');
+            setMarkerColor(map.markerColor || 'red');
+            setMapName(map.name);
+            setRotation(map.rotation || 0); // Load rotation
+            setMarkerSize(map.markerSize || 'medium');
+            setMarkerColor(map.markerColor || 'red');
+
+            // Auto fit
+            setTimeout(() => fitImageToScreen(), 100);
+
             setSelectedFile(null);
             setViewMode('EDIT');
         };
@@ -382,79 +660,153 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/90 z-50 flex flex-col backdrop-blur-sm animate-in fade-in duration-200 h-[100dvh]">
+        <div className="fixed inset-0 bg-slate-900/90 z-50 flex flex-col backdrop-blur-sm animate-in fade-in duration-200 h-[100dvh] relative">
+            {/* Global Loading Overlay */}
+            {isSaving && (
+                <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                    <p className="text-lg font-bold text-slate-700 animate-pulse">正在處理中，請稍候...</p>
+                </div>
+            )}
 
             {/* Header */}
-            <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shrink-0">
-                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                    <MapPin className="w-6 h-6 text-red-500" />
-                    {viewMode === 'LIST' ? '消防設備位置圖' : (currentMap ? '編輯位置圖' : '建立新位置圖')}
-                </h2>
-                <div className="flex items-center gap-2">
-                    {viewMode === 'EDIT' && (
-                        <button onClick={() => setViewMode('LIST')} className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition-colors">
-                            返回列表
-                        </button>
-                    )}
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <X className="w-6 h-6 text-slate-500" />
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shrink-0 shadow-sm z-30">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            if (viewMode === 'EDIT') {
+                                setViewMode('LIST');
+                            } else {
+                                onClose();
+                            }
+                        }}
+                        className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
+                        title="回上一頁"
+                    >
+                        <ArrowLeft className="w-6 h-6" />
                     </button>
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                        <MapPin className="w-6 h-6 text-red-500" />
+                        {viewMode === 'LIST' ? '消防設備位置圖管理' : '編輯位置圖'}
+                    </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                    {/* Right side actions if any */}
                 </div>
             </div>
-            <div className="flex-1 overflow-hidden flex flex-col">
-                {viewMode === 'LIST' ? (
-                    <div className="flex-1 overflow-y-auto p-8">
-                        <div className="max-w-6xl mx-auto">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                <label className="aspect-video bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:border-red-500 hover:bg-slate-50 transition-all group">
-                                    <input type="file" accept="image/png, image/jpeg, image/svg+xml, image/webp" className="hidden" onChange={handleFileUpload} />
-                                    <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                        <Plus className="w-8 h-8 text-slate-400 group-hover:text-red-500" />
-                                    </div>
-                                    <span className="font-bold text-slate-500 group-hover:text-slate-800">建立新位置圖</span>
-                                    <span className="text-xs text-slate-400 mt-1">支援 JPG, PNG, SVG, WebP</span>
-                                </label>
 
-                                {/* Existing Maps */}
-                                {maps.map(map => (
-                                    <div key={map.id} onClick={() => editMap(map)} className="aspect-video bg-white rounded-2xl border border-slate-200 shadow-sm relative group overflow-hidden cursor-pointer hover:shadow-md hover:border-red-200 transition-all">
-                                        <div className="w-full h-full p-2 bg-slate-50">
-                                            <img
-                                                src={map.imageUrl}
-                                                alt={map.name}
-                                                className="w-full h-full object-contain mix-blend-multiply"
-                                                style={{ transform: `rotate(${map.rotation || 0}deg)` }}
-                                            />
-                                        </div>
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-4">
-                                            <h3 className="text-white font-bold truncate">{map.name}</h3>
-                                            <span className="text-white/70 text-xs">{map.markers.length} 個標記</span>
-                                        </div>
-                                        <button
-                                            onClick={(e) => deleteMap(e, map.id)}
-                                            className="absolute top-2 right-2 p-2 bg-white/90 rounded-lg text-slate-600 opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all"
+            <div className="flex-1 overflow-hidden flex flex-col bg-slate-50">
+                {viewMode === 'LIST' ? (
+                    //  === LIST VIEW ===
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+                        <div className="max-w-7xl mx-auto space-y-6">
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-bold text-slate-700">已上傳圖片清單</h3>
+                                <div className="flex items-center gap-4">
+                                    <p className="text-sm text-slate-500">共 {maps.length} 張圖面</p>
+                                    <button
+                                        onClick={handleSyncMaps}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-bold transition-colors"
+                                    >
+                                        <RefreshCcw className="w-4 h-4" />
+                                        同步雲端
+                                    </button>
+                                    <button
+                                        onClick={() => setIsStorageManagerOpen(true)}
+                                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors"
+                                    >
+                                        <Upload className="w-4 h-4" />
+                                        雲端圖庫
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Map List Table View */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="bg-slate-50 border-b border-slate-200">
+                                        <tr>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">預覽</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">圖面名稱</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">大小</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">最後編輯</th>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {/* Create New Row */}
+                                        <tr
+                                            onClick={() => {
+                                                setModalMode('SELECT');
+                                                setIsStorageManagerOpen(true);
+                                            }}
+                                            className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
                                         >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                ))}
+                                            <td className="px-6 py-4">
+                                                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                                                    <Plus className="w-6 h-6" />
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4" colSpan={4}>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">建立新位置圖</span>
+                                                    <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">從雲端圖庫選擇</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+
+                                        {/* Existing Maps */}
+                                        {maps.map(map => (
+                                            <tr key={map.id} onClick={() => editMap(map)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                                <td className="px-6 py-4">
+                                                    <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 relative">
+                                                        <img
+                                                            src={map.imageUrl}
+                                                            alt={map.name}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="font-bold text-slate-700 text-base group-hover:text-blue-600 transition-colors">{map.name}</div>
+                                                    <div className="text-xs text-slate-400 mt-0.5">{map.markers?.length || 0} 個標記</div>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-slate-600 font-mono">
+                                                    {map.size ? (map.size / 1024 / 1024).toFixed(2) + ' MB' : '-'}
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-slate-600">
+                                                    {new Date(map.updatedAt).toLocaleString('zh-TW')}
+                                                </td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <button
+                                                        onClick={(e) => deleteMap(e, map.id)}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                        title="刪除"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 flex flex-col lg:flex-row-reverse overflow-hidden bg-slate-100">
+                    // === EDIT VIEW ===
+                    <div className="flex-1 flex overflow-hidden bg-slate-100">
 
-                        {/* Canvas Area (DOM First -> Top on Mobile, Right on Desktop via flex-row-reverse) */}
-                        <div className="h-[35dvh] lg:h-full lg:flex-1 overflow-hidden relative flex items-center justify-center bg-slate-100 pattern-grid-lg text-slate-300 border-b lg:border-b-0 lg:border-l border-slate-200 shadow-inner">
+                        {/* Middle Canvas */}
+                        <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner">
 
                             {/* Floating Toolbar */}
-                            {/* Floating Toolbar - Unified Glass Design */}
-                            <div className="absolute top-4 lg:top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md shadow-xl border border-white/50 rounded-full px-4 py-2 flex items-center gap-2 z-30 transition-all hover:bg-white/95 hover:shadow-2xl hover:scale-105">
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 rounded-full px-4 py-2 flex items-center gap-2 z-30">
                                 <div className="flex items-center gap-1">
                                     <button onClick={zoomOut} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom Out">
                                         <ZoomOut className="w-5 h-5" />
                                     </button>
-                                    <span className="text-xs font-mono font-bold w-12 text-center select-none text-slate-600 hidden lg:block">{Math.round(zoom * 100)}%</span>
+                                    <span className="text-xs font-mono font-bold w-12 text-center select-none text-slate-600">{Math.round(zoom * 100)}%</span>
                                     <button onClick={zoomIn} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom In">
                                         <ZoomIn className="w-5 h-5" />
                                     </button>
@@ -478,13 +830,13 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 </button>
                             </div>
 
-                            {/* Scrollable Container */}
+                            {/* Canvas Scroll Area */}
                             <div className="w-full h-full overflow-auto flex items-center justify-center p-20 cursor-move">
                                 <div
                                     className="transition-transform duration-200 ease-out origin-center select-none relative shadow-2xl ring-4 ring-white/50"
                                     style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
                                 >
-                                    {/* Inner Image Container - receives clicks */}
+                                    {/* Inner Image Container */}
                                     {image && (
                                         <div
                                             ref={imageContainerRef}
@@ -493,11 +845,10 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             <img
                                                 src={image.src}
                                                 alt="Map"
-                                                className="block w-auto h-auto max-w-full max-h-[50vh] lg:max-h-[calc(100vh-200px)] pointer-events-none object-contain"
-                                            // Events handled by parent div
+                                                className="block w-auto h-auto max-w-full max-h-[calc(100vh-200px)] pointer-events-none object-contain"
                                             />
 
-                                            {/* Grid Overlay */}
+                                            {/* Grid */}
                                             {showGrid && (
                                                 <div
                                                     className="absolute inset-0 z-0 grid-overlay"
@@ -510,7 +861,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 ></div>
                                             )}
 
-                                            {/* Click Handler Overlay (Always present to catch clicks on image) */}
+                                            {/* Click Handler */}
                                             <div
                                                 className={`absolute inset-0 z-0 click-handler ${draggingMarkerId ? 'cursor-grabbing' : ''}`}
                                                 onClick={handleImageClick}
@@ -520,132 +871,202 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             ></div>
 
                                             {/* Markers */}
-                                            {markers.map((marker, idx) => (
-                                                <div
-                                                    key={marker.id}
-                                                    className={`absolute w-4 h-4 md:w-6 md:h-6 lg:w-8 lg:h-8 -ml-2 -mt-2 md:-ml-3 md:-mt-3 lg:-ml-4 lg:-mt-4 bg-red-500 border border-white rounded-full flex items-center justify-center shadow-md hover:scale-125 z-10 group cursor-grab ${draggingMarkerId === marker.id ? 'opacity-80 scale-110 cursor-grabbing pointer-events-none' : ''}`}
-                                                    style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
-                                                    onMouseDown={(e) => handleMarkerMouseDown(e, marker.id)}
-                                                    onClick={(e) => { e.stopPropagation(); }}
-                                                >
-                                                    <span className="text-white text-[8px] md:text-[10px] lg:text-xs font-bold select-none">{idx + 1}</span>
+                                            {markers.map((marker, idx) => {
+                                                const currentSize = marker.size || markerSize;
+                                                const colorClasses = 'bg-red-500';
 
-                                                    {/* Tooltip */}
-                                                    <div className="absolute bottom-full mb-1 lg:mb-2 bg-slate-900/90 backdrop-blur text-white text-[10px] lg:text-xs px-1.5 py-0.5 lg:px-2 lg:py-1 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
-                                                        {marker.equipmentId || '未命名'}
-                                                    </div>
+                                                const sizeClasses = {
+                                                    small: 'w-2 h-2 md:w-2.5 md:h-2.5 -ml-1 -mt-1 md:-ml-1.5 md:-mt-1.5',
+                                                    medium: 'w-3 h-3 md:w-3.5 md:h-3.5 -ml-1.5 -mt-1.5 md:-ml-2 md:-mt-2',
+                                                    large: 'w-4 h-4 md:w-5 md:h-5 -ml-2 -mt-2 md:-ml-2.5 md:-mt-2.5'
+                                                }[currentSize];
 
-                                                    <button
-                                                        onClick={(e) => deleteMarker(e, marker.id)}
-                                                        className="absolute -top-2 -right-2 bg-white rounded-full p-0.5 lg:p-1 shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-all hover:text-red-600 hover:scale-110"
+                                                const textSizeClasses = {
+                                                    small: 'text-[10px]',
+                                                    medium: 'text-[10px]',
+                                                    large: 'text-xs'
+                                                }[currentSize];
+
+                                                return (
+                                                    <div
+                                                        key={marker.id}
+                                                        className={`absolute ${sizeClasses} ${colorClasses} rounded-full flex items-center justify-center shadow-sm hover:scale-150 z-10 group cursor-grab 
+                                                            ${draggingMarkerId === marker.id ? 'opacity-80 scale-125 cursor-grabbing pointer-events-none' : ''}
+                                                            ${selectedMarkerId === marker.id ? 'ring-4 ring-blue-400 ring-opacity-75 z-20' : ''}
+                                                        `}
+                                                        style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+                                                        onMouseDown={(e) => handleMarkerMouseDown(e, marker.id)}
+                                                        onClick={(e) => handleMarkerClick(e, marker.id)}
                                                     >
-                                                        <X className="w-2 h-2 lg:w-3 lg:h-3" />
-                                                    </button>
-                                                </div>
-                                            ))}
+                                                        <div
+                                                            className="flex items-center justify-center relative w-full h-full pointer-events-none"
+                                                            style={{ transform: `rotate(${-rotation}deg)` }}
+                                                        >
+                                                            <span className={`text-white font-bold select-none leading-none ${textSizeClasses} ${currentSize === 'small' ? 'scale-[0.6]' : ''}`}>
+                                                                {idx + 1}
+                                                            </span>
+                                                            <div className="absolute bottom-full mb-1 bg-slate-900/90 backdrop-blur text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
+                                                                {marker.equipmentId || '未命名'}
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => deleteMarker(e, marker.id)}
+                                                            className="absolute -top-4 -right-4 bg-white rounded-full p-0.5 shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-all hover:text-red-600 hover:scale-110 z-30 w-4 h-4 flex items-center justify-center"
+                                                        >
+                                                            <X className="w-2 h-2" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
                             </div>
+
+                            {/* Modal */}
+                            {selectedMarkerId && (() => {
+                                const marker = markers.find(m => m.id === selectedMarkerId);
+                                if (!marker) return null;
+                                const idx = markers.findIndex(m => m.id === selectedMarkerId);
+
+                                return (
+                                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animation-in fade-in duration-200">
+                                        <div
+                                            className="w-80 bg-white shadow-2xl rounded-2xl border border-white/20 overflow-hidden transform scale-100 transition-all"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <div className="flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-100">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs ring-4 ring-blue-50">
+                                                        {idx + 1}
+                                                    </div>
+                                                    <h3 className="text-sm font-bold text-slate-700">編輯標記內容</h3>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        deleteMarker(e, marker.id);
+                                                        setSelectedMarkerId(null);
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="刪除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+
+                                            <div className="p-5 space-y-5">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">設備編號 (ID)</label>
+                                                    <input
+                                                        type="text"
+                                                        value={marker.equipmentId}
+                                                        onChange={(e) => updateMarker(marker.id, { equipmentId: e.target.value })}
+                                                        placeholder="輸入編號..."
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700 text-lg"
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">標記大小</label>
+                                                    <div className="flex gap-2">
+                                                        {(['small', 'medium', 'large'] as const).map((size) => {
+                                                            const isSet = (marker.size || 'medium') === size;
+                                                            return (
+                                                                <button
+                                                                    key={size}
+                                                                    onClick={() => updateMarker(marker.id, { size })}
+                                                                    className={`flex-1 flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${isSet ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300 hover:bg-slate-50'}`}
+                                                                >
+                                                                    <span>{{ small: '小', medium: '中', large: '大' }[size]}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-3 pt-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            deleteMarker(e, marker.id);
+                                                            setSelectedMarkerId(null);
+                                                        }}
+                                                        className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                        刪除
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setSelectedMarkerId(null)}
+                                                        className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <Check className="w-5 h-5" />
+                                                        確定
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         {/* Tools Sidebar */}
                         <div className="flex-1 lg:flex-none w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-r border-slate-200 flex flex-col z-20 shadow-2xl shadow-slate-200/50 shrink-0 overflow-hidden">
-
-                            {/* Map Settings */}
-                            <div className="p-5 border-b border-slate-100 space-y-4 bg-slate-50/50">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">圖面名稱</label>
-                                    <div className="relative group">
-                                        <input
-                                            type="text"
-                                            value={mapName}
-                                            onChange={(e) => setMapName(e.target.value)}
-                                            className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 font-bold text-slate-800 transition-all placeholder:text-slate-300 group-hover:border-slate-200"
-                                            placeholder="輸入圖面名稱..."
-                                        />
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <MousePointer2 className="w-4 h-4 text-slate-300" />
+                            <div className="flex-1 overflow-y-auto">
+                                <div className="p-5 border-b border-slate-100 space-y-5 bg-slate-50/50">
+                                    <h3 className="text-sm font-bold text-slate-800">圖面設定</h3>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">圖面名稱</label>
+                                        <div className="relative group">
+                                            <input
+                                                type="text"
+                                                value={mapName}
+                                                onChange={(e) => setMapName(e.target.value)}
+                                                className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 font-bold text-slate-800 transition-all placeholder:text-slate-300 group-hover:border-slate-200"
+                                                placeholder="輸入圖面名稱..."
+                                            />
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <MousePointer2 className="w-4 h-4 text-slate-300" />
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Equipment List */}
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
-                                <div className="flex items-center justify-between px-1 mb-2">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">設備列表</h3>
-                                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md text-[10px] font-bold">{markers.length} 筆</span>
-                                </div>
-
-                                <div className="space-y-2">
-                                    {markers.map((marker, idx) => (
-                                        <div key={marker.id} className="flex items-center gap-3 bg-white p-2 pr-3 border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:border-red-100 hover:-translate-y-0.5 transition-all group duration-200">
-                                            <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center text-sm font-bold shrink-0 border border-red-100 group-hover:bg-red-500 group-hover:text-white transition-colors">
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <input
-                                                    type="text"
-                                                    value={marker.equipmentId}
-                                                    onChange={(e) => updateMarker(marker.id, e.target.value)}
-                                                    placeholder="輸入設備編號..."
-                                                    className="w-full text-sm font-bold text-slate-700 placeholder:text-slate-300 bg-transparent focus:outline-none focus:text-slate-900 border-b border-transparent focus:border-red-200 transition-colors pb-0.5"
-                                                />
-                                            </div>
-                                            <button
-                                                onClick={(e) => deleteMarker(e, marker.id)}
-                                                className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                title="移除標記"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {markers.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-3 border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                                            <MapPin className="w-6 h-6 text-slate-300" />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <p className="text-slate-500 font-bold text-sm">尚無標記</p>
-                                            <p className="text-slate-400 text-xs">請點擊右圖新增位置標記</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="p-4 border-t border-slate-200 bg-white">
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={handleExport}
-                                        className="w-full py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        匯出圖片
-                                    </button>
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={isSaving}
-                                        className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                    >
-                                        {isSaving ? (
-                                            <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div>
-                                        ) : (
-                                            <>
-                                                <Save className="w-4 h-4" />
-                                                儲存位置圖
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
+                            <div className="p-4 border-t border-slate-200 bg-white space-y-2 shrink-0 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                <button
+                                    onClick={handleExport}
+                                    className="w-full py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    匯出圖片
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? (
+                                        <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full"></div>
+                                    ) : (
+                                        <>
+                                            <Save className="w-4 h-4" />
+                                            儲存位置圖
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+            <StorageManagerModal
+                user={user}
+                isOpen={isStorageManagerOpen}
+                onClose={() => setIsStorageManagerOpen(false)}
+                onSelect={modalMode === 'SELECT' ? handleSelectFile : undefined}
+            />
         </div>
     );
 };
