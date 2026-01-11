@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp } from 'lucide-react';
-import { THEME_COLORS } from '../constants';
+import { THEME_COLORS, EQUIPMENT_HIERARCHY } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
-import { EquipmentDefinition, CheckCategory, CheckInputType, CustomCheckItem, UserProfile } from '../types';
+import { EquipmentDefinition, CheckCategory, CheckInputType, CustomCheckItem, UserProfile, EquipmentHierarchy } from '../types';
 
 const COMMON_UNITS = ['MPa', 'kgf/cm²', 'psi', 'bar', 'V', 'A', 'mA', 'kW', 'Hz', '°C', 'sec', 'min', 'm', 'cm', 'mm', 'kg', '%', 'ppm'];
 import { StorageService } from '../services/storageService';
@@ -30,11 +30,56 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
+  // Lifespan Settings
+  const [lifespan, setLifespan] = useState(''); // default empty or specific default
+  const [customLifespan, setCustomLifespan] = useState('');
+
+  // Hierarchy
+  const [eqCategory, setEqCategory] = useState('');
+  const [eqType, setEqType] = useState('');
+  const [eqDetail, setEqDetail] = useState('');
+
   // Notification Emails
   const [email1, setEmail1] = useState('');
   const [email2, setEmail2] = useState('');
   const [email3, setEmail3] = useState('');
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  // Dynamic Hierarchy State
+  const [hierarchy, setHierarchy] = useState<EquipmentHierarchy>({});
+
+  // Load Hierarchy on Mount
+  useEffect(() => {
+    const fetchHierarchy = async () => {
+      try {
+        const data = await StorageService.getEquipmentHierarchy(user.uid);
+        if (data) {
+          setHierarchy(data);
+        } else {
+          // Seed from constants if empty (filtering out Custom if desired, or just use as is but ignore '自定義' keys logic if new logic replaces it)
+          // Ideally we replicate the logic from HierarchyManager or just use constants directly but sanitized.
+          // For simplicity and consistency, let's replicate the seed logic or just use constants but prefer user data.
+          // If we use constants directly as fallback, we might get '自定義' options.
+          // The user wants to remove '自定義' dropdown logic.
+          // Let's seed same as HierarchyManager.
+          const seed: EquipmentHierarchy = {};
+          Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
+            if (cat === '自定義') return;
+            seed[cat] = {};
+            Object.entries(types).forEach(([type, details]) => {
+              if (type === '自定義') return;
+              const validDetails = Array.isArray(details) ? details.filter(d => d !== '自定義') : [];
+              seed[cat][type] = validDetails;
+            });
+          });
+          setHierarchy(seed);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchHierarchy();
+  }, [user.uid]);
 
   const [checkItems, setCheckItems] = useState<CustomCheckItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +109,17 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
         setStartDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
       }
 
+      if (initialData.lifespan) {
+        setLifespan(initialData.lifespan);
+        if (initialData.lifespan === 'custom') {
+          setCustomLifespan(initialData.customLifespan || '');
+        }
+      }
+
+      setEqCategory(initialData.equipmentCategory || '');
+      setEqType(initialData.equipmentType || '');
+      setEqDetail(initialData.equipmentDetail || '');
+
       setCheckItems(initialData.checkItems || []);
     } else {
       // Add Mode - Reset all fields
@@ -76,6 +132,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setCustomFrequency('');
       const d = new Date();
       setStartDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      setLifespan('');
+      setCustomLifespan('');
+      setEqCategory('');
+      setEqType('');
+      setEqDetail('');
       setEmail1('');
       setEmail2('');
       setEmail3('');
@@ -150,7 +211,12 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       barcode,
       checkFrequency: finalFrequency,
       checkStartDate: new Date(startDate).getTime(),
-      lastInspectedDate: initialData?.lastInspectedDate, // Preserve
+      lifespan,
+      customLifespan: lifespan === 'custom' ? customLifespan : null,
+      equipmentCategory: eqCategory,
+      equipmentType: eqType,
+      equipmentDetail: eqDetail,
+      lastInspectedDate: initialData?.lastInspectedDate || null, // Preserve or null
       notificationEmails: emails,
       checkItems,
       updatedAt: Date.now(),
@@ -199,6 +265,48 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       initialData?.lastInspectedDate
     );
     return next ? next.toLocaleDateString() : '-';
+  };
+
+  const getExpiryDatePreview = () => {
+    if (!lifespan) return '-';
+
+    const start = new Date(startDate);
+    if (isNaN(start.getTime())) return '-';
+
+    let yearsToAdd = 0;
+    let monthsToAdd = 0;
+
+    if (lifespan === 'custom') {
+      // Assuming custom input might be purely text for now, or we parse it if user enters number
+      // For simplicity, if custom is just text, we can't auto-calc. 
+      // But if user enters "5", we might assume years? 
+      // Let's assume custom is just a string marker for now unless we enforce format.
+      // To keep it simple and powerful, let's treat custom as "Years" if numeric, otherwise just show text.
+      const num = parseFloat(customLifespan);
+      if (!isNaN(num)) {
+        // Default custom to Years for calculation if it's a number
+        yearsToAdd = num;
+      } else {
+        return '依自訂內容';
+      }
+    } else {
+      switch (lifespan) {
+        case '1m': monthsToAdd = 1; break;
+        case '3m': monthsToAdd = 3; break;
+        case '1y': yearsToAdd = 1; break;
+        case '2y': yearsToAdd = 2; break;
+        case '3y': yearsToAdd = 3; break;
+        case '10y': yearsToAdd = 10; break;
+      }
+    }
+
+    const expiry = new Date(start);
+    expiry.setFullYear(expiry.getFullYear() + yearsToAdd);
+    expiry.setMonth(expiry.getMonth() + monthsToAdd);
+
+    // Subtract 1 day to be "end of" period? usually lifespan 1 year means until same date next year.
+    // Let's keep it same date.
+    return expiry.toLocaleDateString();
   };
 
   const renderCategorySection = (category: CheckCategory, icon: React.ReactNode, title: string) => {
@@ -409,15 +517,74 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
               {/* Equipment Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 md:col-span-2">
                   <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
                     {t('equipmentName')} <span className="text-red-500 ml-1">*</span>
                   </label>
+
+                  {/* Hierarchy Selection */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                    <select
+                      value={eqCategory}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEqCategory(val);
+                        setEqType('');
+                        setEqDetail('');
+                      }}
+                      className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                    >
+                      <option value="">選擇分類...</option>
+                      {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+
+                    <select
+                      value={eqType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEqType(val);
+                        setEqDetail('');
+                      }}
+                      disabled={!eqCategory}
+                      className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
+                    >
+                      <option value="">選擇種類...</option>
+                      {eqCategory && hierarchy[eqCategory] &&
+                        Object.keys(hierarchy[eqCategory]).map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))
+                      }
+                    </select>
+
+                    <select
+                      value={eqDetail}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEqDetail(val);
+                        // Auto-generate name logic if desired, or let user type?
+                        // User request: "後續就可以拿出來使用" (Use it later).
+                        // Usually selecting detail finishes the name.
+                        if (val) {
+                          setName(`${eqType} - ${val}`);
+                        }
+                      }}
+                      disabled={!eqType}
+                      className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
+                    >
+                      <option value="">選擇細項...</option>
+                      {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
+                        hierarchy[eqCategory][eqType].map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+
                   <input
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder={t('enterEquipmentName')}
+                    placeholder={t('enterEquipmentName') + " (或由上方選單自動帶入)"}
                     className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
                   />
                 </div>
@@ -520,6 +687,47 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                       已有檢查紀錄
                     </span>
                   )}
+                </div>
+
+                {/* Lifespan Settings */}
+                <div className="space-y-1.5 md:col-span-2 border-t border-slate-100 pt-3 mt-4">
+                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                    設定壽命
+                    <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">將於到期時發送通知</span>
+                  </label>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    <select
+                      value={lifespan}
+                      onChange={(e) => setLifespan(e.target.value)}
+                      className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors min-w-[120px]"
+                    >
+                      <option value="">未設定</option>
+                      <option value="1m">1 個月</option>
+                      <option value="3m">1 季 (3個月)</option>
+                      <option value="1y">1 年</option>
+                      <option value="2y">2 年</option>
+                      <option value="3y">3 年</option>
+                      <option value="10y">10 年</option>
+                      <option value="custom">自定義</option>
+                    </select>
+
+                    {lifespan === 'custom' && (
+                      <input
+                        type="text"
+                        value={customLifespan}
+                        onChange={(e) => setCustomLifespan(e.target.value)}
+                        placeholder="輸入壽命 (如: 5年)"
+                        className="w-40 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 animate-in fade-in slide-in-from-left-2"
+                      />
+                    )}
+
+                    {lifespan && (
+                      <div className="ml-auto text-xs font-medium text-slate-500 bg-orange-50 px-3 py-2 rounded-lg border border-orange-100 flex items-center gap-2">
+                        <span className="text-orange-500">預計到期日:</span>
+                        <span className="text-slate-700 font-bold text-sm">{getExpiryDatePreview()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
               </div>

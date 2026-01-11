@@ -75,9 +75,17 @@ export interface EquipmentDefinition {
   barcode: string;       // 新增設備編號
   checkFrequency?: string; // 新增檢查頻率
   checkStartDate?: number; // 新增檢查起算日期
+  lifespan?: string;       // 新增設備壽命
+  customLifespan?: string; // 自訂壽命 (當 lifespan='custom')
+  equipmentCategory?: string; // 設備大類
+  equipmentType?: string;     // 設備中類
+  equipmentDetail?: string;   // 設備細項
   lastInspectedDate?: number; // 最後一次檢查日期
   notificationEmails?: string[]; // 通知信箱 (最多3組)
   checkItems: CustomCheckItem[]; // 檢查項目列表
   updatedAt: number;
   createdAt?: number;    // 建立時間
 }
+
+// 設備階層結構
+export type EquipmentHierarchy = Record<string, Record<string, string[]>>;

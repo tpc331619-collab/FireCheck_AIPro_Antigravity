@@ -44,6 +44,7 @@ interface DashboardProps {
     onSelectReport: (report: InspectionReport) => void;
     onLogout: () => void;
     onUserUpdate: () => void;
+    onManageHierarchy: () => void;
 }
 
 const CARTOON_AVATARS = [
@@ -54,7 +55,7 @@ const CARTOON_AVATARS = [
     "https://api.dicebear.com/9.x/avataaars/svg?seed=Ginger"
 ];
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy }) => {
     const { t, language, setLanguage } = useLanguage();
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
@@ -377,6 +378,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <History className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
                             </div>
                             <span className="font-bold text-slate-700 z-10 text-center">{t('history')}</span>
+                        </button>
+
+                        <button
+                            onClick={onManageHierarchy}
+                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-teal-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center group-hover:bg-teal-600 transition-colors z-10">
+                                <Settings className="w-6 h-6 text-teal-600 group-hover:text-white transition-colors" />
+                            </div>
+                            <span className="font-bold text-slate-700 z-10 text-center">設備名稱管理</span>
                         </button>
                     </div>
 

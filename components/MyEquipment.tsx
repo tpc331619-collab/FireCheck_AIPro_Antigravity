@@ -26,6 +26,10 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const [loading, setLoading] = useState(true);
   const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
 
+
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
   // 基礎清單數據
   const [sites, setSites] = useState<string[]>([]);
   const [buildings, setBuildings] = useState<string[]>([]);
@@ -79,7 +83,14 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
   // 當篩選條件或總表改變時，計算過濾後的列表
   useEffect(() => {
-    if (selectedSite && selectedBuilding) {
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const filtered = allEquipment.filter(e =>
+        e.barcode.toLowerCase().includes(query) ||
+        e.name.toLowerCase().includes(query)
+      );
+      setFilteredEquipment(filtered);
+    } else if (selectedSite && selectedBuilding) {
       const filtered = allEquipment.filter(
         e => e.siteName === selectedSite && e.buildingName === selectedBuilding
       );
@@ -87,7 +98,12 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     } else {
       setFilteredEquipment([]);
     }
-  }, [selectedSite, selectedBuilding, allEquipment]);
+
+    // Sort by createdAt descending (newest first)
+    if (searchQuery.trim() || (selectedSite && selectedBuilding)) {
+      setFilteredEquipment(prev => [...prev].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+    }
+  }, [selectedSite, selectedBuilding, allEquipment, searchQuery]);
 
   const calculateNextInspection = (start: number | undefined, frequency: string | undefined) => {
     if (!start) return t('customSchedule');
@@ -210,98 +226,139 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
           ) : (
             <>
               {/* 篩選控制器 */}
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                    <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectSite')}
-                  </label>
-                  <select
-                    value={selectedSite || ''}
-                    onChange={(e) => onFilterChange(e.target.value || null, null)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none transition-colors"
-                  >
-                    <option value="">-- {t('all')} --</option>
-                    {sites.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 gap-6">
+                {/* Search Bar */}
+                <div className="mb-6 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="輸入設備編號或名稱搜尋..."
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                    </button>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                    <Building2 className="w-3.5 h-3.5 mr-1.5" /> {t('selectBuilding')}
-                  </label>
-                  <select
-                    value={selectedBuilding || ''}
-                    disabled={!selectedSite}
-                    onChange={(e) => onFilterChange(selectedSite, e.target.value || null)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
-                  >
-                    <option value="">-- {t('all')} --</option>
-                    {buildings.map(b => <option key={b} value={b}>{b}</option>)}
-                  </select>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
+                      <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectSite')}
+                    </label>
+                    <select
+                      value={selectedSite || ''}
+                      onChange={(e) => onFilterChange(e.target.value || null, null)}
+                      disabled={!!searchQuery}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none transition-colors disabled:opacity-50"
+                    >
+                      <option value="">-- {t('all')} --</option>
+                      {sites.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
+                      <Building2 className="w-3.5 h-3.5 mr-1.5" /> {t('selectBuilding')}
+                    </label>
+                    <select
+                      value={selectedBuilding || ''}
+                      disabled={!selectedSite || !!searchQuery}
+                      onChange={(e) => onFilterChange(selectedSite, e.target.value || null)}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                    >
+                      <option value="">-- {t('all')} --</option>
+                      {buildings.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* 設備卡片清單 */}
-              {selectedSite && selectedBuilding ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* 設備清單 (條列式) */}
+              {(selectedSite && selectedBuilding) || searchQuery ? (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   {filteredEquipment.length === 0 ? (
-                    <div className="col-span-full text-center py-20 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200">
+                    <div className="text-center py-20 bg-slate-50/50">
                       <p className="text-slate-400 font-medium">此路徑下目前無對應設備</p>
                     </div>
                   ) : (
-                    filteredEquipment.map(item => (
-                      <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:shadow-lg transition-all group overflow-hidden">
-                        <div className="p-5 space-y-4">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1 min-w-0 pr-2">
-                              <h3 className="font-bold text-lg text-slate-800 group-hover:text-red-600 transition-colors truncate">{item.name}</h3>
-                              <p className="text-xs font-mono text-slate-400 mt-1 uppercase tracking-wider">{item.barcode}</p>
+                    <div className="divide-y divide-slate-100">
+                      {filteredEquipment.map(item => (
+                        <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group">
+
+                          {/* Main Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-bold text-slate-800 text-lg group-hover:text-red-600 transition-colors truncate">
+                                {item.name}
+                              </h3>
+                              <span className="px-2 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-500">
+                                {item.barcode}
+                              </span>
                             </div>
-                            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 shrink-0">
-                              <QrCode className="w-5 h-5 text-slate-400" />
+
+                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                              <div className="flex items-center" title="新建日期">
+                                <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                <span>新建: {new Date(item.createdAt || 0).toLocaleDateString(language)}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <span className="mr-1">下一次檢查:</span>
+                                <span className={`${calculateNextInspection(item.checkStartDate, item.checkFrequency) === t('customSchedule') ? 'text-slate-500' : 'text-red-500 font-bold'}`}>
+                                  {calculateNextInspection(item.checkStartDate, item.checkFrequency)}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-xs py-3 border-y border-slate-50">
-                            <div className="flex items-center text-slate-500 font-medium">
-                              <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                              <span>{t('nextInspectionDate')}</span>
-                            </div>
-                            <span className="font-bold text-red-600 bg-red-50 px-2 py-1 rounded-md">
-                              {calculateNextInspection(item.checkStartDate, item.checkFrequency)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-1">
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={(e) => handleEdit(e, item)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors"
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title={t('edit')}
                             >
-                              <Edit2 className="w-3.5 h-3.5" /> {t('edit')}
+                              <Edit2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleCopy(e, item)}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-colors"
+                              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                              title={t('copy')}
                             >
-                              <Copy className="w-3.5 h-3.5" /> {t('copy')}
+                              <Copy className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleShowQr(e, item)}
-                              className="p-2.5 bg-slate-50 text-slate-600 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors"
+                              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
                               title={t('viewQr')}
                             >
                               <QrCode className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleDeleteClick(e, item)}
-                              className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors"
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                               title={t('delete')}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
+
+                          {/* Mobile Actions (Always visible on mobile) */}
+                          <div className="flex sm:hidden border-t border-slate-100 pt-3 mt-1 gap-2">
+                            <button onClick={(e) => handleEdit(e, item)} className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold center flex justify-center"><Edit2 className="w-3.5 h-3.5 mr-1" />編輯</button>
+                            <button onClick={(e) => handleDeleteClick(e, item)} className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold center flex justify-center"><Trash2 className="w-3.5 h-3.5 mr-1" />刪除</button>
+                          </div>
+
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               ) : (

@@ -6,6 +6,7 @@ import InspectionForm from './components/InspectionForm';
 import EquipmentManager from './components/EquipmentManager';
 import MyEquipment from './components/MyEquipment';
 import ChecklistInspection from './components/ChecklistInspection';
+import HierarchyManager from './components/HierarchyManager';
 import { UserProfile, InspectionReport, EquipmentDefinition } from './types';
 import { StorageService } from './services/storageService';
 import { auth } from './services/firebase';
@@ -14,7 +15,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT' | 'CHECKLIST_INSPECTION'>('DASHBOARD');
+  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT' | 'CHECKLIST_INSPECTION' | 'HIERARCHY_MANAGER'>('DASHBOARD');
   const [selectedReport, setSelectedReport] = useState<InspectionReport | undefined>(undefined);
   const [editingEquipment, setEditingEquipment] = useState<EquipmentDefinition | null>(null);
   const [initializing, setInitializing] = useState(true);
@@ -108,6 +109,12 @@ const App: React.FC = () => {
           }}
           onLogout={handleLogout}
           onUserUpdate={handleUserUpdate}
+          onManageHierarchy={() => setCurrentView('HIERARCHY_MANAGER')}
+        />
+      ) : currentView === 'HIERARCHY_MANAGER' ? (
+        <HierarchyManager
+          user={user}
+          onBack={() => setCurrentView('DASHBOARD')}
         />
       ) : currentView === 'EQUIPMENT_MANAGER' ? (
         <EquipmentManager
