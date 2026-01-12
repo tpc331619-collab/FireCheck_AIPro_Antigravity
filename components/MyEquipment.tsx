@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe } from 'lucide-react';
 import { EquipmentDefinition, UserProfile } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -38,6 +38,9 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
   // UI State for QR Popup
   const [viewQr, setViewQr] = useState<{ url: string, name: string, barcode: string } | null>(null);
+
+  // UI State for Photo Popup
+  const [viewPhoto, setViewPhoto] = useState<{ url: string, name: string } | null>(null);
 
   // UI State for Delete Confirmation
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string, name: string } | null>(null);
@@ -115,6 +118,15 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       setViewQr({ url, name: item.name, barcode: item.barcode });
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleShowPhoto = (e: React.MouseEvent, item: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = item.photoUrl || item.photoURL;
+    if (url) {
+      setViewPhoto({ url, name: item.name });
     }
   };
 
@@ -278,7 +290,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   ) : (
                     <div className="divide-y divide-slate-100">
                       {filteredEquipment.map(item => (
-                        <div key={item.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group">
+                        <div key={item.id} className="p-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 border-l-transparent hover:border-l-red-500">
 
                           {/* Main Info */}
                           <div className="flex-1 min-w-0">
@@ -303,12 +315,12 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                   return (
                                     <div className="flex items-center gap-2">
                                       <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${status.light === 'RED' ? 'bg-red-50 text-red-600 border-red-200' :
-                                          status.light === 'YELLOW' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                                            'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                        status.light === 'YELLOW' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                          'bg-emerald-50 text-emerald-600 border-emerald-200'
                                         }`}>
                                         <div className={`w-2 h-2 rounded-full ${status.light === 'RED' ? 'bg-red-500 animate-pulse' :
-                                            status.light === 'YELLOW' ? 'bg-amber-500' :
-                                              'bg-emerald-500'
+                                          status.light === 'YELLOW' ? 'bg-amber-500' :
+                                            'bg-emerald-500'
                                           }`}></div>
                                         {status.label}
                                       </div>
@@ -322,42 +334,47 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                           </div>
 
                           {/* Actions */}
-                          <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2 transition-all">
                             <button
-                              onClick={(e) => handleEdit(e, item)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title={t('edit')}
+                              onClick={(e) => handleShowPhoto(e, item)}
+                              className={`p-2.5 rounded-xl border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
+                              title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
+                              disabled={!(item.photoUrl || (item as any).photoURL)}
                             >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => handleCopy(e, item)}
-                              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
-                              title={t('copy')}
-                            >
-                              <Copy className="w-4 h-4" />
+                              <Image className="w-5 h-5" />
                             </button>
                             <button
                               onClick={(e) => handleShowQr(e, item)}
-                              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                              className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
                               title={t('viewQr')}
                             >
-                              <QrCode className="w-4 h-4" />
+                              <QrCode className="w-5 h-5" />
+                            </button>
+                            <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block"></div>
+                            <button
+                              onClick={(e) => handleEdit(e, item)}
+                              className="p-2.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl shadow-sm hover:bg-blue-100 transition-all active:scale-95"
+                              title={t('edit')}
+                            >
+                              <Edit2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={(e) => handleCopy(e, item)}
+                              className="p-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl shadow-sm hover:bg-slate-100 transition-all active:scale-95"
+                              title={t('copy')}
+                            >
+                              <Copy className="w-5 h-5" />
                             </button>
                             <button
                               onClick={(e) => handleDeleteClick(e, item)}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl shadow-sm hover:bg-red-100 transition-all active:scale-95"
                               title={t('delete')}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
 
-                          {/* Mobile Actions (Always visible on mobile) */}
-                          <div className="flex sm:hidden border-t border-slate-100 pt-3 mt-1 gap-2">
-                            <button onClick={(e) => handleEdit(e, item)} className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold center flex justify-center"><Edit2 className="w-3.5 h-3.5 mr-1" />編輯</button>
-                            <button onClick={(e) => handleDeleteClick(e, item)} className="flex-1 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold center flex justify-center"><Trash2 className="w-3.5 h-3.5 mr-1" />刪除</button>
-                          </div>
+
 
                         </div>
                       ))}
@@ -455,6 +472,75 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
           </div>
         )
       }
+      {/* Photo View Modal */}
+      {viewPhoto && (
+        <div className="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="relative max-w-2xl w-full flex flex-col items-center animate-in zoom-in-95 duration-300">
+            <button
+              onClick={() => setViewPhoto(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+            >
+              <X className="w-8 h-8" />
+            </button>
+
+            <div className="bg-white p-2 rounded-3xl shadow-2xl overflow-hidden mb-6 w-full aspect-square sm:aspect-auto sm:min-h-[400px] sm:max-h-[70vh] flex items-center justify-center relative bg-slate-50">
+              {/* Fallback & Loading Indicator */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 gap-2">
+                <Image className="w-12 h-12 animate-pulse" />
+                <span className="text-xs font-bold text-slate-400">正在努力讀取照片...</span>
+              </div>
+
+              <img
+                src={viewPhoto.url}
+                alt={viewPhoto.name}
+                className="relative z-10 max-w-full max-h-full object-contain rounded-2xl shadow-sm"
+                onLoad={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  if (target.previousElementSibling) {
+                    (target.previousElementSibling as HTMLElement).style.display = 'none';
+                  }
+                }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  if (target.previousElementSibling) {
+                    const fallback = target.previousElementSibling as HTMLElement;
+                    fallback.innerHTML = `<div class="text-center p-8"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-300"><path d="m21 21-18-18"/><path d="M10.45 4.45 12 3l12 12-1.45 1.45"/><path d="M14.91 14.91 21 21"/><path d="M16.5 16.5 12 21 0 9l1.45-1.45"/></svg><p class="text-red-400 font-bold">照片讀取失敗</p><p class="text-slate-400 text-xs mt-1">請確認圖片連結是否有效</p></div>`;
+                  }
+                }}
+              />
+            </div>
+
+            <div className="text-center px-4 mb-6">
+              <h3 className="font-bold text-xl text-white mb-1">{viewPhoto.name}</h3>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full">
+              <button
+                onClick={() => {
+                  window.open(viewPhoto.url, '_blank');
+                }}
+                className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-2 border border-slate-700 hover:bg-slate-700 transition-all active:scale-95"
+              >
+                <Globe className="w-5 h-5" /> 在瀏覽器開啟連結
+              </button>
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = viewPhoto.url;
+                  link.download = `Photo_${viewPhoto.name}.jpg`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="flex-1 py-4 bg-white text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all shadow-xl active:scale-95 border border-transparent"
+              >
+                <Download className="w-5 h-5" /> 下載照片
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

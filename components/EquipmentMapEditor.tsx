@@ -1,9 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw } from 'lucide-react';
 import { StorageService } from '../services/storageService';
-import { UserProfile, EquipmentMap, EquipmentMarker } from '../types';
+import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition } from '../types';
 import StorageManagerModal from './StorageManagerModal';
+import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils';
 
 interface EquipmentMapEditorProps {
     user: UserProfile;
@@ -23,6 +23,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const [markers, setMarkers] = useState<EquipmentMarker[]>([]);
     const [viewMode, setViewMode] = useState<'LIST' | 'EDIT'>('LIST');
     const [isSaving, setIsSaving] = useState(false);
+    const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
+    const [toolMode, setToolMode] = useState<'SELECT' | 'ADD_MARKER'>('SELECT');
 
     // Map Name
     const [mapName, setMapName] = useState('');
@@ -65,6 +67,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     }
                 }
             });
+            // Also load all equipment definitions for color sync
+            StorageService.getEquipmentDefinitions(user.uid).then(setAllEquipment);
         }
     }, [isOpen, user.uid]);
 
@@ -205,6 +209,12 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         const target = e.target as HTMLElement;
         if (target.tagName !== 'IMG' && !target.classList.contains('grid-overlay') && !target.classList.contains('click-handler')) return;
 
+        // If not in ADD_MARKER mode, only deselect
+        if (toolMode !== 'ADD_MARKER') {
+            setSelectedMarkerId(null);
+            return;
+        }
+
         // Get the image element dimensions (untransformed natural size in the DOM flow before transform)
         // Actually standard offsetX is coordinate within the padding edge of the target node
 
@@ -243,6 +253,25 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
     const handleMouseUp = () => {
         setDraggingMarkerId(null);
+    };
+
+    // Helper: Determine dynamic marker color based on equipment status
+    const getMarkerColor = (marker: EquipmentMarker) => {
+        if (!marker.equipmentId) return 'bg-slate-400';
+
+        const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
+        if (!equip) return 'bg-slate-400'; // Unknown or not linked to valid equipment
+
+        const next = calculateNextInspectionDate(
+            equip.checkStartDate || 0,
+            equip.checkFrequency || '',
+            equip.lastInspectedDate
+        );
+        const status = getInspectionStatus(next);
+
+        if (status.light === 'RED') return 'bg-red-500';
+        if (status.light === 'YELLOW') return 'bg-amber-500';
+        return 'bg-emerald-500';
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -826,6 +855,25 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     <Grid className="w-5 h-5" />
                                 </button>
                                 <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-full border border-slate-200">
+                                    <button
+                                        onClick={() => setToolMode('SELECT')}
+                                        className={`p-2 rounded-full transition-all flex items-center gap-2 ${toolMode === 'SELECT' ? 'bg-white text-blue-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                                        title="選擇模式 (不增加標記)"
+                                    >
+                                        <MousePointer2 className="w-4 h-4" />
+                                        {toolMode === 'SELECT' && <span className="text-[10px] font-bold pr-1">選擇</span>}
+                                    </button>
+                                    <button
+                                        onClick={() => setToolMode('ADD_MARKER')}
+                                        className={`p-2 rounded-full transition-all flex items-center gap-2 ${toolMode === 'ADD_MARKER' ? 'bg-white text-red-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                                        title="新增標記模式"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        {toolMode === 'ADD_MARKER' && <span className="text-[10px] font-bold pr-1 text-red-500">標記</span>}
+                                    </button>
+                                </div>
+                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
                                 <button onClick={zoomReset} className="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center gap-1" title="Reset View">
                                     <span>重置</span>
                                 </button>
@@ -865,7 +913,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
                                             {/* Click Handler */}
                                             <div
-                                                className={`absolute inset-0 z-0 click-handler ${draggingMarkerId ? 'cursor-grabbing' : ''}`}
+                                                className={`absolute inset-0 z-0 click-handler ${draggingMarkerId ? 'cursor-grabbing' : toolMode === 'ADD_MARKER' ? 'cursor-crosshair' : 'cursor-default'}`}
                                                 onClick={handleImageClick}
                                                 onMouseMove={handleMouseMove}
                                                 onMouseUp={handleMouseUp}
@@ -875,7 +923,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             {/* Markers */}
                                             {markers.map((marker, idx) => {
                                                 const currentSize = marker.size || markerSize;
-                                                const colorClasses = 'bg-red-500';
+                                                const colorClasses = getMarkerColor(marker);
 
                                                 const sizeClasses = {
                                                     tiny: 'w-1.5 h-1.5 md:w-2 md:h-2 -ml-0.5 -mt-0.5 md:-ml-1 md:-mt-1',
@@ -969,6 +1017,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                         <div className="space-y-2">
                                             {markers.map((marker, idx) => {
                                                 const isSelected = selectedMarkerId === marker.id;
+                                                const colorClass = getMarkerColor(marker);
+
                                                 return (
                                                     <div
                                                         key={marker.id}
@@ -977,7 +1027,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                         className={`bg-white p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected ? 'border-blue-500 shadow-md ring-4 ring-blue-500/5' : 'border-slate-100 hover:border-blue-200 hover:shadow-sm'}`}
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
+                                                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isSelected ? 'shadow-sm text-white ' + colorClass : 'bg-slate-100 text-slate-500 group-hover:shadow-inner ' + colorClass.replace('bg-', 'text-')}`}>
                                                                 {idx + 1}
                                                             </div>
 

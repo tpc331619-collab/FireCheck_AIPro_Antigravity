@@ -82,6 +82,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({
+    visual: false,
+    performance: true,
+    comprehensive: true
+  });
 
   // Initialize form if editing, or reset if adding
   useEffect(() => {
@@ -362,137 +367,165 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
   const renderCategorySection = (category: CheckCategory, icon: React.ReactNode, title: string) => {
     const items = checkItems.filter(i => i.category === category);
+    const isCollapsed = collapsedCategories[category];
+
+    const toggleCollapse = () => {
+      setCollapsedCategories(prev => ({
+        ...prev,
+        [category]: !prev[category]
+      }));
+    };
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
-        <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-4 transition-all duration-300">
+        <div
+          className="bg-slate-50 p-4 flex justify-between items-center cursor-pointer hover:bg-slate-100/80 transition-colors"
+          onClick={toggleCollapse}
+        >
           <div className="flex items-center text-slate-800 font-bold">
-            {icon}
-            <span className="ml-2">{title}</span>
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-100 mr-3">
+              {icon}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm">{title}</span>
+              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
+                {items.length} 個項目
+              </span>
+            </div>
           </div>
-          <button
-            onClick={() => addCheckItem(category)}
-            className="text-sm bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg flex items-center shadow-sm transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            {t('addItem')}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                addCheckItem(category);
+                if (isCollapsed) toggleCollapse();
+              }}
+              className="text-xs bg-white border border-slate-300 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-600 text-slate-700 px-3 py-1.5 rounded-lg flex items-center shadow-sm transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              {t('addItem')}
+            </button>
+            <div className={`text-slate-400 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`}>
+              <ChevronDown className="w-5 h-5" />
+            </div>
+          </div>
         </div>
 
-        <div className="p-4 space-y-3">
-          {items.length === 0 ? (
-            <div className="text-center py-4 text-slate-400 text-sm italic">
-              尚未新增項目
-            </div>
-          ) : (
-            items.map(item => (
-              <div key={item.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 transition-all hover:border-blue-200">
-                {/* Row 1: Name & Type */}
-                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
-                  <div className="flex-1 w-full">
-                    <input
-                      type="text"
-                      value={item.name}
-                      onChange={(e) => updateCheckItem(item.id, { name: e.target.value })}
-                      placeholder={t('itemName') + ` (${t('itemPlaceholder')})`}
-                      className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none"
-                    />
-                  </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <select
-                      value={item.inputType}
-                      onChange={(e) => updateCheckItem(item.id, { inputType: e.target.value as CheckInputType })}
-                      className="p-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none"
-                    >
-                      <option value="boolean">{t('typeBoolean')}</option>
-                      <option value="number">{t('typeNumber')}</option>
-                    </select>
-                    <button
-                      onClick={() => deleteCheckItem(item.id)}
-                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Row 2: Number Constraints (If Number) */}
-                {item.inputType === 'number' && (
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mt-2 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-4 animate-in slide-in-from-top-1">
-
-                    {/* Threshold Logic */}
-                    <div className="flex items-center gap-2 flex-1 flex-wrap">
-                      <span className="text-xs font-bold text-white bg-slate-400 px-2 py-1 rounded shadow-sm">判斷</span>
-                      <select
-                        value={item.thresholdMode || 'range'}
-                        onChange={(e) => updateCheckItem(item.id, { thresholdMode: e.target.value as any })}
-                        className="p-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
-                      >
-                        <option value="range">介於 (Range)</option>
-                        <option value="gt">大於 ({'>'})</option>
-                        <option value="gte">不小於 ({'>='})</option>
-                        <option value="lt">小於 ({'<'})</option>
-                        <option value="lte">不大於 ({'<='})</option>
-                      </select>
-
+        {!isCollapsed && (
+          <div className="p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            {items.length === 0 ? (
+              <div className="text-center py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">
+                <LayoutList className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                尚未新增項目
+              </div>
+            ) : (
+              items.map(item => (
+                <div key={item.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100 transition-all hover:bg-white hover:shadow-md hover:border-blue-100 group">
+                  {/* Row 1: Name & Type */}
+                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center w-full">
+                    <div className="flex-1 w-full">
                       <input
-                        type="number"
-                        value={item.val1 || ''}
-                        onChange={(e) => updateCheckItem(item.id, { val1: parseFloat(e.target.value) })}
-                        placeholder={item.thresholdMode === 'range' ? "Min" : "Value"}
-                        className="w-20 p-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => updateCheckItem(item.id, { name: e.target.value })}
+                        placeholder={t('itemName') + ` (${t('itemPlaceholder')})`}
+                        className="w-full p-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 focus:outline-none transition-all"
                       />
-
-                      {(item.thresholdMode === 'range' || !item.thresholdMode) && (
-                        <>
-                          <span className="text-slate-400 text-xs">~</span>
-                          <input
-                            type="number"
-                            value={item.val2 || ''}
-                            onChange={(e) => updateCheckItem(item.id, { val2: parseFloat(e.target.value) })}
-                            placeholder="Max"
-                            className="w-20 p-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 transition-colors"
-                          />
-                        </>
-                      )}
                     </div>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <select
+                        value={item.inputType}
+                        onChange={(e) => updateCheckItem(item.id, { inputType: e.target.value as CheckInputType })}
+                        className="p-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:border-blue-500 focus:outline-none transition-all cursor-pointer"
+                      >
+                        <option value="boolean">{t('typeBoolean')}</option>
+                        <option value="number">{t('typeNumber')}</option>
+                      </select>
+                      <button
+                        onClick={() => deleteCheckItem(item.id)}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
 
-                    <div className="hidden sm:block w-px h-8 bg-slate-200"></div>
-                    <div className="block sm:hidden w-full h-px bg-slate-200"></div>
-
-                    {/* Unit Selection */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs font-bold text-white bg-slate-400 px-2 py-1 rounded shadow-sm">單位</span>
-                      <div className="flex gap-1">
+                  {/* Row 2: Number Constraints (If Number) */}
+                  {item.inputType === 'number' && (
+                    <div className="bg-white p-3 rounded-lg border border-blue-50 mt-1 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-4 animate-in slide-in-from-left-2 duration-300">
+                      {/* Threshold Logic */}
+                      <div className="flex items-center gap-2 flex-1 flex-wrap">
+                        <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded tracking-tighter uppercase">閾值判定</span>
                         <select
-                          value={COMMON_UNITS.includes(item.unit || '') ? item.unit : 'custom'}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            updateCheckItem(item.id, { unit: val === 'custom' ? '' : val });
-                          }}
-                          className="p-1.5 w-24 text-sm bg-white border border-slate-200 rounded-lg text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
+                          value={item.thresholdMode || 'range'}
+                          onChange={(e) => updateCheckItem(item.id, { thresholdMode: e.target.value as any })}
+                          className="p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
                         >
-                          <option value="" disabled>選擇...</option>
-                          {COMMON_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                          <option value="custom">自訂</option>
+                          <option value="range">介於 (Range)</option>
+                          <option value="gt">大於 ({'>'})</option>
+                          <option value="gte">不小於 ({'>='})</option>
+                          <option value="lt">小於 ({'<'})</option>
+                          <option value="lte">不大於 ({'<='})</option>
                         </select>
-                        {(!COMMON_UNITS.includes(item.unit || '') || item.unit === '') && (
-                          <input
-                            type="text"
-                            value={item.unit || ''}
-                            onChange={(e) => updateCheckItem(item.id, { unit: e.target.value })}
-                            placeholder="輸入單位"
-                            className="w-20 p-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 outline-none focus:border-blue-500 transition-colors"
-                          />
+
+                        <input
+                          type="number"
+                          value={item.val1 || ''}
+                          onChange={(e) => updateCheckItem(item.id, { val1: parseFloat(e.target.value) })}
+                          placeholder={item.thresholdMode === 'range' ? "Min" : "Value"}
+                          className="w-20 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                        />
+
+                        {(item.thresholdMode === 'range' || !item.thresholdMode) && (
+                          <>
+                            <span className="text-slate-400 text-[10px]">~</span>
+                            <input
+                              type="number"
+                              value={item.val2 || ''}
+                              onChange={(e) => updateCheckItem(item.id, { val2: parseFloat(e.target.value) })}
+                              placeholder="Max"
+                              className="w-20 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                            />
+                          </>
                         )}
                       </div>
+
+                      <div className="hidden sm:block w-px h-6 bg-slate-100"></div>
+
+                      {/* Unit Selection */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded tracking-tighter uppercase">單位</span>
+                        <div className="flex gap-1">
+                          <select
+                            value={COMMON_UNITS.includes(item.unit || '') ? item.unit : 'custom'}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              updateCheckItem(item.id, { unit: val === 'custom' ? '' : val });
+                            }}
+                            className="p-1.5 w-24 text-xs bg-slate-50 border border-slate-100 rounded text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
+                          >
+                            <option value="" disabled>選擇...</option>
+                            {COMMON_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                            <option value="custom">自訂</option>
+                          </select>
+                          {(!COMMON_UNITS.includes(item.unit || '') || item.unit === '') && (
+                            <input
+                              type="text"
+                              value={item.unit || ''}
+                              onChange={(e) => updateCheckItem(item.id, { unit: e.target.value })}
+                              placeholder="自訂"
+                              className="w-16 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
+                            />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -532,7 +565,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
               <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center mr-3 text-blue-600">
                 <LayoutList className="w-5 h-5" />
               </div>
-              <h3 className="font-bold text-slate-800 text-lg">設備設定</h3>
+              <h3 className="font-bold text-slate-800 text-lg">{initialData ? t('editEquipment') : t('addEquipment')}</h3>
             </div>
 
             <div className="p-6 space-y-8">

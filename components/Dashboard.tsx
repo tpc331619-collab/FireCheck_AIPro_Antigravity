@@ -44,7 +44,8 @@ import {
     Eye,
     Leaf,
     Zap,
-    Sparkles
+    Sparkles,
+    Save
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
@@ -86,8 +87,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Notification State
     const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+    const [notificationEmails, setNotificationEmails] = useState<string[]>(['', '', '']);
+    const [loadingNotifications, setLoadingNotifications] = useState(false);
+    const [savingNotifications, setSavingNotifications] = useState(false);
 
     // Map State
+
+    // Settings State
+    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'LANGUAGE' | 'GENERAL'>('PROFILE');
+    const [displayName, setDisplayName] = useState(user.displayName || '');
+    const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isUpdating, setIsUpdating] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const historyRef = useRef<HTMLDivElement>(null);
 
 
     useEffect(() => {
@@ -97,6 +112,42 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         };
         fetchDeclarationSettings();
     }, [user.uid]);
+
+    // Load notification emails when settings tab is NOTIFICATIONS
+    useEffect(() => {
+        if (settingsTab === 'NOTIFICATIONS') {
+            loadNotificationSettings();
+        }
+    }, [settingsTab, user.uid]);
+
+    const loadNotificationSettings = async () => {
+        setLoadingNotifications(true);
+        try {
+            const data = await StorageService.getNotificationSettings(user.uid);
+            if (data) {
+                const padded = [...data, '', '', ''].slice(0, 3);
+                setNotificationEmails(padded);
+            }
+        } catch (error) {
+            console.error("Failed to load notification settings", error);
+        } finally {
+            setLoadingNotifications(false);
+        }
+    };
+
+    const handleSaveNotifications = async () => {
+        setSavingNotifications(true);
+        try {
+            const validEmails = notificationEmails.filter(e => e.trim() !== '');
+            await StorageService.saveNotificationSettings(validEmails, user.uid);
+            alert('通知設定已儲存');
+        } catch (error) {
+            console.error("Failed to save notification settings", error);
+            alert('儲存失敗,請稍後再試');
+        } finally {
+            setSavingNotifications(false);
+        }
+    };
 
     const calculateCountdown = () => {
         if (!declarationSettings) return null;
@@ -123,17 +174,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const countdownDays = calculateCountdown();
 
-    // Settings State
-    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL'>('PROFILE');
-    const [displayName, setDisplayName] = useState(user.displayName || '');
-    const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    // const [notificationEmails, setNotificationEmails] = useState<string[]>(['', '', '']); // Removed
-    const [isUpdating, setIsUpdating] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const historyRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const fetchReports = async () => {
@@ -471,7 +511,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 transition-colors z-10">
                                 <Database className="w-6 h-6 text-orange-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{"\u8A2D\u5099\u7BA1\u7406"}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{t('addEquipment')}</span>
                         </button>
 
                         <button
@@ -504,19 +544,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center group-hover:bg-teal-600 transition-colors z-10">
                                 <Settings className="w-6 h-6 text-teal-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{"\u5834\u6240\u8A2D\u5B9A"}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u65B0\u589E\u540D\u7A31"}</span>
                         </button>
 
-                        <button
-                            onClick={() => setIsNotificationModalOpen(true)}
-                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div className="w-12 h-12 bg-yellow-100 rounded-2xl flex items-center justify-center group-hover:bg-yellow-500 transition-colors z-10">
-                                <Bell className="w-6 h-6 text-yellow-600 group-hover:text-white transition-colors" />
-                            </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{"\u901A\u77E5\u8A2D\u5B9A"}</span>
-                        </button>
 
                         <button
                             onClick={onOpenMapEditor}
@@ -670,9 +700,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <div className="flex border-b border-slate-100 shrink-0">
                             <button
                                 onClick={() => setSettingsTab('PROFILE')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
                             >
                                 <User className="w-4 h-4 mr-2" /> {t('profile')}
+                            </button>
+                            <button
+                                onClick={() => setSettingsTab('NOTIFICATIONS')}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'NOTIFICATIONS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                            >
+                                <Bell className="w-4 h-4 mr-2" /> {"\u901A\u77E5"}
                             </button>
                             <button
                                 onClick={() => setSettingsTab('LANGUAGE')}
@@ -791,6 +827,65 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             ))}
                                         </div>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* NOTIFICATIONS TAB */}
+                            {settingsTab === 'NOTIFICATIONS' && (
+                                <div className="space-y-6">
+                                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+                                        <Bell className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-amber-900">通知接收設定</p>
+                                            <p className="text-xs text-amber-700 leading-relaxed">當檢查日期即將到期,或檢查結果為「異常」時,系統將自動寄送通知信至以下信箱。</p>
+                                        </div>
+                                    </div>
+
+                                    {loadingNotifications ? (
+                                        <div className="flex justify-center py-8">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {notificationEmails.map((email, idx) => (
+                                                <div key={idx} className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email {idx + 1}</label>
+                                                    <div className="relative group">
+                                                        <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 group-focus-within:text-red-500 transition-colors" />
+                                                        <input
+                                                            type="email"
+                                                            value={email}
+                                                            onChange={(e) => {
+                                                                const newEmails = [...notificationEmails];
+                                                                newEmails[idx] = e.target.value;
+                                                                setNotificationEmails(newEmails);
+                                                            }}
+                                                            placeholder="name@example.com"
+                                                            className="w-full pl-10 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:bg-white transition-all shadow-sm"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={handleSaveNotifications}
+                                        disabled={savingNotifications || loadingNotifications}
+                                        className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {savingNotifications ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                儲存中...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-4 h-4" />
+                                                儲存設定
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             )}
 
