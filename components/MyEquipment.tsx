@@ -3,6 +3,7 @@ import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Ed
 import { EquipmentDefinition, UserProfile } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils';
 import QRCode from 'qrcode';
 
 interface MyEquipmentProps {
@@ -105,20 +106,6 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     }
   }, [selectedSite, selectedBuilding, allEquipment, searchQuery]);
 
-  const calculateNextInspection = (start: number | undefined, frequency: string | undefined) => {
-    if (!start) return t('customSchedule');
-    const d = new Date(start);
-    switch (frequency) {
-      case 'weekly': d.setDate(d.getDate() + 7); break;
-      case 'monthly': d.setMonth(d.getMonth() + 1); break;
-      case 'quarterly': d.setMonth(d.getMonth() + 3); break;
-      case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
-      case '2years': d.setFullYear(d.getFullYear() + 2); break;
-      case '3years': d.setFullYear(d.getFullYear() + 3); break;
-      default: return t('customSchedule');
-    }
-    return d.toLocaleDateString(language);
-  };
 
   const handleShowQr = async (e: React.MouseEvent, item: EquipmentDefinition) => {
     e.preventDefault();
@@ -304,16 +291,32 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               </span>
                             </div>
 
-                            <div className="flex items-center gap-4 text-xs text-slate-500">
-                              <div className="flex items-center" title="新建日期">
+                            <div className="flex flex-wrap items-center gap-4 text-xs">
+                              <div className="flex items-center text-slate-500" title="新建日期">
                                 <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
                                 <span>新建: {new Date(item.createdAt || 0).toLocaleDateString(language)}</span>
                               </div>
                               <div className="flex items-center">
-                                <span className="mr-1">下一次檢查:</span>
-                                <span className={`${calculateNextInspection(item.checkStartDate, item.checkFrequency) === t('customSchedule') ? 'text-slate-500' : 'text-red-500 font-bold'}`}>
-                                  {calculateNextInspection(item.checkStartDate, item.checkFrequency)}
-                                </span>
+                                {(() => {
+                                  const next = calculateNextInspectionDate(item.checkStartDate || 0, item.checkFrequency || '', item.lastInspectedDate);
+                                  const status = getInspectionStatus(next);
+                                  return (
+                                    <div className="flex items-center gap-2">
+                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${status.light === 'RED' ? 'bg-red-50 text-red-600 border-red-200' :
+                                          status.light === 'YELLOW' ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                            'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                        }`}>
+                                        <div className={`w-2 h-2 rounded-full ${status.light === 'RED' ? 'bg-red-500 animate-pulse' :
+                                            status.light === 'YELLOW' ? 'bg-amber-500' :
+                                              'bg-emerald-500'
+                                          }`}></div>
+                                        {status.label}
+                                      </div>
+                                      <span className="text-slate-400">下一次檢查:</span>
+                                      <span className="text-slate-700 font-bold">{next ? next.toLocaleDateString(language) : '-'}</span>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>

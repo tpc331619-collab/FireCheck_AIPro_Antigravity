@@ -1,4 +1,4 @@
-
+﻿
 import React, { useEffect, useState, useRef } from 'react';
 import { InspectionReport, UserProfile, LanguageCode } from '../types';
 import { StorageService } from '../services/storageService';
@@ -41,11 +41,14 @@ import {
     Moon,
     Monitor,
     Palette,
-    Eye
+    Eye,
+    Leaf,
+    Zap,
+    Sparkles
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface DashboardProps {
@@ -121,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const countdownDays = calculateCountdown();
 
     // Settings State
-    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'SECURITY' | 'GENERAL'>('PROFILE');
+    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL'>('PROFILE');
     const [displayName, setDisplayName] = useState(user.displayName || '');
     const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
     const [newPassword, setNewPassword] = useState('');
@@ -284,8 +287,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 5 * 1024 * 1024) {
-            alert("檔案過大，請選擇小於 5MB 的圖片");
+        if (file.size > 1 * 1024 * 1024) {
+            alert("\u4F60\u8D85\u904E\u4E86\uFF01\u4E0A\u50B3\u6A94\u6848\u4E0D\u5F97\u8D85\u904E 1MB");
             return;
         }
 
@@ -298,6 +301,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             reader.onerror = reject;
             reader.readAsDataURL(f);
         });
+
+        const oldAvatar = selectedAvatar;
 
         try {
             if (!auth?.currentUser || !storage) throw new Error("Storage not available");
@@ -312,10 +317,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
             const downloadURL = await getDownloadURL(storageRef);
             setSelectedAvatar(downloadURL);
-            // If success, we don't need local storage fallback anymore (cleaned up in updateProfile)
 
-        } catch (error) {
+            if (auth?.currentUser) {
+                await updateProfile(auth.currentUser, { photoURL: downloadURL });
+            }
+
+            // Cleanup old avatar from storage if it was a real URL
+            if (oldAvatar && oldAvatar.includes('firebasestorage')) {
+                try {
+                    const oldRef = ref(storage, oldAvatar);
+                    await deleteObject(oldRef);
+                } catch (err) {
+                    console.warn("Failed to delete old avatar", err);
+                }
+            }
+
+            alert("\u4E0A\u50B3\u6210\u529F\uFF01");
+
+        } catch (error: any) {
             console.warn("Upload failed or timed out, falling back to local", error);
+
+            if (error.message && error.message.includes('1MB')) {
+                alert("\u4F60\u8D85\u904E\u4E86\uFF01\u4E0A\u50B3\u5931\u6557\uFF1A" + error.message);
+            } else {
+                alert("\u4E0A\u50B3\u81F3\u96F2\u7AEF\u5931\u6557\uFF08\u53EF\u80FD\u662F\u6B0A\u9650\u6216\u7DB2\u8DEF\u554F\u984C\uFF09\uFF0C\u5DF2\u5207\u63DB\u70BA\u672C\u6A5F\u9810\u89BD\u6A21\u5F0F\u3002");
+            }
+
             try {
                 // Fallback: Read local file and display it
                 const dataUrl = await readFile(file);
@@ -324,13 +351,42 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 if (auth?.currentUser) {
                     localStorage.setItem(`avatar_${auth.currentUser.uid}`, dataUrl);
                 }
-                alert("上傳至雲端失敗（可能是權限或網路問題），已切換為本機預覽模式。");
+
             } catch (readError) {
-                alert("圖片讀取失敗");
+                alert("\u5716\u7247\u8B80\u53D6\u5931\u6557");
             }
         } finally {
             setIsUpdating(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+    const handleDeleteAvatar = async () => {
+        if (!selectedAvatar || selectedAvatar.includes('dicebear.com')) return;
+
+        if (!confirm('確定要刪除大頭照嗎？')) return;
+
+        setIsUpdating(true);
+        try {
+            // 1. Delete from Storage if it's a real URL
+            if (selectedAvatar.includes('firebasestorage')) {
+                const avatarRef = ref(storage, selectedAvatar);
+                await deleteObject(avatarRef);
+            }
+
+            // 2. Clear from Firebase Profile
+            if (auth?.currentUser) {
+                await updateProfile(auth.currentUser, { photoURL: '' });
+                localStorage.removeItem(`avatar_${auth.currentUser.uid}`);
+            }
+
+            setSelectedAvatar(CARTOON_AVATARS[0]);
+            onUserUpdate();
+            alert('大頭照已刪除');
+        } catch (error) {
+            console.error("Delete avatar failed", error);
+            alert('刪除失敗');
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -363,7 +419,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </h1>
                             </div>
 
-                            <div className={`inline-flex items-center px-3 py-1.5 rounded-full border backdrop-blur-md transition-colors ${user.isGuest ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+                            <div className={`inline-flex items-center px-3 py-1.5 rounded-full border backdrop-blur-md transition-colors ${user.isGuest ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-green-500/10 border-green-500/30 text-green-400'} `}>
                                 {user.isGuest ? <WifiOff className="w-3.5 h-3.5 mr-2" /> : <Signal className="w-3.5 h-3.5 mr-2" />}
                                 <span className="text-xs font-bold">{user.isGuest ? t('guestMode') : t('onlineMode')}</span>
                             </div>
@@ -390,7 +446,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 </div>
             </div>
 
-            {/* Main Content Area - Overlapping the Header */}
+            {/* Main Content Area-Overlapping the Header */}
             <div className="flex-1 px-4 sm:px-6 -mt-16 overflow-y-auto pb-24 custom-scrollbar">
                 <div className="max-w-7xl mx-auto w-full space-y-8">
 
@@ -404,7 +460,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center group-hover:bg-red-600 transition-colors z-10">
                                 <PlayCircle className="w-6 h-6 text-red-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{t('startInspection')}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u958B\u59CB\u6AA2\u67E5"}</span>
                         </button>
 
                         <button
@@ -415,7 +471,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 transition-colors z-10">
                                 <Database className="w-6 h-6 text-orange-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{t('addEquipment')}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u8A2D\u5099\u7BA1\u7406"}</span>
                         </button>
 
                         <button
@@ -426,7 +482,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-purple-600 transition-colors z-10">
                                 <LayoutGrid className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{t('myEquipment')}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u6211\u7684\u8A2D\u5099"}</span>
                         </button>
 
                         <button
@@ -437,7 +493,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 transition-colors z-10">
                                 <History className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{t('history')}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u6B77\u53F2\u7D00\u9304"}</span>
                         </button>
 
                         <button
@@ -448,7 +504,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-teal-100 rounded-2xl flex items-center justify-center group-hover:bg-teal-600 transition-colors z-10">
                                 <Settings className="w-6 h-6 text-teal-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">設備名稱管理</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u5834\u6240\u8A2D\u5B9A"}</span>
                         </button>
 
                         <button
@@ -459,7 +515,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-yellow-100 rounded-2xl flex items-center justify-center group-hover:bg-yellow-500 transition-colors z-10">
                                 <Bell className="w-6 h-6 text-yellow-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">通知設定</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u901A\u77E5\u8A2D\u5B9A"}</span>
                         </button>
 
                         <button
@@ -470,9 +526,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 transition-colors z-10">
                                 <span className="font-bold text-blue-600 group-hover:text-white transition-colors text-lg">Map</span>
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">設備位置圖</span>
+                            <span className="font-bold text-slate-700 z-10 text-center">{"\u8A2D\u5099\u4F4D\u7F6E\u5716"}</span>
                         </button>
-
                         <button
                             onClick={() => setIsDeclarationModalOpen(true)}
                             className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
@@ -482,10 +537,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <Calendar className="w-6 h-6 text-red-600 group-hover:text-white transition-colors" />
                             </div>
                             <div className="z-10 text-center">
-                                <span className="font-bold text-slate-700 block">消防申報</span>
+                                <span className="font-bold text-slate-700 block">{"\u6D88\u9632\u7533\u5831"}</span>
                                 {countdownDays !== null && (
                                     <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-1 inline-block">
-                                        倒數 {countdownDays} 天
+                                        {"\u5012\u6578"} {countdownDays} {"\u5929"}
                                     </span>
                                 )}
                             </div>
@@ -524,7 +579,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${filterStatus === status
                                             ? 'bg-slate-800 text-white shadow-md'
                                             : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                                            }`}
+                                            } `}
                                     >
                                         {status === 'ALL' ? t('all') : status === 'Pass' ? t('pass') : t('fail')}
                                     </button>
@@ -550,7 +605,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         >
                                             <div className="flex justify-between items-start mb-4">
                                                 <div className="flex items-start space-x-3">
-                                                    <div className={`p-2.5 rounded-xl ${report.overallStatus === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                                    <div className={`p-2.5 rounded-xl ${report.overallStatus === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'} `}>
                                                         {getStatusIcon(report.overallStatus)}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -568,7 +623,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <Calendar className="w-3.5 h-3.5 mr-1.5" />
                                                     {new Date(report.date).toLocaleDateString(language)}
                                                 </div>
-                                                <span className={`text-xs px-2.5 py-1 rounded-md font-bold border ${getStatusColor(report.overallStatus)}`}>
+                                                <span className={`text-xs px-2.5 py-1 rounded-md font-bold border ${getStatusColor(report.overallStatus)} `}>
                                                     {report.overallStatus === 'Pass' ? t('passStatus') : report.overallStatus === 'Fail' ? t('failStatus') : t('progressStatus')}
                                                 </span>
                                             </div>
@@ -591,7 +646,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 onClick={onCreateNew}
                 className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
                 style={{ backgroundColor: THEME_COLORS.primary }}
-                aria-label="新增查檢"
+                aria-label="?��??�檢"
             >
                 <Plus className="w-7 h-7" />
             </button>
@@ -615,23 +670,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <div className="flex border-b border-slate-100 shrink-0">
                             <button
                                 onClick={() => setSettingsTab('PROFILE')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                             >
                                 <User className="w-4 h-4 mr-2" /> {t('profile')}
                             </button>
-                            {!user.isGuest && (
-                                <button
-                                    onClick={() => setSettingsTab('SECURITY')}
-                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'SECURITY' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                                >
-                                    <Lock className="w-4 h-4 mr-2" /> {t('security')}
-                                </button>
-                            )}
+                            <button
+                                onClick={() => setSettingsTab('LANGUAGE')}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                            >
+                                <Globe className="w-4 h-4 mr-2" /> {t('language')}
+                            </button>
                             <button
                                 onClick={() => setSettingsTab('GENERAL')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                             >
-                                <Globe className="w-4 h-4 mr-2" /> {t('general')}
+                                <Palette className="w-4 h-4 mr-2" /> {t('general')}
                             </button>
                         </div>
 
@@ -646,7 +699,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <div className="flex items-center justify-center mb-4">
                                             <div className="w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-md relative group">
                                                 <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                                                {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs">{t('uploading')}</div>}
+                                                {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs text-center z-10 px-1">{t('uploading')}</div>}
+
+                                                {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
+                                                    <button
+                                                        onClick={handleDeleteAvatar}
+                                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <Trash2 className="w-6 h-6 text-white" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-5 gap-2">
@@ -654,9 +716,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <button
                                                     key={idx}
                                                     onClick={() => setSelectedAvatar(url)}
-                                                    className={`rounded-full overflow-hidden border-2 transition-all hover:scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'}`}
+                                                    className={`rounded-full overflow-hidden border-2 transition-all hover: scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'} `}
                                                 >
-                                                    <img src={url} alt={`Avatar ${idx}`} className="w-full h-full" />
+                                                    <img src={url} alt={`Avatar ${idx} `} className="w-full h-full" />
                                                 </button>
                                             ))}
                                         </div>
@@ -676,6 +738,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 >
                                                     <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
                                                 </button>
+                                                <div className="mt-1 text-center">
+                                                    <span className="text-xs text-red-500 font-bold">{"\u8AAA\u660E: \u4E0A\u50B3\u6A94\u6848\u4E0D\u5F97\u8D85\u904E 1MB"}</span>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -703,87 +768,66 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </div>
                             )}
 
-                            {/* SECURITY TAB */}
-                            {settingsTab === 'SECURITY' && (
+                            {/* LANGUAGE TAB */}
+                            {settingsTab === 'LANGUAGE' && (
                                 <div className="space-y-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('newPassword')}</label>
-                                        <input
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
-                                        />
+                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {[
+                                                { code: 'zh-TW', name: '繁體中文' },
+                                                { code: 'en', name: 'English' },
+                                                { code: 'ko', name: '\uD55C\uAD6D\uC5B4' },
+                                                { code: 'ja', name: '\u65E5\u672C\u8A9E' }
+                                            ].map((lang) => (
+                                                <button
+                                                    key={lang.code}
+                                                    onClick={() => setLanguage(lang.code as LanguageCode)}
+                                                    className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200'} `}
+                                                >
+                                                    <span className="font-bold text-base">{lang.name}</span>
+                                                    {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('confirmPassword')}</label>
-                                        <input
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={handleUpdatePassword}
-                                        disabled={isUpdating}
-                                        className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-colors"
-                                    >
-                                        {isUpdating ? 'Updating...' : t('updatePassword')}
-                                    </button>
                                 </div>
                             )}
-
 
                             {/* GENERAL TAB */}
                             {settingsTab === 'GENERAL' && (
                                 <div className="space-y-6">
                                     {/* Theme Settings */}
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('theme') || '色彩主題'}</label>
-                                        <div className="grid grid-cols-5 gap-2">
+                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('theme')}</label>
+                                        <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                                             {[
-                                                { id: 'light', icon: <Sun className="w-4 h-4" />, label: '淺色', color: 'bg-white' },
-                                                { id: 'dark', icon: <Moon className="w-4 h-4" />, label: '深色', color: 'bg-slate-900' },
-                                                { id: 'blue', icon: <Palette className="w-4 h-4" />, label: '藍色', color: 'bg-blue-50' },
-                                                { id: 'high-contrast', icon: <Eye className="w-4 h-4" />, label: '對比', color: 'bg-black' },
-                                                { id: 'system', icon: <Monitor className="w-4 h-4" />, label: '系統', color: 'bg-gradient-to-br from-white to-slate-900' }
+                                                { id: 'light', icon: <Sun className="w-4 h-4" />, label: t('themeLight'), color: 'bg-white' },
+                                                { id: 'dark', icon: <Moon className="w-4 h-4" />, label: t('themeDark'), color: 'bg-slate-900' },
+                                                { id: 'blue', icon: <Palette className="w-4 h-4" />, label: t('themeBlue'), color: 'bg-blue-600' },
+                                                { id: 'green', icon: <Leaf className="w-4 h-4" />, label: t('themeGreen'), color: 'bg-emerald-600' },
+                                                { id: 'orange', icon: <Zap className="w-4 h-4" />, label: t('themeOrange'), color: 'bg-orange-600' },
+                                                { id: 'purple', icon: <Sparkles className="w-4 h-4" />, label: t('themePurple'), color: 'bg-purple-600' },
+                                                { id: 'high-contrast', icon: <Eye className="w-4 h-4" />, label: t('themeContrast'), color: 'bg-black' },
+                                                { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('themeSystem'), color: 'bg-gradient-to-br from-white to-slate-900' }
                                             ].map((item) => (
                                                 <button
                                                     key={item.id}
                                                     onClick={() => setTheme(item.id as ThemeType)}
-                                                    className={`aspect-square rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100' : 'border-slate-100 hover:border-slate-300'}`}
+                                                    className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
                                                     title={item.label}
                                                 >
-                                                    <div className={`w-6 h-6 rounded-full shadow-sm border border-black/10 flex items-center justify-center ${item.color}`}>
-                                                        {item.icon}
+                                                    <div className={`w-8 h-8 rounded-xl shadow-sm border border-black/5 flex items-center justify-center ${item.color} ${theme === item.id ? '' : ''} `}>
+                                                        {React.cloneElement(item.icon as React.ReactElement, {
+                                                            className: `w-4 h-4 ${['light', 'system'].includes(item.id) && theme !== item.id ? 'text-slate-600' : 'text-white'}`
+                                                        })}
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-slate-500">{item.label}</span>
+                                                    <span className="text-[10px] font-bold text-slate-500 line-clamp-1 px-1">{item.label}</span>
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {[
-                                                { code: 'zh-TW', name: '繁體中文' },
-                                                { code: 'en', name: 'English' },
-                                                { code: 'ko', name: '한국어' },
-                                                { code: 'ja', name: '日本語' }
-                                            ].map((lang) => (
-                                                <button
-                                                    key={lang.code}
-                                                    onClick={() => setLanguage(lang.code as LanguageCode)}
-                                                    className={`p-3 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200'}`}
-                                                >
-                                                    <span className="font-bold text-sm">{lang.name}</span>
-                                                    {language === lang.code && <Check className="w-4 h-4 text-red-600" />}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
 
                                     <div className="pt-4 border-t border-slate-100 space-y-3">
                                         <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left text-sm font-medium text-slate-700">

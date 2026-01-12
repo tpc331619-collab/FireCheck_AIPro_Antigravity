@@ -1,15 +1,25 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Maps are stored in maps/{userId}/{filename}
-    // Only the owner (userId matching auth.uid) can read, write, or delete
+    
+    // 允許用戶讀寫自己的 maps 資料夾
     match /maps/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Avatars/Cloud Gallery images are stored in avatars/{userId}/{filename}
+    // 允許用戶讀寫自己的 avatars
     match /avatars/{userId}/{allPaths=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // 允許用戶讀寫自己的 equipments
+    match /equipments/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // 或者，如果您只是測試用，可以使用這個較寬鬆的規則（僅限開發階段）：
+    // match /{allPaths=**} {
+    //   allow read, write: if request.auth != null;
+    // }
   }
 }

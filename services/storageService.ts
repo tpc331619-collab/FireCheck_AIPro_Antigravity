@@ -101,14 +101,14 @@ export const StorageService = {
     }
   },
 
-  async updateEquipmentDefinition(def: EquipmentDefinition): Promise<void> {
+  async updateEquipmentDefinition(def: Partial<EquipmentDefinition> & { id: string }): Promise<void> {
     const { id, ...dataToUpdate } = def;
 
     if (this.isGuest || !db) {
       const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
       if (!dataStr) return;
       let defs: EquipmentDefinition[] = JSON.parse(dataStr);
-      defs = defs.map(d => d.id === id ? def : d);
+      defs = defs.map(d => d.id === id ? { ...d, ...def } : d);
       localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(defs));
     } else {
       try {
@@ -143,6 +143,21 @@ export const StorageService = {
       if (!db) throw new Error("Firestore not initialized");
 
       const docRef = doc(db, DB_COLLECTION, cleanId);
+
+      // 1. Get the definition first to check for photoUrl
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data() as EquipmentDefinition;
+        if (data.photoUrl) {
+          try {
+            await this.deleteEquipmentPhoto(data.photoUrl);
+          } catch (err) {
+            console.warn("[StorageService] Failed to cleanup photo during delete:", err);
+          }
+        }
+      }
+
+      // 2. Delete the document
       await deleteDoc(docRef);
 
       console.log(`[StorageService] Successfully deleted ${cleanId}.`);
@@ -451,6 +466,9 @@ export const StorageService = {
     }
 
     try {
+      if (file.size > 1024 * 1024) {
+        throw new Error("File size exceeds 1MB limit");
+      }
       const timestamp = Date.now();
       const storageRef = ref(storage, `maps/${userId}/${timestamp}_${file.name}`);
 
@@ -466,6 +484,9 @@ export const StorageService = {
   async uploadBlob(blob: Blob, filename: string, userId: string): Promise<string> {
     if (this.isGuest || !storage) throw new Error("Guest mode");
     try {
+      if (blob.size > 1024 * 1024) {
+        throw new Error("File size exceeds 1MB limit");
+      }
       const timestamp = Date.now();
       const storageRef = ref(storage, `maps/${userId}/${timestamp}_${filename}`);
       const snapshot = await uploadBytes(storageRef, blob);
@@ -473,6 +494,41 @@ export const StorageService = {
     } catch (e) {
       console.error("Upload blob error", e);
       throw e;
+    }
+  },
+
+  async uploadEquipmentPhoto(file: File, userId: string): Promise<string> {
+    if (this.isGuest || !storage) {
+      throw new Error("Guest mode cannot upload to Firebase Storage");
+    }
+
+    try {
+      if (file.size > 1024 * 1024) {
+        throw new Error("File size exceeds 1MB limit");
+      }
+      const timestamp = Date.now();
+      // Generate unique name to avoid collisions
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const storageRef = ref(storage, `equipments/${userId}/${timestamp}_${cleanFileName}`);
+
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (e) {
+      console.error("Upload equipment photo error", e);
+      throw e;
+    }
+  },
+
+  async deleteEquipmentPhoto(url: string): Promise<void> {
+    if (this.isGuest || !storage || !url || !url.includes('firebasestorage')) return;
+    try {
+      const photoRef = ref(storage, url);
+      await deleteObject(photoRef);
+      console.log("[StorageService] Deleted storage object:", url);
+    } catch (e) {
+      console.error("[StorageService] Error deleting photo:", e);
+      // Don't throw if file already gone
     }
   },
 
@@ -497,16 +553,8 @@ export const StorageService = {
         // Simple check: if URL already known, skip
         if (existingUrls.has(downloadURL)) continue;
 
-        // Double check: sometimes URL params differ, check storage path in URL?
-        // Actually, if we have the exact downloadURL it implies same token. 
-        // A better check matches the "path". 
-        // Existing maps store 'imageUrl'. 
-        // Let's assume strict equality first.
-
         // 4. Create missing map
-        // Filename format: timestamp_name.ext
         const fullName = itemRef.name;
-        // Try to extract real name: remove leading digits and underscore
         const nameMatch = fullName.match(/^\d+_(.+)$/);
         const displayName = nameMatch ? nameMatch[1].split('.')[0] : fullName.split('.')[0];
 
@@ -537,7 +585,6 @@ export const StorageService = {
       return addedCount;
     } catch (e) {
       console.error("Sync maps error", e);
-      console.error("[StorageService] Sync maps error", e);
       throw e;
     }
   },

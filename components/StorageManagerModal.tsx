@@ -48,6 +48,12 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (file.size > 1024 * 1024) {
+            alert("你超過了！上傳檔案不得超過 1MB");
+            e.target.value = '';
+            return;
+        }
+
         // Check for duplicates
         // Filename format: timestamp_filename.ext
         // We match if the END of any existing file matches "_filename.ext" or exact match
@@ -85,9 +91,13 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
             await StorageService.uploadMapImage(file, user.uid);
             alert("上傳成功！");
             loadFiles();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("上傳失敗");
+            if (error.message && error.message.includes('1MB')) {
+                alert("你超過了！上傳失敗：" + error.message);
+            } else {
+                alert("上傳失敗");
+            }
         } finally {
             setUploading(false);
             e.target.value = ''; // Clear input to allow re-upload same file if needed
@@ -160,6 +170,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                             disabled={uploading}
                         />
                     </label>
+                    <span className="ml-3 text-xs text-red-500 font-bold">說明: 上傳檔案不得超過 1MB</span>
                 </div>
 
                 {/* File List */}

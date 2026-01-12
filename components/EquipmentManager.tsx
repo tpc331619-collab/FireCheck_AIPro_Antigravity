@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp, Image as ImageIcon, Upload } from 'lucide-react';
 import { THEME_COLORS, EQUIPMENT_HIERARCHY } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { EquipmentDefinition, CheckCategory, CheckInputType, CustomCheckItem, UserProfile, EquipmentHierarchy } from '../types';
 
 const COMMON_UNITS = ['MPa', 'kgf/cm²', 'psi', 'bar', 'V', 'A', 'mA', 'kW', 'Hz', '°C', 'sec', 'min', 'm', 'cm', 'mm', 'kg', '%', 'ppm'];
 import { StorageService } from '../services/storageService';
-import { calculateNextInspectionDate } from '../utils/dateUtils';
+import { calculateNextInspectionDate, calculateExpiryDate } from '../utils/dateUtils';
 import QRCode from 'qrcode';
 
 interface EquipmentManagerProps {
@@ -38,6 +38,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [eqCategory, setEqCategory] = useState('');
   const [eqType, setEqType] = useState('');
   const [eqDetail, setEqDetail] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
 
   // Dynamic Hierarchy State
@@ -91,12 +93,19 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setBarcode(initialData.barcode);
 
       const freq = initialData.checkFrequency || 'monthly';
-      if (['weekly', 'monthly', 'quarterly', 'yearly', '2years', '3years'].includes(freq)) {
+      if (['weekly', 'monthly', 'quarterly', 'yearly', '2years', '3years', '10years', '6', '12', '24', '36', '120'].includes(freq)) {
         setFrequency(freq);
         setCustomFrequency('');
       } else {
-        setFrequency('custom');
-        setCustomFrequency(freq);
+        // 判斷是自訂日期還是自訂天數
+        if (freq.includes('-') && freq.length > 5) {
+          setFrequency('custom_date');
+          setCustomFrequency(freq);
+        } else {
+          // 假設是自訂天數 (純數字)
+          setFrequency('custom_days');
+          setCustomFrequency(freq);
+        }
       }
 
       if (initialData.checkStartDate) {
@@ -113,8 +122,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
       setEqCategory(initialData.equipmentCategory || '');
       setEqType(initialData.equipmentType || '');
-      setEqDetail(initialData.equipmentDetail || '');
 
+      setEqDetail(initialData.equipmentDetail || '');
+      setPhotoUrl(initialData.photoUrl || '');
       setCheckItems(initialData.checkItems || []);
     } else {
       // Add Mode - Reset all fields
@@ -132,6 +142,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setEqCategory('');
       setEqType('');
       setEqDetail('');
+      setPhotoUrl('');
       setCheckItems([]);
     }
   }, [initialData]);
@@ -155,6 +166,85 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Format Validation
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      alert('格式錯誤：僅支援 JPG 或 PNG 圖片');
+      return;
+    }
+
+    // Size Validation (1MB)
+    if (file.size > 1024 * 1024) {
+      alert('檔案過大：圖片大小限制為 1MB 以下');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    try {
+      // 1. Upload new photo
+      const newUrl = await StorageService.uploadEquipmentPhoto(file, user.uid);
+
+      // 2. Delete old photo if it exists
+      if (photoUrl) {
+        await StorageService.deleteEquipmentPhoto(photoUrl);
+      }
+
+      // 3. Sync to DB if editing (Partial update to avoid overwriting current form state)
+      if (initialData) {
+        await StorageService.updateEquipmentDefinition({
+          id: initialData.id,
+          photoUrl: newUrl,
+          updatedAt: Date.now()
+        });
+      }
+
+      setPhotoUrl(newUrl);
+    } catch (err) {
+      console.error("Photo upload failed", err);
+      if (err instanceof Error && err.message.includes('1MB')) {
+        alert('上傳失敗：圖片大小超過 1MB 限制');
+      } else {
+        alert('照片上傳失敗，請稍後再試');
+      }
+    } finally {
+      setIsUploadingPhoto(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!photoUrl) return;
+
+    if (!confirm('確定要刪除這張照片嗎？')) return;
+
+    try {
+      setIsUploadingPhoto(true);
+
+      // 1. Delete from Storage
+      await StorageService.deleteEquipmentPhoto(photoUrl);
+
+      // 2. Sync to DB if editing (Partial update)
+      if (initialData) {
+        await StorageService.updateEquipmentDefinition({
+          id: initialData.id,
+          photoUrl: '', // Reset in DB
+          updatedAt: Date.now()
+        });
+      }
+
+      setPhotoUrl('');
+    } catch (err) {
+      console.error("Delete photo failed", err);
+      alert('刪除照片失敗，請稍後再試');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   // Helper to add a check item
@@ -184,8 +274,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       return;
     }
 
-    const finalFrequency = frequency === 'custom' ? customFrequency : frequency;
-    if (frequency === 'custom' && !customFrequency.trim()) {
+    const finalFrequency = (frequency === 'custom_date' || frequency === 'custom_days') ? customFrequency : frequency;
+    if ((frequency === 'custom_date' || frequency === 'custom_days') && !customFrequency.trim()) {
       alert(t('enterCustomFrequency'));
       return;
     }
@@ -206,7 +296,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       equipmentCategory: eqCategory,
       equipmentType: eqType,
       equipmentDetail: eqDetail,
+
       lastInspectedDate: initialData?.lastInspectedDate || null, // Preserve or null
+      photoUrl,
       checkItems,
       updatedAt: Date.now(),
       createdAt: initialData?.createdAt || Date.now()
@@ -246,56 +338,26 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   };
 
   const getNextDatePreview = () => {
-    if (frequency === 'custom') return '依自訂頻率';
-    // Calculate based on start date and assuming no inspection (or using current object's last inspection)
+    const startTs = new Date(startDate).getTime();
+    if (isNaN(startTs)) return '-';
+
+    const finalFrequency = (frequency === 'custom_date' || frequency === 'custom_days') ? customFrequency : frequency;
+    if (!finalFrequency) return '-';
+
     const next = calculateNextInspectionDate(
-      new Date(startDate).getTime(),
-      frequency,
+      startTs,
+      finalFrequency,
       initialData?.lastInspectedDate
     );
     return next ? next.toLocaleDateString() : '-';
   };
 
   const getExpiryDatePreview = () => {
-    if (!lifespan) return '-';
+    const startTs = new Date(startDate).getTime();
+    if (isNaN(startTs)) return '-';
 
-    const start = new Date(startDate);
-    if (isNaN(start.getTime())) return '-';
-
-    let yearsToAdd = 0;
-    let monthsToAdd = 0;
-
-    if (lifespan === 'custom') {
-      // Assuming custom input might be purely text for now, or we parse it if user enters number
-      // For simplicity, if custom is just text, we can't auto-calc. 
-      // But if user enters "5", we might assume years? 
-      // Let's assume custom is just a string marker for now unless we enforce format.
-      // To keep it simple and powerful, let's treat custom as "Years" if numeric, otherwise just show text.
-      const num = parseFloat(customLifespan);
-      if (!isNaN(num)) {
-        // Default custom to Years for calculation if it's a number
-        yearsToAdd = num;
-      } else {
-        return '依自訂內容';
-      }
-    } else {
-      switch (lifespan) {
-        case '1m': monthsToAdd = 1; break;
-        case '3m': monthsToAdd = 3; break;
-        case '1y': yearsToAdd = 1; break;
-        case '2y': yearsToAdd = 2; break;
-        case '3y': yearsToAdd = 3; break;
-        case '10y': yearsToAdd = 10; break;
-      }
-    }
-
-    const expiry = new Date(start);
-    expiry.setFullYear(expiry.getFullYear() + yearsToAdd);
-    expiry.setMonth(expiry.getMonth() + monthsToAdd);
-
-    // Subtract 1 day to be "end of" period? usually lifespan 1 year means until same date next year.
-    // Let's keep it same date.
-    return expiry.toLocaleDateString();
+    const expiry = calculateExpiryDate(startTs, lifespan, customLifespan);
+    return expiry ? expiry.toLocaleDateString() : '-';
   };
 
   const renderCategorySection = (category: CheckCategory, icon: React.ReactNode, title: string) => {
@@ -462,165 +524,192 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-        <div className="max-w-3xl mx-auto space-y-6">
-
-          {/* Basic Info */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="max-w-3xl mx-auto">
+          {/* Unified Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+            {/* Main Header */}
             <div className="bg-slate-50/80 p-4 border-b border-slate-200 flex items-center">
               <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center mr-3 text-blue-600">
                 <LayoutList className="w-5 h-5" />
               </div>
-              <h3 className="font-bold text-slate-800 text-lg">基本資料</h3>
+              <h3 className="font-bold text-slate-800 text-lg">設備設定</h3>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Location Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                    <span className="w-1 h-3 bg-red-500 rounded-full mr-1.5"></span>
-                    {t('siteName')} <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={siteName}
-                    onChange={e => setSiteName(e.target.value)}
-                    placeholder={t('enterSiteName')}
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all shadow-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                    <span className="w-1 h-3 bg-red-500 rounded-full mr-1.5"></span>
-                    建築物名稱 <span className="text-red-500 ml-1">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={buildingName}
-                    onChange={e => setBuildingName(e.target.value)}
-                    placeholder={t('enterBuildingName')}
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 focus:outline-none transition-all shadow-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Equipment Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                    {t('equipmentName')} <span className="text-red-500 ml-1">*</span>
-                  </label>
-
-                  {/* Hierarchy Selection */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
-                    <select
-                      value={eqCategory}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEqCategory(val);
-                        setEqType('');
-                        setEqDetail('');
-                      }}
-                      className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500"
-                    >
-                      <option value="">選擇分類...</option>
-                      {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-
-                    <select
-                      value={eqType}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEqType(val);
-                        setEqDetail('');
-                      }}
-                      disabled={!eqCategory}
-                      className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
-                    >
-                      <option value="">選擇種類...</option>
-                      {eqCategory && hierarchy[eqCategory] &&
-                        Object.keys(hierarchy[eqCategory]).map(t => (
-                          <option key={t} value={t}>{t}</option>
-                        ))
-                      }
-                    </select>
-
-                    <select
-                      value={eqDetail}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEqDetail(val);
-                        // Auto-generate name logic if desired, or let user type?
-                        // User request: "後續就可以拿出來使用" (Use it later).
-                        // Usually selecting detail finishes the name.
-                        if (val) {
-                          setName(`${eqType} - ${val}`);
-                        }
-                      }}
-                      disabled={!eqType}
-                      className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
-                    >
-                      <option value="">選擇細項...</option>
-                      {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
-                        hierarchy[eqCategory][eqType].map((d) => (
-                          <option key={d} value={d}>{d}</option>
-                        ))
-                      }
-                    </select>
+            <div className="p-6 space-y-8">
+              {/* Section 1: Basic Info */}
+              <div className="space-y-6">
+                {/* Location Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
+                      <span className="w-1 h-3 bg-red-500 rounded-full mr-1.5"></span>
+                      {t('siteName')} <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={siteName}
+                      onChange={e => setSiteName(e.target.value)}
+                      placeholder={t('enterSiteName')}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
+                    />
                   </div>
-
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder={t('enterEquipmentName') + " (或由上方選單自動帶入)"}
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
+                      <span className="w-1 h-3 bg-red-500 rounded-full mr-1.5"></span>
+                      {t('buildingName')} <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={buildingName}
+                      onChange={e => setBuildingName(e.target.value)}
+                      placeholder={t('enterBuildingName')}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                    {t('equipmentId')} <span className="text-red-500 ml-1">*</span>
-                  </label>
 
-                  <div className="flex gap-3 items-start">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={barcode}
-                        onChange={e => setBarcode(e.target.value)}
-                        placeholder={t('enterBarcode')}
-                        className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all group-hover:border-slate-400"
-                      />
-                      {barcode && <div className="text-[10px] text-slate-400 mt-1.5 flex items-center pl-1 font-medium"><QrCode className="w-3 h-3 mr-1" /> 系統已自動產生對應條碼</div>}
+                {/* Equipment Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
+                      {t('equipmentName')} <span className="text-red-500 ml-1">*</span>
+                    </label>
+
+                    {/* Hierarchy Selection */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                      <select
+                        value={eqCategory}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEqCategory(val);
+                          setEqType('');
+                          setEqDetail('');
+                        }}
+                        className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500"
+                      >
+                        <option value="">選擇分類...</option>
+                        {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+
+                      <select
+                        value={eqType}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEqType(val);
+                          setEqDetail('');
+                        }}
+                        disabled={!eqCategory}
+                        className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
+                      >
+                        <option value="">選擇種類...</option>
+                        {eqCategory && hierarchy[eqCategory] &&
+                          Object.keys(hierarchy[eqCategory]).map(t => (
+                            <option key={t} value={t}>{t}</option>
+                          ))
+                        }
+                      </select>
+
+                      <select
+                        value={eqDetail}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEqDetail(val);
+                          if (val) {
+                            setName(`${eqType} - ${val}`);
+                          }
+                        }}
+                        disabled={!eqType}
+                        className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
+                      >
+                        <option value="">選擇細項...</option>
+                        {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
+                          hierarchy[eqCategory][eqType].map((d) => (
+                            <option key={d} value={d}>{d}</option>
+                          ))
+                        }
+                      </select>
                     </div>
 
-                    {qrCodeUrl && (
-                      <div className="relative group shrink-0">
-                        <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
-                          <img src={qrCodeUrl} alt="QR Code" className="w-12 h-12 object-contain" />
-                        </div>
-                        <button
-                          onClick={handleDownloadQr}
-                          className="absolute -bottom-2 -right-2 bg-slate-800 text-white p-1.5 rounded-full shadow hover:bg-black transition-colors"
-                          title={t('downloadQrCode')}
-                        >
-                          <Download className="w-3 h-3" />
-                        </button>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder={t('enterEquipmentName') + " (或由上方選單自動帶入)"}
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
+                      {t('equipmentId')} <span className="text-red-500 ml-1">*</span>
+                    </label>
+
+                    <div className="flex gap-3 items-start">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={barcode}
+                          onChange={e => setBarcode(e.target.value)}
+                          placeholder={t('enterBarcode')}
+                          className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all group-hover:border-slate-400"
+                        />
                       </div>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* Photo Upload - Right Column (Compact) */}
+                  <div className="space-y-1.5 align-top">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center mb-1">
+                      <ImageIcon className="w-3 h-3 mr-1" />
+                      設備照片 <span className="text-[10px] text-slate-400 font-normal ml-2">Max 1MB</span>
+                    </label>
+
+                    <div className="flex items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                      {/* Thumbnail */}
+                      <div className="w-12 h-12 bg-white border border-slate-200 rounded-md overflow-hidden flex-shrink-0 relative group">
+                        {photoUrl ? (
+                          <>
+                            <img src={photoUrl} alt="Equip" className="w-full h-full object-cover" />
+                            <button
+                              onClick={handleDeletePhoto}
+                              className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-4 h-4 text-white" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <ImageIcon className="w-5 h-5" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Compact Upload Control */}
+                      <div className="flex-1">
+                        <label className={`flex items-center justify-center w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-600 text-xs font-bold hover:bg-slate-50 hover:text-blue-600 hover:border-blue-300 transition-all cursor-pointer shadow-sm ${isUploadingPhoto ? 'opacity-50' : ''}`}>
+                          <Upload className="w-3 h-3 mr-2" />
+                          {isUploadingPhoto ? '上傳中...' : '選擇照片'}
+                          <input
+                            type="file"
+                            accept="image/png, image/jpeg"
+                            className="hidden"
+                            onChange={handlePhotoUpload}
+                            disabled={isUploadingPhoto}
+                          />
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Schedule Section */}
-              <div className="border-t border-slate-100 pt-4 mt-2">
+              {/* Section 2: Schedule Settings */}
+              <div className="pt-6 border-t border-slate-100">
                 <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
                   <CalendarClock className="w-4 h-4 mr-2 text-slate-400" />
                   排程設定
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Frequency and Start Date */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase">{t('checkFrequency')}</label>
                     <div className="flex gap-2">
@@ -629,20 +718,28 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         onChange={(e) => setFrequency(e.target.value)}
                         className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
                       >
-                        <option value="weekly">{t('freqWeekly')}</option>
-                        <option value="monthly">{t('freqMonthly')}</option>
-                        <option value="quarterly">{t('freqQuarterly')}</option>
-                        <option value="yearly">{t('freqYearly')}</option>
-                        <option value="2years">{t('freq2Years')}</option>
-                        <option value="3years">{t('freq3Years')}</option>
-                        <option value="custom">{t('freqCustom')}</option>
+                        <option value="6">每半年 (6個月)</option>
+                        <option value="12">每年 (12個月)</option>
+                        <option value="24">每 2 年 (24個月)</option>
+                        <option value="36">每 3 年 (36個月)</option>
+                        <option value="120">每 10 年 (120個月)</option>
+                        <option value="custom_date">自訂日期</option>
+                        <option value="custom_days">自訂天數</option>
                       </select>
-                      {frequency === 'custom' && (
+                      {frequency === 'custom_date' && (
                         <input
-                          type="text"
+                          type="date"
                           value={customFrequency}
                           onChange={(e) => setCustomFrequency(e.target.value)}
-                          placeholder="自訂"
+                          className="w-36 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+                        />
+                      )}
+                      {frequency === 'custom_days' && (
+                        <input
+                          type="number"
+                          value={customFrequency}
+                          onChange={(e) => setCustomFrequency(e.target.value)}
+                          placeholder="天數"
                           className="w-24 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
                         />
                       )}
@@ -660,7 +757,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   </div>
                 </div>
 
-                {/* Next Date Preview Banner */}
+                {/* Next Date Preview */}
                 <div className="mt-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-500">
@@ -679,7 +776,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 </div>
 
                 {/* Lifespan Settings */}
-                <div className="space-y-1.5 md:col-span-2 border-t border-slate-100 pt-3 mt-4">
+                <div className="space-y-1.5 md:col-span-2 border-t border-slate-100 pt-5 mt-5">
                   <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
                     設定壽命
                     <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">將於到期時發送通知</span>
@@ -693,20 +790,19 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                       <option value="">未設定</option>
                       <option value="1m">1 個月</option>
                       <option value="3m">1 季 (3個月)</option>
-                      <option value="1y">1 年</option>
-                      <option value="2y">2 年</option>
-                      <option value="3y">3 年</option>
-                      <option value="10y">10 年</option>
-                      <option value="custom">自定義</option>
+                      <option value="12m">1 年 (12個月)</option>
+                      <option value="24m">2 年 (24個月)</option>
+                      <option value="36m">3 年 (36個月)</option>
+                      <option value="120m">10 年 (120個月)</option>
+                      <option value="custom">自訂日期</option>
                     </select>
 
                     {lifespan === 'custom' && (
                       <input
-                        type="text"
+                        type="date"
                         value={customLifespan}
                         onChange={(e) => setCustomLifespan(e.target.value)}
-                        placeholder="輸入壽命 (如: 5年)"
-                        className="w-40 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 animate-in fade-in slide-in-from-left-2"
+                        className="w-36 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 animate-in fade-in slide-in-from-left-2"
                       />
                     )}
 
@@ -718,22 +814,20 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     )}
                   </div>
                 </div>
+              </div>
 
+              {/* Section 3: Checklist Configuration */}
+              <div className="pt-6 border-t border-slate-100">
+                <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                  <ClipboardCheck className="w-5 h-5 mr-2 text-slate-400" />
+                  {t('checkItemsConfig')}
+                </h4>
+
+                {renderCategorySection('visual', <Eye className="w-5 h-5 text-blue-500" />, t('visualCheck'))}
+                {renderCategorySection('performance', <Gauge className="w-5 h-5 text-orange-500" />, t('performanceCheck'))}
+                {renderCategorySection('comprehensive', <ClipboardCheck className="w-5 h-5 text-purple-500" />, t('comprehensiveCheck'))}
               </div>
             </div>
-          </div>
-
-
-          {/* Checklist Configuration */}
-          <div>
-            <h3 className="font-bold text-slate-800 flex items-center text-lg mb-4 px-1">
-              <ClipboardCheck className="w-5 h-5 mr-2 text-slate-500" />
-              {t('checkItemsConfig')}
-            </h3>
-
-            {renderCategorySection('visual', <Eye className="w-5 h-5 text-blue-500" />, t('visualCheck'))}
-            {renderCategorySection('performance', <Gauge className="w-5 h-5 text-orange-500" />, t('performanceCheck'))}
-            {renderCategorySection('comprehensive', <ClipboardCheck className="w-5 h-5 text-purple-500" />, t('comprehensiveCheck'))}
           </div>
         </div>
 

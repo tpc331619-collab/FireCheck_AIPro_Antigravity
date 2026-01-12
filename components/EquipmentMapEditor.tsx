@@ -44,6 +44,16 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
+    // Auto-scroll to selected marker in sidebar
+    useEffect(() => {
+        if (selectedMarkerId) {
+            const el = document.getElementById(`marker-item-${selectedMarkerId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }, [selectedMarkerId]);
+
     useEffect(() => {
         if (isOpen) {
             loadMaps().then((data) => {
@@ -58,10 +68,10 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         }
     }, [isOpen, user.uid]);
 
-    const loadMaps = async () => {
+    const loadMaps = async (options?: { keepView?: boolean }) => {
         const data = await StorageService.getEquipmentMaps(user.uid);
         setMaps(data);
-        setViewMode('LIST');
+        if (!options?.keepView) setViewMode('LIST');
         return data; // Return data for chaining
     };
 
@@ -77,7 +87,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             return;
         }
 
-        // Create new map
+        // Create new map (Preview Mode)
         setIsSaving(true);
         try {
             // Extract name logic similar to sync
@@ -90,17 +100,24 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 imageUrl: file.url,
                 markers: [],
                 updatedAt: Date.now(),
+                size: file.size, // Capture size from cloud file
                 markerSize: 'medium',
                 markerColor: 'red'
             };
 
-            const docId = await StorageService.saveEquipmentMap(newMap, user.uid);
-            const createdMap = { ...newMap, id: docId };
-            setMaps([...maps, createdMap]);
-            editMap(createdMap);
+            // Don't save to DB yet. Just set current state.
+            // ID is empty to indicate "New Draft"
+            const previewMap = { ...newMap, id: '' } as EquipmentMap;
+
+            // setMaps([...maps, createdMap]); // Don't add to list yet
+            editMap(previewMap);
+
+            // Trigger editMap logic manually partially because editMap loads image
+            // We can just call editMap; it handles loading image from URL.
+
         } catch (error) {
-            console.error("Failed to create map from selection", error);
-            alert("建立圖面失敗");
+            console.error("Failed to load map from selection", error);
+            alert("載入圖面失敗");
         } finally {
             setIsSaving(false);
         }
@@ -130,24 +147,24 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     setImage(img);
 
                     // 3. Set Current Map with the REAL Storage URL
-                    // This ensures handleSave uses the cloud URL, not the blob URL
+                    // This creates a "Draft" in memory (id='') that is NOT yet in the database
                     setCurrentMap({
                         id: '',
                         name: file.name.split('.')[0],
-                        imageUrl: storageUrl, // IMPORTANT: Store the remote URL
+                        imageUrl: storageUrl,
                         markers: [],
                         updatedAt: Date.now()
                     });
 
                     setMarkers([]);
                     setMapName(file.name.split('.')[0]);
-                    setSelectedFile(null); // Clear selected file to prevent double upload
+                    setSelectedFile(null);
 
-                    // Smart Fit Logic
-                    fitImageToScreen();
+                    // Default to 100% scale
+                    setZoom(1);
 
                     setRotation(0);
-                    setMarkerSize('small');
+                    setMarkerSize('medium');
                     setMarkerColor('red');
                     setViewMode('EDIT');
                     setIsSaving(false);
@@ -356,8 +373,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     // Auto-fit when image loads
     useEffect(() => {
         if (image) {
-            // Small timeout to ensure DOM is ready
-            setTimeout(fitImageToScreen, 100);
+            // Default to 100% scale (User request)
+            setZoom(1);
         }
     }, [image]);
 
@@ -485,16 +502,21 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 rotation: rotation,
                 markerSize: markerSize,
                 markerColor: markerColor,
+                // Preserve size from current map or file
+                size: currentMap?.size || (selectedFile ? selectedFile.size : undefined)
             };
 
             if (currentMap?.id) {
                 const updatedMap = { ...currentMap, ...mapData, updatedAt: Date.now() };
                 await StorageService.updateEquipmentMap(updatedMap);
+                setCurrentMap(updatedMap);
             } else {
-                await StorageService.saveEquipmentMap(mapData, user.uid);
+                const newId = await StorageService.saveEquipmentMap(mapData, user.uid);
+                // Update current map with new ID so subsequent saves are updates
+                setCurrentMap({ ...mapData, id: newId, userId: user.uid, updatedAt: Date.now() } as EquipmentMap);
             }
 
-            await loadMaps();
+            await loadMaps({ keepView: true });
             alert('儲存成功');
         } catch (error) {
             console.error(error);
@@ -551,8 +573,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             const colorHex = '#ef4444'; // Tailwind Red-500
 
             // Dimensions based on markerSize (Refined for "Tiny" request)
-            const radius = { small: 4, medium: 6, large: 8 }[currentSize] || 6;
-            const fontSize = { small: 8, medium: 10, large: 12 }[currentSize] || 10;
+            // Dimensions based on markerSize (Refined for 5-level sizes)
+            const radius = { tiny: 2, small: 4, medium: 6, large: 8, huge: 12 }[currentSize] || 6;
+            const fontSize = { tiny: 6, small: 8, medium: 10, large: 12, huge: 16 }[currentSize] || 10;
 
             // Draw Circle
             ctx.beginPath();
@@ -617,8 +640,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             setMarkerSize(map.markerSize || 'medium');
             setMarkerColor(map.markerColor || 'red');
 
-            // Auto fit
-            setTimeout(() => fitImageToScreen(), 100);
+            // Auto fit to 100%
+            setZoom(1);
 
             setSelectedFile(null);
             setViewMode('EDIT');
@@ -823,7 +846,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             <img
                                                 src={image.src}
                                                 alt="Map"
-                                                className="block w-auto h-auto max-w-full max-h-[calc(100vh-200px)] pointer-events-none object-contain"
+                                                className="block w-auto h-auto pointer-events-none select-none"
+                                                style={{ touchAction: 'none' }}
                                             />
 
                                             {/* Grid */}
@@ -854,15 +878,19 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 const colorClasses = 'bg-red-500';
 
                                                 const sizeClasses = {
-                                                    small: 'w-2 h-2 md:w-2.5 md:h-2.5 -ml-1 -mt-1 md:-ml-1.5 md:-mt-1.5',
-                                                    medium: 'w-3 h-3 md:w-3.5 md:h-3.5 -ml-1.5 -mt-1.5 md:-ml-2 md:-mt-2',
-                                                    large: 'w-4 h-4 md:w-5 md:h-5 -ml-2 -mt-2 md:-ml-2.5 md:-mt-2.5'
+                                                    tiny: 'w-1.5 h-1.5 md:w-2 md:h-2 -ml-0.5 -mt-0.5 md:-ml-1 md:-mt-1',
+                                                    small: 'w-2 h-2 md:w-3 md:h-3 -ml-1 -mt-1 md:-ml-1.5 md:-mt-1.5',
+                                                    medium: 'w-3 h-3 md:w-4 md:h-4 -ml-1.5 -mt-1.5 md:-ml-2 md:-mt-2',
+                                                    large: 'w-4 h-4 md:w-6 md:h-6 -ml-2 -mt-2 md:-ml-3 md:-mt-3',
+                                                    huge: 'w-6 h-6 md:w-8 md:h-8 -ml-3 -mt-3 md:-ml-4 md:-mt-4'
                                                 }[currentSize];
 
                                                 const textSizeClasses = {
+                                                    tiny: 'text-[8px]',
                                                     small: 'text-[10px]',
-                                                    medium: 'text-[10px]',
-                                                    large: 'text-xs'
+                                                    medium: 'text-xs',
+                                                    large: 'text-sm',
+                                                    huge: 'text-base'
                                                 }[currentSize];
 
                                                 return (
@@ -901,99 +929,14 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 </div>
                             </div>
 
-                            {/* Modal */}
-                            {selectedMarkerId && (() => {
-                                const marker = markers.find(m => m.id === selectedMarkerId);
-                                if (!marker) return null;
-                                const idx = markers.findIndex(m => m.id === selectedMarkerId);
-
-                                return (
-                                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm animation-in fade-in duration-200">
-                                        <div
-                                            className="w-80 bg-white shadow-2xl rounded-2xl border border-white/20 overflow-hidden transform scale-100 transition-all"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <div className="flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-100">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs ring-4 ring-blue-50">
-                                                        {idx + 1}
-                                                    </div>
-                                                    <h3 className="text-sm font-bold text-slate-700">編輯標記內容</h3>
-                                                </div>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        deleteMarker(e, marker.id);
-                                                        setSelectedMarkerId(null);
-                                                    }}
-                                                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="刪除"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-
-                                            <div className="p-5 space-y-5">
-                                                <div className="space-y-1.5">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">設備編號 (ID)</label>
-                                                    <input
-                                                        type="text"
-                                                        value={marker.equipmentId}
-                                                        onChange={(e) => updateMarker(marker.id, { equipmentId: e.target.value })}
-                                                        placeholder="輸入編號..."
-                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all font-bold text-slate-700 text-lg"
-                                                        autoFocus
-                                                    />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">標記大小</label>
-                                                    <div className="flex gap-2">
-                                                        {(['small', 'medium', 'large'] as const).map((size) => {
-                                                            const isSet = (marker.size || 'medium') === size;
-                                                            return (
-                                                                <button
-                                                                    key={size}
-                                                                    onClick={() => updateMarker(marker.id, { size })}
-                                                                    className={`flex-1 flex items-center justify-center px-3 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${isSet ? 'bg-blue-50 border-blue-500 text-blue-600 shadow-sm' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300 hover:bg-slate-50'}`}
-                                                                >
-                                                                    <span>{{ small: '小', medium: '中', large: '大' }[size]}</span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-3 pt-2">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            deleteMarker(e, marker.id);
-                                                            setSelectedMarkerId(null);
-                                                        }}
-                                                        className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-red-500 font-bold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                        刪除
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setSelectedMarkerId(null)}
-                                                        className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <Check className="w-5 h-5" />
-                                                        確定
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
+                            {/* Marker Selection Indicator / Quick Actions could go here, but Sidebar is better */}
                         </div>
 
                         {/* Tools Sidebar */}
                         <div className="flex-1 lg:flex-none w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-r border-slate-200 flex flex-col z-20 shadow-2xl shadow-slate-200/50 shrink-0 overflow-hidden">
-                            <div className="flex-1 overflow-y-auto">
-                                <div className="p-5 border-b border-slate-100 space-y-5 bg-slate-50/50">
-                                    <h3 className="text-sm font-bold text-slate-800">圖面設定</h3>
+                            <div className="flex-1 overflow-y-auto bg-slate-50/50">
+                                {/* Map Name Settings */}
+                                <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10 sticky top-0">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">圖面名稱</label>
                                         <div className="relative group">
@@ -1001,14 +944,89 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 type="text"
                                                 value={mapName}
                                                 onChange={(e) => setMapName(e.target.value)}
-                                                className="w-full px-4 py-3 bg-white border-2 border-slate-100 rounded-xl focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10 font-bold text-slate-800 transition-all placeholder:text-slate-300 group-hover:border-slate-200"
+                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 font-bold text-slate-800 transition-all placeholder:text-slate-300 text-sm"
                                                 placeholder="輸入圖面名稱..."
                                             />
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <MousePointer2 className="w-4 h-4 text-slate-300" />
-                                            </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Marker List */}
+                                <div className="p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                            標記列表
+                                            <span className="bg-slate-200 text-slate-600 px-1.5 rounded-md text-[10px]">{markers.length}</span>
+                                        </h3>
+                                    </div>
+
+                                    {markers.length === 0 ? (
+                                        <div className="text-center py-10 text-slate-400 text-sm">
+                                            <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                            點擊地圖新增標記
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {markers.map((marker, idx) => {
+                                                const isSelected = selectedMarkerId === marker.id;
+                                                return (
+                                                    <div
+                                                        key={marker.id}
+                                                        id={`marker-item-${marker.id}`}
+                                                        onClick={() => setSelectedMarkerId(marker.id)}
+                                                        className={`bg-white p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected ? 'border-blue-500 shadow-md ring-4 ring-blue-500/5' : 'border-slate-100 hover:border-blue-200 hover:shadow-sm'}`}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isSelected ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600'}`}>
+                                                                {idx + 1}
+                                                            </div>
+
+                                                            <div className="flex-1 min-w-0">
+                                                                <input
+                                                                    type="text"
+                                                                    value={marker.equipmentId}
+                                                                    onChange={(e) => updateMarker(marker.id, { equipmentId: e.target.value })}
+                                                                    placeholder="輸入編號..."
+                                                                    className={`w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none p-0 text-sm font-bold transition-colors ${isSelected ? 'text-slate-800' : 'text-slate-600'}`}
+                                                                />
+                                                            </div>
+
+                                                            <div className="flex items-center">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (confirm('確定刪除此標記?')) deleteMarker(e, marker.id);
+                                                                    }}
+                                                                    className={`p-1.5 rounded-lg transition-all ${isSelected ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100'}`}
+                                                                    title="刪除"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Expanded Controls for Selected Item */}
+                                                        {isSelected && (
+                                                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
+                                                                <div className="flex-1 flex bg-slate-50 p-1 rounded-lg gap-1">
+                                                                    {(['tiny', 'small', 'medium', 'large', 'huge'] as const).map((size) => (
+                                                                        <button
+                                                                            key={size}
+                                                                            onClick={(e) => { e.stopPropagation(); updateMarker(marker.id, { size }); }}
+                                                                            className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all ${((marker.size || 'medium') === size) ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                                            title={{ tiny: '極小', small: '小', medium: '中', large: '大', huge: '特大' }[size]}
+                                                                        >
+                                                                            {{ tiny: 'XS', small: 'S', medium: 'M', large: 'L', huge: 'XL' }[size]}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
