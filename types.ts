@@ -122,3 +122,20 @@ export interface EquipmentMap {
   updatedAt: number;
   size?: number; // File size in bytes
 }
+
+// 異常複檢記錄
+export interface AbnormalRecord {
+  id: string;
+  userId: string;
+  equipmentId: string;
+  equipmentName: string;
+  siteName: string;
+  buildingName: string;
+  inspectionDate: number; // 發現異常的檢查日期
+  abnormalReason: string; // 異常原因
+  status: 'pending' | 'fixed'; // 待複檢 | 已改善
+  fixedDate?: number; // 改善日期
+  fixedNotes?: string; // 改善說明
+  createdAt: number;
+  updatedAt: number;
+}

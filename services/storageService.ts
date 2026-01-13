@@ -1,4 +1,4 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord } from '../types';
 import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
@@ -599,6 +599,93 @@ export const StorageService = {
     } catch (e) {
       console.error("Delete storage file error", e);
       throw e;
+    }
+  },
+
+  // --- Abnormal Record Methods ---
+
+  async saveAbnormalRecord(record: Omit<AbnormalRecord, 'id'>, userId: string): Promise<string> {
+    const newRecord = { ...record, userId };
+    const ABNORMAL_STORAGE_KEY = 'firecheck_abnormal_records';
+
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(ABNORMAL_STORAGE_KEY);
+      const records: AbnormalRecord[] = data ? JSON.parse(data) : [];
+      const id = 'local_abnormal_' + Date.now().toString();
+      const recordWithId = { ...newRecord, id };
+      records.unshift(recordWithId);
+      localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(records));
+      return id;
+    } else {
+      try {
+        const docRef = await addDoc(collection(db, 'abnormalRecords'), newRecord);
+        return docRef.id;
+      } catch (e) {
+        console.error("Abnormal record save error", e);
+        throw e;
+      }
+    }
+  },
+
+  async getAbnormalRecords(userId: string): Promise<AbnormalRecord[]> {
+    const ABNORMAL_STORAGE_KEY = 'firecheck_abnormal_records';
+
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(ABNORMAL_STORAGE_KEY);
+      if (!data) return [];
+      const records: AbnormalRecord[] = JSON.parse(data);
+      return records.sort((a, b) => b.createdAt - a.createdAt);
+    } else {
+      try {
+        const q = query(collection(db, 'abnormalRecords'), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        const records = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AbnormalRecord));
+        return records.sort((a, b) => b.createdAt - a.createdAt);
+      } catch (e) {
+        console.error("Abnormal records fetch error", e);
+        return [];
+      }
+    }
+  },
+
+  async updateAbnormalRecord(record: AbnormalRecord): Promise<void> {
+    const { id, ...data } = record;
+    const ABNORMAL_STORAGE_KEY = 'firecheck_abnormal_records';
+
+    if (this.isGuest || !db) {
+      const dataStr = localStorage.getItem(ABNORMAL_STORAGE_KEY);
+      if (!dataStr) return;
+      let records: AbnormalRecord[] = JSON.parse(dataStr);
+      records = records.map(r => r.id === id ? record : r);
+      localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(records));
+    } else {
+      try {
+        const recordRef = doc(db, 'abnormalRecords', id);
+        await updateDoc(recordRef, data);
+      } catch (e) {
+        console.error("Abnormal record update error", e);
+        throw e;
+      }
+    }
+  },
+
+  async deleteAbnormalRecord(id: string): Promise<void> {
+    const ABNORMAL_STORAGE_KEY = 'firecheck_abnormal_records';
+
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(ABNORMAL_STORAGE_KEY);
+      if (!data) return;
+      const records: AbnormalRecord[] = JSON.parse(data);
+      const newRecords = records.filter(r => r.id !== id);
+      localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(newRecords));
+    } else {
+      try {
+        const recordRef = doc(db, 'abnormalRecords', id);
+        await deleteDoc(recordRef);
+      } catch (e) {
+        console.error("Abnormal record delete error", e);
+        throw e;
+      }
     }
   }
 };

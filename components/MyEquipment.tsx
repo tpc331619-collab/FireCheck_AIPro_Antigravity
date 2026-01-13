@@ -3,7 +3,8 @@ import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Ed
 import { EquipmentDefinition, UserProfile } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
-import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils';
+// import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils'; // Deprecated for this view
+import { getFrequencyStatus, getNextInspectionDate } from '../utils/inspectionUtils';
 import QRCode from 'qrcode';
 
 interface MyEquipmentProps {
@@ -310,22 +311,41 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               </div>
                               <div className="flex items-center">
                                 {(() => {
-                                  const next = calculateNextInspectionDate(item.checkStartDate || 0, item.checkFrequency || '', item.lastInspectedDate);
-                                  const status = getInspectionStatus(next);
+                                  // Use shared logic
+                                  const nextTs = getNextInspectionDate(item);
+                                  const status = getFrequencyStatus(item);
+
+                                  // Map Status to UI
+                                  let colorClass = '';
+                                  let dotClass = '';
+                                  let label = '';
+
+                                  if (status === 'COMPLETED') {
+                                    label = '已檢查';
+                                    colorClass = 'bg-green-50 text-green-600 border-green-200';
+                                    dotClass = 'bg-green-500';
+                                  } else if (status === 'CAN_INSPECT') {
+                                    label = '可以檢查';
+                                    colorClass = 'bg-blue-50 text-blue-600 border-blue-200';
+                                    dotClass = 'bg-blue-500';
+                                  } else if (status === 'PENDING') {
+                                    label = '需檢查';
+                                    colorClass = 'bg-red-50 text-red-600 border-red-200';
+                                    dotClass = 'bg-red-500 animate-pulse';
+                                  } else if (status === 'UNNECESSARY') {
+                                    label = '不須檢查';
+                                    colorClass = 'bg-slate-50 text-slate-500 border-slate-200';
+                                    dotClass = 'bg-slate-400';
+                                  }
+
                                   return (
                                     <div className="flex items-center gap-2">
-                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${status.light === 'RED' ? 'bg-red-50 text-red-600 border-red-200' :
-                                        status.light === 'YELLOW' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                                          'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                        }`}>
-                                        <div className={`w-2 h-2 rounded-full ${status.light === 'RED' ? 'bg-red-500 animate-pulse' :
-                                          status.light === 'YELLOW' ? 'bg-amber-500' :
-                                            'bg-emerald-500'
-                                          }`}></div>
-                                        {status.label}
+                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${colorClass}`}>
+                                        <div className={`w-2 h-2 rounded-full ${dotClass}`}></div>
+                                        {label}
                                       </div>
                                       <span className="text-slate-400">下一次檢查:</span>
-                                      <span className="text-slate-700 font-bold">{next ? next.toLocaleDateString(language) : '-'}</span>
+                                      <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
                                     </div>
                                   );
                                 })()}
