@@ -637,7 +637,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
             {/* Main Content Area-Overlapping the Header */}
             <div className="flex-1 px-4 sm:px-6 -mt-16 overflow-y-auto pb-24 custom-scrollbar">
-                <div className="max-w-7xl mx-auto w-full space-y-8">
+                <div className="max-w-7xl mx-auto w-full space-y-6">
+
+                    {/* Quick Search Bar (Moved to Top) */}
+                    <div className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex items-center gap-4">
+                        <div className="bg-red-50 p-2 rounded-xl">
+                            <Search className="w-6 h-6 text-red-600" />
+                        </div>
+                        <div className="flex-1 relative">
+                            <input
+                                type="text"
+                                placeholder={t('searchPlaceholder')}
+                                className="w-full pl-4 pr-10 py-2 bg-slate-50 border-none rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all font-medium"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Action Grid */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -731,279 +755,161 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </button>
                     </div>
 
-                    {/* History & Regulation Feed Section */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-
-
-                        {/* Recent Records (Left 2/3) - Adjusted Layout */}
-                        <div className="lg:col-span-2 space-y-4">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <h2 className="text-xl font-bold text-slate-800 flex items-center">
-                                    <ClipboardList className="w-6 h-6 mr-2 text-slate-500" />
-                                    {t('recentRecords')}
-                                </h2>
-
-                                {/* Search Bar */}
-                                <div className="flex-1 max-w-md relative">
-                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                                    <input
-                                        type="text"
-                                        placeholder={t('searchPlaceholder')}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all shadow-sm"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Filters */}
-                            <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar items-center">
-                                {(['ALL', 'Pass', 'Fail'] as const).map((status) => (
-                                    <button
-                                        key={status}
-                                        onClick={() => setFilterStatus(status)}
-                                        className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${filterStatus === status
-                                            ? 'bg-slate-800 text-white shadow-md'
-                                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                                            } `}
-                                    >
-                                        {status === 'ALL' ? t('all') : status === 'Pass' ? t('pass') : t('fail')}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {loading ? (
-                                <div className="flex justify-center py-20">
-                                    <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-red-600"></div>
-                                </div>
-                            ) : (() => {
-                                // Filter reports based on search, status, and archive state
-                                const filteredReports = reports.filter(report => {
-                                    // Archive filter
-                                    if (showArchived) {
-                                        if (!report.archived) return false;
-                                    } else {
-                                        if (report.archived) return false;
-                                    }
-
-                                    // Search filter
-                                    if (searchTerm && !report.buildingName.toLowerCase().includes(searchTerm.toLowerCase()) && !report.inspectorName.toLowerCase().includes(searchTerm.toLowerCase())) {
-                                        return false;
-                                    }
-
-                                    // Status filter
-                                    if (filterStatus !== 'ALL' && report.overallStatus !== filterStatus) {
-                                        return false;
-                                    }
-
-                                    return true;
-                                });
-
-                                return filteredReports.length === 0 ? (
-                                    <div className="text-center py-16 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-300">
-                                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                        <p className="text-base font-medium">{t('noRecords')}</p>
-                                    </div>
-                                ) : showArchived ? (
-                                    // Full Page History Table View
-                                    <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto animate-in fade-in duration-200">
-                                        <div className="max-w-7xl mx-auto p-6 space-y-6">
-                                            {/* Header */}
-                                            <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100 sticky top-4 z-10">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="bg-blue-100 p-2 rounded-xl">
-                                                        <History className="w-6 h-6 text-blue-600" />
-                                                    </div>
-                                                    <div>
-                                                        <h1 className="text-xl font-bold text-slate-800">歷史檢查紀錄</h1>
-                                                        <p className="text-xs text-slate-500">已歸檔的正常檢查報告</p>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => setShowArchived(false)}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-                                                >
-                                                    <ChevronRight className="w-4 h-4 rotate-180" />
-                                                    返回儀表板
-                                                </button>
-                                            </div>
-
-                                            {/* Table */}
-                                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-left text-sm whitespace-nowrap">
-                                                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
-                                                            <tr>
-                                                                <th className="px-4 py-3">檢查日期與時間</th>
-                                                                <th className="px-4 py-3">查檢場所名稱</th>
-                                                                <th className="px-4 py-3">設備名稱</th>
-                                                                <th className="px-4 py-3">設備編號</th>
-                                                                <th className="px-4 py-3">檢查頻率</th>
-                                                                <th className="px-4 py-3">下次檢查日期</th>
-                                                                <th className="px-4 py-3 min-w-[600px]">檢查項目結果</th>
-                                                                <th className="px-4 py-3">異常備註</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-100">
-                                                            {filteredReports.flatMap(report =>
-                                                                report.items.map((item, idx) => {
-                                                                    const freqMap: Record<string, number> = { 'monthly': 30, 'quarterly': 90, 'yearly': 365 };
-
-                                                                    // Use Snapshot OR Live Data (Fallback)
-                                                                    // Prioritize equipmentId lookup, fallback to item.id if equipmentId missing
-                                                                    const eqId = item.equipmentId || item.id;
-                                                                    const eqData = equipmentMap[eqId] || {};
-
-                                                                    const frequency = item.checkFrequency || eqData.checkFrequency || 'monthly';
-                                                                    const name = item.name || eqData.name || '未命名設備';
-                                                                    const barcode = item.barcode || eqData.barcode || '-';
-
-                                                                    const freqDays = freqMap[frequency] || 30; // Default 30
-                                                                    const nextDate = new Date(report.date);
-                                                                    nextDate.setDate(nextDate.getDate() + freqDays);
-
-                                                                    // Format Check Results
-                                                                    // Use checkResults snapshot if available, else fallback to checkPoints keys
-                                                                    const checkDetails = item.checkResults && item.checkResults.length > 0
-                                                                        ? item.checkResults
-                                                                        : Object.keys(item.checkPoints).map(k => ({ name: k, value: item.checkPoints[k], unit: '' }));
-
-                                                                    return {
-                                                                        ...item,
-                                                                        displayName: name, // Resolved Name
-                                                                        displayBarcode: barcode, // Resolved Barcode
-                                                                        displayFrequency: frequency, // Resolved Frequency
-                                                                        reportId: report.id,
-                                                                        reportDate: report.date,
-                                                                        reportBuilding: report.buildingName,
-                                                                        uniqueKey: `${report.id}_${item.id}_${idx}`,
-                                                                        nextCheckDate: nextDate.getTime(),
-                                                                        checkDetails
-                                                                    };
-                                                                })
-                                                            ).map((row) => (
-                                                                <tr key={row.uniqueKey} className="hover:bg-slate-50 transition-colors">
-                                                                    <td className="px-4 py-3 text-slate-600">
-                                                                        {new Date(row.reportDate).toLocaleString(language)}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 font-bold text-slate-800">
-                                                                        {row.reportBuilding}
-                                                                        <div className="text-xs text-slate-400 font-normal">{row.location}</div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 font-medium text-slate-800">
-                                                                        {row.displayName}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-slate-500 font-mono text-xs">
-                                                                        {row.displayBarcode}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-slate-600">
-                                                                        {row.displayFrequency === 'monthly' ? '每月' :
-                                                                            row.displayFrequency === 'quarterly' ? '每季' :
-                                                                                row.displayFrequency === 'yearly' ? '每年' :
-                                                                                    row.displayFrequency}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-blue-600 font-medium">
-                                                                        {new Date(row.nextCheckDate).toLocaleDateString(language)}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 min-w-[600px]">
-                                                                        <div className="flex flex-wrap items-center gap-3 py-1 w-full">
-                                                                            {row.checkDetails.map((detail, i) => (
-                                                                                <div key={i} className="flex items-center gap-1.5 text-xs bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
-                                                                                    <span className="font-bold text-slate-700">{detail.name || '項目'}:</span>
-                                                                                    {detail.threshold && (
-                                                                                        <span className="text-slate-400 text-[10px]">
-                                                                                            {detail.threshold} {detail.unit}
-                                                                                        </span>
-                                                                                    )}
-                                                                                    {detail.threshold && <span className="text-slate-300">|</span>}
-                                                                                    {String(detail.value) === 'true' ? (
-                                                                                        <span className="text-green-600 flex items-center gap-0.5 font-bold">
-                                                                                            <CheckCircle className="w-3.5 h-3.5" /> 合格
-                                                                                        </span>
-                                                                                    ) : (
-                                                                                        <span className="font-mono text-slate-800 font-bold px-1 rounded bg-slate-100">
-                                                                                            {detail.value} {detail.unit}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            ))}
-                                                                            {row.checkDetails.length === 0 && <span className="text-slate-400 italic">無檢查細項</span>}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={row.notes}>
-                                                                        {row.notes || '-'}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
+                    {/* Full Page Search Results / History Table */}
+                    {/* Full Page Search Results / History Table */}
+                    {(showArchived || searchTerm) && (
+                        <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto animate-in fade-in duration-200">
+                            <div className="max-w-7xl mx-auto p-6 space-y-6">
+                                {/* Header */}
+                                <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100 sticky top-4 z-10">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-blue-100 p-2 rounded-xl">
+                                            {searchTerm ? <Search className="w-6 h-6 text-blue-600" /> : <History className="w-6 h-6 text-blue-600" />}
+                                        </div>
+                                        <div>
+                                            <h1 className="text-xl font-bold text-slate-800">{searchTerm ? '搜尋結果' : '歷史檢查紀錄'}</h1>
+                                            <p className="text-xs text-slate-500">{searchTerm ? `關鍵字: "${searchTerm}"` : '已歸檔的正常檢查報告'}</p>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {filteredReports.map((report) => {
-                                            // Calculate next inspection date (30 days after last inspection as default)
-                                            const nextInspectionDate = new Date(report.date);
-                                            nextInspectionDate.setDate(nextInspectionDate.getDate() + 30);
+                                    <button
+                                        onClick={() => {
+                                            setShowArchived(false);
+                                            setSearchTerm('');
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+                                    >
+                                        <ChevronRight className="w-4 h-4 rotate-180" />
+                                        返回儀表板
+                                    </button>
+                                </div>
 
-                                            return (
-                                                <div
-                                                    key={report.id}
-                                                    onClick={() => onSelectReport(report)}
-                                                    className="group bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md hover:border-red-200 transition-all cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        {/* Status Icon */}
-                                                        <div className={`p-2.5 rounded-lg shrink-0 ${report.overallStatus === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                                                            {getStatusIcon(report.overallStatus)}
-                                                        </div>
+                                {/* Table */}
+                                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm whitespace-nowrap">
+                                            <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                                                <tr>
+                                                    <th className="px-4 py-3">檢查日期與時間</th>
+                                                    <th className="px-4 py-3">查檢場所名稱</th>
+                                                    <th className="px-4 py-3">設備名稱</th>
+                                                    <th className="px-4 py-3">設備編號</th>
+                                                    <th className="px-4 py-3">檢查頻率</th>
+                                                    <th className="px-4 py-3">下次檢查日期</th>
+                                                    <th className="px-4 py-3 min-w-[600px]">檢查項目結果</th>
+                                                    <th className="px-4 py-3">異常備註</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {filteredReports.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                                                            沒有找到相關紀錄
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    filteredReports.flatMap(report =>
+                                                        (report.items || []).map((item, idx) => {
+                                                            const freqMap: Record<string, number> = { 'monthly': 30, 'quarterly': 90, 'yearly': 365 };
 
-                                                        {/* Equipment Info */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <h3 className="font-bold text-base text-slate-800 group-hover:text-red-700 transition-colors truncate">
-                                                                {report.buildingName}
-                                                            </h3>
-                                                            <p className="text-slate-500 text-sm truncate">{report.inspectorName}</p>
-                                                        </div>
+                                                            // Use Snapshot OR Live Data (Fallback)
+                                                            const eqId = item.equipmentId || item.id;
+                                                            const eqData = equipmentMap[eqId] || {};
 
-                                                        {/* Dates */}
-                                                        <div className="flex flex-col gap-1 shrink-0">
-                                                            <div className="flex items-center text-xs text-slate-500 font-medium">
-                                                                <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                                                                <span className="text-slate-400 mr-1">檢查：</span>
-                                                                {new Date(report.date).toLocaleDateString(language)}
-                                                            </div>
-                                                            <div className="flex items-center text-xs text-blue-600 font-medium">
-                                                                <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                                                                <span className="text-blue-400 mr-1">下次：</span>
-                                                                {nextInspectionDate.toLocaleDateString(language)}
-                                                            </div>
-                                                        </div>
+                                                            const frequency = item.checkFrequency || eqData.checkFrequency || 'monthly';
+                                                            const name = item.name || eqData.name || '未命名設備';
+                                                            const barcode = item.barcode || eqData.barcode || '-';
 
-                                                        {/* Status Badge */}
-                                                        <span className={`text-xs px-3 py-1.5 rounded-lg font-bold border shrink-0 ${getStatusColor(report.overallStatus)}`}>
-                                                            {report.overallStatus === 'Pass' ? t('passStatus') : report.overallStatus === 'Fail' ? t('failStatus') : t('progressStatus')}
-                                                        </span>
+                                                            const freqDays = freqMap[frequency] || 30; // Default 30
 
-                                                        {/* Arrow */}
-                                                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all shrink-0" />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                                            // Safe Date Handling
+                                                            const validReportDate = report.date ? new Date(report.date) : new Date();
+                                                            const nextDate = new Date(validReportDate);
+                                                            if (!isNaN(validReportDate.getTime())) {
+                                                                nextDate.setDate(nextDate.getDate() + freqDays);
+                                                            }
+
+                                                            const checkDetails = Array.isArray(item.checkResults) && item.checkResults.length > 0
+                                                                ? item.checkResults
+                                                                : (item.checkPoints ? Object.keys(item.checkPoints).map(k => ({ name: k, value: item.checkPoints[k], unit: '' })) : []);
+
+                                                            return {
+                                                                ...item,
+                                                                displayName: name,
+                                                                displayBarcode: barcode,
+                                                                displayFrequency: frequency,
+                                                                reportId: report.id,
+                                                                reportDate: report.date,
+                                                                reportBuilding: report.buildingName,
+                                                                uniqueKey: `${report.id}_${item.id}_${idx}`,
+                                                                nextCheckDate: nextDate.getTime(),
+                                                                checkDetails
+                                                            };
+                                                        })
+                                                    ).map((row) => (
+                                                        <tr key={row.uniqueKey} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-4 py-3 text-slate-600">
+                                                                {(() => {
+                                                                    const d = new Date(row.reportDate);
+                                                                    return !isNaN(d.getTime()) ? d.toLocaleString(language) : '-';
+                                                                })()}
+                                                            </td>
+                                                            <td className="px-4 py-3 font-bold text-slate-800">
+                                                                {row.reportBuilding}
+                                                                <div className="text-xs text-slate-400 font-normal">{row.location}</div>
+                                                            </td>
+                                                            <td className="px-4 py-3 font-medium text-slate-800">
+                                                                {row.displayName}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-500 font-mono text-xs">
+                                                                {row.displayBarcode}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-600">
+                                                                {row.displayFrequency === 'monthly' ? '每月' :
+                                                                    row.displayFrequency === 'quarterly' ? '每季' :
+                                                                        row.displayFrequency === 'yearly' ? '每年' :
+                                                                            row.displayFrequency}
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-500">
+                                                                {new Date(row.nextCheckDate).toLocaleDateString(language)}
+                                                            </td>
+                                                            <td className="px-4 py-3 min-w-[600px]">
+                                                                <div className="flex flex-wrap items-center gap-3 py-1 w-full">
+                                                                    {row.checkDetails.map((detail, i) => (
+                                                                        <div key={i} className="flex items-center gap-1.5 text-xs bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
+                                                                            <span className="font-bold text-slate-700">{detail.name || '項目'}:</span>
+                                                                            {detail.threshold && (
+                                                                                <span className="text-slate-400 text-[10px]">
+                                                                                    {detail.threshold} {detail.unit}
+                                                                                </span>
+                                                                            )}
+                                                                            {detail.threshold && <span className="text-slate-300">|</span>}
+                                                                            {String(detail.value) === 'true' ? (
+                                                                                <span className="text-green-600 flex items-center gap-0.5 font-bold">
+                                                                                    <CheckCircle className="w-3.5 h-3.5" /> 合格
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="font-mono text-slate-800 font-bold px-1 rounded bg-slate-100">
+                                                                                    {detail.value} {detail.unit}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                    {row.checkDetails.length === 0 && <span className="text-slate-400 italic">無檢查細項</span>}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={row.notes}>
+                                                                {row.notes || '-'}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                );
-                            })()}
+                                </div>
+                            </div>
                         </div>
-
-                        {/* Regulation Feed (Right 1/3) */}
-                        <div className="lg:col-span-1">
-                            <RegulationFeed />
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -1012,358 +918,364 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 onClick={onCreateNew}
                 className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
                 style={{ backgroundColor: THEME_COLORS.primary }}
-                aria-label="?��??�檢"
+                aria-label="新增檢查"
             >
                 <Plus className="w-7 h-7" />
             </button>
 
             {/* Expanded Settings Modal */}
-            {isSettingsOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
-                        {/* Header */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                <Settings className="w-5 h-5 mr-2" />
-                                {t('systemSettings')}
-                            </h3>
-                            <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-slate-500" />
-                            </button>
-                        </div>
+            {
+                isSettingsOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                    <Settings className="w-5 h-5 mr-2" />
+                                    {t('systemSettings')}
+                                </h3>
+                                <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-slate-500" />
+                                </button>
+                            </div>
 
-                        {/* Tabs */}
-                        <div className="flex border-b border-slate-100 shrink-0">
-                            <button
-                                onClick={() => setSettingsTab('PROFILE')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                            >
-                                <User className="w-4 h-4 mr-2" /> {t('profile')}
-                            </button>
-                            <button
-                                onClick={() => setSettingsTab('NOTIFICATIONS')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'NOTIFICATIONS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                            >
-                                <Bell className="w-4 h-4 mr-2" /> {"\u901A\u77E5"}
-                            </button>
-                            <button
-                                onClick={() => setSettingsTab('LANGUAGE')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                            >
-                                <Globe className="w-4 h-4 mr-2" /> {t('language')}
-                            </button>
-                            <button
-                                onClick={() => setSettingsTab('GENERAL')}
-                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                            >
-                                <Palette className="w-4 h-4 mr-2" /> {t('general')}
-                            </button>
-                        </div>
+                            {/* Tabs */}
+                            <div className="flex border-b border-slate-100 shrink-0">
+                                <button
+                                    onClick={() => setSettingsTab('PROFILE')}
+                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    <User className="w-4 h-4 mr-2" /> {t('profile')}
+                                </button>
+                                <button
+                                    onClick={() => setSettingsTab('NOTIFICATIONS')}
+                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'NOTIFICATIONS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    <Bell className="w-4 h-4 mr-2" /> {"\u901A\u77E5"}
+                                </button>
+                                <button
+                                    onClick={() => setSettingsTab('LANGUAGE')}
+                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                >
+                                    <Globe className="w-4 h-4 mr-2" /> {t('language')}
+                                </button>
+                                <button
+                                    onClick={() => setSettingsTab('GENERAL')}
+                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                >
+                                    <Palette className="w-4 h-4 mr-2" /> {t('general')}
+                                </button>
+                            </div>
 
-                        {/* Content */}
-                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                            {/* Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
 
-                            {/* PROFILE TAB */}
-                            {settingsTab === 'PROFILE' && (
-                                <div className="space-y-6">
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('changeAvatar')}</label>
-                                        <div className="flex items-center justify-center mb-4">
-                                            <div className="w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-md relative group">
-                                                <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                                                {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs text-center z-10 px-1">{t('uploading')}</div>}
+                                {/* PROFILE TAB */}
+                                {settingsTab === 'PROFILE' && (
+                                    <div className="space-y-6">
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('changeAvatar')}</label>
+                                            <div className="flex items-center justify-center mb-4">
+                                                <div className="w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-md relative group">
+                                                    <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                                                    {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs text-center z-10 px-1">{t('uploading')}</div>}
 
-                                                {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
+                                                    {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
+                                                        <button
+                                                            onClick={handleDeleteAvatar}
+                                                            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <Trash2 className="w-6 h-6 text-white" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-5 gap-2">
+                                                {CARTOON_AVATARS.map((url, idx) => (
                                                     <button
-                                                        onClick={handleDeleteAvatar}
-                                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        key={idx}
+                                                        onClick={() => setSelectedAvatar(url)}
+                                                        className={`rounded-full overflow-hidden border-2 transition-all hover: scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'} `}
                                                     >
-                                                        <Trash2 className="w-6 h-6 text-white" />
+                                                        <img src={url} alt={`Avatar ${idx} `} className="w-full h-full" />
                                                     </button>
-                                                )}
+                                                ))}
                                             </div>
+                                            {!user.isGuest && (
+                                                <div className="mt-2">
+                                                    <input
+                                                        type="file"
+                                                        ref={fileInputRef}
+                                                        onChange={handleFileUpload}
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                    />
+                                                    <button
+                                                        onClick={() => fileInputRef.current?.click()}
+                                                        disabled={isUpdating}
+                                                        className="w-full py-2 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center"
+                                                    >
+                                                        <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
+                                                    </button>
+                                                    <div className="mt-1 text-center">
+                                                        <span className="text-xs text-red-500 font-bold">{"\u8AAA\u660E: \u4E0A\u50B3\u6A94\u6848\u4E0D\u5F97\u8D85\u904E 1MB"}</span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="grid grid-cols-5 gap-2">
-                                            {CARTOON_AVATARS.map((url, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => setSelectedAvatar(url)}
-                                                    className={`rounded-full overflow-hidden border-2 transition-all hover: scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'} `}
-                                                >
-                                                    <img src={url} alt={`Avatar ${idx} `} className="w-full h-full" />
-                                                </button>
-                                            ))}
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('displayName')}</label>
+                                            <input
+                                                type="text"
+                                                value={displayName}
+                                                onChange={(e) => setDisplayName(e.target.value)}
+                                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
+                                                disabled={user.isGuest}
+                                            />
                                         </div>
+
                                         {!user.isGuest && (
-                                            <div className="mt-2">
-                                                <input
-                                                    type="file"
-                                                    ref={fileInputRef}
-                                                    onChange={handleFileUpload}
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                />
-                                                <button
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    disabled={isUpdating}
-                                                    className="w-full py-2 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center"
-                                                >
-                                                    <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
-                                                </button>
-                                                <div className="mt-1 text-center">
-                                                    <span className="text-xs text-red-500 font-bold">{"\u8AAA\u660E: \u4E0A\u50B3\u6A94\u6848\u4E0D\u5F97\u8D85\u904E 1MB"}</span>
-                                                </div>
+                                            <button
+                                                onClick={handleUpdateProfile}
+                                                disabled={isUpdating}
+                                                className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                                            >
+                                                {isUpdating ? 'Updating...' : t('saveChanges')}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* LANGUAGE TAB */}
+                                {settingsTab === 'LANGUAGE' && (
+                                    <div className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
+                                            <div className="grid grid-cols-1 gap-3">
+                                                {[
+                                                    { code: 'zh-TW', name: '繁體中文' },
+                                                    { code: 'en', name: 'English' },
+                                                    { code: 'ko', name: '\uD55C\uAD6D\uC5B4' },
+                                                    { code: 'ja', name: '\u65E5\u672C\u8A9E' }
+                                                ].map((lang) => (
+                                                    <button
+                                                        key={lang.code}
+                                                        onClick={() => setLanguage(lang.code as LanguageCode)}
+                                                        className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200'} `}
+                                                    >
+                                                        <span className="font-bold text-base">{lang.name}</span>
+                                                        {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* NOTIFICATIONS TAB */}
+                                {settingsTab === 'NOTIFICATIONS' && (
+                                    <div className="space-y-6">
+                                        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
+                                            <Bell className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-bold text-amber-900">通知接收設定</p>
+                                                <p className="text-xs text-amber-700 leading-relaxed">當檢查日期即將到期,或檢查結果為「異常」時,系統將自動寄送通知信至以下信箱。</p>
+                                            </div>
+                                        </div>
+
+                                        {loadingNotifications ? (
+                                            <div className="flex justify-center py-8">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {notificationEmails.map((email, idx) => (
+                                                    <div key={idx} className="space-y-1.5">
+                                                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email {idx + 1}</label>
+                                                        <div className="relative group">
+                                                            <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 group-focus-within:text-red-500 transition-colors" />
+                                                            <input
+                                                                type="email"
+                                                                value={email}
+                                                                onChange={(e) => {
+                                                                    const newEmails = [...notificationEmails];
+                                                                    newEmails[idx] = e.target.value;
+                                                                    setNotificationEmails(newEmails);
+                                                                }}
+                                                                placeholder="name@example.com"
+                                                                className="w-full pl-10 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:bg-white transition-all shadow-sm"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
-                                    </div>
 
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('displayName')}</label>
-                                        <input
-                                            type="text"
-                                            value={displayName}
-                                            onChange={(e) => setDisplayName(e.target.value)}
-                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
-                                            disabled={user.isGuest}
-                                        />
-                                    </div>
-
-                                    {!user.isGuest && (
                                         <button
-                                            onClick={handleUpdateProfile}
-                                            disabled={isUpdating}
-                                            className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                                            onClick={handleSaveNotifications}
+                                            disabled={savingNotifications || loadingNotifications}
+                                            className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                                         >
-                                            {isUpdating ? 'Updating...' : t('saveChanges')}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* LANGUAGE TAB */}
-                            {settingsTab === 'LANGUAGE' && (
-                                <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            {[
-                                                { code: 'zh-TW', name: '繁體中文' },
-                                                { code: 'en', name: 'English' },
-                                                { code: 'ko', name: '\uD55C\uAD6D\uC5B4' },
-                                                { code: 'ja', name: '\u65E5\u672C\u8A9E' }
-                                            ].map((lang) => (
-                                                <button
-                                                    key={lang.code}
-                                                    onClick={() => setLanguage(lang.code as LanguageCode)}
-                                                    className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200'} `}
-                                                >
-                                                    <span className="font-bold text-base">{lang.name}</span>
-                                                    {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* NOTIFICATIONS TAB */}
-                            {settingsTab === 'NOTIFICATIONS' && (
-                                <div className="space-y-6">
-                                    <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
-                                        <Bell className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-bold text-amber-900">通知接收設定</p>
-                                            <p className="text-xs text-amber-700 leading-relaxed">當檢查日期即將到期,或檢查結果為「異常」時,系統將自動寄送通知信至以下信箱。</p>
-                                        </div>
-                                    </div>
-
-                                    {loadingNotifications ? (
-                                        <div className="flex justify-center py-8">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-4">
-                                            {notificationEmails.map((email, idx) => (
-                                                <div key={idx} className="space-y-1.5">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email {idx + 1}</label>
-                                                    <div className="relative group">
-                                                        <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 group-focus-within:text-red-500 transition-colors" />
-                                                        <input
-                                                            type="email"
-                                                            value={email}
-                                                            onChange={(e) => {
-                                                                const newEmails = [...notificationEmails];
-                                                                newEmails[idx] = e.target.value;
-                                                                setNotificationEmails(newEmails);
-                                                            }}
-                                                            placeholder="name@example.com"
-                                                            className="w-full pl-10 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:bg-white transition-all shadow-sm"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <button
-                                        onClick={handleSaveNotifications}
-                                        disabled={savingNotifications || loadingNotifications}
-                                        className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                                    >
-                                        {savingNotifications ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                儲存中...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Save className="w-4 h-4" />
-                                                儲存設定
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* GENERAL TAB */}
-                            {settingsTab === 'GENERAL' && (
-                                <div className="space-y-6">
-                                    {/* Theme Settings */}
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('theme')}</label>
-                                        <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
-                                            {[
-                                                { id: 'light', icon: <Sun className="w-4 h-4" />, label: t('themeLight'), color: 'bg-white' },
-                                                { id: 'dark', icon: <Moon className="w-4 h-4" />, label: t('themeDark'), color: 'bg-slate-900' },
-                                                { id: 'blue', icon: <Palette className="w-4 h-4" />, label: t('themeBlue'), color: 'bg-blue-600' },
-                                                { id: 'green', icon: <Leaf className="w-4 h-4" />, label: t('themeGreen'), color: 'bg-emerald-600' },
-                                                { id: 'orange', icon: <Zap className="w-4 h-4" />, label: t('themeOrange'), color: 'bg-orange-600' },
-                                                { id: 'purple', icon: <Sparkles className="w-4 h-4" />, label: t('themePurple'), color: 'bg-purple-600' },
-                                                { id: 'high-contrast', icon: <Eye className="w-4 h-4" />, label: t('themeContrast'), color: 'bg-black' },
-                                                { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('themeSystem'), color: 'bg-gradient-to-br from-white to-slate-900' }
-                                            ].map((item) => (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => setTheme(item.id as ThemeType)}
-                                                    className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
-                                                    title={item.label}
-                                                >
-                                                    <div className={`w-8 h-8 rounded-xl shadow-sm border border-black/5 flex items-center justify-center ${item.color} ${theme === item.id ? '' : ''} `}>
-                                                        {React.cloneElement(item.icon as React.ReactElement, {
-                                                            className: `w-4 h-4 ${['light', 'system'].includes(item.id) && theme !== item.id ? 'text-slate-600' : 'text-white'}`
-                                                        })}
-                                                    </div>
-                                                    <span className="text-[10px] font-bold text-slate-500 line-clamp-1 px-1">{item.label}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-
-                                    <div className="pt-4 border-t border-slate-100 space-y-3">
-                                        <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left text-sm font-medium text-slate-700">
-                                            <span>{t('appVersion')}</span>
-                                            <span className="text-slate-400">v1.1.0 (Pro)</span>
-                                        </button>
-                                        <button
-                                            onClick={handleClearCache}
-                                            className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 transition-colors text-left text-sm font-medium text-red-600"
-                                        >
-                                            <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {t('clearCache')}</span>
+                                            {savingNotifications ? (
+                                                <>
+                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    儲存中...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Save className="w-4 h-4" />
+                                                    儲存設定
+                                                </>
+                                            )}
                                         </button>
                                     </div>
+                                )}
 
-                                    <div className="pt-2">
-                                        <button
-                                            onClick={onLogout}
-                                            className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-300 transition-colors flex items-center justify-center"
-                                        >
-                                            <LogOut className="w-4 h-4 mr-2" />
-                                            {user.isGuest ? t('leaveGuest') : t('logout')}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
-            {isDeclarationModalOpen && (
-                <DeclarationSettingsModal
-                    user={user}
-                    currentSettings={declarationSettings}
-                    onClose={() => setIsDeclarationModalOpen(false)}
-                    onSave={(settings) => setDeclarationSettings(settings)}
-                />
-            )}
-            {/* Equipment Stats Modal */}
-            {isStatsModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setIsStatsModalOpen(false)} />
-                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh] z-10 animate-in zoom-in duration-200">
-                        {/* Header */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
-                                    <ClipboardList className="w-5 h-5 text-indigo-600" />
-                                </div>
-                                {"\u8A2D\u5099\u6982\u89BD"}
-                            </h3>
-                            <button onClick={() => setIsStatsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-slate-500" />
-                            </button>
-                        </div>
-
-                        {/* Content area with stats list */}
-                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
-                            <div className="space-y-3">
-                                {Object.keys(equipmentStats).length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3 opacity-60">
-                                        <Box className="w-12 h-12" />
-                                        <span className="text-base font-medium">{"\u5C1A\u7121\u8A2D\u5099\u8CC7\u6599"}</span>
-                                    </div>
-                                ) : (
-                                    Object.entries(equipmentStats)
-                                        .sort(([, a], [, b]) => (b as number) - (a as number)) // Sort by count descending
-                                        .map(([name, count], idx) => {
-                                            const total = Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number;
-                                            const percent = Math.round(((count as number) / total) * 100);
-
-                                            return (
-                                                <div key={idx} className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-300">
-                                                    {/* Icon Box */}
-                                                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                                        {getEquipmentIcon(name)}
-                                                    </div>
-
-                                                    {/* Content */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex justify-between items-end mb-1.5">
-                                                            <span className="text-slate-700 font-bold text-base truncate pr-2">{name}</span>
-                                                            <span className="text-xs font-bold text-slate-400">{percent}%</span>
+                                {/* GENERAL TAB */}
+                                {settingsTab === 'GENERAL' && (
+                                    <div className="space-y-6">
+                                        {/* Theme Settings */}
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('theme')}</label>
+                                            <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                                                {[
+                                                    { id: 'light', icon: <Sun className="w-4 h-4" />, label: t('themeLight'), color: 'bg-white' },
+                                                    { id: 'dark', icon: <Moon className="w-4 h-4" />, label: t('themeDark'), color: 'bg-slate-900' },
+                                                    { id: 'blue', icon: <Palette className="w-4 h-4" />, label: t('themeBlue'), color: 'bg-blue-600' },
+                                                    { id: 'green', icon: <Leaf className="w-4 h-4" />, label: t('themeGreen'), color: 'bg-emerald-600' },
+                                                    { id: 'orange', icon: <Zap className="w-4 h-4" />, label: t('themeOrange'), color: 'bg-orange-600' },
+                                                    { id: 'purple', icon: <Sparkles className="w-4 h-4" />, label: t('themePurple'), color: 'bg-purple-600' },
+                                                    { id: 'high-contrast', icon: <Eye className="w-4 h-4" />, label: t('themeContrast'), color: 'bg-black' },
+                                                    { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('themeSystem'), color: 'bg-gradient-to-br from-white to-slate-900' }
+                                                ].map((item) => (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => setTheme(item.id as ThemeType)}
+                                                        className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
+                                                        title={item.label}
+                                                    >
+                                                        <div className={`w-8 h-8 rounded-xl shadow-sm border border-black/5 flex items-center justify-center ${item.color} ${theme === item.id ? '' : ''} `}>
+                                                            {React.cloneElement(item.icon as React.ReactElement, {
+                                                                className: `w-4 h-4 ${['light', 'system'].includes(item.id) && theme !== item.id ? 'text-slate-600' : 'text-white'}`
+                                                            })}
                                                         </div>
-                                                        {/* Progress Bar */}
-                                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                            <div
-                                                                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000 ease-out"
-                                                                style={{ width: `${percent}%` }}
-                                                            ></div>
-                                                        </div>
-                                                    </div>
+                                                        <span className="text-[10px] font-bold text-slate-500 line-clamp-1 px-1">{item.label}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
 
-                                                    {/* Count Badge */}
-                                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-black flex items-center justify-center text-lg shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                                        {count as number}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
+
+                                        <div className="pt-4 border-t border-slate-100 space-y-3">
+                                            <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left text-sm font-medium text-slate-700">
+                                                <span>{t('appVersion')}</span>
+                                                <span className="text-slate-400">v1.1.0 (Pro)</span>
+                                            </button>
+                                            <button
+                                                onClick={handleClearCache}
+                                                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 transition-colors text-left text-sm font-medium text-red-600"
+                                            >
+                                                <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {t('clearCache')}</span>
+                                            </button>
+                                        </div>
+
+                                        <div className="pt-2">
+                                            <button
+                                                onClick={onLogout}
+                                                className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-300 transition-colors flex items-center justify-center"
+                                            >
+                                                <LogOut className="w-4 h-4 mr-2" />
+                                                {user.isGuest ? t('leaveGuest') : t('logout')}
+                                            </button>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
+            {
+                isDeclarationModalOpen && (
+                    <DeclarationSettingsModal
+                        user={user}
+                        currentSettings={declarationSettings}
+                        onClose={() => setIsDeclarationModalOpen(false)}
+                        onSave={(settings) => setDeclarationSettings(settings)}
+                    />
+                )
+            }
+            {/* Equipment Stats Modal */}
+            {
+                isStatsModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setIsStatsModalOpen(false)} />
+                        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh] z-10 animate-in zoom-in duration-200">
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                                        <ClipboardList className="w-5 h-5 text-indigo-600" />
+                                    </div>
+                                    {"\u8A2D\u5099\u6982\u89BD"}
+                                </h3>
+                                <button onClick={() => setIsStatsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-slate-500" />
+                                </button>
+                            </div>
+
+                            {/* Content area with stats list */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
+                                <div className="space-y-3">
+                                    {Object.keys(equipmentStats).length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3 opacity-60">
+                                            <Box className="w-12 h-12" />
+                                            <span className="text-base font-medium">{"\u5C1A\u7121\u8A2D\u5099\u8CC7\u6599"}</span>
+                                        </div>
+                                    ) : (
+                                        Object.entries(equipmentStats)
+                                            .sort(([, a], [, b]) => (b as number) - (a as number)) // Sort by count descending
+                                            .map(([name, count], idx) => {
+                                                const total = Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number;
+                                                const percent = Math.round(((count as number) / total) * 100);
+
+                                                return (
+                                                    <div key={idx} className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-300">
+                                                        {/* Icon Box */}
+                                                        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                                            {getEquipmentIcon(name)}
+                                                        </div>
+
+                                                        {/* Content */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex justify-between items-end mb-1.5">
+                                                                <span className="text-slate-700 font-bold text-base truncate pr-2">{name}</span>
+                                                                <span className="text-xs font-bold text-slate-400">{percent}%</span>
+                                                            </div>
+                                                            {/* Progress Bar */}
+                                                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000 ease-out"
+                                                                    style={{ width: `${percent}%` }}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Count Badge */}
+                                                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-black flex items-center justify-center text-lg shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                                            {count as number}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
 
             <InspectionModeModal
                 isOpen={isInspectionModeOpen}
