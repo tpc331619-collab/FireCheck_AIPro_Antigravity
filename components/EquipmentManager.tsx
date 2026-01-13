@@ -285,6 +285,50 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       return;
     }
 
+    // Validate numeric check items have threshold values
+    const invalidNumericItems = checkItems.filter(item => {
+      if (item.inputType === 'number') {
+        console.log('[Validation]', item.name, '- mode:', item.thresholdMode, 'val1:', item.val1, 'type:', typeof item.val1, 'val2:', item.val2, 'type:', typeof item.val2, 'unit:', item.unit);
+
+        // Check if threshold mode is set
+        if (!item.thresholdMode) {
+          console.log('  -> FAIL: Missing thresholdMode');
+          return true;
+        }
+
+        // Check if val1 is set (convert to number and check)
+        const num1 = Number(item.val1);
+        if (item.val1 === undefined || item.val1 === null || item.val1 === '' || isNaN(num1)) {
+          console.log('  -> FAIL: Missing or invalid val1');
+          return true;
+        }
+
+        // For range mode, check if val2 is also set
+        if (item.thresholdMode === 'range') {
+          const num2 = Number(item.val2);
+          if (item.val2 === undefined || item.val2 === null || item.val2 === '' || isNaN(num2)) {
+            console.log('  -> FAIL: Missing or invalid val2 for range mode');
+            return true;
+          }
+        }
+
+        // Check if unit is set
+        if (!item.unit || item.unit.trim() === '') {
+          console.log('  -> FAIL: Missing unit');
+          return true;
+        }
+
+        console.log('  -> PASS');
+      }
+      return false;
+    });
+
+    if (invalidNumericItems.length > 0) {
+      const itemNames = invalidNumericItems.map(item => `「${item.name}」`).join('、');
+      alert(`以下數值檢查項目缺少完整的閾值設定（判定模式、數值、單位）：\n${itemNames}\n\n請完整填寫後再儲存。`);
+      return;
+    }
+
 
     setIsSaving(true);
     const definition: EquipmentDefinition = {
@@ -344,17 +388,37 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
   const getNextDatePreview = () => {
     const startTs = new Date(startDate).getTime();
+    console.log('[EquipmentManager] getNextDatePreview - startDate:', startDate, 'startTs:', startTs);
     if (isNaN(startTs)) return '-';
 
     const finalFrequency = (frequency === 'custom_date' || frequency === 'custom_days') ? customFrequency : frequency;
+    console.log('[EquipmentManager] frequency:', frequency, 'finalFrequency:', finalFrequency);
     if (!finalFrequency) return '-';
 
-    const next = calculateNextInspectionDate(
-      startTs,
-      finalFrequency,
-      initialData?.lastInspectedDate
-    );
-    return next ? next.toLocaleDateString() : '-';
+    // Direct calculation for new frequency options
+    const baseDate = new Date(startTs);
+    let nextDate: Date | null = null;
+
+    if (finalFrequency === 'monthly') {
+      nextDate = new Date(baseDate);
+      nextDate.setMonth(nextDate.getMonth() + 1);
+    } else if (finalFrequency === 'quarterly') {
+      nextDate = new Date(baseDate);
+      nextDate.setMonth(nextDate.getMonth() + 3);
+    } else if (finalFrequency === 'yearly') {
+      nextDate = new Date(baseDate);
+      nextDate.setFullYear(nextDate.getFullYear() + 1);
+    } else {
+      // Fallback to original calculation for other cases
+      nextDate = calculateNextInspectionDate(
+        startTs,
+        finalFrequency,
+        initialData?.lastInspectedDate
+      );
+    }
+
+    console.log('[EquipmentManager] calculated next date:', nextDate);
+    return nextDate ? nextDate.toLocaleDateString() : '-';
   };
 
   const getExpiryDatePreview = () => {
@@ -751,11 +815,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         onChange={(e) => setFrequency(e.target.value)}
                         className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
                       >
-                        <option value="6">每半年 (6個月)</option>
-                        <option value="12">每年 (12個月)</option>
-                        <option value="24">每 2 年 (24個月)</option>
-                        <option value="36">每 3 年 (36個月)</option>
-                        <option value="120">每 10 年 (120個月)</option>
+                        <option value="monthly">每月</option>
+                        <option value="quarterly">每季</option>
+                        <option value="yearly">每年</option>
                         <option value="custom_date">自訂日期</option>
                         <option value="custom_days">自訂天數</option>
                       </select>

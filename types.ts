@@ -25,10 +25,15 @@ export interface UserProfile {
 
 export interface InspectionItem {
   id: string;
+  equipmentId?: string; // Link to original equipment
   type: EquipmentType | string; // Allow custom strings
+  name?: string; // Snapshot of equipment name
+  barcode?: string; // Snapshot of barcode
+  checkFrequency?: string; // Snapshot of frequency
   location: string;
   status: InspectionStatus;
   checkPoints: { [key: string]: boolean | number }; // Support numbers
+  checkResults?: { name: string; value: any; threshold?: string; unit?: string }[]; // Snapshot of detailed check results
   notes: string;
   photoUrl?: string;
   lastUpdated: number;
@@ -42,6 +47,7 @@ export interface InspectionReport {
   items: InspectionItem[];
   overallStatus: 'Pass' | 'Fail' | 'In Progress';
   aiSummary?: string;
+  archived?: boolean; // Auto-archive normal inspections to history
 }
 
 export type AuthMode = 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD';

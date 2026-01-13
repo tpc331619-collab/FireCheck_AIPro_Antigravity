@@ -2,11 +2,16 @@ import { EquipmentDefinition } from '../types';
 
 export const getCycleDays = (freq?: string): number => {
     if (!freq) return 30; // Default
-    if (freq === 'weekly') return 7;
+
+    // Handle new simplified frequency options
     if (freq === 'monthly') return 30;
     if (freq === 'quarterly') return 90;
     if (freq === 'yearly') return 365;
+
+    // Legacy support for old values
+    if (freq === 'weekly') return 7;
     if (['6', '12', '24', '36', '120'].includes(freq)) return parseInt(freq) * 30;
+
     const parsed = parseInt(freq);
     return isNaN(parsed) ? 30 : parsed;
 };
@@ -27,27 +32,21 @@ export const getFrequencyStatus = (item: EquipmentDefinition): 'COMPLETED' | 'PE
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
     if (item.lastInspectedDate && item.lastInspectedDate >= startOfDay) {
-        return 'COMPLETED'; // 已完成
+        return 'COMPLETED'; // 已完成 (今日已檢查)
     }
 
-    // 2. Frequency Logic
+    // 2. Calculate remaining days until next inspection
     const nextDateTs = getNextInspectionDate(item);
     const now = Date.now();
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const remainingDays = Math.ceil((nextDateTs - now) / msPerDay);
 
-    if (now >= nextDateTs) {
-        return 'PENDING'; // 需檢查 (Overdue or Due)
+    // 3. Determine status based on remaining days
+    if (remainingDays <= 2) {
+        return 'PENDING'; // 🔴 紅色「需檢查」: 剩餘 <= 2 天
+    } else if (remainingDays < 14) {
+        return 'CAN_INSPECT'; // 🔵 藍色「可以檢查」: 剩餘 3-13 天
     } else {
-        // Check for "Unnecessary" (Remaining > 2/3 of cycle)
-        const cycleDays = getCycleDays(item.checkFrequency);
-        const msPerDay = 24 * 60 * 60 * 1000;
-        const remainingMs = nextDateTs - now;
-        const remainingDays = remainingMs / msPerDay;
-
-        // "若離下次檢查日期還有2/3的日期" -> Remaining > (Cycle * 2/3)
-        if (remainingDays > (cycleDays * (2 / 3))) {
-            return 'UNNECESSARY'; // 不須檢查
-        }
-
-        return 'CAN_INSPECT'; // 可以檢查 (Not Due Yet)
+        return 'UNNECESSARY'; // 🟢 綠色「不需檢查」: 剩餘 >= 14 天
     }
 };

@@ -194,9 +194,23 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             });
         }
 
+        // Generate Check Results Snapshot
+        const checkResultsSnapshot = inspectingItem.checkItems?.map(ci => ({
+            name: ci.name,
+            value: sanitizedPoints[ci.id],
+            threshold: ci.inputType === 'number'
+                ? (ci.thresholdMode === 'range' ? `${ci.val1}~${ci.val2}` : `${ci.thresholdMode} ${ci.val1}`)
+                : undefined,
+            unit: ci.unit
+        })) || [];
+
         const updatedItem: InspectionItem = {
             ...activeInspectionItem,
+            name: inspectingItem.name, // Snapshot
+            barcode: inspectingItem.barcode, // Snapshot
+            checkFrequency: inspectingItem.checkFrequency, // Snapshot
             checkPoints: sanitizedPoints,
+            checkResults: checkResultsSnapshot, // Snapshot
             lastUpdated: now
         };
 
@@ -232,6 +246,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             }
 
             report.items = newItems;
+
+            // Auto-archive if all items are normal
+            const shouldArchive = updatedItem.status === InspectionStatus.Normal;
+            report.archived = shouldArchive;
 
             // Save to Firestore
             // Check if this is a draft (never saved to Firestore)
@@ -282,10 +300,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 }
             }
 
+            // Show success notification
+            const statusText = updatedItem.status === InspectionStatus.Normal ? '正常' : '異常';
+            alert(`✅ 檢查完成！\n\n設備：${inspectingItem.name}\n狀態：${statusText}\n時間：${new Date(now).toLocaleString('zh-TW')}`);
+
             // Close Modal
             setInspectingItem(null);
 
-            // If Abnormal, maybe show a toast?
+            // If Abnormal, show additional info
             if (updatedItem.status === InspectionStatus.Abnormal) {
                 alert(`已記錄異常，並將加入「異常複檢」清單。\n原因: ${updatedItem.notes}`);
             }
@@ -550,78 +572,108 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             </div>
 
                                             {isNum ? (
-                                                <div className="flex items-center gap-3">
-                                                    <div className="relative flex-1">
-                                                        <input
-                                                            type="number"
-                                                            value={val === undefined ? '' : val as number}
-                                                            onChange={(e) => {
-                                                                const numStr = e.target.value;
-                                                                const num = parseFloat(numStr);
-                                                                const newPoints = { ...activeInspectionItem.checkPoints, [ci.name]: numStr === '' ? '' : num };
+                                                <div className="space-y-2">
+                                                    {/* Threshold Spec Display */}
+                                                    {(() => {
+                                                        console.log('[Threshold Debug]', ci.name, '- mode:', ci.thresholdMode, 'val1:', ci.val1, 'val2:', ci.val2, 'unit:', ci.unit);
+                                                        return (ci.val1 !== undefined || ci.val2 !== undefined) ? (
+                                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 flex items-center gap-2">
+                                                                <Gauge className="w-4 h-4 text-blue-600 shrink-0" />
+                                                                <div className="text-xs text-blue-700 font-medium">
+                                                                    <span className="font-bold">規格範圍：</span>
+                                                                    {ci.thresholdMode === 'range' && ci.val1 !== undefined && ci.val2 !== undefined && (
+                                                                        <span>{ci.val1} ~ {ci.val2} {ci.unit || ''}</span>
+                                                                    )}
+                                                                    {ci.thresholdMode === 'gte' && ci.val1 !== undefined && (
+                                                                        <span>≥ {ci.val1} {ci.unit || ''}</span>
+                                                                    )}
+                                                                    {ci.thresholdMode === 'gt' && ci.val1 !== undefined && (
+                                                                        <span>&gt; {ci.val1} {ci.unit || ''}</span>
+                                                                    )}
+                                                                    {ci.thresholdMode === 'lte' && ci.val1 !== undefined && (
+                                                                        <span>≤ {ci.val1} {ci.unit || ''}</span>
+                                                                    )}
+                                                                    {ci.thresholdMode === 'lt' && ci.val1 !== undefined && (
+                                                                        <span>&lt; {ci.val1} {ci.unit || ''}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
 
-                                                                // Validation Logic
-                                                                let itemFailed = false;
-                                                                if (numStr !== '' && !isNaN(num) && ci.thresholdMode) {
-                                                                    if (ci.thresholdMode === 'range' && (num < (ci.val1 || 0) || num > (ci.val2 || 0))) itemFailed = true;
-                                                                    else if (ci.thresholdMode === 'gt' && num <= (ci.val1 || 0)) itemFailed = true;
-                                                                    else if (ci.thresholdMode === 'gte' && num < (ci.val1 || 0)) itemFailed = true;
-                                                                    else if (ci.thresholdMode === 'lt' && num >= (ci.val1 || 0)) itemFailed = true;
-                                                                    else if (ci.thresholdMode === 'lte' && num > (ci.val1 || 0)) itemFailed = true;
-                                                                }
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="relative flex-1">
+                                                            <input
+                                                                type="number"
+                                                                value={val === undefined ? '' : val as number}
+                                                                onChange={(e) => {
+                                                                    const numStr = e.target.value;
+                                                                    const num = parseFloat(numStr);
+                                                                    const newPoints = { ...activeInspectionItem.checkPoints, [ci.name]: numStr === '' ? '' : num };
 
-                                                                // Recalculate Global Status
-                                                                // If this item failed, Status must be Abnormal.
-                                                                // If this item passed, we need to check OTHER items to see if overall status can be Normal.
-                                                                let overallAbnormal = itemFailed;
-                                                                if (!itemFailed) {
-                                                                    // Check other items
-                                                                    inspectingItem.checkItems.forEach(other => {
-                                                                        if (other.name === ci.name) return; // Skip current
-                                                                        const otherVal = newPoints[other.name];
-                                                                        if (other.inputType === 'number') {
-                                                                            const oNum = parseFloat(String(otherVal));
-                                                                            if (!isNaN(oNum) && other.thresholdMode) {
-                                                                                if (other.thresholdMode === 'range' && (oNum < (other.val1 || 0) || oNum > (other.val2 || 0))) overallAbnormal = true;
-                                                                                // ... simplified check for others
+                                                                    // Validation Logic
+                                                                    let itemFailed = false;
+                                                                    if (numStr !== '' && !isNaN(num) && ci.thresholdMode) {
+                                                                        if (ci.thresholdMode === 'range' && (num < (ci.val1 || 0) || num > (ci.val2 || 0))) itemFailed = true;
+                                                                        else if (ci.thresholdMode === 'gt' && num <= (ci.val1 || 0)) itemFailed = true;
+                                                                        else if (ci.thresholdMode === 'gte' && num < (ci.val1 || 0)) itemFailed = true;
+                                                                        else if (ci.thresholdMode === 'lt' && num >= (ci.val1 || 0)) itemFailed = true;
+                                                                        else if (ci.thresholdMode === 'lte' && num > (ci.val1 || 0)) itemFailed = true;
+                                                                    }
+
+                                                                    // Recalculate Global Status
+                                                                    // If this item failed, Status must be Abnormal.
+                                                                    // If this item passed, we need to check OTHER items to see if overall status can be Normal.
+                                                                    let overallAbnormal = itemFailed;
+                                                                    if (!itemFailed) {
+                                                                        // Check other items
+                                                                        inspectingItem.checkItems.forEach(other => {
+                                                                            if (other.name === ci.name) return; // Skip current
+                                                                            const otherVal = newPoints[other.name];
+                                                                            if (other.inputType === 'number') {
+                                                                                const oNum = parseFloat(String(otherVal));
+                                                                                if (!isNaN(oNum) && other.thresholdMode) {
+                                                                                    if (other.thresholdMode === 'range' && (oNum < (other.val1 || 0) || oNum > (other.val2 || 0))) overallAbnormal = true;
+                                                                                    // ... simplified check for others
+                                                                                }
+                                                                            } else {
+                                                                                if (otherVal === false) overallAbnormal = true; // Boolean logic: true=Pass (Normal), false=Fail (Abnormal)
+                                                                                // Wait, previous logic was val=true meant "Qualified" (checked). 
+                                                                                // User wants "Normal/Abnormal".
+                                                                                // Let's store boolean: true = Normal, false = Abnormal.
                                                                             }
-                                                                        } else {
-                                                                            if (otherVal === false) overallAbnormal = true; // Boolean logic: true=Pass (Normal), false=Fail (Abnormal)
-                                                                            // Wait, previous logic was val=true meant "Qualified" (checked). 
-                                                                            // User wants "Normal/Abnormal".
-                                                                            // Let's store boolean: true = Normal, false = Abnormal.
-                                                                        }
+                                                                        });
+                                                                    }
+
+                                                                    setActiveInspectionItem(prev => ({
+                                                                        ...prev!,
+                                                                        checkPoints: newPoints,
+                                                                        status: overallAbnormal ? InspectionStatus.Abnormal : prev!.status // Auto-set Abnormal, do not auto-clear to Normal if user manually set it? User logic: "Status is not needed". So Status IS derived.
+                                                                        // Let's force derived status for now, or default to Normal if all pass.
+                                                                        // Actually, if user says "Remove Status Selection", then status IS purely derived.
+                                                                    }));
+
+                                                                    // Better Approach: Update status based on ALL checks every change.
+                                                                    const isStatsAbnormal = itemFailed || inspectingItem.checkItems.some(other => {
+                                                                        if (other.name === ci.name) return false;
+                                                                        const oVal = newPoints[other.name];
+                                                                        if (other.inputType === 'number') return false; // Basic skip for now, simplified
+                                                                        return oVal === false; // If stored as false=Abnormal
                                                                     });
-                                                                }
 
-                                                                setActiveInspectionItem(prev => ({
-                                                                    ...prev!,
-                                                                    checkPoints: newPoints,
-                                                                    status: overallAbnormal ? InspectionStatus.Abnormal : prev!.status // Auto-set Abnormal, do not auto-clear to Normal if user manually set it? User logic: "Status is not needed". So Status IS derived.
-                                                                    // Let's force derived status for now, or default to Normal if all pass.
-                                                                    // Actually, if user says "Remove Status Selection", then status IS purely derived.
-                                                                }));
-
-                                                                // Better Approach: Update status based on ALL checks every change.
-                                                                const isStatsAbnormal = itemFailed || inspectingItem.checkItems.some(other => {
-                                                                    if (other.name === ci.name) return false;
-                                                                    const oVal = newPoints[other.name];
-                                                                    if (other.inputType === 'number') return false; // Basic skip for now, simplified
-                                                                    return oVal === false; // If stored as false=Abnormal
-                                                                });
-
-                                                                setActiveInspectionItem(prev => ({
-                                                                    ...prev!,
-                                                                    checkPoints: newPoints,
-                                                                    status: isStatsAbnormal ? InspectionStatus.Abnormal : InspectionStatus.Normal
-                                                                }));
-                                                            }}
-                                                            placeholder="輸入數值"
-                                                            className={`w-full p-2.5 bg-slate-50 border rounded-lg text-slate-900 focus:outline-none transition-colors 
+                                                                    setActiveInspectionItem(prev => ({
+                                                                        ...prev!,
+                                                                        checkPoints: newPoints,
+                                                                        status: isStatsAbnormal ? InspectionStatus.Abnormal : InspectionStatus.Normal
+                                                                    }));
+                                                                }}
+                                                                placeholder="輸入數值"
+                                                                className={`w-full p-2.5 bg-slate-50 border rounded-lg text-slate-900 focus:outline-none transition-colors 
                                                                 ${(activeInspectionItem.status === InspectionStatus.Abnormal && (!val || (val as number) < 0)) ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-blue-500'}`}
-                                                        // Note: Input border logic simplified for now
-                                                        />
-                                                        {ci.unit && <span className="absolute right-3 top-2.5 text-slate-400 text-sm font-bold pointer-events-none">{ci.unit}</span>}
+                                                            // Note: Input border logic simplified for now
+                                                            />
+                                                            {ci.unit && <span className="absolute right-3 top-2.5 text-slate-400 text-sm font-bold pointer-events-none">{ci.unit}</span>}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ) : (
