@@ -15,13 +15,15 @@ interface StorageManagerModalProps {
     user: UserProfile;
     isOpen: boolean;
     onClose: () => void;
-    onSelect?: (file: StorageFile) => void;
+    onSelect?: (file: StorageFile) => Promise<void> | void;
 }
 
 const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen, onClose, onSelect }) => {
     const [files, setFiles] = useState<StorageFile[]>([]);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [selectingId, setSelectingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -107,12 +109,27 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
     const handleDelete = async (file: StorageFile) => {
         if (!window.confirm(`確定要刪除 ${file.name} 嗎？此操作無法復原。`)) return;
 
+        setDeletingId(file.fullPath);
         try {
             await StorageService.deleteStorageFile(file.fullPath);
             setFiles(files.filter(f => f.fullPath !== file.fullPath));
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("刪除失敗");
+            alert("刪除失敗: " + (error.message || '未知錯誤'));
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const handleSelect = async (file: StorageFile) => {
+        if (!onSelect) return;
+        setSelectingId(file.fullPath);
+        try {
+            await onSelect(file);
+        } catch (error) {
+            console.error("Selection failed", error);
+        } finally {
+            setSelectingId(null);
         }
     };
 
@@ -189,6 +206,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-slate-100 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
+                                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-20">預覽</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">檔案名稱</th>
                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">大小</th>
@@ -197,15 +215,18 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200 bg-white">
-                                {files.map((file) => (
+                                {files.map((file, index) => (
                                     <tr key={file.fullPath} className="hover:bg-slate-50 transition-colors group">
+                                        <td className="px-6 py-3 text-sm text-slate-500 font-bold">
+                                            {index + 1}
+                                        </td>
                                         <td className="px-6 py-3">
                                             <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 cursor-pointer hover:scale-110 transition-transform" onClick={() => window.open(file.url, '_blank')}>
                                                 <img src={file.url} alt="thumbnail" className="w-full h-full object-cover" />
                                             </div>
                                         </td>
                                         <td className="px-6 py-3">
-                                            <p className="font-bold text-slate-700 text-sm truncate max-w-[200px]" title={file.name}>{file.name}</p>
+                                            <p className="font-bold text-slate-700 text-sm truncate max-w-[200px]" title={file.name}>{file.name.replace(/^\d+_(.+)$/, '$1')}</p>
                                         </td>
                                         <td className="px-6 py-3 text-sm text-slate-600 font-mono">
                                             {formatBytes(file.size)}
@@ -216,20 +237,30 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                                         <td className="px-6 py-3 text-right flex items-center justify-end gap-2">
                                             {onSelect && (
                                                 <button
-                                                    onClick={() => onSelect(file)}
-                                                    className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all font-bold text-xs flex items-center shrink-0"
+                                                    onClick={() => handleSelect(file)}
+                                                    disabled={!!selectingId}
+                                                    className={`p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all font-bold text-xs flex items-center shrink-0 ${selectingId === file.fullPath ? 'opacity-70 cursor-wait' : ''}`}
                                                     title="使用此圖片"
                                                 >
-                                                    <Check className="w-4 h-4 mr-1" />
+                                                    {selectingId === file.fullPath ? (
+                                                        <div className="w-4 h-4 mr-1 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                                    ) : (
+                                                        <Check className="w-4 h-4 mr-1" />
+                                                    )}
                                                     選擇
                                                 </button>
                                             )}
                                             <button
                                                 onClick={() => handleDelete(file)}
-                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                disabled={!!deletingId}
+                                                className={`p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${deletingId === file.fullPath ? 'opacity-100 cursor-wait' : ''}`}
                                                 title="刪除檔案"
                                             >
-                                                <Trash2 className="w-5 h-5" />
+                                                {deletingId === file.fullPath ? (
+                                                    <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <Trash2 className="w-5 h-5" />
+                                                )}
                                             </button>
                                         </td>
                                     </tr>

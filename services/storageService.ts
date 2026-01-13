@@ -408,15 +408,7 @@ export const StorageService = {
         await setDoc(docRef, map, { merge: true });
       } catch (e: any) {
         console.error("Update map error", e);
-        const data = localStorage.getItem(KEY);
-        if (data) {
-          const maps: EquipmentMap[] = JSON.parse(data);
-          const existsLocally = maps.find(m => m.id === map.id);
-          if (existsLocally) {
-            const updatedMaps = maps.map(m => m.id === map.id ? map : m);
-            localStorage.setItem(KEY, JSON.stringify(updatedMaps));
-          }
-        }
+        throw e;
       }
     }
   },
@@ -434,28 +426,13 @@ export const StorageService = {
       try {
         const mapRef = doc(db, 'maps', mapId);
 
-        // 1. Get the map data first to find the image URL
-        const mapSnap = await getDoc(mapRef);
-        if (mapSnap.exists()) {
-          const mapData = mapSnap.data() as EquipmentMap;
-
-          if (mapData.imageUrl && mapData.imageUrl.includes('firebasestorage')) {
-            try {
-              // 2. Delete the image from Storage
-              const imageRef = ref(storage, mapData.imageUrl);
-              await deleteObject(imageRef);
-              console.log(`[Storage] Deleted image for map ${mapId}`);
-            } catch (err) {
-              console.warn("[Storage] Failed to delete image file:", err);
-              // Continue to delete document even if image delete fails
-            }
-          }
-        }
-
-        // 3. Delete the document
+        // Only delete the Firestore document (marker data)
+        // Keep the original image in Storage so user can re-select and re-annotate
         await deleteDoc(mapRef);
+        console.log(`[Firestore] Deleted map document ${mapId}, image preserved in Storage`);
       } catch (e) {
         console.error("Delete map error", e);
+        throw e;
       }
     }
   },

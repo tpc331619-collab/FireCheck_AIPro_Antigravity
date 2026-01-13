@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 位置圖集合
+    match /maps/{mapId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // 檢查報告集合
+    match /reports/{reportId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // 設備定義集合
+    match /equipments/{equipmentId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // 設備階層集合
+    match /hierarchies/{userId} {
+      allow read, write: if request.auth != null && userId == request.auth.uid;
+    }
+    
+    // 系統設定集合
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null && settingId.matches('.*_' + request.auth.uid + '$');
+    }
+  }
+}

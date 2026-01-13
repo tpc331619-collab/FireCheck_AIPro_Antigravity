@@ -25,6 +25,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const [isSaving, setIsSaving] = useState(false);
     const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
     const [toolMode, setToolMode] = useState<'SELECT' | 'ADD_MARKER'>('SELECT');
+    const [isCorsAllowed, setIsCorsAllowed] = useState(true);
 
     // Map Name
     const [mapName, setMapName] = useState('');
@@ -37,7 +38,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const [showGrid, setShowGrid] = useState(false);
 
     // Marker Settings
-    const [markerSize, setMarkerSize] = useState<'small' | 'medium' | 'large'>('medium');
+    const [markerSize, setMarkerSize] = useState<'small' | 'medium' | 'large' | number>('medium');
     const [markerColor, setMarkerColor] = useState('red');
 
     // Drag & Selection State
@@ -81,18 +82,44 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
 
 
+
+    // Robust Image Loader Logic
+    const loadMapImage = (url: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
+            // Attempt 1: With CORS
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                setIsCorsAllowed(true);
+                resolve(img);
+            };
+            img.onerror = () => {
+                // Attempt 2: Without CORS (Fallback)
+                console.warn("CORS load failed, retrying without CORS...");
+                const img2 = new Image();
+                img2.onload = () => {
+                    setIsCorsAllowed(false);
+                    // Silent fallback - user can still edit, but export will be disabled
+                    resolve(img2);
+                };
+                img2.onerror = (err) => reject(new Error("圖片載入失敗 (無法讀取)"));
+                img2.src = url;
+            };
+            img.src = url;
+        });
+    };
+
     const handleSelectFile = async (file: any) => {
-        setIsStorageManagerOpen(false);
+        // DON'T close modal yet. Wait for load.
 
         // Check if map already exists
         const existingMap = maps.find(m => m.imageUrl === file.url);
         if (existingMap) {
+            setIsStorageManagerOpen(false);
             editMap(existingMap);
             return;
         }
 
-        // Create new map (Preview Mode)
-        setIsSaving(true);
         try {
             // Extract name logic similar to sync
             const match = file.name.match(/^\d+_(.+)$/);
@@ -104,26 +131,32 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 imageUrl: file.url,
                 markers: [],
                 updatedAt: Date.now(),
-                size: file.size, // Capture size from cloud file
+                size: file.size,
                 markerSize: 'medium',
                 markerColor: 'red'
             };
 
-            // Don't save to DB yet. Just set current state.
-            // ID is empty to indicate "New Draft"
             const previewMap = { ...newMap, id: '' } as EquipmentMap;
 
-            // setMaps([...maps, createdMap]); // Don't add to list yet
-            editMap(previewMap);
+            // Load Image with Helper
+            const img = await loadMapImage(file.url);
 
-            // Trigger editMap logic manually partially because editMap loads image
-            // We can just call editMap; it handles loading image from URL.
+            setImage(img);
+            setCurrentMap(previewMap);
+            setMarkers([]);
+            setMapName(displayName);
+            setRotation(0);
+            setZoom(1);
+            setSelectedFile(null);
+            setViewMode('EDIT');
 
-        } catch (error) {
+            // Success -> Close Modal
+            setIsStorageManagerOpen(false);
+
+        } catch (error: any) {
             console.error("Failed to load map from selection", error);
-            alert("載入圖面失敗");
-        } finally {
-            setIsSaving(false);
+            alert("載入圖面失敗: " + (error.message || "未知錯誤"));
+            // Don't close modal so user can try another file
         }
     };
 
@@ -445,7 +478,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             }
 
             // --- Capture and Upload Edited Image (Snapshot) ---
-            if (!StorageService.isGuest) {
+            if (!StorageService.isGuest && isCorsAllowed) { // Only if CORS allowed
                 try {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
@@ -481,8 +514,28 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             const my = (marker.y / 100) * image.naturalHeight;
                             const currentSize = marker.size || markerSize;
                             const colorHex = '#ef4444';
-                            const radius = { small: 4, medium: 6, large: 8 }[currentSize] || 6;
-                            const fontSize = { small: 8, medium: 10, large: 12 }[currentSize] || 10;
+                            // Dimensions based on markerSize
+                            // Reverted Logic with Number Support fallback
+                            const rMap: any = { tiny: 2, small: 4, medium: 6, large: 8, huge: 12 };
+                            const fMap: any = { tiny: 6, small: 8, medium: 10, large: 12, huge: 16 };
+
+                            // Handle legacy number connection if user saved some number data
+                            const getSize = (s: any) => {
+                                if (typeof s === 'number') {
+                                    // Map 100 -> 6 (medium). 
+                                    return (s / 100) * 6;
+                                }
+                                return rMap[s] || 6;
+                            };
+                            const getFont = (s: any) => {
+                                if (typeof s === 'number') {
+                                    return (s / 100) * 10;
+                                }
+                                return fMap[s] || 10;
+                            };
+
+                            const radius = getSize(currentSize);
+                            const fontSize = getFont(currentSize);
 
                             ctx.beginPath();
                             ctx.arc(mx, my, radius, 0, 2 * Math.PI);
@@ -547,9 +600,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             await loadMaps({ keepView: true });
             alert('儲存成功');
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('儲存失敗');
+            alert('儲存失敗: ' + (error.message || '未知錯誤'));
         } finally {
             setIsSaving(false);
         }
@@ -557,6 +610,10 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
     const handleExport = () => {
         if (!image) return;
+        if (!isCorsAllowed) {
+            alert('匯出失敗：因為圖片受到 CORS 跨域限制，瀏覽器無法可以輸出圖片。請聯絡管理員設定 Firebase Storage CORS 規則。');
+            return;
+        }
 
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -598,18 +655,18 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             // Individual or Global Settings
             const currentSize = marker.size || markerSize;
-            // Force Red Color
-            const colorHex = '#ef4444'; // Tailwind Red-500
 
-            // Dimensions based on markerSize (Refined for "Tiny" request)
-            // Dimensions based on markerSize (Refined for 5-level sizes)
-            const radius = { tiny: 2, small: 4, medium: 6, large: 8, huge: 12 }[currentSize] || 6;
-            const fontSize = { tiny: 6, small: 8, medium: 10, large: 12, huge: 16 }[currentSize] || 10;
+            // Reverted Logic with Number Support fallback
+            const rMap: any = { tiny: 2, small: 4, medium: 6, large: 8, huge: 12 };
+            const fMap: any = { tiny: 6, small: 8, medium: 10, large: 12, huge: 16 };
+
+            const radius = (typeof currentSize === 'number') ? (currentSize / 100) * 6 : (rMap[currentSize as string] || 6);
+            const fontSize = (typeof currentSize === 'number') ? (currentSize / 100) * 10 : (fMap[currentSize as string] || 10);
 
             // Draw Circle
             ctx.beginPath();
             ctx.arc(mx, my, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = colorHex;
+            ctx.fillStyle = '#ef4444'; // Always Red
             ctx.fill();
             // No border
 
@@ -629,6 +686,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             // Draw Label
             if (marker.equipmentId) {
+                // Label size also scales a bit? Or keep fixed? Usually keep fixed for readability, or scale slightly.
+                // Let's keep label mostly fixed but maybe slightly scale for huge markers
                 ctx.fillStyle = 'black';
                 ctx.font = 'bold 16px Arial';
                 ctx.strokeStyle = 'white';
@@ -655,18 +714,24 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     };
 
     const editMap = (map: EquipmentMap) => {
-        const img = new Image();
-        img.onload = () => {
+        loadMapImage(map.imageUrl).then((img) => {
             setImage(img);
             setCurrentMap(map);
             setMarkers(map.markers);
             setMapName(map.name);
-            setRotation(map.rotation || 0); // Load rotation
-            setMarkerSize(map.markerSize || 'medium');
-            setMarkerColor(map.markerColor || 'red');
-            setMapName(map.name);
-            setRotation(map.rotation || 0); // Load rotation
-            setMarkerSize(map.markerSize || 'medium');
+            setRotation(map.rotation || 0);
+
+            // Handle legacy sizes (Migrate back to string if number found)
+            let loadedSize = map.markerSize;
+            if (typeof loadedSize === 'number') {
+                if (loadedSize < 60) loadedSize = 'tiny';
+                else if (loadedSize < 85) loadedSize = 'small';
+                else if (loadedSize < 125) loadedSize = 'medium';
+                else if (loadedSize < 175) loadedSize = 'large';
+                else loadedSize = 'huge';
+            }
+            setMarkerSize((loadedSize as any) || 'medium');
+
             setMarkerColor(map.markerColor || 'red');
 
             // Auto fit to 100%
@@ -674,15 +739,22 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             setSelectedFile(null);
             setViewMode('EDIT');
-        };
-        img.src = map.imageUrl;
+        }).catch(err => {
+            console.error("Edit map load error", err);
+            alert("載入圖面失敗，請重試");
+        });
     };
 
     const deleteMap = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         if (confirm('確定要刪除此地圖嗎？')) {
-            await StorageService.deleteEquipmentMap(id, user.uid);
-            loadMaps();
+            try {
+                await StorageService.deleteEquipmentMap(id, user.uid);
+                loadMaps();
+            } catch (error: any) {
+                console.error(error);
+                alert('刪除失敗: ' + (error.message || '未知錯誤'));
+            }
         }
     };
 
@@ -739,7 +811,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             <div className="flex justify-between items-center">
                                 <h3 className="text-lg font-bold text-slate-700">已上傳圖片清單</h3>
                                 <div className="flex items-center gap-4">
-                                    <p className="text-sm text-slate-500">共 {maps.length} 張圖面</p>
+                                    <p className="text-sm text-slate-500">共 {maps.filter(map => map.markers && map.markers.length > 0).length} 張圖面</p>
 
                                     <button
                                         onClick={() => setIsStorageManagerOpen(true)}
@@ -756,6 +828,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 <table className="w-full text-left border-collapse">
                                     <thead className="bg-slate-50 border-b border-slate-200">
                                         <tr>
+                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">預覽</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">圖面名稱</th>
                                             <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">大小</th>
@@ -772,6 +845,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             }}
                                             className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
                                         >
+                                            <td className="px-6 py-4"></td>
                                             <td className="px-6 py-4">
                                                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
                                                     <Plus className="w-6 h-6" />
@@ -785,9 +859,12 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             </td>
                                         </tr>
 
-                                        {/* Existing Maps */}
-                                        {maps.map(map => (
+                                        {/* Existing Maps - Only show maps with markers */}
+                                        {maps.filter(map => map.markers && map.markers.length > 0).map((map, index) => (
                                             <tr key={map.id} onClick={() => editMap(map)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                                <td className="px-6 py-4 text-sm text-slate-500 font-bold">
+                                                    {index + 1}
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 relative">
                                                         <img
@@ -963,12 +1040,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                                 {marker.equipmentId || '未命名'}
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            onClick={(e) => deleteMarker(e, marker.id)}
-                                                            className="absolute -top-4 -right-4 bg-white rounded-full p-0.5 shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 transition-all hover:text-red-600 hover:scale-110 z-30 w-4 h-4 flex items-center justify-center"
-                                                        >
-                                                            <X className="w-2 h-2" />
-                                                        </button>
+                                                        {/* Delete Button Removed as per request */}
                                                     </div>
                                                 );
                                             })}
@@ -997,6 +1069,12 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             />
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Global Marker Size */}
+                                <div className="p-4 border-b border-slate-200 bg-white">
+                                    {/* Global Marker Size Removed as per request (revert to individual only or non-UI global) */}
+
                                 </div>
 
                                 {/* Marker List */}
@@ -1113,7 +1191,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 onClose={() => setIsStorageManagerOpen(false)}
                 onSelect={modalMode === 'SELECT' ? handleSelectFile : undefined}
             />
-        </div>
+        </div >
     );
 };
 
