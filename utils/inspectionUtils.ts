@@ -8,9 +8,9 @@ export const getCycleDays = (freq?: string): number => {
     if (freq === 'quarterly') return 90;
     if (freq === 'yearly') return 365;
 
-    // Legacy support for old values
-    if (freq === 'weekly') return 7;
-    if (['6', '12', '24', '36', '120'].includes(freq)) return parseInt(freq) * 30;
+    // Legacy support removed - conflicts with custom days input
+    // Old: if (freq === 'weekly') return 7;
+    // Old: if (['6', '12', '24', '36', '120'].includes(freq)) return parseInt(freq) * 30;
 
     const parsed = parseInt(freq);
     return isNaN(parsed) ? 30 : parsed;
@@ -44,9 +44,9 @@ export const getFrequencyStatus = (item: EquipmentDefinition): 'COMPLETED' | 'PE
     // 3. Determine status based on remaining days
     if (remainingDays <= 2) {
         return 'PENDING'; // 🔴 紅色「需檢查」: 剩餘 <= 2 天
-    } else if (remainingDays < 14) {
-        return 'CAN_INSPECT'; // 🔵 藍色「可以檢查」: 剩餘 3-13 天
+    } else if (remainingDays <= 5) {
+        return 'CAN_INSPECT'; // 🟠 橙色「可以檢查」: 剩餘 3-5 天
     } else {
-        return 'UNNECESSARY'; // 🟢 綠色「不需檢查」: 剩餘 >= 14 天
+        return 'UNNECESSARY'; // 🟢 綠色「不需檢查」: 剩餘 >= 7 天
     }
 };

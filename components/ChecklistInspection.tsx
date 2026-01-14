@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText } from 'lucide-react';
+import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFrequencyStatus, getNextInspectionDate, getCycleDays } from '../utils/inspectionUtils';
 import { THEME_COLORS } from '../constants';
 import InspectionForm from './InspectionForm'; // We might reuse or partial reuse, but for now let's build the list logic first
+import BarcodeScanner from './BarcodeScanner';
 
 interface ChecklistInspectionProps {
     user: UserProfile;
@@ -37,6 +38,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     // Inspection Modal State (To be implemented, maybe simplistic for now)
     const [inspectingItem, setInspectingItem] = useState<EquipmentDefinition | null>(null);
     const [activeInspectionItem, setActiveInspectionItem] = useState<InspectionItem | null>(null);
+
+    // Barcode Scanner State
+    const [scannerOpen, setScannerOpen] = useState(false);
+    const [manualInput, setManualInput] = useState('');
 
     // Load Initial Data (All Equipment)
     useEffect(() => {
@@ -170,6 +175,27 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 photos: [],
                 lastUpdated: Date.now()
             });
+        }
+    };
+
+    const handleBarcodeScanned = (barcode: string) => {
+        setScannerOpen(false);
+        searchEquipmentByBarcode(barcode);
+    };
+
+    const handleManualSearch = () => {
+        if (manualInput.trim()) {
+            searchEquipmentByBarcode(manualInput.trim());
+        }
+    };
+
+    const searchEquipmentByBarcode = (barcode: string) => {
+        const found = filteredEquipment.find(e => e.barcode === barcode);
+        if (found) {
+            handleInspect(found);
+            setManualInput(''); // 清空輸入
+        } else {
+            alert(`找不到設備編號「${barcode}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`);
         }
     };
 
@@ -430,6 +456,46 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         </div>
                     )}
 
+                    {/* Quick Search Section */}
+                    {selectedSite && selectedBuilding && (
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                            <h3 className="font-bold text-slate-700 flex items-center">
+                                <Search className="w-4 h-4 mr-2" /> 快速查找設備
+                            </h3>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {/* Barcode Scanner Button */}
+                                <button
+                                    onClick={() => setScannerOpen(true)}
+                                    className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg active:scale-95"
+                                >
+                                    <ScanBarcode className="w-5 h-5" />
+                                    <span className="font-bold">掃描條碼</span>
+                                </button>
+
+                                {/* Manual Input */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={manualInput}
+                                        onChange={(e) => setManualInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleManualSearch()}
+                                        placeholder="輸入設備編號"
+                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-blue-500 focus:outline-none transition-colors"
+                                    />
+                                    <button
+                                        onClick={handleManualSearch}
+                                        disabled={!manualInput.trim()}
+                                        className="px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                    >
+                                        <Search className="w-4 h-4" />
+                                        <span className="font-bold hidden sm:inline">搜尋</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Equipment List */}
                     {selectedSite && selectedBuilding ? (
                         <div className="space-y-3">
@@ -459,9 +525,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         iconContent = <CheckCircle className="w-5 h-5 text-white" />;
                                     } else if (freqStatus === 'CAN_INSPECT') {
                                         statusLabel = '可以檢查';
-                                        statusColor = 'bg-blue-100 text-blue-600';
-                                        rowBorder = 'border-blue-100 hover:border-blue-300';
-                                        iconBg = 'bg-blue-400';
+                                        statusColor = 'bg-orange-100 text-orange-600';
+                                        rowBorder = 'border-orange-100 hover:border-orange-300';
+                                        iconBg = 'bg-orange-400';
                                     } else if (freqStatus === 'UNNECESSARY') {
                                         statusLabel = '不須檢查';
                                         statusColor = 'bg-slate-100 text-slate-500';
@@ -497,7 +563,21 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                 </div>
                                             </div>
 
-                                            <div>
+                                            <div className="flex items-center gap-2">
+                                                {/* Status Light Indicator */}
+                                                {freqStatus === 'PENDING' && (
+                                                    <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-300"></div>
+                                                )}
+                                                {freqStatus === 'CAN_INSPECT' && (
+                                                    <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-300"></div>
+                                                )}
+                                                {freqStatus === 'UNNECESSARY' && (
+                                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                                )}
+                                                {freqStatus === 'COMPLETED' && (
+                                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                                )}
+
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`}>
                                                     {statusLabel}
                                                 </span>
@@ -763,6 +843,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Barcode Scanner Modal */}
+            {scannerOpen && (
+                <BarcodeScanner
+                    onScanSuccess={handleBarcodeScanned}
+                    onClose={() => setScannerOpen(false)}
+                />
             )}
         </div>
     );

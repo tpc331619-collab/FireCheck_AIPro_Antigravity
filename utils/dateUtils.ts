@@ -12,10 +12,10 @@ export const calculateNextInspectionDate = (start: number, frequency: string, la
             return { value: 0, unit: 'date' };
         }
 
-        // 如果是預定義的月數選項 (6, 12, 24, 36, 120)
-        if (['6', '12', '24', '36', '120'].includes(freq)) {
-            return { value: parseInt(freq), unit: 'month' };
-        }
+        // Legacy format removed - conflicts with custom days input
+        // Old: if (['6', '12', '24', '36', '120'].includes(freq)) {
+        // Old:     return { value: parseInt(freq), unit: 'month' };
+        // Old: }
 
         const num = parseInt(freq);
         if (isNaN(num)) return null;
@@ -85,10 +85,12 @@ export const getInspectionStatus = (nextDate: Date | null): { light: InspectionS
 
     if (diffDays < 0) {
         return { light: 'RED', label: '逾期' };
-    } else if (diffDays < 10) {
-        return { light: 'YELLOW', label: '預警' };
+    } else if (diffDays <= 2) {
+        return { light: 'RED', label: '需檢查' };
+    } else if (diffDays <= 5) {
+        return { light: 'YELLOW', label: '可以檢查' };
     } else {
-        return { light: 'GREEN', label: '正常' };
+        return { light: 'GREEN', label: '不需檢查' };
     }
 };
 
