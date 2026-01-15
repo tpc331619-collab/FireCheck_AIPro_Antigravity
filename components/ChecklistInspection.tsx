@@ -341,13 +341,36 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             // If Abnormal, add to abnormal re-inspection list
             if (updatedItem.status === InspectionStatus.Abnormal) {
                 try {
+                    // Collect abnormal items (failed checks)
+                    const abnormalItems: string[] = [];
+                    inspectingItem.checkItems.forEach(ci => {
+                        const val = sanitizedPoints[ci.id] || sanitizedPoints[ci.name];
+                        if (ci.inputType === 'number') {
+                            const num = parseFloat(String(val));
+                            if (!isNaN(num) && ci.thresholdMode) {
+                                let failed = false;
+                                if (ci.thresholdMode === 'range' && (num < (ci.val1 || 0) || num > (ci.val2 || 0))) failed = true;
+                                else if (ci.thresholdMode === 'gt' && num <= (ci.val1 || 0)) failed = true;
+                                else if (ci.thresholdMode === 'gte' && num < (ci.val1 || 0)) failed = true;
+                                else if (ci.thresholdMode === 'lt' && num >= (ci.val1 || 0)) failed = true;
+                                else if (ci.thresholdMode === 'lte' && num > (ci.val1 || 0)) failed = true;
+                                if (failed) abnormalItems.push(ci.name);
+                            }
+                        } else {
+                            // Boolean check: false = abnormal
+                            if (val === false) abnormalItems.push(ci.name);
+                        }
+                    });
+
                     await StorageService.saveAbnormalRecord({
                         userId: user.uid,
                         equipmentId: inspectingItem.id,
                         equipmentName: inspectingItem.name,
+                        barcode: inspectingItem.barcode,
                         siteName: inspectingItem.siteName,
                         buildingName: inspectingItem.buildingName,
                         inspectionDate: now,
+                        abnormalItems: abnormalItems.length > 0 ? abnormalItems : ['未指定項目'],
                         abnormalReason: updatedItem.notes || '未填寫原因',
                         status: 'pending',
                         createdAt: now,

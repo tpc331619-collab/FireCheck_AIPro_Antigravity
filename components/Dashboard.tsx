@@ -189,10 +189,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         setShowArchived(true); // Open history table directly
     };
 
-    if (showAbnormalRecheck) {
-        return <AbnormalRecheckList user={user} onClose={() => setShowAbnormalRecheck(false)} />;
-    }
-
     useEffect(() => {
         console.log('[Dashboard] initial render');
     }, []);

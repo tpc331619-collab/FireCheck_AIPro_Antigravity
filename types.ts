@@ -135,13 +135,16 @@ export interface AbnormalRecord {
   userId: string;
   equipmentId: string;
   equipmentName: string;
+  barcode?: string; // 設備編號
   siteName: string;
   buildingName: string;
   inspectionDate: number; // 發現異常的檢查日期
-  abnormalReason: string; // 異常原因
+  abnormalItems: string[]; // 異常的項目列表
+  abnormalReason: string; // 異常原因/內容
   status: 'pending' | 'fixed'; // 待複檢 | 已改善
-  fixedDate?: number; // 改善日期
-  fixedNotes?: string; // 改善說明
+  fixedDate?: number; // 修復時間
+  fixedNotes?: string; // 修復情況
+  fixedCategory?: string; // 修復類別 (快選項目)
   createdAt: number;
   updatedAt: number;
 }

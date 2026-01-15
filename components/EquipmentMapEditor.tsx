@@ -46,6 +46,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
     const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
+    // Legend Modal State
+    const [isLegendModalOpen, setIsLegendModalOpen] = useState(false);
+
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to selected marker in sidebar
@@ -1126,6 +1129,19 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             標記列表
                                             <span className="bg-slate-200 text-slate-600 px-1.5 rounded-md text-[10px]">{markers.length}</span>
                                         </h3>
+                                        {/* Legend Info Icon */}
+                                        <button
+                                            onClick={() => setIsLegendModalOpen(true)}
+                                            className="p-1.5 hover:bg-blue-50 rounded-full text-blue-500 transition-colors group relative"
+                                            title="燈號說明"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            <span className="absolute -top-8 right-0 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                                                燈號說明
+                                            </span>
+                                        </button>
                                     </div>
 
                                     {markers.length === 0 ? (
@@ -1227,6 +1243,92 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     </div>
                 )}
             </div>
+
+            {/* Legend Modal */}
+            {isLegendModalOpen && (
+                <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsLegendModalOpen(false)}>
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                燈號說明
+                            </h3>
+                            <button
+                                onClick={() => setIsLegendModalOpen(false)}
+                                className="p-1 hover:bg-slate-100 rounded-full transition-colors"
+                            >
+                                <X className="w-5 h-5 text-slate-400" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-3">
+                            {/* Abnormal Status */}
+                            <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
+                                <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+                                    異
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-slate-800">異常狀態</p>
+                                    <p className="text-xs text-slate-600">檢查結果為異常</p>
+                                </div>
+                            </div>
+
+                            {/* Red Light - Overdue */}
+                            <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
+                                <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-md shrink-0">
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-slate-800">🔴 紅色「需檢查」</p>
+                                    <p className="text-xs text-slate-600">剩餘 ≤ 2 天</p>
+                                </div>
+                            </div>
+
+                            {/* Yellow/Orange Light - Warning */}
+                            <div className="flex items-center gap-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shadow-md shrink-0">
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-slate-800">🟠 橙色「可以檢查」</p>
+                                    <p className="text-xs text-slate-600">剩餘 3-6 天</p>
+                                </div>
+                            </div>
+
+                            {/* Green Light - Normal */}
+                            <div className="flex items-center gap-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shrink-0">
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-slate-800">🟢 綠色「不需檢查」</p>
+                                    <p className="text-xs text-slate-600">剩餘 ≥ 7 天</p>
+                                </div>
+                            </div>
+
+                            {/* Gray - Unlinked */}
+                            <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <div className="w-10 h-10 bg-slate-400 rounded-full flex items-center justify-center shadow-md shrink-0">
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-slate-800">⚪ 灰色</p>
+                                    <p className="text-xs text-slate-600">未連結設備</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+                            <button
+                                onClick={() => setIsLegendModalOpen(false)}
+                                className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors"
+                            >
+                                知道了
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <StorageManagerModal
                 user={user}
                 isOpen={isStorageManagerOpen}

@@ -87,7 +87,7 @@ export const getInspectionStatus = (nextDate: Date | null): { light: InspectionS
         return { light: 'RED', label: '逾期' };
     } else if (diffDays <= 2) {
         return { light: 'RED', label: '需檢查' };
-    } else if (diffDays <= 5) {
+    } else if (diffDays <= 6) {
         return { light: 'YELLOW', label: '可以檢查' };
     } else {
         return { light: 'GREEN', label: '不需檢查' };

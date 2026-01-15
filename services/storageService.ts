@@ -197,6 +197,37 @@ export const StorageService = {
     }
   },
 
+  async getEquipmentById(equipmentId: string, userId: string): Promise<EquipmentDefinition | null> {
+    if (this.isGuest || !db) {
+      const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
+      if (!dataStr) return null;
+      const defs: EquipmentDefinition[] = JSON.parse(dataStr);
+      return defs.find(d => d.id === equipmentId) || null;
+    } else {
+      try {
+        const docRef = doc(db, DB_COLLECTION, equipmentId);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          const { id: _, ...cleanData } = data as any;
+          return {
+            ...cleanData,
+            id: snapshot.id
+          } as EquipmentDefinition;
+        }
+        return null;
+      } catch (e) {
+        console.error("Firebase fetch equipment by ID error", e);
+        return null;
+      }
+    }
+  },
+
+  // Alias for updateEquipmentDefinition
+  async updateEquipment(def: Partial<EquipmentDefinition> & { id: string }): Promise<void> {
+    return this.updateEquipmentDefinition(def);
+  },
+
   // --- Hierarchy Methods ---
 
   async getEquipmentHierarchy(userId: string): Promise<EquipmentHierarchy | null> {
