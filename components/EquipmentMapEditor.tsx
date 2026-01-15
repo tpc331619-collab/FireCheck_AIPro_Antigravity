@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw } from 'lucide-react';
 import { StorageService } from '../services/storageService';
-import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition } from '../types';
+import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionStatus } from '../types';
 import StorageManagerModal from './StorageManagerModal';
 import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils';
 
@@ -16,6 +16,7 @@ interface EquipmentMapEditorProps {
 const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId }) => {
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
+    const [reports, setReports] = useState<InspectionReport[]>([]); // Store inspection reports
 
     // Editor State
     const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -68,9 +69,11 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     }
                 }
             });
-            // Also load all equipment definitions for color sync
-            StorageService.getEquipmentDefinitions(user.uid).then(setAllEquipment);
         }
+        // Also load all equipment definitions for color sync
+        StorageService.getEquipmentDefinitions(user.uid).then(setAllEquipment);
+        // Load reports to determine abnormal status
+        StorageService.getReports(user.uid).then(setReports);
     }, [isOpen, user.uid]);
 
     const loadMaps = async (options?: { keepView?: boolean }) => {
@@ -289,9 +292,28 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     };
 
     // Helper: Determine dynamic marker color based on equipment status
+    // Helper: Check if marker is abnormal
+    const isMarkerAbnormal = (marker: EquipmentMarker) => {
+        if (!marker.equipmentId) return false;
+        // Find latest report containing this item
+        const relevantReports = reports.filter(r => r.items.some(i => i.equipmentId === marker.equipmentId));
+        if (relevantReports.length > 0) {
+            // Sort descending by date to get latest
+            relevantReports.sort((a, b) => b.date - a.date);
+            const latestItem = relevantReports[0].items.find(i => i.equipmentId === marker.equipmentId);
+            return latestItem?.status === InspectionStatus.Abnormal;
+        }
+        return false;
+    };
+
+    // Helper: Determine dynamic marker color based on equipment status
     const getMarkerColor = (marker: EquipmentMarker) => {
         if (!marker.equipmentId) return 'bg-slate-400';
 
+        // Priority 1: Abnormal Status (Red)
+        if (isMarkerAbnormal(marker)) return 'bg-red-500';
+
+        // Priority 2: Frequency Status
         const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
         if (!equip) return 'bg-slate-400'; // Unknown or not linked to valid equipment
 
@@ -536,10 +558,11 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
                             const radius = getSize(currentSize);
                             const fontSize = getFont(currentSize);
+                            const isAbnormal = isMarkerAbnormal(marker);
 
                             ctx.beginPath();
                             ctx.arc(mx, my, radius, 0, 2 * Math.PI);
-                            ctx.fillStyle = colorHex;
+                            ctx.fillStyle = isAbnormal ? '#ef4444' : colorHex;
                             ctx.fill();
 
                             ctx.save();
@@ -549,7 +572,13 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             ctx.font = `bold ${fontSize}px Arial`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-                            ctx.fillText((idx + 1).toString(), 0, 0);
+
+                            if (isAbnormal) {
+                                ctx.fillText('異', 0, 0);
+                            } else {
+                                ctx.fillText((idx + 1).toString(), 0, 0);
+                            }
+
                             ctx.restore();
 
                             if (marker.equipmentId) {
@@ -662,11 +691,12 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             const radius = (typeof currentSize === 'number') ? (currentSize / 100) * 6 : (rMap[currentSize as string] || 6);
             const fontSize = (typeof currentSize === 'number') ? (currentSize / 100) * 10 : (fMap[currentSize as string] || 10);
+            const isAbnormal = isMarkerAbnormal(marker);
 
             // Draw Circle
             ctx.beginPath();
             ctx.arc(mx, my, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = '#ef4444'; // Always Red
+            ctx.fillStyle = isAbnormal ? '#ef4444' : '#ef4444'; // Use Red for Abnormal, fallback to Red for now (or make dynamic later)
             ctx.fill();
             // No border
 
@@ -679,7 +709,12 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText((idx + 1).toString(), 0, 0);
+
+            if (isAbnormal) {
+                ctx.fillText('異', 0, 0);
+            } else {
+                ctx.fillText((idx + 1).toString(), 0, 0);
+            }
 
             ctx.restore();
 
@@ -1021,7 +1056,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 return (
                                                     <div
                                                         key={marker.id}
-                                                        className={`absolute ${sizeClasses} ${colorClasses} rounded-full flex items-center justify-center shadow-sm hover:scale-150 z-10 group cursor-grab 
+                                                        className={`absolute ${sizeClasses} ${getMarkerColor(marker)} rounded-full flex items-center justify-center shadow-sm hover:scale-150 z-10 group cursor-grab 
                                                             ${draggingMarkerId === marker.id ? 'opacity-80 scale-125 cursor-grabbing pointer-events-none' : ''}
                                                             ${selectedMarkerId === marker.id ? 'ring-4 ring-blue-400 ring-opacity-75 z-20' : ''}
                                                         `}
@@ -1033,9 +1068,16 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                             className="flex items-center justify-center relative w-full h-full pointer-events-none"
                                                             style={{ transform: `rotate(${-rotation}deg)` }}
                                                         >
-                                                            <span className={`text-white font-bold select-none leading-none ${textSizeClasses} ${currentSize === 'small' ? 'scale-[0.6]' : ''}`}>
-                                                                {idx + 1}
-                                                            </span>
+                                                            {isMarkerAbnormal(marker) ? (
+                                                                <span className={`text-white font-black select-none leading-none ${textSizeClasses}`}>
+                                                                    異
+                                                                </span>
+                                                            ) : (
+                                                                <span className={`text-white font-bold select-none leading-none ${textSizeClasses} ${currentSize === 'small' ? 'scale-[0.6]' : ''}`}>
+                                                                    {idx + 1}
+                                                                </span>
+                                                            )}
+
                                                             <div className="absolute bottom-full mb-1 bg-slate-900/90 backdrop-blur text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
                                                                 {marker.equipmentId || '未命名'}
                                                             </div>

@@ -220,15 +220,27 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             });
         }
 
-        // Generate Check Results Snapshot
-        const checkResultsSnapshot = inspectingItem.checkItems?.map(ci => ({
-            name: ci.name,
-            value: sanitizedPoints[ci.id],
-            threshold: ci.inputType === 'number'
-                ? (ci.thresholdMode === 'range' ? `${ci.val1}~${ci.val2}` : `${ci.thresholdMode} ${ci.val1}`)
-                : undefined,
-            unit: ci.unit
-        })) || [];
+        // Generate Check Results Snapshot (移除 undefined 值)
+        const checkResultsSnapshot = inspectingItem.checkItems?.map(ci => {
+            const result: any = {
+                name: ci.name,
+                value: sanitizedPoints[ci.id]
+            };
+
+            // 只在數值類型時添加 threshold 和 unit
+            if (ci.inputType === 'number') {
+                if (ci.thresholdMode === 'range') {
+                    result.threshold = `${ci.val1}~${ci.val2}`;
+                } else if (ci.thresholdMode) {
+                    result.threshold = `${ci.thresholdMode} ${ci.val1}`;
+                }
+                if (ci.unit) {
+                    result.unit = ci.unit;
+                }
+            }
+
+            return result;
+        }) || [];
 
         const updatedItem: InspectionItem = {
             ...activeInspectionItem,
@@ -277,6 +289,28 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             const shouldArchive = updatedItem.status === InspectionStatus.Normal;
             report.archived = shouldArchive;
 
+            // 清理函數:遞迴移除所有 undefined 值
+            const removeUndefined = (obj: any): any => {
+                if (obj === null || obj === undefined) return null;
+                if (Array.isArray(obj)) {
+                    return obj.map(removeUndefined);
+                }
+                if (typeof obj === 'object') {
+                    const cleaned: any = {};
+                    Object.keys(obj).forEach(key => {
+                        const value = obj[key];
+                        if (value !== undefined) {
+                            cleaned[key] = removeUndefined(value);
+                        }
+                    });
+                    return cleaned;
+                }
+                return obj;
+            };
+
+            // 清理 report
+            const cleanedReport = removeUndefined(report);
+
             // Save to Firestore
             // Check if this is a draft (never saved to Firestore)
             const isDraft = report.id.startsWith('draft_');
@@ -284,10 +318,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             if (isDraft) {
                 // Create new report in Firestore
                 if (user?.uid) {
-                    const newId = await StorageService.saveReport(report, user.uid);
+                    const newId = await StorageService.saveReport(cleanedReport, user.uid);
                     // Update local state with real Firestore ID
                     report.id = newId;
-                    setCurrentReport(report);
                 } else {
                     console.error("User ID missing, cannot create new report");
                     alert('儲存失敗：找不到使用者 ID，請重新登入');
@@ -295,7 +328,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 }
             } else {
                 // Update existing report
-                await StorageService.updateReport(report);
+                await StorageService.updateReport(cleanedReport);
             }
 
             // Also Update Equipment's lastInspectedDate in DB
@@ -326,12 +359,23 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 }
             }
 
+            // 更新本地狀態,確保統計數字和燈號即時更新
+            // 使用深拷貝確保 React 檢測到變化
+            const updatedReport = {
+                ...report,
+                items: [...report.items],
+                updatedAt: Date.now() // 強制觸發更新
+            };
+
+            // Close Modal first
+            setInspectingItem(null);
+
+            // Then update report to trigger re-render
+            setCurrentReport(updatedReport);
+
             // Show success notification
             const statusText = updatedItem.status === InspectionStatus.Normal ? '正常' : '異常';
             alert(`✅ 檢查完成！\n\n設備：${inspectingItem.name}\n狀態：${statusText}\n時間：${new Date(now).toLocaleString('zh-TW')}`);
-
-            // Close Modal
-            setInspectingItem(null);
 
             // If Abnormal, show additional info
             if (updatedItem.status === InspectionStatus.Abnormal) {
@@ -399,55 +443,47 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 // Calculate Site-wide Stats based on Frequency
                                 const siteEquipment = allEquipment.filter(e => e.siteName === selectedSite);
 
-                                // Count based on Frequency Status
-                                let needInspectionCount = 0;
-                                let completedCount = 0; // Represents "Valid" + "Completed"
-                                let unnecessaryCount = 0;
+                                // 新的統計邏輯 - 區分正常和異常
+                                let needInspectionCount = 0;  // 紅色燈號 (PENDING)
+                                let completedNormalCount = 0; // 已檢查且正常 (COMPLETED + Normal)
+                                let abnormalCount = 0;        // 已檢查但異常 (COMPLETED + Abnormal)
+                                let notNeededCount = 0;       // 綠色 + 橙色 (UNNECESSARY + CAN_INSPECT)
 
                                 siteEquipment.forEach(e => {
                                     const status = getFrequencyStatus(e);
-                                    if (status === 'PENDING') needInspectionCount++;
-                                    else if (status === 'UNNECESSARY') unnecessaryCount++;
-                                    else completedCount++; // CAN_INSPECT or COMPLETED
+                                    if (status === 'PENDING') {
+                                        needInspectionCount++;  // 紅色: 需檢查
+                                    } else if (status === 'COMPLETED') {
+                                        // 檢查是否異常 - 從 currentReport 中查找
+                                        const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === e.id);
+                                        if (inspectionItem?.status === InspectionStatus.Abnormal) {
+                                            abnormalCount++;    // 異常
+                                        } else {
+                                            completedNormalCount++; // 正常完成
+                                        }
+                                    } else {
+                                        notNeededCount++;       // 綠色 + 橙色: 不需檢查
+                                    }
                                 });
-
-                                // "如果列表出來有'不須檢查',則'應檢查'的數量不能算入"
-                                // Meaning: Site Total (displayed as "應檢查") should exclude UNNECESSARY items.
-                                const activeSiteTotal = siteEquipment.length - unnecessaryCount;
-
-                                // Progress based on Active Total
-                                const progress = activeSiteTotal > 0 ? Math.round((completedCount / activeSiteTotal) * 100) : 0;
 
                                 return (
                                     <>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                                                <p className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-1">應檢查</p>
-                                                <p className="text-2xl font-black text-blue-700">{activeSiteTotal}</p>
-                                            </div>
-                                            <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
-                                                <p className="text-xs font-bold text-green-400 uppercase tracking-wider mb-1">已完成</p>
-                                                <p className="text-2xl font-black text-green-700">{completedCount}</p>
-                                            </div>
+                                        <div className="grid grid-cols-4 gap-4">
                                             <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-center">
                                                 <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">需檢查</p>
                                                 <p className="text-2xl font-black text-red-700">{needInspectionCount}</p>
                                             </div>
-                                        </div>
-
-                                        {/* Progress Bar */}
-                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                            <div className="flex justify-between items-center mb-2">
-                                                <span className="text-sm font-bold text-slate-700">檢查進度 (場所全體)</span>
-                                                <span className="text-sm font-bold text-slate-500">{progress}%</span>
+                                            <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
+                                                <p className="text-xs font-bold text-green-400 uppercase tracking-wider mb-1">已完成</p>
+                                                <p className="text-2xl font-black text-green-700">{completedNormalCount}</p>
                                             </div>
-                                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 transition-all duration-1000 ease-out relative"
-                                                    style={{ width: `${progress}%` }}
-                                                >
-                                                    <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite] transform skew-x-12"></div>
-                                                </div>
+                                            <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
+                                                <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">異常</p>
+                                                <p className="text-2xl font-black text-red-600">{abnormalCount}</p>
+                                            </div>
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">不需檢查</p>
+                                                <p className="text-2xl font-black text-slate-700">{notNeededCount}</p>
                                             </div>
                                         </div>
                                     </>
@@ -507,7 +543,20 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     無對應設備
                                 </div>
                             ) : (
-                                filteredEquipment.map(item => {
+                                // 按燈號排序: 紅色 (PENDING) → 橙色 (CAN_INSPECT) → 綠色 (UNNECESSARY) → 已完成 (COMPLETED)
+                                [...filteredEquipment].sort((a, b) => {
+                                    const statusA = getFrequencyStatus(a);
+                                    const statusB = getFrequencyStatus(b);
+
+                                    const priority = {
+                                        'PENDING': 1,      // 紅色最優先
+                                        'CAN_INSPECT': 2,  // 橙色次之
+                                        'UNNECESSARY': 3,  // 綠色再次
+                                        'COMPLETED': 4     // 已完成最後
+                                    };
+
+                                    return priority[statusA] - priority[statusB];
+                                }).map(item => {
                                     const freqStatus = getFrequencyStatus(item);
 
                                     // Visual Logic
@@ -574,9 +623,23 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                 {freqStatus === 'UNNECESSARY' && (
                                                     <div className="w-3 h-3 rounded-full bg-green-500"></div>
                                                 )}
-                                                {freqStatus === 'COMPLETED' && (
-                                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                                                )}
+                                                {freqStatus === 'COMPLETED' && (() => {
+                                                    // 檢查是否異常
+                                                    const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === item.id);
+                                                    const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal;
+
+                                                    if (isAbnormal) {
+                                                        // 異常 - 紅色圈圈 + 「異」字
+                                                        return (
+                                                            <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center shadow-lg shadow-red-300">
+                                                                <span className="text-white text-xs font-bold">異</span>
+                                                            </div>
+                                                        );
+                                                    } else {
+                                                        // 正常完成 - 綠色圓點
+                                                        return <div className="w-3 h-3 rounded-full bg-green-500"></div>;
+                                                    }
+                                                })()}
 
                                                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`}>
                                                     {statusLabel}

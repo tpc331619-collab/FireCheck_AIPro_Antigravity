@@ -611,15 +611,48 @@ export const StorageService = {
     if (this.isGuest || !db) {
       const data = localStorage.getItem(ABNORMAL_STORAGE_KEY);
       const records: AbnormalRecord[] = data ? JSON.parse(data) : [];
-      const id = 'local_abnormal_' + Date.now().toString();
-      const recordWithId = { ...newRecord, id };
-      records.unshift(recordWithId);
-      localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(records));
-      return id;
+
+      // Check for existing pending record
+      const existingIndex = records.findIndex(r => r.equipmentId === record.equipmentId && r.status === 'pending');
+
+      if (existingIndex >= 0) {
+        // Update existing
+        const existingId = records[existingIndex].id;
+        const updatedRecord = { ...newRecord, id: existingId, updatedAt: Date.now() };
+        records[existingIndex] = updatedRecord;
+        localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(records));
+        return existingId;
+      } else {
+        // Create new
+        const id = 'local_abnormal_' + Date.now().toString();
+        const recordWithId = { ...newRecord, id };
+        records.unshift(recordWithId);
+        localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(records));
+        return id;
+      }
     } else {
       try {
-        const docRef = await addDoc(collection(db, 'abnormalRecords'), newRecord);
-        return docRef.id;
+        // Check for existing pending record in Firestore
+        const q = query(
+          collection(db, 'abnormalRecords'),
+          where('userId', '==', userId),
+          where('equipmentId', '==', record.equipmentId),
+          where('status', '==', 'pending')
+        );
+
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          // Update existing
+          const docId = snapshot.docs[0].id;
+          const docRef = doc(db, 'abnormalRecords', docId);
+          await updateDoc(docRef, { ...newRecord, updatedAt: Date.now() });
+          return docId;
+        } else {
+          // Create new
+          const docRef = await addDoc(collection(db, 'abnormalRecords'), newRecord);
+          return docRef.id;
+        }
       } catch (e) {
         console.error("Abnormal record save error", e);
         throw e;
