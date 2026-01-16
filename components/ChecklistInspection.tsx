@@ -57,6 +57,11 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 setLightSettings(settings); // Set settings
                 const uniqueSites = Array.from(new Set(data.map(item => item.siteName))).filter(Boolean);
                 setSites(uniqueSites);
+
+                // Auto-select first site default
+                if (uniqueSites.length > 0) {
+                    setSelectedSite(uniqueSites[0]);
+                }
             } catch (error) {
                 console.error("Failed to load equipment", error);
             } finally {
@@ -554,7 +559,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     <input
                                         type="text"
                                         value={manualInput}
-                                        onChange={(e) => setManualInput(e.target.value)}
+                                        onChange={(e) => setManualInput(e.target.value.toUpperCase())}
                                         onKeyPress={(e) => e.key === 'Enter' && handleManualSearch()}
                                         placeholder="輸入設備編號"
                                         className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-blue-500 focus:outline-none transition-colors"

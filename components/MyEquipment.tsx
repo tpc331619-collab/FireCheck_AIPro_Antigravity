@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe } from 'lucide-react';
-import { EquipmentDefinition, UserProfile } from '../types';
+import { EquipmentDefinition, UserProfile, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 // import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils'; // Deprecated for this view
@@ -27,6 +27,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const { t, language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
+  const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
 
 
   // Search State
@@ -63,6 +64,15 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
       const uniqueSites = Array.from(new Set(data.map(item => item.siteName)));
       setSites(uniqueSites);
+
+      // Auto-select first site if none selected
+      if (!selectedSite && uniqueSites.length > 0) {
+        onFilterChange(uniqueSites[0], null);
+      }
+
+      // Load Settings
+      const settings = await StorageService.getLightSettings(user.uid);
+      setLightSettings(settings);
     } catch (error) {
       console.error("Failed to load equipment", error);
     } finally {
@@ -274,7 +284,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                     placeholder="輸入設備編號或名稱搜尋..."
                     className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all"
                   />
@@ -352,7 +362,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                 {(() => {
                                   // Use shared logic
                                   const nextTs = getNextInspectionDate(item);
-                                  const status = getFrequencyStatus(item);
+                                  const status = getFrequencyStatus(item, lightSettings);
 
                                   // Map Status to UI
                                   let colorClass = '';
@@ -379,12 +389,49 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
                                   return (
                                     <div className="flex items-center gap-2">
-                                      <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${colorClass}`}>
-                                        <div className={`w-2 h-2 rounded-full ${dotClass}`}></div>
-                                        {label}
-                                      </div>
-                                      <span className="text-slate-400">下一次檢查:</span>
-                                      <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
+                                      {(() => {
+                                        let bgStyle = {};
+                                        let dotStyle = {};
+                                        let textStyle = {};
+
+                                        if (status === 'COMPLETED') {
+                                          if (lightSettings?.completed?.color) {
+                                            // Custom Color Logic (using hex for border/text approximation or just dot)
+                                            // For simplicity in list view, let's tint the dot and maybe the badge background
+                                            // Actually, custom colors are usually strong hex codes.
+                                            // For the "dot", use the custom color directly.
+                                            dotStyle = { backgroundColor: lightSettings.completed.color };
+                                            // For the pill background/text, it's harder to derive "50" or "600" shades from a hex.
+                                            // Fallback to default classes if we can't easily generate shades, OR 
+                                            // just use the dot for custom color and keep standard pill for readability?
+                                            // User request implies "Light Color Sync", which usually means the main indicator (dot) should match.
+                                            // Let's force the DOT to match.
+                                          }
+                                        } else if (status === 'CAN_INSPECT') {
+                                          if (lightSettings?.yellow?.color) {
+                                            dotStyle = { backgroundColor: lightSettings.yellow.color };
+                                          }
+                                        } else if (status === 'PENDING') {
+                                          if (lightSettings?.red?.color) {
+                                            dotStyle = { backgroundColor: lightSettings.red.color };
+                                          }
+                                        } else if (status === 'UNNECESSARY') {
+                                          if (lightSettings?.green?.color) {
+                                            dotStyle = { backgroundColor: lightSettings.green.color };
+                                          }
+                                        }
+
+                                        return (
+                                          <>
+                                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${colorClass}`} style={bgStyle}>
+                                              <div className={`w-2 h-2 rounded-full ${dotClass}`} style={dotStyle}></div>
+                                              <span style={textStyle}>{label}</span>
+                                            </div>
+                                            <span className="text-slate-400">下一次檢查:</span>
+                                            <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
+                                          </>
+                                        );
+                                      })()}
                                     </div>
                                   );
                                 })()}

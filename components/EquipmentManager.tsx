@@ -98,7 +98,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setBarcode(initialData.barcode);
 
       const freq = initialData.checkFrequency || 'monthly';
-      if (['weekly', 'monthly', 'quarterly', 'yearly', '2years', '3years', '10years', '6', '12', '24', '36', '120'].includes(freq)) {
+      if (['monthly', 'quarterly', 'yearly'].includes(freq)) {
         setFrequency(freq);
         setCustomFrequency('');
       } else {
@@ -800,7 +800,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         <input
                           type="text"
                           value={barcode}
-                          onChange={e => setBarcode(e.target.value)}
+                          onChange={e => setBarcode(e.target.value.toUpperCase())}
                           placeholder={t('enterBarcode')}
                           className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all group-hover:border-slate-400"
                         />

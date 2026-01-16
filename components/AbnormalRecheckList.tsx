@@ -30,6 +30,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
     const [records, setRecords] = useState<AbnormalRecord[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRecord, setSelectedRecord] = useState<AbnormalRecord | null>(null);
+    const [equipmentPhotoMap, setEquipmentPhotoMap] = useState<Record<string, string>>({});
 
     // 修復表單狀態
     const [fixedDate, setFixedDate] = useState('');
@@ -41,9 +42,20 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
     const fetchRecords = async () => {
         setLoading(true);
         try {
-            const data = await StorageService.getAbnormalRecords(user.uid);
+            const [recordsData, equipmentData] = await Promise.all([
+                StorageService.getAbnormalRecords(user.uid),
+                StorageService.getEquipmentDefinitions(user.uid)
+            ]);
+
             // 只顯示待複檢的記錄
-            setRecords(data.filter(r => r.status === 'pending'));
+            setRecords(recordsData.filter(r => r.status === 'pending'));
+
+            // Build Photo Map
+            const photoMap: Record<string, string> = {};
+            equipmentData.forEach(e => {
+                if (e.photoUrl) photoMap[e.id] = e.photoUrl;
+            });
+            setEquipmentPhotoMap(photoMap);
         } catch (err) {
             console.error(err);
         } finally {
@@ -58,8 +70,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
     // 初始化修復時間為當前日期
     useEffect(() => {
         if (selectedRecord) {
-            const now = new Date();
-            setFixedDate(now.toISOString().split('T')[0]);
+            setFixedDate('');
             setFixedNotes('');
         }
     }, [selectedRecord]);
@@ -293,9 +304,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                         <div ref={printRef} className="print-area w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-[15mm] text-slate-900 border border-slate-200">
 
                             {/* 表頭 */}
-                            <div className="text-center mb-8 pb-4 border-b-2 border-black">
-                                <h1 className="text-3xl font-extrabold tracking-widest text-black mb-2 font-serif">消防安全設備異常複檢單</h1>
-                                <div className="flex justify-between items-end mt-4 text-sm text-slate-600 font-medium">
+                            <div className="text-center mb-6 pb-2 border-b-2 border-black">
+                                <h1 className="text-3xl font-extrabold tracking-widest text-black mb-1 font-serif">消防安全設備異常複檢單</h1>
+                                <h2 className="text-sm font-bold tracking-wider text-slate-500 uppercase">Fire Safety Equipment Abnormal Recheck List</h2>
+                                <div className="flex justify-between items-end mt-2 text-sm text-slate-600 font-medium">
                                     <span>單號：{selectedRecord.id.slice(-8).toUpperCase()}</span>
                                     <span>列印日期：{new Date().toLocaleDateString()}</span>
                                 </div>
@@ -303,37 +315,73 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
 
                             {/* 主要表格結構 */}
                             <div className="border-2 border-black">
-                                {/* 1. 設備資訊 */}
-                                <div className="bg-slate-100 border-b border-black p-2 font-bold text-center text-lg bg-print-gray">一、設備基本資料</div>
-                                <div className="grid grid-cols-2">
-                                    <div className="border-r border-black border-b border-black p-3">
-                                        <div className="text-xs text-slate-500 font-bold mb-1">設備名稱</div>
-                                        <div className="text-lg font-bold">{selectedRecord.equipmentName}</div>
+                                {/* 1. 設備資訊 (含照片) */}
+                                <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
+                                    <div className="font-bold text-lg">一、設備基本資料</div>
+                                    <div className="text-xs font-bold text-slate-500 uppercase">I. Equipment Basic Information</div>
+                                </div>
+                                <div className="border-b border-black flex">
+                                    {/* Left: Info Grid (Refactored to Flex for height stretch) */}
+                                    <div className="flex-1 border-r border-black flex">
+                                        {/* Left Column */}
+                                        <div className="flex-1 border-r border-black flex flex-col">
+                                            <div className="border-b border-black p-3">
+                                                <div className="text-xs text-slate-500 font-bold mb-1">設備名稱 <span className="font-normal scale-90 inline-block">Name</span></div>
+                                                <div className="text-lg font-bold">{selectedRecord.equipmentName}</div>
+                                            </div>
+                                            <div className="p-3 flex-1">
+                                                <div className="text-xs text-slate-500 font-bold mb-1">設置場所 <span className="font-normal scale-90 inline-block">Location</span></div>
+                                                <div>{selectedRecord.siteName}</div>
+                                            </div>
+                                        </div>
+                                        {/* Right Column */}
+                                        <div className="flex-1 flex flex-col">
+                                            <div className="border-b border-black p-3">
+                                                <div className="text-xs text-slate-500 font-bold mb-1">設備編號 <span className="font-normal scale-90 inline-block">No.</span></div>
+                                                <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
+                                            </div>
+                                            <div className="p-3 flex-1">
+                                                <div className="text-xs text-slate-500 font-bold mb-1">區域/樓層 <span className="font-normal scale-90 inline-block">Area</span></div>
+                                                <div>{selectedRecord.buildingName}</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="border-b border-black p-3">
-                                        <div className="text-xs text-slate-500 font-bold mb-1">設備編號</div>
-                                        <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
-                                    </div>
-                                    <div className="border-r border-black border-b border-black p-3">
-                                        <div className="text-xs text-slate-500 font-bold mb-1">設置場所</div>
-                                        <div>{selectedRecord.siteName}</div>
-                                    </div>
-                                    <div className="border-b border-black p-3">
-                                        <div className="text-xs text-slate-500 font-bold mb-1">區域/樓層</div>
-                                        <div>{selectedRecord.buildingName}</div>
+
+                                    {/* Right: Photo */}
+                                    <div className="w-[60mm] flex flex-col">
+                                        <div className="p-1 border-b border-black text-center bg-slate-50 bg-print-gray">
+                                            <div className="text-xs font-bold text-slate-500">設備照片 / Photo</div>
+                                        </div>
+                                        <div className="flex-1 p-2 flex items-center justify-center bg-white">
+                                            {equipmentPhotoMap[selectedRecord.equipmentId] ? (
+                                                <img
+                                                    src={equipmentPhotoMap[selectedRecord.equipmentId]}
+                                                    alt="設備照片"
+                                                    className="max-w-full max-h-[120px] object-contain border border-slate-200"
+                                                />
+                                            ) : (
+                                                <div className="text-slate-300 text-sm flex flex-col items-center">
+                                                    <span className="text-2xl mb-1">📷</span>
+                                                    <span className="text-xs">No Photo</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* 2. 異常資訊 */}
-                                <div className="bg-slate-100 border-b border-black p-2 font-bold text-center text-lg bg-print-gray">二、異常檢測記錄</div>
+                                {/* 2. 異常資訊 (純文字) */}
+                                <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
+                                    <div className="font-bold text-lg">二、異常檢測記錄</div>
+                                    <div className="text-xs font-bold text-slate-500 uppercase">II. Abnormal Information</div>
+                                </div>
                                 <div className="border-b border-black">
                                     <div className="grid grid-cols-2 border-b border-black">
                                         <div className="border-r border-black p-3">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">發現日期</div>
+                                            <div className="text-xs text-slate-500 font-bold mb-1">發現日期 <span className="font-normal scale-90 inline-block">Date</span></div>
                                             <div className="font-medium">{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</div>
                                         </div>
                                         <div className="p-3">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">異常項目歸類</div>
+                                            <div className="text-xs text-slate-500 font-bold mb-1">異常項目歸類 <span className="font-normal scale-90 inline-block">Category</span></div>
                                             <div className="flex flex-wrap gap-1">
                                                 {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 ? (
                                                     selectedRecord.abnormalItems.map((item, idx) => (
@@ -347,8 +395,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="p-3 min-h-[80px]">
-                                        <div className="text-xs text-slate-500 font-bold mb-2">異常情況描述</div>
+                                    <div className="p-3 min-h-[80px] border-b-0">
+                                        <div className="text-xs text-slate-500 font-bold mb-2">異常情況描述 <span className="font-normal scale-90 inline-block">Description</span></div>
                                         <div className="text-slate-900 leading-relaxed font-medium">
                                             {selectedRecord.abnormalReason}
                                         </div>
@@ -356,11 +404,16 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                 </div>
 
                                 {/* 3. 修復資訊 */}
-                                <div className="bg-slate-100 border-b border-black p-2 font-bold text-center text-lg bg-print-gray">三、修復處理報告</div>
+                                <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
+                                    <div className="font-bold text-lg">三、修復處理報告</div>
+                                    <div className="text-xs font-bold text-slate-500 uppercase">III. Repair Report</div>
+                                </div>
                                 <div>
                                     <div className="p-3 border-b border-black">
                                         <div className="flex items-center gap-4">
-                                            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">修復完成日期：</label>
+                                            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
+                                                修復完成日期 <span className="font-normal scale-90 inline-block text-slate-500">Completion Date</span> <span className="text-red-500">*</span>：
+                                            </label>
                                             <input
                                                 type="date"
                                                 value={fixedDate}
@@ -370,9 +423,9 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                         </div>
                                     </div>
 
-                                    <div className="p-3 min-h-[200px]">
+                                    <div className="p-3 min-h-[140px]">
                                         <div className="flex justify-between items-center mb-2 no-print">
-                                            <label className="text-sm font-bold text-slate-700">修復處置說明</label>
+                                            <label className="text-sm font-bold text-slate-700">修復處置說明 <span className="text-red-500">*</span></label>
                                             <select
                                                 className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:border-slate-500"
                                                 onChange={handleQuickTextSelect}
@@ -384,57 +437,60 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                                 ))}
                                             </select>
                                         </div>
-                                        <label className="text-xs text-slate-500 font-bold mb-1 hidden print:block">修復處置說明</label>
+                                        <label className="text-xs text-slate-500 font-bold mb-1 hidden print:block">
+                                            修復處置說明 <span className="font-normal scale-90 inline-block">Action Taken</span>
+                                        </label>
 
                                         <textarea
                                             value={fixedNotes}
                                             onChange={(e) => setFixedNotes(e.target.value)}
                                             placeholder="請輸入詳細修復過程..."
-                                            className="w-full h-full min-h-[160px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed"
+                                            className="w-full h-full min-h-[100px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed"
                                         />
                                     </div>
                                 </div>
                             </div>
 
+                            {/* 操作按鈕 (列印時隱藏) */}
+                            <div className="mt-8 mb-4 text-center no-print">
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting}
+                                    className="px-10 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center justify-center gap-2 text-base tracking-wide group"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span>處理中...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                            <span>確認送出 (完成複檢)</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
                             {/* 簽名欄 */}
                             <div className="mt-12 grid grid-cols-2 gap-12">
                                 <div className="border-t border-black pt-2 text-center">
-                                    <p className="font-bold text-black mb-12">維修人員簽章</p>
+                                    <p className="font-bold text-black mb-1">維修人員簽章</p>
+                                    <p className="text-xs text-slate-500 uppercase mb-12">Technician Signature</p>
                                 </div>
                                 <div className="border-t border-black pt-2 text-center">
-                                    <p className="font-bold text-black mb-12">管理人員簽章</p>
+                                    <p className="font-bold text-black mb-1">管理人員簽章</p>
+                                    <p className="text-xs text-slate-500 uppercase mb-12">Supervisor Signature</p>
                                 </div>
                             </div>
 
                             {/* 頁尾 */}
-                            <div className="mt-auto pt-8 text-center text-xs text-slate-400 print:text-black">
-                                <p>本表單由 FireCheck AI Pro 系統自動生成</p>
-                            </div>
+                            {/* 頁尾 */}
+                            <div className="mt-auto pt-8"></div>
                         </div>
                     </div>
 
-                    {/* 底部操作按鈕 (列印時隱藏) */}
-                    <div className="p-4 bg-white border-t border-slate-200 z-40 no-print sticky bottom-0">
-                        <div className="max-w-5xl mx-auto">
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isSubmitting}
-                                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
-                            >
-                                {isSubmitting ? (
-                                    <>
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                        資料同步中...
-                                    </>
-                                ) : (
-                                    <>
-                                        <CheckCircle className="w-6 h-6" />
-                                        確認送出 (完成複檢)
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
+
                 </div>
             ) : (
                 // 列表頁面 (保持不變)
@@ -478,53 +534,61 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {filteredRecords.map(record => (
-                                        <div
-                                            key={record.id}
-                                            onClick={() => setSelectedRecord(record)}
-                                            className="bg-white p-5 rounded-2xl border border-orange-200 hover:border-orange-300 hover:shadow-lg transition-all cursor-pointer group"
-                                        >
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-orange-100 text-orange-700">
-                                                            待複檢
-                                                        </span>
-                                                        <h3 className="font-bold text-slate-800 text-lg">{record.equipmentName}</h3>
-                                                        {record.barcode && (
-                                                            <span className="text-sm text-slate-500">#{record.barcode}</span>
-                                                        )}
-                                                    </div>
+                                    {filteredRecords.map(record => {
+                                        const photoUrl = equipmentPhotoMap[record.equipmentId];
+                                        return (
+                                            <div
+                                                key={record.id}
+                                                onClick={() => setSelectedRecord(record)}
+                                                className="bg-white p-5 rounded-2xl border border-orange-200 hover:border-orange-400 hover:shadow-xl transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden"
+                                            >
+                                                <div className="flex-1 flex flex-col">
+                                                    <div className="flex items-start justify-between gap-4">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-orange-100 text-orange-700">
+                                                                    待複檢
+                                                                </span>
+                                                                <h3 className="font-bold text-slate-800 text-lg group-hover:text-orange-600 transition-colors">
+                                                                    {record.equipmentName}
+                                                                </h3>
+                                                                {record.barcode && (
+                                                                    <span className="text-sm text-slate-500 font-mono bg-slate-100 px-1 rounded">
+                                                                        {record.barcode}
+                                                                    </span>
+                                                                )}
+                                                            </div>
 
-                                                    <div className="text-sm text-slate-500 space-y-1 mb-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="bg-slate-100 px-1.5 rounded text-xs">場所</span>
-                                                            {record.siteName} / {record.buildingName}
+                                                            <div className="text-sm text-slate-500 space-y-1 mb-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="bg-slate-100 px-1.5 rounded text-xs">場所</span>
+                                                                    {record.siteName} / {record.buildingName}
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Calendar className="w-4 h-4" />
+                                                                    發現日期: {new Date(record.inspectionDate).toLocaleDateString(language)}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
+                                                                <div className="w-6 h-6 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5" />
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-red-500 mb-1">
+                                                                        異常原因
+                                                                    </p>
+                                                                    <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <Calendar className="w-4 h-4" />
-                                                            發現日期: {new Date(record.inspectionDate).toLocaleDateString(language)}
+
+                                                        <div className="flex flex-col gap-2 shrink-0 self-center">
+                                                            <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-orange-500 transition-colors" />
                                                         </div>
                                                     </div>
-
-                                                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
-                                                        {/* Custom Abnormal Icon */}
-                                                        <div className="w-6 h-6 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <p className="text-xs font-bold text-red-500 mb-1">
-                                                                異常原因
-                                                            </p>
-                                                            <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-col gap-2 shrink-0">
-                                                    <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-orange-500 transition-colors" />
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

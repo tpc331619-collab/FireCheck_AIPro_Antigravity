@@ -786,13 +786,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-purple-600 transition-colors z-10">
                                 <LayoutGrid className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{"\u6211\u7684\u8A2D\u5099"}</span>
-                            {/* Equipment Count Badge */}
-                            {(Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number) > 0 && (
-                                <div className="absolute top-3 left-3 bg-purple-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-sm">
-                                    {Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number}
-                                </div>
-                            )}
+                            <div className="z-10 text-center">
+                                <span className="font-bold text-slate-700 block">{"\u6211\u7684\u8A2D\u5099"}</span>
+                                {(Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number) > 0 && (
+                                    <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full mt-1 inline-block">
+                                        {Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number} 筆
+                                    </span>
+                                )}
+                            </div>
                         </button>
 
                         <button

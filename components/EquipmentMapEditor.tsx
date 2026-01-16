@@ -1268,7 +1268,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                                 <input
                                                                     type="text"
                                                                     value={marker.equipmentId}
-                                                                    onChange={(e) => updateMarker(marker.id, { equipmentId: e.target.value })}
+                                                                    onChange={(e) => updateMarker(marker.id, { equipmentId: e.target.value.toUpperCase() })}
                                                                     placeholder="輸入編號..."
                                                                     className={`w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none p-0 text-sm font-bold transition-colors ${isSelected ? 'text-slate-800' : 'text-slate-600'}`}
                                                                 />
@@ -1458,7 +1458,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             <input
                                 type="text"
                                 value={pendingEquipmentId}
-                                onChange={(e) => setPendingEquipmentId(e.target.value)}
+                                onChange={(e) => setPendingEquipmentId(e.target.value.toUpperCase())}
                                 placeholder="例如: 001"
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg"
                                 autoFocus
