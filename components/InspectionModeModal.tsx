@@ -26,16 +26,6 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
             icon: <Map className="w-8 h-8 text-purple-500" />,
             color: 'bg-purple-50 border-purple-100 hover:border-purple-300',
             bgIcon: 'bg-purple-100'
-        },
-        {
-            id: 'RECHECK',
-            title: '異常複檢',
-            description: '針對先前異常項目進行複查',
-            icon: (
-                <div className="w-8 h-8 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300" />
-            ),
-            color: 'bg-orange-50 border-orange-100 hover:border-orange-300',
-            bgIcon: 'bg-orange-100'
         }
     ] as const;
 

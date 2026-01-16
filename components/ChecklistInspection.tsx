@@ -389,15 +389,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
             // 更新本地狀態,確保統計數字和燈號即時更新
             // 使用深拷貝確保 React 檢測到變化
-            const updatedReport = {
+            const updatedReport = removeUndefined({
                 ...report,
                 items: [...report.items],
                 updatedAt: Date.now() // 強制觸發更新
-            };
+            });
 
-            // Close Modal first
-            // Save to Firebase Storage
-            await StorageService.saveReport(updatedReport, user.uid);
+            // Update the report (don't create a new one)
+            await StorageService.updateReport(updatedReport);
 
             // Update Equipment Definition's lastInspectedDate to reflect current status
             await StorageService.updateEquipmentDefinition({

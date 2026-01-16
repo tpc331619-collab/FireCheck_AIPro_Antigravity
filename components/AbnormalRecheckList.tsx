@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText } from 'lucide-react';
-import { AbnormalRecord, UserProfile } from '../types';
+import { AbnormalRecord, UserProfile, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -98,7 +98,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
             // 設定為當天結束前或當前時間
             const fixedDateTime = new Date(fixedDate).getTime();
 
-            // 1. 更新異常記錄 (不再儲存 fixedCategory)
+            // 1. 更新異常記錄
             await StorageService.updateAbnormalRecord({
                 ...selectedRecord,
                 status: 'fixed',
@@ -120,28 +120,94 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                 console.error('Failed to update equipment:', e);
             }
 
-            // 3. 建立歷史檢查記錄 (InspectionReport)
+            // 3. 找到並更新原始的異常 InspectionReport
             try {
-                const newReport = {
-                    id: `REP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                    userId: user.uid,
-                    equipmentId: selectedRecord.equipmentId,
-                    equipmentName: selectedRecord.equipmentName,
-                    buildingName: selectedRecord.buildingName,
-                    floor: '',
-                    area: selectedRecord.siteName,
-                    date: fixedDateTime,
-                    inspectorName: user.displayName || 'User',
-                    overallStatus: 'Pass' as const,
-                    items: [],
-                    note: `[異常複檢修復] ${fixedNotes.trim()}`,
-                    signature: '',
-                    updatedAt: Date.now(),
-                    archived: true
-                };
-                await StorageService.saveReport(newReport, user.uid);
+                // 獲取所有 reports
+                const allReports = await StorageService.getReports(user.uid);
+
+                // 找到包含此設備的異常 report（不限制日期，因為可能很久以前的異常才修復）
+                const originalReport = allReports.find(r =>
+                    r.items?.some(item =>
+                        item.equipmentId === selectedRecord.equipmentId &&
+                        item.status === InspectionStatus.Abnormal
+                    )
+                );
+
+                if (originalReport) {
+                    // 更新原始 report
+                    const updatedItems = originalReport.items.map(item => {
+                        if (item.equipmentId === selectedRecord.equipmentId && item.status === InspectionStatus.Abnormal) {
+                            // 更新為正常狀態，並加入修復資訊
+                            return {
+                                ...item,
+                                status: InspectionStatus.Normal,
+                                notes: `${item.notes || ''}\n\n[異常複檢 - 已修復]\n修復日期: ${new Date(fixedDateTime).toLocaleDateString('zh-TW')}\n修復說明: ${fixedNotes.trim()}`,
+                                lastUpdated: fixedDateTime,
+                                checkResults: selectedRecord.abnormalItems.map(itemName => ({
+                                    name: itemName,
+                                    value: 'true', // 修復後合格
+                                    unit: '',
+                                    threshold: ''
+                                }))
+                            };
+                        }
+                        return item;
+                    });
+
+                    // 重新計算 overallStatus
+                    const hasAbnormal = updatedItems.some(item => item.status === InspectionStatus.Abnormal);
+                    const newOverallStatus: 'Pass' | 'Fail' = hasAbnormal ? 'Fail' : 'Pass';
+                    const updatedReport = {
+                        ...originalReport,
+                        items: updatedItems,
+                        overallStatus: newOverallStatus,
+                        updatedAt: Date.now()
+                    };
+
+                    await StorageService.updateReport(updatedReport);
+                    console.log('[AbnormalRecheck] Updated original report:', originalReport.id);
+                } else {
+                    console.warn('[AbnormalRecheck] Original report not found, creating new one');
+                    // 如果找不到原始 report，建立新的
+                    const newReport = {
+                        id: `REP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        userId: user.uid,
+                        equipmentId: selectedRecord.equipmentId,
+                        equipmentName: selectedRecord.equipmentName,
+                        buildingName: selectedRecord.buildingName,
+                        floor: '',
+                        area: selectedRecord.siteName,
+                        date: fixedDateTime,
+                        inspectorName: user.displayName || 'User',
+                        overallStatus: 'Pass' as const,
+                        items: [{
+                            id: selectedRecord.equipmentId,
+                            equipmentId: selectedRecord.equipmentId,
+                            type: '消防設備',
+                            name: selectedRecord.equipmentName,
+                            barcode: selectedRecord.barcode || '',
+                            location: selectedRecord.siteName,
+                            status: InspectionStatus.Normal,
+                            checkPoints: {},
+                            checkResults: selectedRecord.abnormalItems.map(itemName => ({
+                                name: itemName,
+                                value: 'true',
+                                unit: '',
+                                threshold: ''
+                            })),
+                            notes: `[異常複檢]\n原因: ${selectedRecord.abnormalReason}\n修復日期: ${new Date(fixedDateTime).toLocaleDateString('zh-TW')}\n修復說明: ${fixedNotes.trim()}`,
+                            lastUpdated: fixedDateTime,
+                            photoUrl: selectedRecord.photoUrl || undefined
+                        }],
+                        note: `[異常複檢修復] ${fixedNotes.trim()}`,
+                        signature: '',
+                        updatedAt: Date.now(),
+                        archived: true
+                    };
+                    await StorageService.saveReport(newReport, user.uid);
+                }
             } catch (e) {
-                console.error('Failed to create history report:', e);
+                console.error('Failed to update history report:', e);
             }
 
             alert('修復記錄已儲存並同步');

@@ -55,7 +55,8 @@ import {
     BatteryCharging,
     Lightbulb,
     DoorOpen,
-    Box
+    Box,
+    Filter
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
@@ -134,6 +135,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isAddEquipmentModeOpen, setIsAddEquipmentModeOpen] = useState(false);
     const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
     const [showArchived, setShowArchived] = useState(false); // Toggle for archived reports
+    const [abnormalCount, setAbnormalCount] = useState(0); // Count of pending abnormal records
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
+
+    // Enhanced Filter States (Phase 2)
+    const [dateRange, setDateRange] = useState({
+        start: new Date().toISOString().split('T')[0], // Today's date
+        end: ''
+    });
+    const [locationFilter, setLocationFilter] = useState('');
+    const [keywordSearch, setKeywordSearch] = useState('');
+    const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
 
     useEffect(() => {
         const fetchEquipment = async () => {
@@ -156,6 +168,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             }
         };
         fetchEquipment();
+
+        const fetchAbnormalCount = async () => {
+            if (user?.uid) {
+                try {
+                    const records = await StorageService.getAbnormalRecords(user.uid);
+                    const pendingCount = records.filter(r => r.status === 'pending').length;
+                    setAbnormalCount(pendingCount);
+                } catch (error) {
+                    console.error("Failed to fetch abnormal records:", error);
+                }
+            }
+        };
+        fetchAbnormalCount();
     }, [user?.uid]);
 
     const handleInspectionModeSelect = (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => {
@@ -357,9 +382,51 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         }
     }, [user.photoURL]);
 
+    // Extract unique locations from reports
+    const uniqueLocations = React.useMemo(() => {
+        const locations = new Set<string>();
+        reports.forEach(r => {
+            if (r.buildingName) locations.add(r.buildingName);
+        });
+        return Array.from(locations).sort();
+    }, [reports]);
+
     const filteredReports = reports.filter(r => {
+        // Basic search term filter (building name or inspector name)
         const matchesSearch = r.buildingName.includes(searchTerm) || r.inspectorName.includes(searchTerm);
+
+        // Status filter
         const matchesFilter = filterStatus === 'ALL' || r.overallStatus === filterStatus;
+
+        // Date range filter
+        if (dateRange.start && r.date < new Date(dateRange.start).getTime()) return false;
+        if (dateRange.end) {
+            // Set end date to end of day (23:59:59)
+            const endDate = new Date(dateRange.end);
+            endDate.setHours(23, 59, 59, 999);
+            if (r.date > endDate.getTime()) return false;
+        }
+
+        // Equipment name filter (using locationFilter variable)
+        if (locationFilter) {
+            const equipmentName = locationFilter.toLowerCase();
+            const matchesEquipment = r.items?.some(item =>
+                item.name?.toLowerCase().includes(equipmentName)
+            );
+            if (!matchesEquipment) return false;
+        }
+
+        // Keyword search (equipment name, barcode, notes)
+        if (keywordSearch) {
+            const keyword = keywordSearch.toLowerCase();
+            const matchesKeyword = r.items?.some(item =>
+                item.name?.toLowerCase().includes(keyword) ||
+                item.barcode?.toLowerCase().includes(keyword) ||
+                item.notes?.toLowerCase().includes(keyword)
+            );
+            if (!matchesKeyword) return false;
+        }
+
         return matchesSearch && matchesFilter;
     });
 
@@ -738,15 +805,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <History className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
                             </div>
                             <div className="z-10 text-center">
-                                <span className="font-bold text-slate-700 block">{showArchived ? '當前紀錄' : '歷史資料'}</span>
-                                {!showArchived && reports.filter(r => r.archived).length > 0 && (
+                                <span className="font-bold text-slate-700 block">{showArchived ? '當前紀錄' : '歷史紀錄'}</span>
+                                {!showArchived && reports.length > 0 && (
                                     <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">
-                                        {reports.filter(r => r.archived).length} 筆
+                                        {reports.length} 筆
                                     </span>
                                 )}
                             </div>
                         </button>
 
+                        <button
+                            onClick={() => setShowAbnormalRecheck(true)}
+                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 transition-colors z-10">
+                                <AlertTriangle className="w-6 h-6 text-orange-600 group-hover:text-white transition-colors" />
+                            </div>
+                            <div className="z-10 text-center">
+                                <span className="font-bold text-slate-700 block">異常複檢</span>
+                                {abnormalCount > 0 && (
+                                    <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full mt-1 inline-block">
+                                        {abnormalCount} 筆
+                                    </span>
+                                )}
+                            </div>
+                        </button>
 
 
 
@@ -791,8 +875,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             {searchTerm ? <Search className="w-6 h-6 text-blue-600" /> : <History className="w-6 h-6 text-blue-600" />}
                                         </div>
                                         <div>
-                                            <h1 className="text-xl font-bold text-slate-800">{searchTerm ? '搜尋結果' : '歷史檢查紀錄'}</h1>
-                                            <p className="text-xs text-slate-500">{searchTerm ? `關鍵字: "${searchTerm}"` : '已歸檔的正常檢查報告'}</p>
+                                            <h1 className="text-xl font-bold text-slate-800">{searchTerm ? '搜尋結果' : '歷史紀錄'}</h1>
+                                            <p className="text-xs text-slate-500">{searchTerm ? `關鍵字: "${searchTerm}"` : '所有檢查紀錄'}</p>
                                         </div>
                                     </div>
                                     <button
@@ -807,126 +891,321 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </button>
                                 </div>
 
+                                {/* Filter Toggle Button */}
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={() => setShowFilters(!showFilters)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl font-bold transition-colors border border-slate-200 shadow-sm"
+                                    >
+                                        <Filter className="w-4 h-4" />
+                                        {showFilters ? '隱藏篩選' : '顯示篩選'}
+                                        <ChevronRight className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-90' : ''}`} />
+                                    </button>
+                                </div>
+
+                                {/* Filter Controls */}
+                                {showFilters && (
+                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                        <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                                            <Filter className="w-4 h-4" />
+                                            篩選條件
+                                        </h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            {/* Date Range */}
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">開始日期</label>
+                                                <input
+                                                    type="date"
+                                                    value={dateRange.start}
+                                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">結束日期</label>
+                                                <input
+                                                    type="date"
+                                                    value={dateRange.end}
+                                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+
+                                            {/* Equipment Name Filter */}
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-600 mb-1.5 block">設備名稱</label>
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="搜尋設備名稱..."
+                                                        value={locationFilter}
+                                                        onChange={(e) => setLocationFilter(e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Keyword Search */}
+                                        <div className="mt-4">
+                                            <label className="text-xs font-bold text-slate-600 mb-1.5 block">關鍵字搜尋</label>
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="搜尋條碼、備註..."
+                                                    value={keywordSearch}
+                                                    onChange={(e) => setKeywordSearch(e.target.value)}
+                                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Clear Filters Button */}
+                                        {(dateRange.start || dateRange.end || locationFilter || keywordSearch) && (
+                                            <div className="mt-4 flex justify-end">
+                                                <button
+                                                    onClick={() => {
+                                                        setDateRange({ start: '', end: '' });
+                                                        setLocationFilter('');
+                                                        setKeywordSearch('');
+                                                    }}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                    清除篩選
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Table */}
                                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-left text-sm whitespace-nowrap">
                                             <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                                                 <tr>
-                                                    <th className="px-4 py-3">檢查日期與時間</th>
-                                                    <th className="px-4 py-3">查檢場所名稱</th>
+                                                    <th className="px-4 py-3 w-12"></th>
+                                                    <th className="px-4 py-3">檢查日期</th>
+                                                    <th className="px-4 py-3">場所名稱</th>
                                                     <th className="px-4 py-3">設備名稱</th>
                                                     <th className="px-4 py-3">設備編號</th>
-                                                    <th className="px-4 py-3">檢查頻率</th>
-                                                    <th className="px-4 py-3">下次檢查日期</th>
-                                                    <th className="px-4 py-3 min-w-[600px]">檢查項目結果</th>
-                                                    <th className="px-4 py-3">異常備註</th>
+                                                    <th className="px-4 py-3">檢查結果</th>
+                                                    {keywordSearch && <th className="px-4 py-3">搜尋匹配</th>}
+                                                    <th className="px-4 py-3">備註</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
-                                                {filteredReports.length === 0 ? (
-                                                    <tr>
-                                                        <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
-                                                            沒有找到相關紀錄
-                                                        </td>
-                                                    </tr>
-                                                ) : (
-                                                    filteredReports.flatMap(report =>
-                                                        (report.items || []).map((item, idx) => {
-                                                            const freqMap: Record<string, number> = { 'monthly': 30, 'quarterly': 90, 'yearly': 365 };
+                                                {(() => {
+                                                    // Sort by date (newest first) and flatten
+                                                    const sortedReports = [...filteredReports].sort((a, b) => (b.date || 0) - (a.date || 0));
 
-                                                            // Use Snapshot OR Live Data (Fallback)
-                                                            const eqId = item.equipmentId || item.id;
-                                                            const eqData = equipmentMap[eqId] || {};
+                                                    const allRows = sortedReports.flatMap(report =>
+                                                        (report.items || [])
+                                                            .filter(item => {
+                                                                // Apply item-level filters
+                                                                if (locationFilter) {
+                                                                    const equipmentName = locationFilter.toLowerCase();
+                                                                    if (!item.name?.toLowerCase().includes(equipmentName)) return false;
+                                                                }
+                                                                if (keywordSearch) {
+                                                                    const keyword = keywordSearch.toLowerCase();
+                                                                    const matchesKeyword =
+                                                                        item.name?.toLowerCase().includes(keyword) ||
+                                                                        item.barcode?.toLowerCase().includes(keyword) ||
+                                                                        item.notes?.toLowerCase().includes(keyword);
+                                                                    if (!matchesKeyword) return false;
+                                                                }
+                                                                return true;
+                                                            })
+                                                            .map((item, idx) => {
+                                                                const eqId = item.equipmentId || item.id;
+                                                                const eqData = equipmentMap[eqId] || {};
+                                                                const name = item.name || eqData.name || '未命名設備';
+                                                                const barcode = item.barcode || eqData.barcode || '-';
 
-                                                            const frequency = item.checkFrequency || eqData.checkFrequency || 'monthly';
-                                                            const name = item.name || eqData.name || '未命名設備';
-                                                            const barcode = item.barcode || eqData.barcode || '-';
+                                                                const checkDetails = Array.isArray(item.checkResults) && item.checkResults.length > 0
+                                                                    ? item.checkResults
+                                                                    : (item.checkPoints ? Object.keys(item.checkPoints).map(k => ({ name: k, value: item.checkPoints[k], unit: '' })) : []);
 
-                                                            const freqDays = freqMap[frequency] || 30; // Default 30
+                                                                const isAbnormal = item.status === 'Abnormal' || item.status === '異常';
+                                                                const uniqueKey = `${report.id}_${item.equipmentId || item.id}_${idx}_${report.date}`;
+                                                                const isExpanded = expandedRows.has(uniqueKey);
 
-                                                            // Safe Date Handling
-                                                            const validReportDate = report.date ? new Date(report.date) : new Date();
-                                                            const nextDate = new Date(validReportDate);
-                                                            if (!isNaN(validReportDate.getTime())) {
-                                                                nextDate.setDate(nextDate.getDate() + freqDays);
-                                                            }
+                                                                return {
+                                                                    ...item,
+                                                                    displayName: name,
+                                                                    displayBarcode: barcode,
+                                                                    reportId: report.id,
+                                                                    reportDate: report.date,
+                                                                    reportBuilding: report.buildingName,
+                                                                    uniqueKey,
+                                                                    checkDetails,
+                                                                    isAbnormal,
+                                                                    isExpanded
+                                                                };
+                                                            })
+                                                    );
 
-                                                            const checkDetails = Array.isArray(item.checkResults) && item.checkResults.length > 0
-                                                                ? item.checkResults
-                                                                : (item.checkPoints ? Object.keys(item.checkPoints).map(k => ({ name: k, value: item.checkPoints[k], unit: '' })) : []);
+                                                    // Deduplicate based on uniqueKey
+                                                    const seen = new Set<string>();
+                                                    const deduplicatedRows = allRows.filter(row => {
+                                                        if (seen.has(row.uniqueKey)) {
+                                                            console.warn('[Dashboard] Duplicate row detected:', row.uniqueKey);
+                                                            return false;
+                                                        }
+                                                        seen.add(row.uniqueKey);
+                                                        return true;
+                                                    });
 
-                                                            return {
-                                                                ...item,
-                                                                displayName: name,
-                                                                displayBarcode: barcode,
-                                                                displayFrequency: frequency,
-                                                                reportId: report.id,
-                                                                reportDate: report.date,
-                                                                reportBuilding: report.buildingName,
-                                                                uniqueKey: `${report.id}_${item.id}_${idx}`,
-                                                                nextCheckDate: nextDate.getTime(),
-                                                                checkDetails
-                                                            };
-                                                        })
-                                                    ).map((row) => (
-                                                        <tr key={row.uniqueKey} className="hover:bg-slate-50 transition-colors">
-                                                            <td className="px-4 py-3 text-slate-600">
-                                                                {(() => {
-                                                                    const d = new Date(row.reportDate);
-                                                                    return !isNaN(d.getTime()) ? d.toLocaleString(language) : '-';
-                                                                })()}
-                                                            </td>
-                                                            <td className="px-4 py-3 font-bold text-slate-800">
-                                                                {row.reportBuilding}
-                                                                <div className="text-xs text-slate-400 font-normal">{row.location}</div>
-                                                            </td>
-                                                            <td className="px-4 py-3 font-medium text-slate-800">
-                                                                {row.displayName}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-slate-500 font-mono text-xs">
-                                                                {row.displayBarcode}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-slate-600">
-                                                                {row.displayFrequency === 'monthly' ? '每月' :
-                                                                    row.displayFrequency === 'quarterly' ? '每季' :
-                                                                        row.displayFrequency === 'yearly' ? '每年' :
-                                                                            row.displayFrequency}
-                                                            </td>
-                                                            <td className="px-4 py-3 text-slate-500">
-                                                                {new Date(row.nextCheckDate).toLocaleDateString(language)}
-                                                            </td>
-                                                            <td className="px-4 py-3 min-w-[600px]">
-                                                                <div className="flex flex-wrap items-center gap-3 py-1 w-full">
-                                                                    {row.checkDetails.map((detail, i) => (
-                                                                        <div key={i} className="flex items-center gap-1.5 text-xs bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 shadow-sm shrink-0">
-                                                                            <span className="font-bold text-slate-700">{detail.name || '項目'}:</span>
-                                                                            {detail.threshold && (
-                                                                                <span className="text-slate-400 text-[10px]">
-                                                                                    {detail.threshold} {detail.unit}
-                                                                                </span>
-                                                                            )}
-                                                                            {detail.threshold && <span className="text-slate-300">|</span>}
-                                                                            {String(detail.value) === 'true' ? (
-                                                                                <span className="text-green-600 flex items-center gap-0.5 font-bold">
-                                                                                    <CheckCircle className="w-3.5 h-3.5" /> 合格
-                                                                                </span>
+                                                    if (deduplicatedRows.length === 0) {
+                                                        return (
+                                                            <tr>
+                                                                <td colSpan={keywordSearch ? 8 : 7} className="px-4 py-8 text-center text-slate-400">
+                                                                    沒有找到相關紀錄
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    }
+
+                                                    return deduplicatedRows.flatMap(row => {
+                                                        const toggleExpand = () => {
+                                                            setExpandedRows(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(row.uniqueKey)) {
+                                                                    next.delete(row.uniqueKey);
+                                                                } else {
+                                                                    next.add(row.uniqueKey);
+                                                                }
+                                                                return next;
+                                                            });
+                                                        };
+
+                                                        return [
+                                                            // Main Row
+                                                            <tr key={row.uniqueKey} className="hover:bg-slate-50 transition-colors">
+                                                                <td className="px-4 py-3">
+                                                                    <button
+                                                                        onClick={toggleExpand}
+                                                                        className="p-1 hover:bg-slate-200 rounded transition-colors"
+                                                                        title={row.isExpanded ? "收合" : "展開"}
+                                                                    >
+                                                                        <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${row.isExpanded ? 'rotate-90' : ''}`} />
+                                                                    </button>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-slate-600">
+                                                                    {(() => {
+                                                                        const d = new Date(row.reportDate);
+                                                                        return !isNaN(d.getTime()) ? d.toLocaleDateString(language) : '-';
+                                                                    })()}
+                                                                </td>
+                                                                <td className="px-4 py-3 font-bold text-slate-800">
+                                                                    {row.reportBuilding}
+                                                                    <div className="text-xs text-slate-400 font-normal">{row.location}</div>
+                                                                </td>
+                                                                <td className="px-4 py-3 font-medium text-slate-800">
+                                                                    {row.displayName}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-slate-500 font-mono text-xs">
+                                                                    {row.displayBarcode}
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    {row.isAbnormal ? (
+                                                                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold">
+                                                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                                                            異常
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-bold">
+                                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                                            正常
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                {keywordSearch && (
+                                                                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">
+                                                                        {(() => {
+                                                                            const keyword = keywordSearch.toLowerCase();
+                                                                            const matches = [];
+                                                                            if (row.displayName?.toLowerCase().includes(keyword)) {
+                                                                                matches.push(`名稱: ${row.displayName}`);
+                                                                            }
+                                                                            if (row.displayBarcode?.toLowerCase().includes(keyword)) {
+                                                                                matches.push(`條碼: ${row.displayBarcode}`);
+                                                                            }
+                                                                            if (row.notes?.toLowerCase().includes(keyword)) {
+                                                                                matches.push(`備註: ${row.notes}`);
+                                                                            }
+                                                                            return matches.length > 0 ? matches.join(', ') : '-';
+                                                                        })()}
+                                                                    </td>
+                                                                )}
+                                                                <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={row.notes}>
+                                                                    {row.notes || '-'}
+                                                                </td>
+                                                            </tr>,
+                                                            // Expanded Details Row
+                                                            row.isExpanded && (
+                                                                <tr key={`${row.uniqueKey}_details`} className="bg-slate-50">
+                                                                    <td colSpan={keywordSearch ? 8 : 7} className="px-4 py-4">
+                                                                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                                                                            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                                                                <ClipboardList className="w-4 h-4" />
+                                                                                檢查項目詳情
+                                                                            </h4>
+                                                                            {row.checkDetails.length > 0 ? (
+                                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                                                    {row.checkDetails.map((detail, i) => (
+                                                                                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                                                                            <div className="flex-1">
+                                                                                                <div className="text-xs font-bold text-slate-700">{detail.name || '項目'}</div>
+                                                                                                {detail.threshold && (
+                                                                                                    <div className="text-[10px] text-slate-400 mt-0.5">
+                                                                                                        標準: {detail.threshold} {detail.unit}
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <div className="ml-3">
+                                                                                                {String(detail.value) === 'true' ? (
+                                                                                                    <span className="text-green-600 flex items-center gap-1 text-xs font-bold">
+                                                                                                        <CheckCircle className="w-4 h-4" /> 合格
+                                                                                                    </span>
+                                                                                                ) : String(detail.value) === 'false' ? (
+                                                                                                    <span className="text-red-600 flex items-center gap-1 text-xs font-bold">
+                                                                                                        <AlertTriangle className="w-4 h-4" /> 不合格
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="font-mono text-slate-800 font-bold text-sm">
+                                                                                                        {detail.value} {detail.unit}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
                                                                             ) : (
-                                                                                <span className="font-mono text-slate-800 font-bold px-1 rounded bg-slate-100">
-                                                                                    {detail.value} {detail.unit}
-                                                                                </span>
+                                                                                <p className="text-slate-400 text-sm italic">無檢查細項</p>
+                                                                            )}
+
+                                                                            {/* 備註區域 */}
+                                                                            {row.notes && (
+                                                                                <div className="mt-4 pt-4 border-t border-slate-200">
+                                                                                    <h5 className="text-xs font-bold text-slate-600 mb-2">備註</h5>
+                                                                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                                                                                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{row.notes}</p>
+                                                                                    </div>
+                                                                                </div>
                                                                             )}
                                                                         </div>
-                                                                    ))}
-                                                                    {row.checkDetails.length === 0 && <span className="text-slate-400 italic">無檢查細項</span>}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={row.notes}>
-                                                                {row.notes || '-'}
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
+                                                                    </td>
+                                                                </tr>
+                                                            )
+                                                        ];
+                                                    });
+                                                })()}
                                             </tbody>
                                         </table>
                                     </div>
