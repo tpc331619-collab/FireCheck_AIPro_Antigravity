@@ -78,8 +78,27 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 .filter(e => e.siteName === selectedSite)
                 .map(e => e.buildingName)
                 .filter(Boolean);
-            setBuildings(Array.from(new Set(siteBuildings)));
-            setSelectedBuilding(''); // Reset building when site changes
+            const uniqueBuildings = Array.from(new Set(siteBuildings));
+            setBuildings(uniqueBuildings);
+
+            // Only reset if currently selected building is no longer in the list (or if site just changed)
+            // We can detect site change by tracking previous site, or simply check existence.
+            // BUT, this effect runs on selectedSite change too. 
+            // If selectedSite changes, we DO want to reset.
+            // If allEquipment changes (e.g. update status), we DO NOT want to reset if valid.
+
+            if (selectedBuilding && !uniqueBuildings.includes(selectedBuilding)) {
+                setSelectedBuilding('');
+            } else if (!selectedBuilding && uniqueBuildings.length === 1) {
+                // Optional: Auto-select if only one building
+                // setSelectedBuilding(uniqueBuildings[0]);
+            }
+
+            // Note: If selectedSite changed, uniqueBuildings would likely not contain the old selectedBuilding 
+            // (unless different sites have same building names).
+            // To be safer, we can rely on React's state. But simpliest fix for "Update Status" is:
+            // Don't clear if valid.
+
         } else {
             setBuildings([]);
             setSelectedBuilding('');
@@ -234,7 +253,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         const checkResultsSnapshot = inspectingItem.checkItems?.map(ci => {
             const result: any = {
                 name: ci.name,
-                value: sanitizedPoints[ci.id]
+                value: sanitizedPoints[ci.id] ?? sanitizedPoints[ci.name]
             };
 
             // 只在數值類型時添加 threshold 和 unit
@@ -408,9 +427,17 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 id: inspectingItem.id,
                 lastInspectedDate: now
             });
-            // Update local state 'allEquipment' is tricky without refetching, 
-            // but Checklist calculates status from 'currentReport' effectively so it's fine for this view.
-            // Other views like MapEditor will re-fetch 'allEquipment' or 'reports'.
+            // Update local state 'allEquipment' to reflect the new lastInspectedDate immediately
+            // This ensures the list view shows 'Ready' or 'Completed' status correctly even if currentReport reasoning falls back.
+            const updatedAllEquip = allEquipment.map(e =>
+                e.id === inspectingItem.id ? { ...e, lastInspectedDate: now } : e
+            );
+            setAllEquipment(updatedAllEquip);
+
+            // Also update filteredEquipment so the list re-renders with correct status
+            setFilteredEquipment(prev => prev.map(e =>
+                e.id === inspectingItem.id ? { ...e, lastInspectedDate: now } : e
+            ));
 
             // Close Modal first
             setInspectingItem(null);

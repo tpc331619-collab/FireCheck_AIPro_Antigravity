@@ -70,7 +70,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
     // 初始化修復時間為當前日期
     useEffect(() => {
         if (selectedRecord) {
-            setFixedDate('');
+            // Default to today, properly formatted for input type="date"
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            setFixedDate(`${yyyy}-${mm}-${dd}`);
             setFixedNotes('');
         }
     }, [selectedRecord]);
@@ -106,8 +111,23 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
 
         setIsSubmitting(true);
         try {
-            // 設定為當天結束前或當前時間
-            const fixedDateTime = new Date(fixedDate).getTime();
+            // Determine timestamp: If today, use NOW; else use selected date's noon (to avoid timezone edge cases)
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            const todayStr = `${yyyy}-${mm}-${dd}`;
+
+            let fixedDateTime: number;
+
+            if (fixedDate === todayStr) {
+                fixedDateTime = Date.now();
+            } else {
+                // Set to noon to be safe from 00:00 shifting
+                const d = new Date(fixedDate);
+                d.setHours(12, 0, 0, 0);
+                fixedDateTime = d.getTime();
+            }
 
             // 1. 更新異常記錄
             await StorageService.updateAbnormalRecord({
@@ -122,10 +142,13 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
             try {
                 const equipment = await StorageService.getEquipmentById(selectedRecord.equipmentId, user.uid);
                 if (equipment) {
+                    console.log(`[AbnormalRecheck] Updating equipment ${equipment.name} (${equipment.barcode}) lastInspectedDate to ${new Date(fixedDateTime).toLocaleString()}`);
                     await StorageService.updateEquipment({
                         ...equipment,
                         lastInspectedDate: fixedDateTime
                     });
+                } else {
+                    console.warn(`[AbnormalRecheck] Equipment not found for ID: ${selectedRecord.equipmentId}`);
                 }
             } catch (e) {
                 console.error('Failed to update equipment:', e);
@@ -152,11 +175,22 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                             return {
                                 ...item,
                                 status: InspectionStatus.Normal,
-                                notes: `${item.notes || ''}\n\n[異常複檢 - 已修復]\n修復日期: ${new Date(fixedDateTime).toLocaleDateString('zh-TW')}\n修復說明: ${fixedNotes.trim()}`,
+                                notes: `${item.notes || ''} [異常複檢 - 已修復]`,
                                 lastUpdated: fixedDateTime,
-                                checkResults: selectedRecord.abnormalItems.map(itemName => ({
+                                repairDate: fixedDateTime,
+                                repairNotes: fixedNotes.trim(),
+                                checkResults: item.checkResults ? item.checkResults.map((result: any) => {
+                                    if (selectedRecord.abnormalItems.includes(result.name)) {
+                                        return {
+                                            ...result,
+                                            value: 'true', // 修復後合格
+                                            status: 'Normal' // 顯式更新狀態
+                                        };
+                                    }
+                                    return result;
+                                }) : selectedRecord.abnormalItems.map(itemName => ({
                                     name: itemName,
-                                    value: 'true', // 修復後合格
+                                    value: 'true',
                                     unit: '',
                                     threshold: ''
                                 }))

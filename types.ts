@@ -37,6 +37,8 @@ export interface InspectionItem {
   notes: string;
   photoUrl?: string;
   lastUpdated: number;
+  repairDate?: number;
+  repairNotes?: string;
 }
 
 export interface InspectionReport {

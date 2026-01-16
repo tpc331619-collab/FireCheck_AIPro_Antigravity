@@ -24,9 +24,11 @@ import {
     Search,
     Settings,
     ClipboardList,
+    Ruler,
     Database,
     History,
     PlayCircle,
+    Wrench,
     X,
     Trash2,
     LogOut,
@@ -40,6 +42,7 @@ import {
     Check,
     UploadCloud,
     LayoutGrid,
+    Info,
     Sun,
     Moon,
     Monitor,
@@ -256,6 +259,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (user?.uid) {
             const settings = await StorageService.getDeclarationSettings(user.uid);
             setDeclarationSettings(settings);
+        }
+    };
+
+    const handleSaveSettings = async (settings: DeclarationSettings) => {
+        if (user?.uid) {
+            try {
+                await StorageService.saveDeclarationSettings(settings, user.uid);
+                setDeclarationSettings(settings); // Update local state
+            } catch (error) {
+                console.error("Error saving settings:", error);
+                alert("設定儲存失敗");
+            }
         }
     };
 
@@ -1158,35 +1173,103 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                                 檢查項目詳情
                                                                             </h4>
                                                                             {row.checkDetails.length > 0 ? (
-                                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                                                    {row.checkDetails.map((detail, i) => (
-                                                                                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                                                                            <div className="flex-1">
-                                                                                                <div className="text-xs font-bold text-slate-700">{detail.name || '項目'}</div>
-                                                                                                {detail.threshold && (
-                                                                                                    <div className="text-[10px] text-slate-400 mt-0.5">
-                                                                                                        標準: {detail.threshold} {detail.unit}
+                                                                                /* Logic: Pre-process and Sort Details */
+                                                                                (() => {
+                                                                                    // Helper: Check Threshold
+                                                                                    const checkIsAbnormal = (val: any, limit: string) => {
+                                                                                        if (!limit || !val) return false;
+                                                                                        const numVal = parseFloat(val);
+                                                                                        if (isNaN(numVal)) return false;
+                                                                                        const cleanLimit = limit.replace(/[^\d.\-~><=]/g, '');
+                                                                                        if (cleanLimit.includes('~') || (cleanLimit.includes('-') && !cleanLimit.startsWith('-'))) {
+                                                                                            const [min, max] = cleanLimit.split(/[~-]/).map(parseFloat);
+                                                                                            return numVal < min || numVal > max;
+                                                                                        }
+                                                                                        if (cleanLimit.startsWith('>=')) return numVal < parseFloat(cleanLimit.slice(2));
+                                                                                        if (cleanLimit.startsWith('>')) return numVal <= parseFloat(cleanLimit.slice(1));
+                                                                                        if (cleanLimit.startsWith('<=')) return numVal > parseFloat(cleanLimit.slice(2));
+                                                                                        if (cleanLimit.startsWith('<')) return numVal >= parseFloat(cleanLimit.slice(1));
+                                                                                        return false;
+                                                                                    };
+
+                                                                                    const processedDetails = row.checkDetails.map(detail => {
+                                                                                        const calculatedAbnormal = detail.threshold ? checkIsAbnormal(detail.value, detail.threshold) : false;
+                                                                                        const explicitAbnormal = ['false', 'unqualified', 'fail', 'no', '異常', '不合格', 'abnormal'].includes(String(detail.value).toLowerCase()) || detail.status === 'Abnormal' || detail.status === '異常';
+
+                                                                                        const isFailure = explicitAbnormal || calculatedAbnormal;
+                                                                                        const isSuccess = !isFailure && (['true', 'qualified', 'pass', 'yes', '正常', '合格', 'normal'].includes(String(detail.value).toLowerCase()) || detail.status === 'Normal' || detail.status === '正常');
+
+                                                                                        return { ...detail, isFailure, isSuccess };
+                                                                                    }).sort((a, b) => (Number(b.isFailure) - Number(a.isFailure))); // Sort Abnormal First
+
+                                                                                    const failedItems = processedDetails.filter(d => d.isFailure);
+
+                                                                                    return (
+                                                                                        <div className="space-y-4">
+                                                                                            {/* Summary Banner for Abnormal items */}
+                                                                                            {failedItems.length > 0 && (
+                                                                                                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
+                                                                                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                                                                                                    <div>
+                                                                                                        <div className="font-bold text-red-800 text-sm">
+                                                                                                            檢測發現 {failedItems.length} 項異常
+                                                                                                        </div>
+                                                                                                        <div className="text-xs text-red-600 mt-1">
+                                                                                                            {failedItems.map(d => d.name || '項目').join(', ')}
+                                                                                                        </div>
                                                                                                     </div>
-                                                                                                )}
-                                                                                            </div>
-                                                                                            <div className="ml-3">
-                                                                                                {String(detail.value) === 'true' ? (
-                                                                                                    <span className="text-green-600 flex items-center gap-1 text-xs font-bold">
-                                                                                                        <CheckCircle className="w-4 h-4" /> 合格
-                                                                                                    </span>
-                                                                                                ) : String(detail.value) === 'false' ? (
-                                                                                                    <span className="text-red-600 flex items-center gap-1 text-xs font-bold">
-                                                                                                        <AlertTriangle className="w-4 h-4" /> 不合格
-                                                                                                    </span>
-                                                                                                ) : (
-                                                                                                    <span className="font-mono text-slate-800 font-bold text-sm">
-                                                                                                        {detail.value} {detail.unit}
-                                                                                                    </span>
-                                                                                                )}
+                                                                                                </div>
+                                                                                            )}
+
+                                                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                                                                {processedDetails.map((detail, i) => (
+                                                                                                    <div
+                                                                                                        key={i}
+                                                                                                        className={`flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 ${detail.isFailure ? 'border-l-4 border-l-red-500 border-slate-200 bg-red-50' :
+                                                                                                            detail.isSuccess ? 'border-l-4 border-l-emerald-500 border-slate-200' :
+                                                                                                                'border-l-4 border-l-blue-400 border-slate-200'
+                                                                                                            }`}
+                                                                                                    >
+                                                                                                        <div className="flex-1 min-w-0 pr-4">
+                                                                                                            <div className="text-[10px] text-slate-400 font-medium mb-0.5">檢查項目</div>
+                                                                                                            <div className="text-sm font-bold text-slate-800 truncate" title={detail.name}>{detail.name || '項目'}</div>
+                                                                                                            {(detail.threshold || detail.standard) && (
+                                                                                                                <div className="text-xs text-slate-500 mt-1.5 font-medium bg-slate-50 inline-flex items-center gap-1.5 px-2 py-1 rounded border border-slate-200">
+                                                                                                                    <Ruler className="w-3 h-3 text-slate-400" />
+                                                                                                                    <span>標準: <span className="text-slate-700">{detail.threshold || detail.standard}</span> <span className="text-slate-500">{detail.unit}</span></span>
+                                                                                                                </div>
+                                                                                                            )}
+                                                                                                        </div>
+
+                                                                                                        <div className="shrink-0 flex flex-col items-end gap-1">
+                                                                                                            {/* Value Display */}
+                                                                                                            <div className="flex flex-col items-end">
+                                                                                                                <span className="text-[10px] text-slate-400 font-medium mb-0.5">結果</span>
+                                                                                                                <span className={`font-mono font-bold text-base ${detail.isFailure ? 'text-red-600' : detail.isSuccess ? 'text-emerald-700' : 'text-slate-900'}`}>
+                                                                                                                    {String(detail.value).toLowerCase() === 'true' ? '合格' :
+                                                                                                                        String(detail.value).toLowerCase() === 'false' ? '不合格' :
+                                                                                                                            detail.value}
+                                                                                                                    {detail.unit && <span className="text-xs font-normal text-slate-500 ml-1">{detail.unit}</span>}
+                                                                                                                </span>
+                                                                                                            </div>
+
+                                                                                                            {/* Status Badge */}
+                                                                                                            {detail.isFailure ? (
+                                                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold">
+                                                                                                                    <AlertTriangle className="w-3 h-3" /> 異常
+                                                                                                                </span>
+                                                                                                            ) : detail.isSuccess ? (
+                                                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">
+                                                                                                                    <CheckCircle className="w-3 h-3" /> 正常
+                                                                                                                </span>
+                                                                                                            ) : null}
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                ))}
                                                                                             </div>
                                                                                         </div>
-                                                                                    ))}
-                                                                                </div>
+                                                                                    );
+                                                                                })()
                                                                             ) : (
                                                                                 <p className="text-slate-400 text-sm italic">無檢查細項</p>
                                                                             )}
@@ -1197,6 +1280,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                                     <h5 className="text-xs font-bold text-slate-600 mb-2">備註</h5>
                                                                                     <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                                                                                         <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{row.notes}</p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* 修復紀錄區域 */}
+                                                                            {row.repairDate && (
+                                                                                <div className="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                                                                                    <div className="flex items-start gap-3">
+                                                                                        <div className="p-1.5 bg-emerald-100 rounded-full mt-0.5">
+                                                                                            <Wrench className="w-4 h-4 text-emerald-600" />
+                                                                                        </div>
+                                                                                        <div className="flex-1">
+                                                                                            <h5 className="text-sm font-bold text-emerald-800 mb-1 flex items-center gap-2">
+                                                                                                已完成修復 ({new Date(row.repairDate!).toLocaleDateString('zh-TW')})
+                                                                                            </h5>
+                                                                                            <p className="text-sm text-emerald-700 whitespace-pre-wrap leading-relaxed">
+                                                                                                {row.repairNotes || '無詳細說明'}
+                                                                                            </p>
+                                                                                        </div>
                                                                                     </div>
                                                                                 </div>
                                                                             )}
@@ -1355,9 +1457,75 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </button>
                                         )}
                                     </div>
+
                                 )}
 
-                                {/* LANGUAGE TAB */}
+                                {/* NOTIFICATIONS TAB */}
+                                {settingsTab === 'NOTIFICATIONS' && (
+                                    <div className="space-y-6">
+                                        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
+                                            <div className="flex items-start">
+                                                <Info className="w-5 h-5 text-blue-600 mr-2 shrink-0 mt-0.5" />
+                                                <p className="text-sm text-blue-700">
+                                                    設定接收檢查報告和異常通知的電子郵件地址。
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                                <div>
+                                                    <h4 className="font-bold text-slate-800">啟用郵件通知</h4>
+                                                    <p className="text-xs text-slate-500 mt-1">定時發送檢查報告與異常警報</p>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={declarationSettings.emailNotificationsEnabled}
+                                                        onChange={(e) => setDeclarationSettings(prev => ({
+                                                            ...prev,
+                                                            emailNotificationsEnabled: e.target.checked
+                                                        }))}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                                </label>
+                                            </div>
+
+                                            {declarationSettings.emailNotificationsEnabled && (
+                                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase">接收者信箱 (用逗號分隔)</label>
+                                                    <textarea
+                                                        value={declarationSettings.emailRecipients.join(', ')}
+                                                        onChange={(e) => setDeclarationSettings(prev => ({
+                                                            ...prev,
+                                                            emailRecipients: e.target.value.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)
+                                                        }))}
+                                                        placeholder="example@company.com, manager@company.com"
+                                                        rows={3}
+                                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                                    />
+                                                    <p className="text-xs text-slate-400">
+                                                        * 系統將會寄送每日檢查摘要至這些信箱。
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                onClick={() => {
+                                                    // Trigger existing save logic
+                                                    handleSaveSettings(declarationSettings);
+                                                    alert('通知設定已儲存');
+                                                }}
+                                                className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+                                            >
+                                                <Save className="w-4 h-4" />
+                                                儲存通知設定
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {settingsTab === 'LANGUAGE' && (
                                     <div className="space-y-6">
                                         <div className="space-y-2">
@@ -1714,7 +1882,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 isOpen={isNotificationModalOpen}
                 onClose={() => setIsNotificationModalOpen(false)}
             />
-        </div>
+        </div >
     );
 };
 
