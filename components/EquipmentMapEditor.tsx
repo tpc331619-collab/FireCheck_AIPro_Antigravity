@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw } from 'lucide-react';
 import { StorageService } from '../services/storageService';
-import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionStatus } from '../types';
+import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionStatus, LightSettings } from '../types';
 import StorageManagerModal from './StorageManagerModal';
-import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils';
+import { calculateNextInspectionDate } from '../utils/dateUtils';
+import { getFrequencyStatus } from '../utils/inspectionUtils';
 
 interface EquipmentMapEditorProps {
     user: UserProfile;
@@ -44,10 +45,16 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
     // Drag & Selection State
     const [draggingMarkerId, setDraggingMarkerId] = useState<string | null>(null);
+
+    // Add Marker Confirmation State
+    const [pendingMarker, setPendingMarker] = useState<{ x: number, y: number } | null>(null);
+    const [pendingEquipmentId, setPendingEquipmentId] = useState('');
     const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
 
     // Legend Modal State
     const [isLegendModalOpen, setIsLegendModalOpen] = useState(false);
+
+    const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -77,6 +84,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         StorageService.getEquipmentDefinitions(user.uid).then(setAllEquipment);
         // Load reports to determine abnormal status
         StorageService.getReports(user.uid).then(setReports);
+        // Load light settings
+        StorageService.getLightSettings(user.uid).then(setLightSettings);
     }, [isOpen, user.uid]);
 
     const loadMaps = async (options?: { keepView?: boolean }) => {
@@ -266,17 +275,33 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
         // Deselect any selected marker if we are clicking bg (unless we clicked a marker, handled by propagation)
         // Checks are done in early return.
+        // Deselect any selected marker if we are clicking bg
         setSelectedMarkerId(null);
+
+        // Open Confirmation Dialog logic
+        setPendingMarker({ x, y });
+        setPendingEquipmentId(''); // Reset Input
+    };
+
+    const confirmAddMarker = () => {
+        if (!pendingMarker) return;
 
         const newMarker: EquipmentMarker = {
             id: Date.now().toString(),
-            equipmentId: '',
-            x,
-            y
+            equipmentId: pendingEquipmentId, // Use input
+            x: pendingMarker.x,
+            y: pendingMarker.y
         };
 
         setMarkers([...markers, newMarker]);
         setSelectedMarkerId(newMarker.id); // Auto-select new marker
+        setPendingMarker(null); // Close Modal
+        setPendingEquipmentId('');
+    };
+
+    const cancelAddMarker = () => {
+        setPendingMarker(null);
+        setPendingEquipmentId('');
     };
 
     // Add explicit selection handler if needed, or stick to onClick
@@ -298,12 +323,18 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     // Helper: Check if marker is abnormal
     const isMarkerAbnormal = (marker: EquipmentMarker) => {
         if (!marker.equipmentId) return false;
+
+        // Map Barcode (marker.equipmentId) to UUID (EquipmentDefinition.id) if possible
+        // Because reports store component ID (UUID), but marker likely stores Barcode ("001")
+        const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
+        const targetId = equip ? equip.id : marker.equipmentId; // Fallback to using it as ID if no barcode match
+
         // Find latest report containing this item
-        const relevantReports = reports.filter(r => r.items.some(i => i.equipmentId === marker.equipmentId));
+        const relevantReports = reports.filter(r => r.items?.some(i => i.equipmentId === targetId));
         if (relevantReports.length > 0) {
             // Sort descending by date to get latest
             relevantReports.sort((a, b) => b.date - a.date);
-            const latestItem = relevantReports[0].items.find(i => i.equipmentId === marker.equipmentId);
+            const latestItem = relevantReports[0].items?.find(i => i.equipmentId === targetId);
             return latestItem?.status === InspectionStatus.Abnormal;
         }
         return false;
@@ -313,23 +344,38 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const getMarkerColor = (marker: EquipmentMarker) => {
         if (!marker.equipmentId) return 'bg-slate-400';
 
-        // Priority 1: Abnormal Status (Red)
-        if (isMarkerAbnormal(marker)) return 'bg-red-500';
+        // 1. Abnormal Check (Higher Priority)
+        // Check both Barcode and UUID matching in reports
+        if (isMarkerAbnormal(marker)) return 'bg-orange-500 animate-pulse';
 
-        // Priority 2: Frequency Status
+        // 2. Frequency/Status Check (Same as ChecklistInspection)
         const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
         if (!equip) return 'bg-slate-400'; // Unknown or not linked to valid equipment
 
-        const next = calculateNextInspectionDate(
-            equip.checkStartDate || 0,
-            equip.checkFrequency || '',
-            equip.lastInspectedDate
-        );
-        const status = getInspectionStatus(next);
+        const status = getFrequencyStatus(equip, lightSettings);
 
-        if (status.light === 'RED') return 'bg-red-500';
-        if (status.light === 'YELLOW') return 'bg-amber-500';
-        return 'bg-emerald-500';
+        switch (status) {
+            case 'PENDING': return 'bg-red-500 animate-pulse';     // 需檢查
+            case 'CAN_INSPECT': return 'bg-yellow-400 animate-pulse'; // 可以檢查
+            case 'UNNECESSARY': return 'bg-emerald-500 animate-pulse'; // 不需檢查
+            case 'COMPLETED': return 'bg-emerald-500 animate-pulse'; // 已完成
+            default: return 'bg-slate-400';
+        }
+    };
+
+    const getMarkerStyle = (marker: EquipmentMarker): React.CSSProperties => {
+        if (!marker.equipmentId || isMarkerAbnormal(marker)) return {}; // Default styles/Abnormal orange
+
+        const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
+        if (!equip) return {};
+
+        const status = getFrequencyStatus(equip, lightSettings);
+        if (status === 'PENDING' && lightSettings?.red?.color) return { backgroundColor: lightSettings.red.color };
+        if (status === 'CAN_INSPECT' && lightSettings?.yellow?.color) return { backgroundColor: lightSettings.yellow.color };
+        if (status === 'UNNECESSARY' && lightSettings?.green?.color) return { backgroundColor: lightSettings.green.color };
+        if (status === 'COMPLETED' && lightSettings?.completed?.color) return { backgroundColor: lightSettings.completed.color };
+
+        return {};
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
@@ -538,24 +584,18 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             const mx = (marker.x / 100) * image.naturalWidth;
                             const my = (marker.y / 100) * image.naturalHeight;
                             const currentSize = marker.size || markerSize;
-                            const colorHex = '#ef4444';
-                            // Dimensions based on markerSize
-                            // Reverted Logic with Number Support fallback
+                            const colorHex = '#ef4444'; // Red for normal markers (if logic falls back)
+
+                            // Dimensions
                             const rMap: any = { tiny: 2, small: 4, medium: 6, large: 8, huge: 12 };
                             const fMap: any = { tiny: 6, small: 8, medium: 10, large: 12, huge: 16 };
 
-                            // Handle legacy number connection if user saved some number data
                             const getSize = (s: any) => {
-                                if (typeof s === 'number') {
-                                    // Map 100 -> 6 (medium). 
-                                    return (s / 100) * 6;
-                                }
+                                if (typeof s === 'number') return (s / 100) * 6;
                                 return rMap[s] || 6;
                             };
                             const getFont = (s: any) => {
-                                if (typeof s === 'number') {
-                                    return (s / 100) * 10;
-                                }
+                                if (typeof s === 'number') return (s / 100) * 10;
                                 return fMap[s] || 10;
                             };
 
@@ -563,34 +603,64 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             const fontSize = getFont(currentSize);
                             const isAbnormal = isMarkerAbnormal(marker);
 
-                            ctx.beginPath();
-                            ctx.arc(mx, my, radius, 0, 2 * Math.PI);
-                            ctx.fillStyle = isAbnormal ? '#ef4444' : colorHex;
-                            ctx.fill();
+                            ctx.save();
+                            ctx.translate(mx, my);
+                            ctx.rotate(-rad); // Counter-rotate marker to be upright relative to view? No, markers rotate with map in this logic usually? 
+                            // Actually in this save block:
+                            // The canvas context has been rotated by `rad`.
+                            // So (0,0) is center.
+                            // We translated to marker pos (mx, my) which is in image space.
+                            // The image itself was drawn rotated.
+                            // Wait, the previous code:
+                            // ctx.translate(width / 2, height / 2);
+                            // ctx.rotate(rad);
+                            // ctx.translate(-image.naturalWidth / 2, -image.naturalHeight / 2);
+                            // So the coordinate system IS the image's local system.
+                            // So (mx, my) is correct.
+                            // However, we probably want the text/icon to be upright relative to the PAGE (output), not the image if the image is rotated?
+                            // The previous code did `ctx.rotate(-rad)` inside the marker loop for the text/number.
+
+                            // Unified Marker Drawing (Circle + Text)
+                            // The color is already handled by 'blue-500', 'red-500' etc in getMarkerColor logic?
+                            // No, the canvas uses hex codes. We need to map the status to Hex.
+
+                            let fillStyle = colorHex;
+                            if (isAbnormal) fillStyle = '#f97316'; // Orange-500
 
                             ctx.save();
                             ctx.translate(mx, my);
-                            ctx.rotate(-rad);
+                            ctx.rotate(-rad); // Keep text upright relative to canvas, effectively canceling rotation if needed.
+                            // Wiat, in the previous code:
+                            // The canvas 'ctx' was rotated by 'rad' (image rotation).
+                            // We translated to (mx, my).
+                            // If we want text to be upright on the OUTPUT image regardless of map rotation, we rotate by -rad.
+                            // Simple Circle
+                            ctx.beginPath();
+                            ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+                            ctx.fillStyle = fillStyle;
+                            ctx.fill();
+
+                            // Text (Index Number)
                             ctx.fillStyle = 'white';
                             ctx.font = `bold ${fontSize}px Arial`;
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'middle';
-
-                            if (isAbnormal) {
-                                ctx.fillText('異', 0, 0);
-                            } else {
-                                ctx.fillText((idx + 1).toString(), 0, 0);
-                            }
+                            ctx.fillText((idx + 1).toString(), 0, 0);
 
                             ctx.restore();
 
+                            // Draw Label (Equipment ID) - remains similar
                             if (marker.equipmentId) {
+                                ctx.save();
+                                ctx.translate(mx, my);
+                                ctx.rotate(-rad);
                                 ctx.fillStyle = 'black';
                                 ctx.font = 'bold 16px Arial';
                                 ctx.strokeStyle = 'white';
                                 ctx.lineWidth = 4;
-                                ctx.strokeText(marker.equipmentId, mx, my + 35);
-                                ctx.fillText(marker.equipmentId, mx, my + 35);
+                                ctx.strokeText(marker.equipmentId, 0, 35);
+                                ctx.fillText(marker.equipmentId, 0, 35);
+                                ctx.restore();
                             }
                         });
                         ctx.restore();
@@ -696,42 +766,68 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             const fontSize = (typeof currentSize === 'number') ? (currentSize / 100) * 10 : (fMap[currentSize as string] || 10);
             const isAbnormal = isMarkerAbnormal(marker);
 
-            // Draw Circle
-            ctx.beginPath();
-            ctx.arc(mx, my, radius, 0, 2 * Math.PI);
-            ctx.fillStyle = isAbnormal ? '#ef4444' : '#ef4444'; // Use Red for Abnormal, fallback to Red for now (or make dynamic later)
-            ctx.fill();
-            // No border
-
-            // Draw Number with Counter-Rotation
             ctx.save();
             ctx.translate(mx, my);
-            ctx.rotate(-rad);
 
+            // Unified Marker Drawing
+            let fillStyle = '#ef4444'; // default red
+            // We need to re-derive color logic or allow it to be passed?
+            // In handleExport, we iterate markers. We need status.
+            // isAbnormal is calculated.
+            // Frequency status is NOT calculated here in the original loop easily without 'getMarkerColor' logic, 
+            // but for 'Export', usually we want WYSIWYG.
+            // The original code used 'colorHex' which was hardcoded to #ef4444? 
+            // Wait, line 548 in handleSave had `const colorHex = '#ef4444';`.
+            // The `handleExport` loop uses `isAbnormal` but for others it just drew circle. 
+            // The colors for NORMAL markers in Export/Save were defaulting to Red?
+            // Let's look at `getMarkerColor` results. It returns classes `bg-red-500`, `bg-amber-500`, `bg-emerald-500`.
+            // We should ideally match that.
+            // For now, let's just fix the Abnormal one as requested: Brown Circle + Number.
+
+            // Re-calculate basic color if possible, or default to Red (as per existing code limitation?)
+            // Actually, let's just separate Abnormal vs Normal but use same SHAPE.
+
+            if (isAbnormal) fillStyle = '#f97316';
+            // else fillStyle = '#ef4444'; // This is redundant as fillStyle is already #ef4444
+            // Note: The previous code for normal markers in Export just used #ef4444? 
+            // Actually, the previous code block for 'else' was:
+            // ctx.fillStyle = colorHex (which was undefined in handleExport scope? No, wait)
+            // in handleExport (line 727+), there is no `colorHex` variable defined for normal markers!
+            // It was using hardcoded style in `else` block?
+            // Let's look at lines 753-756 in original view.
+            // Ah, the previous view showed `ctx.fillStyle = '#ef4444'; // red-500` inside the `if (isAbnormal)`? 
+            // No, that was my replacement.
+            // The `else` block in handleExport seems to have been:
+            // ctx.fillStyle = '#ef4444' (implied from typical behavior or missing variable).
+            // Let's assume red.
+
+            // DRAW CIRCLE
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, 2 * Math.PI);
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+
+            ctx.rotate(-rad); // Keep text upright
             ctx.fillStyle = 'white';
             ctx.font = `bold ${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
+            ctx.fillText((idx + 1).toString(), 0, 0);
 
-            if (isAbnormal) {
-                ctx.fillText('異', 0, 0);
-            } else {
-                ctx.fillText((idx + 1).toString(), 0, 0);
-            }
-
-            ctx.restore();
-
+            ctx.restore(); // Restores the translate(mx, my) and the rotate(-rad)
 
             // Draw Label
             if (marker.equipmentId) {
-                // Label size also scales a bit? Or keep fixed? Usually keep fixed for readability, or scale slightly.
-                // Let's keep label mostly fixed but maybe slightly scale for huge markers
+                ctx.save();
+                ctx.translate(mx, my);
+                ctx.rotate(-rad);
                 ctx.fillStyle = 'black';
                 ctx.font = 'bold 16px Arial';
                 ctx.strokeStyle = 'white';
                 ctx.lineWidth = 4;
-                ctx.strokeText(marker.equipmentId, mx, my + 35);
-                ctx.fillText(marker.equipmentId, mx, my + 35);
+                ctx.strokeText(marker.equipmentId, 0, 35);
+                ctx.fillText(marker.equipmentId, 0, 35);
+                ctx.restore();
             }
         });
         ctx.restore();
@@ -1009,6 +1105,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             <img
                                                 src={image.src}
                                                 alt="Map"
+                                                crossOrigin={isCorsAllowed ? "anonymous" : undefined}
                                                 className="block w-auto h-auto pointer-events-none select-none"
                                                 style={{ touchAction: 'none' }}
                                             />
@@ -1063,7 +1160,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                             ${draggingMarkerId === marker.id ? 'opacity-80 scale-125 cursor-grabbing pointer-events-none' : ''}
                                                             ${selectedMarkerId === marker.id ? 'ring-4 ring-blue-400 ring-opacity-75 z-20' : ''}
                                                         `}
-                                                        style={{ left: `${marker.x}%`, top: `${marker.y}%` }}
+                                                        style={{ left: `${marker.x}%`, top: `${marker.y}%`, ...getMarkerStyle(marker) }}
                                                         onMouseDown={(e) => handleMarkerMouseDown(e, marker.id)}
                                                         onClick={(e) => handleMarkerClick(e, marker.id)}
                                                     >
@@ -1071,15 +1168,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                             className="flex items-center justify-center relative w-full h-full pointer-events-none"
                                                             style={{ transform: `rotate(${-rotation}deg)` }}
                                                         >
-                                                            {isMarkerAbnormal(marker) ? (
-                                                                <span className={`text-white font-black select-none leading-none ${textSizeClasses}`}>
-                                                                    異
-                                                                </span>
-                                                            ) : (
-                                                                <span className={`text-white font-bold select-none leading-none ${textSizeClasses} ${currentSize === 'small' ? 'scale-[0.6]' : ''}`}>
-                                                                    {idx + 1}
-                                                                </span>
-                                                            )}
+                                                            <span className={`text-white font-bold select-none leading-none ${textSizeClasses} ${currentSize === 'small' ? 'scale-[0.6]' : ''}`}>
+                                                                {idx + 1}
+                                                            </span>
 
                                                             <div className="absolute bottom-full mb-1 bg-slate-900/90 backdrop-blur text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
                                                                 {marker.equipmentId || '未命名'}
@@ -1163,7 +1254,13 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                         className={`bg-white p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected ? 'border-blue-500 shadow-md ring-4 ring-blue-500/5' : 'border-slate-100 hover:border-blue-200 hover:shadow-sm'}`}
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${isSelected ? 'shadow-sm text-white ' + colorClass : 'bg-slate-100 text-slate-500 group-hover:shadow-inner ' + colorClass.replace('bg-', 'text-')}`}>
+                                                            <div
+                                                                className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors shadow-sm text-white ${isMarkerAbnormal(marker)
+                                                                    ? 'bg-orange-500 animate-pulse'
+                                                                    : (isSelected ? colorClass + ' ring-2 ring-offset-1 ring-blue-500' : colorClass + ' opacity-75 group-hover:opacity-100')
+                                                                    }`}
+                                                                style={getMarkerStyle(marker)}
+                                                            >
                                                                 {idx + 1}
                                                             </div>
 
@@ -1245,89 +1342,101 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             </div>
 
             {/* Legend Modal */}
-            {isLegendModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsLegendModalOpen(false)}>
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-                        {/* Header */}
-                        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                燈號說明
-                            </h3>
-                            <button
-                                onClick={() => setIsLegendModalOpen(false)}
-                                className="p-1 hover:bg-slate-100 rounded-full transition-colors"
-                            >
-                                <X className="w-5 h-5 text-slate-400" />
-                            </button>
-                        </div>
+            {
+                isLegendModalOpen && (
+                    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setIsLegendModalOpen(false)}>
+                        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                    燈號說明
+                                </h3>
+                                <button
+                                    onClick={() => setIsLegendModalOpen(false)}
+                                    className="p-1 hover:bg-slate-100 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5 text-slate-400" />
+                                </button>
+                            </div>
 
-                        {/* Content */}
-                        <div className="p-6 space-y-3">
-                            {/* Abnormal Status */}
-                            <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
-                                <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
-                                    異
+                            {/* Content */}
+                            <div className="p-6 space-y-3">
+                                {/* Abnormal Status - Logic Updates */}
+                                <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
+                                    <div className="w-10 h-10 flex items-center justify-center shrink-0">
+                                        <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                                        </div>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-800">異常狀態</p>
+                                        <p className="text-xs text-slate-600">表示設備異常</p>
+                                    </div>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-800">異常狀態</p>
-                                    <p className="text-xs text-slate-600">檢查結果為異常</p>
+
+                                {/* Red Light - Overdue */}
+                                <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
+                                    <div
+                                        className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-md shrink-0 animate-pulse"
+                                        style={lightSettings?.red?.color ? { backgroundColor: lightSettings.red.color } : {}}
+                                    >
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-800">🔴 紅色「需檢查」</p>
+                                        <p className="text-xs text-slate-600">剩餘 &le; {lightSettings?.red?.days || 2} 天</p>
+                                    </div>
+                                </div>
+
+                                {/* Yellow Light - Warning */}
+                                <div className="flex items-center gap-4 p-3 bg-yellow-50 rounded-xl border border-yellow-100">
+                                    <div
+                                        className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-md shrink-0 animate-pulse"
+                                        style={lightSettings?.yellow?.color ? { backgroundColor: lightSettings.yellow.color } : {}}
+                                    >
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-800">🟠 黃色「可以檢查」</p>
+                                        <p className="text-xs text-slate-600">剩餘 {(lightSettings?.red?.days || 2) + 1} - {lightSettings?.yellow?.days || 5} 天</p>
+                                    </div>
+                                </div>
+
+                                {/* Green Light - Normal */}
+                                <div className="flex items-center gap-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                    <div
+                                        className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shrink-0 animate-pulse"
+                                        style={lightSettings?.green?.color ? { backgroundColor: lightSettings.green.color } : {}}
+                                    >
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-800">🟢 綠色「不需檢查」</p>
+                                        <p className="text-xs text-slate-600">剩餘 &gt; {lightSettings?.yellow?.days || 5} 天</p>
+                                    </div>
+                                </div>
+
+                                {/* Gray - Unlinked */}
+                                <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div className="w-10 h-10 bg-slate-400 rounded-full flex items-center justify-center shadow-md shrink-0">
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-800">⚪ 灰色</p>
+                                        <p className="text-xs text-slate-600">未連結設備</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Red Light - Overdue */}
-                            <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
-                                <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-md shrink-0">
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-800">🔴 紅色「需檢查」</p>
-                                    <p className="text-xs text-slate-600">剩餘 ≤ 2 天</p>
-                                </div>
+                            {/* Footer */}
+                            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+                                <button
+                                    onClick={() => setIsLegendModalOpen(false)}
+                                    className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors"
+                                >
+                                    知道了
+                                </button>
                             </div>
-
-                            {/* Yellow/Orange Light - Warning */}
-                            <div className="flex items-center gap-4 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                                <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shadow-md shrink-0">
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-800">🟠 橙色「可以檢查」</p>
-                                    <p className="text-xs text-slate-600">剩餘 3-6 天</p>
-                                </div>
-                            </div>
-
-                            {/* Green Light - Normal */}
-                            <div className="flex items-center gap-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                                <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shrink-0">
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-800">🟢 綠色「不需檢查」</p>
-                                    <p className="text-xs text-slate-600">剩餘 ≥ 7 天</p>
-                                </div>
-                            </div>
-
-                            {/* Gray - Unlinked */}
-                            <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                <div className="w-10 h-10 bg-slate-400 rounded-full flex items-center justify-center shadow-md shrink-0">
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-slate-800">⚪ 灰色</p>
-                                    <p className="text-xs text-slate-600">未連結設備</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Footer */}
-                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
-                            <button
-                                onClick={() => setIsLegendModalOpen(false)}
-                                className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors"
-                            >
-                                知道了
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <StorageManagerModal
                 user={user}
@@ -1335,6 +1444,47 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 onClose={() => setIsStorageManagerOpen(false)}
                 onSelect={modalMode === 'SELECT' ? handleSelectFile : undefined}
             />
+
+            {/* Add Marker Confirmation Modal */}
+            {pendingMarker && (
+                <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+                            <h3 className="font-bold text-lg text-slate-800">新增設備標記</h3>
+                            <p className="text-xs text-slate-500">請輸入設備編號以確認新增</p>
+                        </div>
+                        <div className="p-6">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">設備編號</label>
+                            <input
+                                type="text"
+                                value={pendingEquipmentId}
+                                onChange={(e) => setPendingEquipmentId(e.target.value)}
+                                placeholder="例如: 001"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') confirmAddMarker();
+                                    if (e.key === 'Escape') cancelAddMarker();
+                                }}
+                            />
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                            <button
+                                onClick={cancelAddMarker}
+                                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={confirmAddMarker}
+                                className="flex-1 py-2.5 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200"
+                            >
+                                確定新增
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

@@ -111,10 +111,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [loadingNotifications, setLoadingNotifications] = useState(false);
     const [savingNotifications, setSavingNotifications] = useState(false);
 
+    // Light Settings State
+    const [lightSettings, setLightSettings] = useState<any>(null);
+    const [savingLights, setSavingLights] = useState(false);
+
     // Map State
 
     // Settings State
-    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'LANGUAGE' | 'GENERAL'>('PROFILE');
+    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS'>('PROFILE');
     const [displayName, setDisplayName] = useState(user.displayName || '');
     const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
     const [newPassword, setNewPassword] = useState('');
@@ -198,8 +202,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (user?.uid) {
             fetchDeclarationSettings();
             fetchEquipmentStats();
+            fetchLightSettings();
         }
     }, [user?.uid]);
+
+    const fetchLightSettings = async () => {
+        if (user?.uid) {
+            const settings = await StorageService.getLightSettings(user.uid);
+            setLightSettings(settings);
+        }
+    };
+
+    const handleSaveLightSettings = async () => {
+        if (!lightSettings) return;
+        setSavingLights(true);
+        try {
+            await StorageService.saveLightSettings(lightSettings, user.uid);
+            alert("燈號設定已儲存！");
+        } catch (e) {
+            console.error(e);
+            alert("儲存失敗");
+        } finally {
+            setSavingLights(false);
+        }
+    };
 
     const fetchDeclarationSettings = async () => {
         if (user?.uid) {
@@ -348,7 +374,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'Pass': return <CheckCircle className="w-5 h-5 text-green-600" />;
-            case 'Fail': return <AlertTriangle className="w-5 h-5 text-red-600" />;
+            case 'Fail': return (
+                <div className="w-5 h-5 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300" />
+            );
             default: return <FileText className="w-5 h-5 text-yellow-600" />;
         }
     };
@@ -961,6 +989,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 >
                                     <Palette className="w-4 h-4 mr-2" /> {t('general')}
                                 </button>
+                                <button
+                                    onClick={() => setSettingsTab('LIGHTS')}
+                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                >
+                                    <Zap className="w-4 h-4 mr-2" /> 燈號
+                                </button>
                             </div>
 
                             {/* Content */}
@@ -1185,6 +1219,116 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {user.isGuest ? t('leaveGuest') : t('logout')}
                                             </button>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* LIGHTS TAB */}
+                                {settingsTab === 'LIGHTS' && (
+                                    <div className="space-y-6">
+                                        <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex gap-3">
+                                            <Zap className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-bold text-blue-900">燈號規則設定</p>
+                                                <p className="text-xs text-blue-700 leading-relaxed">
+                                                    自訂檢查狀態的判定標準。系統將依照您設定的天數與顏色重新同步顯示。
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {!lightSettings ? (
+                                            <div className="py-10 text-center flex justify-center">
+                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                {/* Red */}
+                                                <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-red-700 flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.red.color }}></div>
+                                                            需檢查 (RED)
+                                                        </span>
+                                                        <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-slate-600 font-bold">剩餘天數 &le;</span>
+                                                        <input type="number" value={lightSettings.red.days} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-red-200 rounded-lg text-center font-bold text-red-700 focus:outline-none focus:border-red-500" />
+                                                        <span className="text-sm text-slate-600 font-bold">天</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Yellow */}
+                                                <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-amber-700 flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.yellow.color }}></div>
+                                                            可以檢查 (YELLOW)
+                                                        </span>
+                                                        <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-slate-600 font-bold">剩餘天數 &le;</span>
+                                                        <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-amber-200 rounded-lg text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
+                                                        <span className="text-sm text-slate-600 font-bold">天</span>
+                                                        <span className="text-xs text-slate-400 ml-2">(且 &gt; {lightSettings.red.days} 天)</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Green */}
+                                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-emerald-700 flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.green.color }}></div>
+                                                            不需檢查 (GREEN)
+                                                        </span>
+                                                        <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-slate-600 font-bold">剩餘天數 &ge;</span>
+                                                        <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-emerald-200 rounded-lg text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
+                                                        <span className="text-sm text-slate-600 font-bold">天</span>
+                                                        <span className="text-xs text-slate-400 ml-2">(系統判定 &gt; {lightSettings.yellow.days} 天)</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Completed (Normal) */}
+                                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-blue-700 flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
+                                                            已檢查 (COMPLETED)
+                                                        </span>
+                                                        <input
+                                                            type="color"
+                                                            value={lightSettings.completed?.color || '#10b981'}
+                                                            onChange={e => setLightSettings({ ...lightSettings, completed: { color: e.target.value } })}
+                                                            className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                                        />
+                                                    </div>
+                                                    <div className="text-xs text-slate-500">
+                                                        設定「正常且已完成」的檢查項目顯示顏色 (預設為綠色)
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={handleSaveLightSettings}
+                                                    disabled={savingLights}
+                                                    className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
+                                                >
+                                                    {savingLights ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                                            儲存中...
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <Save className="w-4 h-4" />
+                                                            儲存設定
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

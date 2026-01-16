@@ -357,6 +357,61 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       if (initialData) {
         // Update mode
         await StorageService.updateEquipmentDefinition(definition);
+
+        // --- Rename Sync Logic ---
+        const isBarcodeChanged = initialData.barcode !== barcode;
+        const isNameChanged = initialData.name !== name;
+
+        if (isBarcodeChanged || isNameChanged) {
+          console.log('[EquipmentManager] Def changed. Syncing...', { isBarcodeChanged, isNameChanged });
+
+          try {
+            // 1. Sync Maps (Markers are linked by Barcode/EquipmentID)
+            const maps = await StorageService.getMaps(user.uid);
+            const mapsToUpdate = maps.filter(m => m.markers.some(mk => mk.equipmentId === initialData.barcode));
+
+            if (mapsToUpdate.length > 0) {
+              console.log(`[Sync] Updating ${mapsToUpdate.length} maps with new barcode/info...`);
+              for (const map of mapsToUpdate) {
+                const updatedMarkers = map.markers.map(mk => {
+                  if (mk.equipmentId === initialData.barcode) {
+                    return { ...mk, equipmentId: barcode }; // Update ID if barcode changed
+                  }
+                  return mk;
+                });
+                await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid);
+              }
+            }
+
+            // 2. Sync Abnormal Records (Pending only, or all? User said "Abnormal Recheck List" so likely Pending)
+            // Ideally we should update history too if possible, but let's stick to active pending records first.
+            const abnormalRecords = await StorageService.getAbnormalRecords(user.uid);
+            const recordsToUpdate = abnormalRecords.filter(r => r.equipmentId === initialData.barcode || r.barcode === initialData.barcode);
+
+            if (recordsToUpdate.length > 0) {
+              console.log(`[Sync] Updating ${recordsToUpdate.length} abnormal records...`);
+              for (const record of recordsToUpdate) {
+                // Update fields if changed
+                const updates: any = {};
+                if (isBarcodeChanged) {
+                  updates.equipmentId = barcode;
+                  updates.barcode = barcode;
+                }
+                if (isNameChanged) {
+                  updates.equipmentName = name;
+                }
+
+                // Only update if we actually have changes (which we should if we are here)
+                await StorageService.updateAbnormalRecord({ ...record, ...updates });
+              }
+            }
+          } catch (syncErr) {
+            console.error("Sync Rename Failed:", syncErr);
+            alert("設備資料已更新，但同步至地圖或異常清單時發生錯誤，請手動檢查。");
+          }
+        }
+        // -------------------------
+
         setShowSuccessModal(true);
       } else {
         // Create mode

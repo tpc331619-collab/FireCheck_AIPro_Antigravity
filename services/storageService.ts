@@ -385,6 +385,19 @@ export const StorageService = {
     }
   },
 
+  // Aliases for Map Sync Logic
+  async getMaps(userId: string): Promise<EquipmentMap[]> {
+    return this.getEquipmentMaps(userId);
+  },
+
+  async saveMap(mapData: EquipmentMap | Omit<EquipmentMap, 'id'>, userId: string): Promise<string> {
+    if ('id' in mapData) {
+      await this.updateEquipmentMap(mapData);
+      return mapData.id;
+    }
+    return this.saveEquipmentMap(mapData, userId);
+  },
+
   async saveEquipmentMap(mapData: Omit<EquipmentMap, 'id'>, userId: string): Promise<string> {
     const KEY = `maps_${userId}`;
     const newMap = { ...mapData, userId, updatedAt: Date.now() };
@@ -748,6 +761,54 @@ export const StorageService = {
         await deleteDoc(recordRef);
       } catch (e) {
         console.error("Abnormal record delete error", e);
+        throw e;
+      }
+    }
+  },
+
+  // --- Light Settings Methods ---
+
+  async getLightSettings(userId: string): Promise<any> {
+    const KEY = `lights_${userId}`;
+    const defaults = {
+      red: { days: 2, color: '#ef4444' },
+      yellow: { days: 5, color: '#facc15' },
+      green: { days: 7, color: '#10b981' }
+    };
+
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      return data ? JSON.parse(data) : defaults;
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `lights_${userId}`);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          return { ...defaults, ...snapshot.data() };
+        }
+        return defaults;
+      } catch (e) {
+        console.error("Fetch light settings error", e);
+        const data = localStorage.getItem(KEY);
+        return data ? JSON.parse(data) : defaults;
+      }
+    }
+  },
+
+  async saveLightSettings(settings: any, userId: string): Promise<void> {
+    const KEY = `lights_${userId}`;
+    if (this.isGuest || !db) {
+      localStorage.setItem(KEY, JSON.stringify(settings));
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `lights_${userId}`);
+        await setDoc(docRef, settings);
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          localStorage.setItem(KEY, JSON.stringify(settings));
+          return;
+        }
+        console.error("Save light settings error", e);
         throw e;
       }
     }

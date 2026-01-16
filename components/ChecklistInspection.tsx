@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode } from 'lucide-react';
+import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -28,6 +28,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
     const [sites, setSites] = useState<string[]>([]);
     const [buildings, setBuildings] = useState<string[]>([]);
+    const [lightSettings, setLightSettings] = useState<any>(null); // Add this
 
     // Filtered Data for current view
     const [filteredEquipment, setFilteredEquipment] = useState<EquipmentDefinition[]>([]);
@@ -43,13 +44,17 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const [scannerOpen, setScannerOpen] = useState(false);
     const [manualInput, setManualInput] = useState('');
 
-    // Load Initial Data (All Equipment)
+    // Load Initial Data (All Equipment & Settings)
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const data = await StorageService.getEquipmentDefinitions(user.uid);
+                const [data, settings] = await Promise.all([
+                    StorageService.getEquipmentDefinitions(user.uid),
+                    StorageService.getLightSettings(user.uid)
+                ]);
                 setAllEquipment(data);
+                setLightSettings(settings); // Set settings
                 const uniqueSites = Array.from(new Set(data.map(item => item.siteName))).filter(Boolean);
                 setSites(uniqueSites);
             } catch (error) {
@@ -362,7 +367,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         }
                     });
 
-                    await StorageService.saveAbnormalRecord({
+                    await StorageService.saveAbnormalRecord(removeUndefined({
                         userId: user.uid,
                         equipmentId: inspectingItem.id,
                         equipmentName: inspectingItem.name,
@@ -375,7 +380,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         status: 'pending',
                         createdAt: now,
                         updatedAt: now
-                    }, user.uid);
+                    }), user.uid);
                 } catch (e) {
                     console.error("Failed to save abnormal record:", e);
                     // Don't block the main save flow
@@ -389,6 +394,19 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 items: [...report.items],
                 updatedAt: Date.now() // 強制觸發更新
             };
+
+            // Close Modal first
+            // Save to Firebase Storage
+            await StorageService.saveReport(updatedReport, user.uid);
+
+            // Update Equipment Definition's lastInspectedDate to reflect current status
+            await StorageService.updateEquipmentDefinition({
+                id: inspectingItem.id,
+                lastInspectedDate: now
+            });
+            // Update local state 'allEquipment' is tricky without refetching, 
+            // but Checklist calculates status from 'currentReport' effectively so it's fine for this view.
+            // Other views like MapEditor will re-fetch 'allEquipment' or 'reports'.
 
             // Close Modal first
             setInspectingItem(null);
@@ -568,8 +586,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             ) : (
                                 // 按燈號排序: 紅色 (PENDING) → 橙色 (CAN_INSPECT) → 綠色 (UNNECESSARY) → 已完成 (COMPLETED)
                                 [...filteredEquipment].sort((a, b) => {
-                                    const statusA = getFrequencyStatus(a);
-                                    const statusB = getFrequencyStatus(b);
+                                    const statusA = getFrequencyStatus(a, lightSettings);
+                                    const statusB = getFrequencyStatus(b, lightSettings);
 
                                     const priority = {
                                         'PENDING': 1,      // 紅色最優先
@@ -580,87 +598,136 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                                     return priority[statusA] - priority[statusB];
                                 }).map(item => {
-                                    const freqStatus = getFrequencyStatus(item);
+                                    const freqStatusRaw = getFrequencyStatus(item, lightSettings);
+
+                                    // Check if item is in current report (active session)
+                                    // Use 'item.id' (UUID) to match
+                                    const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === item.id);
+
+                                    // Effective Status: If in current report, treat as COMPLETED. Else use database status.
+                                    const freqStatus = inspectionItem ? 'COMPLETED' : freqStatusRaw;
 
                                     // Visual Logic
                                     let statusLabel = '需檢查';
                                     let statusColor = 'bg-red-100 text-red-500';
                                     let rowBorder = 'border-slate-200 hover:border-red-300';
                                     let iconBg = 'bg-slate-300';
-                                    let iconContent = <div className="text-xs font-bold">{filteredEquipment.indexOf(item) + 1}</div>;
+                                    let iconStyle: React.CSSProperties = {};
+                                    let iconContent = null; // No number by default
 
                                     if (freqStatus === 'COMPLETED') {
-                                        statusLabel = '已檢查';
-                                        statusColor = 'bg-green-100 text-green-700';
-                                        rowBorder = 'border-green-200 bg-green-50/30';
-                                        iconBg = 'bg-green-500';
-                                        iconContent = <CheckCircle className="w-5 h-5 text-white" />;
+                                        const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal;
+                                        if (isAbnormal) {
+                                            statusLabel = '已檢查+異常';
+                                            statusColor = 'bg-red-100 text-red-600';
+                                            rowBorder = 'border-red-200 bg-red-50/30';
+                                            iconBg = 'bg-orange-500 animate-pulse';
+                                            iconContent = <span className="font-bold text-lg">!</span>;
+                                        } else {
+                                            statusLabel = '已檢查';
+                                            statusColor = 'bg-green-100 text-green-700';
+                                            rowBorder = 'border-green-200 bg-green-50/30';
+
+                                            // Normal Completed: Use custom color if set, otherwise default emerald
+                                            if (lightSettings?.completed?.color) {
+                                                iconStyle = { backgroundColor: lightSettings.completed.color };
+                                                iconBg = '';
+                                            } else {
+                                                iconBg = 'bg-emerald-500';
+                                                iconStyle = {};
+                                            }
+                                            iconContent = <CheckCircle className="w-5 h-5 text-white" />;
+                                        }
                                     } else if (freqStatus === 'CAN_INSPECT') {
                                         statusLabel = '可以檢查';
-                                        statusColor = 'bg-orange-100 text-orange-600';
-                                        rowBorder = 'border-orange-100 hover:border-orange-300';
-                                        iconBg = 'bg-orange-400';
+                                        statusColor = 'bg-yellow-100 text-yellow-700';
+                                        rowBorder = 'border-yellow-200 hover:border-yellow-300';
+                                        if (lightSettings?.yellow?.color) {
+                                            iconStyle = { backgroundColor: lightSettings.yellow.color };
+                                            iconBg = 'animate-pulse';
+                                        } else {
+                                            iconBg = 'bg-yellow-400 animate-pulse';
+                                        }
                                     } else if (freqStatus === 'UNNECESSARY') {
                                         statusLabel = '不須檢查';
                                         statusColor = 'bg-slate-100 text-slate-500';
                                         rowBorder = 'border-slate-200 opacity-75';
-                                        iconBg = 'bg-slate-300';
+                                        if (lightSettings?.green?.color) {
+                                            iconStyle = { backgroundColor: lightSettings.green.color };
+                                            iconBg = 'animate-pulse';
+                                        } else {
+                                            iconBg = 'bg-emerald-500 animate-pulse';
+                                        }
+                                    } else {
+                                        // PENDING
+                                        if (lightSettings?.red?.color) {
+                                            iconStyle = { backgroundColor: lightSettings.red.color };
+                                            iconBg = 'animate-pulse';
+                                        } else {
+                                            iconBg = 'bg-red-500 animate-pulse';
+                                        }
                                     }
+
+                                    // Lock Logic: Unnecessary or Completed items are locked
+                                    const isLocked = freqStatus === 'UNNECESSARY' || freqStatus === 'COMPLETED';
 
                                     return (
                                         <div key={item.id}
                                             onClick={() => {
-                                                if (freqStatus !== 'UNNECESSARY') handleInspect(item); // Strict? Or allow anyway? 
-                                                else {
-                                                    // Allow inspect anyway if user really wants to, or block? 
-                                                    // "Status automatically turns to Not Required". Usually implies read-only or low priority.
-                                                    // Let's allow it but maybe confirm? For now, allow it, just visual difference.
-                                                    handleInspect(item);
-                                                }
+                                                if (isLocked) return;
+                                                handleInspect(item);
                                             }}
-                                            className={`bg-white p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between hover:shadow-md ${rowBorder}`}
+                                            className={`bg-white p-4 rounded-xl border transition-all flex items-center justify-between shadow-sm relative overflow-hidden ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md'} ${rowBorder}`}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white ${iconBg}`}>
+                                                <div
+                                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 ${iconBg}`}
+                                                    style={iconStyle}
+                                                >
                                                     {iconContent}
                                                 </div>
                                                 <div>
-                                                    <h4 className={`font-bold text-slate-800`}>{item.name}</h4>
+                                                    <h4 className={`font-bold text-slate-800 flex items-center gap-2`}>
+                                                        {item.name}
+                                                        {isLocked && <Lock className="w-3.5 h-3.5 text-slate-400" />}
+                                                    </h4>
                                                     <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
                                                         <span>{item.barcode}</span>
                                                         <span>•</span>
-                                                        {/* Show Next Date */}
-                                                        <span>下次: {new Date(getNextInspectionDate(item)).toLocaleDateString()}</span>
+                                                        {inspectionItem ? (
+                                                            <span className="text-blue-600 font-bold">
+                                                                已檢: {new Date(inspectionItem.timestamp || Date.now()).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        ) : (
+                                                            <span>下次: {new Date(getNextInspectionDate(item)).toLocaleDateString()}</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                {/* Status Light Indicator */}
+                                                {/* Status Light Indicator (Right Side) */}
                                                 {freqStatus === 'PENDING' && (
-                                                    <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-lg shadow-red-300"></div>
+                                                    <div className="w-3 h-3 rounded-full animate-pulse shadow-lg"
+                                                        style={{ backgroundColor: lightSettings?.red?.color || '#ef4444', boxShadow: `0 0 10px ${lightSettings?.red?.color || '#ef4444'}66` }}></div>
                                                 )}
                                                 {freqStatus === 'CAN_INSPECT' && (
-                                                    <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-300"></div>
+                                                    <div className="w-3 h-3 rounded-full animate-pulse shadow-lg"
+                                                        style={{ backgroundColor: lightSettings?.yellow?.color || '#facc15', boxShadow: `0 0 10px ${lightSettings?.yellow?.color || '#facc15'}66` }}></div>
                                                 )}
                                                 {freqStatus === 'UNNECESSARY' && (
-                                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                                                    <div className="w-3 h-3 rounded-full animate-pulse shadow-lg"
+                                                        style={{ backgroundColor: lightSettings?.green?.color || '#10b981', boxShadow: `0 0 10px ${lightSettings?.green?.color || '#10b981'}66` }}></div>
                                                 )}
                                                 {freqStatus === 'COMPLETED' && (() => {
-                                                    // 檢查是否異常
                                                     const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === item.id);
                                                     const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal;
 
                                                     if (isAbnormal) {
-                                                        // 異常 - 紅色圈圈 + 「異」字
-                                                        return (
-                                                            <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center shadow-lg shadow-red-300">
-                                                                <span className="text-white text-xs font-bold">異</span>
-                                                            </div>
-                                                        );
+                                                        return <div className="w-3 h-3 rounded-full bg-orange-500 animate-pulse shadow-lg shadow-orange-300" />;
                                                     } else {
-                                                        // 正常完成 - 綠色圓點
-                                                        return <div className="w-3 h-3 rounded-full bg-green-500"></div>;
+                                                        // Completed Normal - Custom color or default emerald
+                                                        return <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings?.completed?.color || '#10b981' }}></div>;
                                                     }
                                                 })()}
 

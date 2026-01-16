@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText } from 'lucide-react';
 import { AbnormalRecord, UserProfile } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -9,23 +9,19 @@ interface AbnormalRecheckListProps {
     onBack: () => void;
 }
 
-// 快選項目
-const QUICK_FIX_OPTIONS = [
-    '已排除',
-    '已修復需觀察',
-    '更換零件',
-    '外部支援',
-    '委外廠商處理',
-    '更換新品',
-    '重置系統',
-    '更換耗材',
-    '韌體更新',
-    '線路調整',
-    '清潔維護',
-    '硬體損壞',
-    '操作不當',
-    '環境因素',
-    '達到使用年限'
+// 常用修復說明 (快選)
+const QUICK_FIX_TEMPLATES = [
+    '更換故障零件，功能恢復正常',
+    '清潔感應器與周邊環境，測試後正常',
+    '重新設定系統參數，異常已排除',
+    '緊固鬆脫部件，確認穩固',
+    '更換消耗品（電池/燈泡），測試正常',
+    '線路重新接線與整理，訊號恢復',
+    '韌體更新至最新版本，問題解決',
+    '外部廠商協助維修，已驗收',
+    '設備已達使用年限，更換新品',
+    '誤報，現場確認無異常',
+    '環境因素導致（如潮濕/灰塵），已排除環境問題'
 ];
 
 const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack }) => {
@@ -37,10 +33,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
 
     // 修復表單狀態
     const [fixedDate, setFixedDate] = useState('');
-    const [fixedTime, setFixedTime] = useState('');
     const [fixedNotes, setFixedNotes] = useState('');
-    const [fixedCategory, setFixedCategory] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const printRef = useRef<HTMLDivElement>(null);
 
     const fetchRecords = async () => {
         setLoading(true);
@@ -59,51 +55,59 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
         fetchRecords();
     }, [user.uid]);
 
-    // 初始化修復時間為當前時間
+    // 初始化修復時間為當前日期
     useEffect(() => {
         if (selectedRecord) {
             const now = new Date();
             setFixedDate(now.toISOString().split('T')[0]);
-            setFixedTime(now.toTimeString().slice(0, 5));
             setFixedNotes('');
-            setFixedCategory('');
         }
     }, [selectedRecord]);
 
-    const handleQuickSelect = (option: string) => {
-        setFixedCategory(option);
-        setFixedNotes(option);
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const handleQuickTextSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        if (val) {
+            setFixedNotes(prev => {
+                // 如果原本有內容，換行後加入；否則直接加入
+                return prev ? `${prev}\n${val}` : val;
+            });
+            // 重置 select (為了能重複選同一個，雖然 controlled component 比較難完全重置，這裡主要用於觸發)
+            e.target.value = '';
+        }
     };
 
     const handleSubmit = async () => {
         if (!selectedRecord) return;
 
-        if (!fixedDate || !fixedTime) {
-            alert('請輸入修復時間');
+        if (!fixedDate) {
+            alert('請選擇修復日期');
             return;
         }
 
         if (!fixedNotes.trim()) {
-            alert('請輸入修復情況或選擇快選項目');
+            alert('請輸入修復情況說明');
             return;
         }
 
         setIsSubmitting(true);
         try {
-            // 合併日期和時間
-            const fixedDateTime = new Date(`${fixedDate}T${fixedTime}`).getTime();
+            // 設定為當天結束前或當前時間
+            const fixedDateTime = new Date(fixedDate).getTime();
 
-            // 更新異常記錄
+            // 1. 更新異常記錄 (不再儲存 fixedCategory)
             await StorageService.updateAbnormalRecord({
                 ...selectedRecord,
                 status: 'fixed',
                 fixedDate: fixedDateTime,
                 fixedNotes: fixedNotes.trim(),
-                fixedCategory: fixedCategory || undefined,
                 updatedAt: Date.now()
             });
 
-            // 更新設備的最後檢查日期
+            // 2. 更新設備的最後檢查日期
             try {
                 const equipment = await StorageService.getEquipmentById(selectedRecord.equipmentId, user.uid);
                 if (equipment) {
@@ -116,7 +120,31 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                 console.error('Failed to update equipment:', e);
             }
 
-            alert('修復記錄已儲存');
+            // 3. 建立歷史檢查記錄 (InspectionReport)
+            try {
+                const newReport = {
+                    id: `REP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    userId: user.uid,
+                    equipmentId: selectedRecord.equipmentId,
+                    equipmentName: selectedRecord.equipmentName,
+                    buildingName: selectedRecord.buildingName,
+                    floor: '',
+                    area: selectedRecord.siteName,
+                    date: fixedDateTime,
+                    inspectorName: user.displayName || 'User',
+                    overallStatus: 'Pass' as const,
+                    items: [],
+                    note: `[異常複檢修復] ${fixedNotes.trim()}`,
+                    signature: '',
+                    updatedAt: Date.now(),
+                    archived: true
+                };
+                await StorageService.saveReport(newReport, user.uid);
+            } catch (e) {
+                console.error('Failed to create history report:', e);
+            }
+
+            alert('修復記錄已儲存並同步');
             setSelectedRecord(null);
             fetchRecords();
         } catch (e) {
@@ -134,180 +162,216 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
         r.buildingName.includes(searchQuery)
     );
 
-    // 單一 return 語句,使用條件式渲染避免 Hooks 規則違反
     return (
         <>
+            <style>{`
+                @media print {
+                    @page { margin: 0; size: A4; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+                    body * { visibility: hidden; }
+                    .print-area, .print-area * { visibility: visible; }
+                    .print-area { 
+                        position: absolute; 
+                        left: 0; 
+                        top: 0; 
+                        width: 210mm; /* A4 width */
+                        min-height: 297mm; /* A4 height */
+                        padding: 15mm;
+                        background: white;
+                        color: black;
+                        font-family: "Times New Roman", "DFKai-SB", sans-serif; /* 標楷體更像正式文件 */
+                    }
+                    .no-print { display: none !important; }
+                    
+                    /* 強制表格式邊框 */
+                    .form-border { border: 2px solid #000 !important; }
+                    .cell-border { border: 1px solid #000 !important; }
+                    .bg-print-gray { background-color: #f0f0f0 !important; }
+                    
+                    /* 調整輸入框列印樣式 - 去除邊框，只留文字 */
+                    input, textarea, select { 
+                        border: none !important; 
+                        background: transparent !important; 
+                        resize: none; 
+                        box-shadow: none !important;
+                        font-size: 11pt !important;
+                    } 
+                    /* 針對 textarea 讓它在列印時可以撐開高度 (雖然 CSS 無法完全做到，但盡量設定) */
+                    textarea { min-height: 100px; }
+                }
+            `}</style>
+
             {selectedRecord ? (
-                // 詳細複檢頁面
+                // 詳細複檢頁面 (統一表單樣式)
                 <div className="flex flex-col h-full bg-slate-50">
-                    <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
-                        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-                            <button onClick={() => setSelectedRecord(null)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                <ArrowLeft className="w-6 h-6" />
+                    <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40 no-print">
+                        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => setSelectedRecord(null)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <ArrowLeft className="w-6 h-6" />
+                                </button>
+                                <h1 className="font-bold text-lg text-slate-800">異常複檢處理單</h1>
+                            </div>
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-bold transition-colors shadow-sm"
+                            >
+                                <Printer className="w-4 h-4" />
+                                列印 / 匯出 PDF
                             </button>
-                            <h1 className="font-bold text-lg text-slate-800">異常複檢</h1>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                        <div className="max-w-4xl mx-auto space-y-6">
-                            {/* 設備資訊 */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <AlertTriangle className="w-5 h-5 text-orange-500" />
-                                    設備資訊
-                                </h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">設備名稱</label>
-                                        <p className="text-slate-800 font-bold mt-1">{selectedRecord.equipmentName}</p>
-                                    </div>
-                                    {selectedRecord.barcode && (
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">設備編號</label>
-                                            <p className="text-slate-800 font-bold mt-1">{selectedRecord.barcode}</p>
-                                        </div>
-                                    )}
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">場所</label>
-                                        <p className="text-slate-800 mt-1">{selectedRecord.siteName}</p>
-                                    </div>
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">建築物</label>
-                                        <p className="text-slate-800 mt-1">{selectedRecord.buildingName}</p>
-                                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex justify-center custom-scrollbar bg-slate-100">
+                        {/* A4 模擬容器 */}
+                        <div ref={printRef} className="print-area w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-[15mm] text-slate-900 border border-slate-200">
+
+                            {/* 表頭 */}
+                            <div className="text-center mb-8 pb-4 border-b-2 border-black">
+                                <h1 className="text-3xl font-extrabold tracking-widest text-black mb-2 font-serif">消防安全設備異常複檢單</h1>
+                                <div className="flex justify-between items-end mt-4 text-sm text-slate-600 font-medium">
+                                    <span>單號：{selectedRecord.id.slice(-8).toUpperCase()}</span>
+                                    <span>列印日期：{new Date().toLocaleDateString()}</span>
                                 </div>
                             </div>
 
-                            {/* 異常資訊 */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-red-200 p-6">
-                                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                                    異常資訊
-                                </h2>
-
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">上次檢查時間</label>
-                                        <p className="text-slate-800 mt-1 flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-slate-400" />
-                                            {new Date(selectedRecord.inspectionDate).toLocaleString(language)}
-                                        </p>
+                            {/* 主要表格結構 */}
+                            <div className="border-2 border-black">
+                                {/* 1. 設備資訊 */}
+                                <div className="bg-slate-100 border-b border-black p-2 font-bold text-center text-lg bg-print-gray">一、設備基本資料</div>
+                                <div className="grid grid-cols-2">
+                                    <div className="border-r border-black border-b border-black p-3">
+                                        <div className="text-xs text-slate-500 font-bold mb-1">設備名稱</div>
+                                        <div className="text-lg font-bold">{selectedRecord.equipmentName}</div>
                                     </div>
+                                    <div className="border-b border-black p-3">
+                                        <div className="text-xs text-slate-500 font-bold mb-1">設備編號</div>
+                                        <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
+                                    </div>
+                                    <div className="border-r border-black border-b border-black p-3">
+                                        <div className="text-xs text-slate-500 font-bold mb-1">設置場所</div>
+                                        <div>{selectedRecord.siteName}</div>
+                                    </div>
+                                    <div className="border-b border-black p-3">
+                                        <div className="text-xs text-slate-500 font-bold mb-1">區域/樓層</div>
+                                        <div>{selectedRecord.buildingName}</div>
+                                    </div>
+                                </div>
 
-                                    {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 && (
-                                        <div>
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">異常項目</label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {selectedRecord.abnormalItems.map((item, idx) => (
-                                                    <span key={idx} className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold">
-                                                        {item}
-                                                    </span>
-                                                ))}
+                                {/* 2. 異常資訊 */}
+                                <div className="bg-slate-100 border-b border-black p-2 font-bold text-center text-lg bg-print-gray">二、異常檢測記錄</div>
+                                <div className="border-b border-black">
+                                    <div className="grid grid-cols-2 border-b border-black">
+                                        <div className="border-r border-black p-3">
+                                            <div className="text-xs text-slate-500 font-bold mb-1">發現日期</div>
+                                            <div className="font-medium">{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</div>
+                                        </div>
+                                        <div className="p-3">
+                                            <div className="text-xs text-slate-500 font-bold mb-1">異常項目歸類</div>
+                                            <div className="flex flex-wrap gap-1">
+                                                {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 ? (
+                                                    selectedRecord.abnormalItems.map((item, idx) => (
+                                                        <span key={idx} className="after:content-[','] last:after:content-[''] font-medium">
+                                                            {item}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-slate-400 italic">無</span>
+                                                )}
                                             </div>
                                         </div>
-                                    )}
-
-                                    <div>
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">異常內容</label>
-                                        <div className="mt-2 p-4 bg-red-50 rounded-xl border border-red-100">
-                                            <p className="text-slate-800">{selectedRecord.abnormalReason}</p>
+                                    </div>
+                                    <div className="p-3 min-h-[80px]">
+                                        <div className="text-xs text-slate-500 font-bold mb-2">異常情況描述</div>
+                                        <div className="text-slate-900 leading-relaxed font-medium">
+                                            {selectedRecord.abnormalReason}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* 修復資訊輸入 */}
-                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                                <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <CheckCircle className="w-5 h-5 text-green-500" />
-                                    修復資訊
-                                </h2>
-
-                                <div className="space-y-6">
-                                    {/* 修復時間 */}
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 mb-2 block">修復時間 *</label>
-                                        <div className="grid grid-cols-2 gap-3">
+                                {/* 3. 修復資訊 */}
+                                <div className="bg-slate-100 border-b border-black p-2 font-bold text-center text-lg bg-print-gray">三、修復處理報告</div>
+                                <div>
+                                    <div className="p-3 border-b border-black">
+                                        <div className="flex items-center gap-4">
+                                            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">修復完成日期：</label>
                                             <input
                                                 type="date"
                                                 value={fixedDate}
                                                 onChange={(e) => setFixedDate(e.target.value)}
-                                                className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                                            />
-                                            <input
-                                                type="time"
-                                                value={fixedTime}
-                                                onChange={(e) => setFixedTime(e.target.value)}
-                                                className="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                                                className="flex-1 px-2 py-1 bg-transparent border-b border-slate-300 focus:outline-none focus:border-black font-medium print:border-none"
                                             />
                                         </div>
                                     </div>
 
-                                    {/* 快選項目 */}
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 mb-2 block">快選項目</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {QUICK_FIX_OPTIONS.map((option) => (
-                                                <button
-                                                    key={option}
-                                                    onClick={() => handleQuickSelect(option)}
-                                                    className={`px-3 py-2 rounded-lg text-sm font-bold transition-all ${fixedCategory === option
-                                                            ? 'bg-blue-500 text-white shadow-md'
-                                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                                        }`}
-                                                >
-                                                    {option}
-                                                </button>
-                                            ))}
+                                    <div className="p-3 min-h-[200px]">
+                                        <div className="flex justify-between items-center mb-2 no-print">
+                                            <label className="text-sm font-bold text-slate-700">修復處置說明</label>
+                                            <select
+                                                className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:border-slate-500"
+                                                onChange={handleQuickTextSelect}
+                                                defaultValue=""
+                                            >
+                                                <option value="" disabled>✨ 快速帶入常用說明...</option>
+                                                {QUICK_FIX_TEMPLATES.map((tpl, i) => (
+                                                    <option key={i} value={tpl}>{tpl}</option>
+                                                ))}
+                                            </select>
                                         </div>
-                                    </div>
+                                        <label className="text-xs text-slate-500 font-bold mb-1 hidden print:block">修復處置說明</label>
 
-                                    {/* 修復情況 */}
-                                    <div>
-                                        <label className="text-sm font-bold text-slate-700 mb-2 block">修復情況 *</label>
                                         <textarea
                                             value={fixedNotes}
                                             onChange={(e) => setFixedNotes(e.target.value)}
-                                            placeholder="請輸入修復情況說明..."
-                                            rows={4}
-                                            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 resize-none"
+                                            placeholder="請輸入詳細修復過程..."
+                                            className="w-full h-full min-h-[160px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* 操作按鈕 */}
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setSelectedRecord(null)}
-                                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
-                                >
-                                    取消
-                                </button>
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={isSubmitting}
-                                    className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                            處理中...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="w-5 h-5" />
-                                            確定上傳
-                                        </>
-                                    )}
-                                </button>
+                            {/* 簽名欄 */}
+                            <div className="mt-12 grid grid-cols-2 gap-12">
+                                <div className="border-t border-black pt-2 text-center">
+                                    <p className="font-bold text-black mb-12">維修人員簽章</p>
+                                </div>
+                                <div className="border-t border-black pt-2 text-center">
+                                    <p className="font-bold text-black mb-12">管理人員簽章</p>
+                                </div>
                             </div>
+
+                            {/* 頁尾 */}
+                            <div className="mt-auto pt-8 text-center text-xs text-slate-400 print:text-black">
+                                <p>本表單由 FireCheck AI Pro 系統自動生成</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 底部操作按鈕 (列印時隱藏) */}
+                    <div className="p-4 bg-white border-t border-slate-200 z-40 no-print sticky bottom-0">
+                        <div className="max-w-5xl mx-auto">
+                            <button
+                                onClick={handleSubmit}
+                                disabled={isSubmitting}
+                                className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 text-lg"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        資料同步中...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle className="w-6 h-6" />
+                                        確認送出 (完成複檢)
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
                 </div>
             ) : (
-                // 列表頁面
+                // 列表頁面 (保持不變)
                 <div className="flex flex-col h-full bg-slate-50 relative">
                     <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
                         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -377,11 +441,15 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                                         </div>
                                                     </div>
 
-                                                    <div className="bg-red-50 p-3 rounded-lg border border-red-100">
-                                                        <p className="text-xs font-bold text-red-400 mb-1 flex items-center">
-                                                            <AlertTriangle className="w-3 h-3 mr-1" /> 異常原因
-                                                        </p>
-                                                        <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
+                                                    <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
+                                                        {/* Custom Abnormal Icon */}
+                                                        <div className="w-6 h-6 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5" />
+                                                        <div>
+                                                            <p className="text-xs font-bold text-red-500 mb-1">
+                                                                異常原因
+                                                            </p>
+                                                            <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
+                                                        </div>
                                                     </div>
                                                 </div>
 

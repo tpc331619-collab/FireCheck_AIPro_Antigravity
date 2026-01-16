@@ -1,4 +1,4 @@
-import { EquipmentDefinition } from '../types';
+import { EquipmentDefinition, LightSettings } from '../types';
 
 export const getCycleDays = (freq?: string): number => {
     if (!freq) return 30; // Default
@@ -7,10 +7,6 @@ export const getCycleDays = (freq?: string): number => {
     if (freq === 'monthly') return 30;
     if (freq === 'quarterly') return 90;
     if (freq === 'yearly') return 365;
-
-    // Legacy support removed - conflicts with custom days input
-    // Old: if (freq === 'weekly') return 7;
-    // Old: if (['6', '12', '24', '36', '120'].includes(freq)) return parseInt(freq) * 30;
 
     const parsed = parseInt(freq);
     return isNaN(parsed) ? 30 : parsed;
@@ -26,7 +22,7 @@ export const getNextInspectionDate = (item: EquipmentDefinition): number => {
     return nextDate.getTime();
 };
 
-export const getFrequencyStatus = (item: EquipmentDefinition): 'COMPLETED' | 'PENDING' | 'UNNECESSARY' | 'CAN_INSPECT' => {
+export const getFrequencyStatus = (item: EquipmentDefinition, settings?: LightSettings): 'COMPLETED' | 'PENDING' | 'UNNECESSARY' | 'CAN_INSPECT' => {
     // 1. Check if inspected TODAY
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
@@ -42,11 +38,14 @@ export const getFrequencyStatus = (item: EquipmentDefinition): 'COMPLETED' | 'PE
     const remainingDays = Math.ceil((nextDateTs - now) / msPerDay);
 
     // 3. Determine status based on remaining days
-    if (remainingDays <= 2) {
-        return 'PENDING'; // 🔴 紅色「需檢查」: 剩餘 <= 2 天
-    } else if (remainingDays <= 5) {
-        return 'CAN_INSPECT'; // 🟠 橙色「可以檢查」: 剩餘 3-5 天
+    const redThreshold = settings?.red?.days ?? 2;
+    const yellowThreshold = settings?.yellow?.days ?? 5;
+
+    if (remainingDays <= redThreshold) {
+        return 'PENDING'; // 🔴 紅色「需檢查」
+    } else if (remainingDays <= yellowThreshold) {
+        return 'CAN_INSPECT'; // 🟠 橙色/黃色「可以檢查」
     } else {
-        return 'UNNECESSARY'; // 🟢 綠色「不需檢查」: 剩餘 >= 7 天
+        return 'UNNECESSARY'; // 🟢 綠色「不需檢查」
     }
 };

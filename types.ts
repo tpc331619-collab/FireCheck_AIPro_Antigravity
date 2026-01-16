@@ -148,3 +148,10 @@ export interface AbnormalRecord {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface LightSettings {
+  red: { days: number; color: string };    // <= days
+  yellow: { days: number; color: string }; // <= days
+  green: { days: number; color: string };  // >= days
+  completed?: { color: string }; // Custom color for 'Completed (Normal)'
+}

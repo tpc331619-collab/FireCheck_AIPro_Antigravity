@@ -156,6 +156,30 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       await StorageService.deleteEquipmentDefinition(id);
 
       refreshData(true);
+
+      // --- Sync Map Markers Fix ---
+      // We need to remove any map markers associated with this equipment ID (barcode)
+      try {
+        const itemToDelete = allEquipment.find(e => e.id === id);
+        if (itemToDelete) {
+          const barcode = itemToDelete.barcode;
+          const maps = await StorageService.getMaps(user.uid);
+
+          const mapsToUpdate = maps.filter(m => m.markers.some(mk => mk.equipmentId === barcode));
+
+          if (mapsToUpdate.length > 0) {
+            console.log(`Syncing map markers: Removing equipment ${barcode} from ${mapsToUpdate.length} maps`);
+            for (const map of mapsToUpdate) {
+              const updatedMarkers = map.markers.filter(mk => mk.equipmentId !== barcode);
+              await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid);
+            }
+          }
+        }
+      } catch (mapErr) {
+        console.error("Failed to sync delete with maps:", mapErr);
+        // Delete was successful, just map sync failed. Non-critical but logged.
+      }
+
       showToast(t('dataDeleted') || "資料已刪除", 'success');
 
     } catch (err: any) {
@@ -181,13 +205,28 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       name: `${item.name}${t('copiedSuffix')}`,
       barcode: `${item.barcode}-COPY`,
       updatedAt: Date.now(),
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      // Fix: Reset inspection status for copied items
+      lastInspectedDate: 0,
+      checkItems: (item.checkItems || []).map(ci => ({
+        ...ci,
+      })),
+      photoUrl: undefined, // Reset photo for copy
+      notificationEmails: undefined, // Reset notification emails for copy
     };
+
+    // Remove undefined fields to prevent Firestore errors
+    const cleanItem = Object.fromEntries(
+      Object.entries(newItem).filter(([_, v]) => v !== undefined)
+    ) as EquipmentDefinition;
+
     try {
-      await StorageService.saveEquipmentDefinition(newItem, user.uid);
+      console.log('[MyEquipment] Copying item:', item.barcode, '-> New:', cleanItem.barcode);
+      await StorageService.saveEquipmentDefinition(cleanItem, user.uid);
       refreshData(true);
       showToast(t('copySuccess'));
     } catch (err) {
+      console.error('[MyEquipment] Copy failed:', err);
       showToast('複製失敗', 'error');
     }
   };

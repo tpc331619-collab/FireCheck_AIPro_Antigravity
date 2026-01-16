@@ -31,7 +31,9 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
             id: 'RECHECK',
             title: '異常複檢',
             description: '針對先前異常項目進行複查',
-            icon: <AlertTriangle className="w-8 h-8 text-orange-500" />,
+            icon: (
+                <div className="w-8 h-8 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300" />
+            ),
             color: 'bg-orange-50 border-orange-100 hover:border-orange-300',
             bgIcon: 'bg-orange-100'
         }
