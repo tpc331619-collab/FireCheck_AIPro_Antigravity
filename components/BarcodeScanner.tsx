@@ -20,7 +20,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose 
 
                 const config = {
                     fps: 10,
-                    qrbox: { width: 250, height: 250 },
+                    qrbox: { width: 300, height: 300 },
                     aspectRatio: 1.0
                 };
 
@@ -108,7 +108,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose 
                         <>
                             <div
                                 id="qr-reader"
-                                className="rounded-xl overflow-hidden border-2 border-slate-200"
+                                className="rounded-xl overflow-hidden border-2 border-slate-200 aspect-square"
                             ></div>
                             <p className="text-sm text-slate-500 text-center mt-4">
                                 請將條碼對準框內進行掃描
@@ -118,13 +118,16 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose 
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 bg-slate-50 border-t border-slate-200">
+                <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2">
                     <button
                         onClick={handleClose}
-                        className="w-full py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors"
+                        className="w-full py-3 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors"
                     >
-                        取消
+                        取消 / 改用手動輸入
                     </button>
+                    <p className="text-xs text-slate-400 text-center">
+                        點擊上方按鈕可返回手動輸入模式
+                    </p>
                 </div>
             </div>
         </div>
