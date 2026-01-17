@@ -8,6 +8,7 @@ import { Mail, Bell } from 'lucide-react';
 import DeclarationSettingsModal from './DeclarationSettingsModal';
 import NotificationSettingsModal from './NotificationSettingsModal';
 import InspectionModeModal from './InspectionModeModal';
+import MapViewInspection from './MapViewInspection';
 import AddEquipmentModeModal from './AddEquipmentModeModal';
 import AbnormalRecheckList from './AbnormalRecheckList';
 
@@ -139,6 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isInspectionModeOpen, setIsInspectionModeOpen] = useState(false);
     const [isAddEquipmentModeOpen, setIsAddEquipmentModeOpen] = useState(false);
     const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
+    const [isMapViewInspectionOpen, setIsMapViewInspectionOpen] = useState(false);
     const [showArchived, setShowArchived] = useState(false); // Toggle for archived reports
     const [abnormalCount, setAbnormalCount] = useState(0); // Count of pending abnormal records
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
@@ -197,7 +199,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 onCreateNew();
                 break;
             case 'MAP_VIEW':
-                onOpenMapEditor(); // Assuming Map View uses the same editor component for now
+                setIsMapViewInspectionOpen(true);
                 break;
             case 'RECHECK':
                 console.log('[Dashboard] Setting showAbnormalRecheck to true');
@@ -1865,6 +1867,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 user={user}
                 isOpen={isNotificationModalOpen}
                 onClose={() => setIsNotificationModalOpen(false)}
+            />
+
+            <MapViewInspection
+                user={user}
+                isOpen={isMapViewInspectionOpen}
+                onClose={() => setIsMapViewInspectionOpen(false)}
             />
         </div >
     );
