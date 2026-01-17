@@ -250,6 +250,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             });
 
             // Update local equipment state immediately for instant marker update
+            console.log('[MapViewInspection] Updating equipment state for:', currentEquipment.name, 'with lastInspectedDate:', now);
             setAllEquipment(prev => prev.map(e =>
                 e.id === currentEquipment.id
                     ? { ...e, lastInspectedDate: now, updatedAt: now }
@@ -257,13 +258,16 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             ));
 
             // Update local reports state immediately for instant marker update
+            console.log('[MapViewInspection] Updating reports state with report:', report!.id);
             setReports(prev => {
                 const existingIndex = prev.findIndex(r => r.id === report!.id);
                 if (existingIndex >= 0) {
                     const updated = [...prev];
                     updated[existingIndex] = report!;
+                    console.log('[MapViewInspection] Updated existing report at index:', existingIndex);
                     return updated;
                 } else {
+                    console.log('[MapViewInspection] Added new report');
                     return [...prev, report!];
                 }
             });
@@ -307,14 +311,17 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             // Reload data to refresh marker status
             await loadData();
 
-            // Reset state
-            setCurrentEquipment(null);
-            setSelectedMarker(null);
-            setCheckResults({});
-            setNotes('');
-            setPhotos([]);
-
+            // Show success message first
             alert(`✅ 檢查完成！\n\n設備：${currentEquipment.name}\n狀態：${status === InspectionStatus.Normal ? '正常' : '異常'}`);
+
+            // Reset state after a short delay to allow marker colors to update
+            setTimeout(() => {
+                setCurrentEquipment(null);
+                setSelectedMarker(null);
+                setCheckResults({});
+                setNotes('');
+                setPhotos([]);
+            }, 100);
 
         } catch (error) {
             console.error('Submit failed:', error);
@@ -328,16 +335,24 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         if (!marker.equipmentId) return 'bg-slate-400';
 
         const equipment = allEquipment.find(e => e.barcode === marker.equipmentId);
-        if (!equipment) return 'bg-slate-400';
+        if (!equipment) {
+            console.log('[getMarkerColor] Equipment not found for barcode:', marker.equipmentId);
+            return 'bg-slate-400';
+        }
 
         // Check if abnormal in recent reports
         const isAbnormal = reports.some(r =>
             r.items.some(i => i.equipmentId === equipment.id && i.status === InspectionStatus.Abnormal)
         );
-        if (isAbnormal) return 'bg-orange-500 animate-pulse';
+        if (isAbnormal) {
+            console.log('[getMarkerColor]', equipment.name, '- ABNORMAL');
+            return 'bg-orange-500 animate-pulse';
+        }
 
         // Check frequency status
         const status = getFrequencyStatus(equipment, lightSettings);
+        console.log('[getMarkerColor]', equipment.name, '- lastInspectedDate:', equipment.lastInspectedDate, 'status:', status);
+
         switch (status) {
             case 'PENDING': return 'bg-red-500 animate-pulse';
             case 'CAN_INSPECT': return 'bg-yellow-400 animate-pulse';
