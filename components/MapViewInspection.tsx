@@ -208,7 +208,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 checkPoints: checkResults,
                 checkResults: checkResultsSnapshot,
                 notes: notes,
-                photoUrl: photos[0], // Use first photo
+                ...(photos.length > 0 && { photoUrl: photos[0] }), // Only include if photo exists
                 lastUpdated: now
             };
 
