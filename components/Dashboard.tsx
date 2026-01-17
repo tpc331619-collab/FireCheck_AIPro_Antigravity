@@ -124,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Map State
 
     // Settings State
-    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'NOTIFICATIONS' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS'>('PROFILE');
+    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS'>('PROFILE');
     const [displayName, setDisplayName] = useState(user.displayName || '');
     const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
     const [newPassword, setNewPassword] = useState('');
@@ -1384,12 +1384,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 >
                                     <User className="w-4 h-4 mr-2" /> {t('profile')}
                                 </button>
-                                <button
-                                    onClick={() => setSettingsTab('NOTIFICATIONS')}
-                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'NOTIFICATIONS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                                >
-                                    <Bell className="w-4 h-4 mr-2" /> {"\u901A\u77E5"}
-                                </button>
+
                                 <button
                                     onClick={() => setSettingsTab('LANGUAGE')}
                                     className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
@@ -1583,63 +1578,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 )}
 
                                 {/* NOTIFICATIONS TAB */}
-                                {settingsTab === 'NOTIFICATIONS' && (
-                                    <div className="space-y-6">
-                                        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 flex gap-3">
-                                            <Bell className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                                            <div className="space-y-1">
-                                                <p className="text-sm font-bold text-amber-900">通知接收設定</p>
-                                                <p className="text-xs text-amber-700 leading-relaxed">當檢查日期即將到期,或檢查結果為「異常」時,系統將自動寄送通知信至以下信箱。</p>
-                                            </div>
-                                        </div>
 
-                                        {loadingNotifications ? (
-                                            <div className="flex justify-center py-8">
-                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-4">
-                                                {notificationEmails.map((email, idx) => (
-                                                    <div key={idx} className="space-y-1.5">
-                                                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Email {idx + 1}</label>
-                                                        <div className="relative group">
-                                                            <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5 group-focus-within:text-red-500 transition-colors" />
-                                                            <input
-                                                                type="email"
-                                                                value={email}
-                                                                onChange={(e) => {
-                                                                    const newEmails = [...notificationEmails];
-                                                                    newEmails[idx] = e.target.value;
-                                                                    setNotificationEmails(newEmails);
-                                                                }}
-                                                                placeholder="name@example.com"
-                                                                className="w-full pl-10 p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:bg-white transition-all shadow-sm"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        <button
-                                            onClick={handleSaveNotifications}
-                                            disabled={savingNotifications || loadingNotifications}
-                                            className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                                        >
-                                            {savingNotifications ? (
-                                                <>
-                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    儲存中...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Save className="w-4 h-4" />
-                                                    儲存設定
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
 
                                 {/* GENERAL TAB */}
                                 {settingsTab === 'GENERAL' && (

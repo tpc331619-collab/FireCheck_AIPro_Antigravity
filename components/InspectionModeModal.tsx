@@ -13,7 +13,7 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
     const modes = [
         {
             id: 'CHECKLIST',
-            title: '使用清單檢查',
+            title: '清單檢查',
             description: '標準條列式設備檢查',
             icon: <ClipboardList className="w-8 h-8 text-blue-500" />,
             color: 'bg-blue-50 border-blue-100 hover:border-blue-300',
