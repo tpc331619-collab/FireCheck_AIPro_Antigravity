@@ -115,7 +115,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-full bg-slate-50 relative overflow-hidden flex flex-col font-sans">
+    <div className="min-h-screen w-full bg-slate-50 relative overflow-x-hidden flex flex-col font-sans">
       {currentView === 'DASHBOARD' ? (
         <Dashboard
           user={user}
