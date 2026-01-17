@@ -249,6 +249,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 updatedAt: now
             });
 
+            // Update local equipment state immediately for instant marker update
+            setAllEquipment(prev => prev.map(e =>
+                e.id === currentEquipment.id
+                    ? { ...e, lastInspectedDate: now, updatedAt: now }
+                    : e
+            ));
+
             // If abnormal, save to abnormal records
             if (status === InspectionStatus.Abnormal) {
                 const abnormalItems = currentEquipment.checkItems
