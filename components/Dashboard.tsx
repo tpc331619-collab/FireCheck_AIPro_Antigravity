@@ -19,6 +19,8 @@ import {
     FileText,
     Calendar,
     ChevronRight,
+    ChevronUp,
+    ChevronDown,
     AlertTriangle,
     CheckCircle,
     Search,
@@ -143,12 +145,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Enhanced Filter States (Phase 2)
     const [dateRange, setDateRange] = useState({
-        start: new Date().toISOString().split('T')[0], // Today's date
+        start: '', // 預設空白，顯示所有日期
         end: ''
     });
     const [locationFilter, setLocationFilter] = useState('');
     const [keywordSearch, setKeywordSearch] = useState('');
     const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // 排序順序：desc=最新在前，asc=最舊在前
 
     useEffect(() => {
         const fetchEquipment = async () => {
@@ -824,7 +827,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <span className="font-bold text-slate-700 block">{showArchived ? '當前紀錄' : '歷史紀錄'}</span>
                                 {!showArchived && reports.length > 0 && (
                                     <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">
-                                        {reports.length} 筆
+                                        {(() => {
+                                            // 計算所有報告中的檢查項目總數
+                                            const totalItems = reports.reduce((sum, report) => {
+                                                return sum + (report.items?.length || 0);
+                                            }, 0);
+                                            return totalItems;
+                                        })()} 筆
                                     </span>
                                 )}
                             </div>
@@ -1004,8 +1013,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <table className="w-full text-left text-sm whitespace-nowrap">
                                             <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                                                 <tr>
+                                                    <th className="px-4 py-3 w-16 text-center">#</th>
                                                     <th className="px-4 py-3 w-12"></th>
-                                                    <th className="px-4 py-3">檢查日期</th>
+                                                    <th
+                                                        className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                                        onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                                        title="點擊切換排序"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <span>檢查日期</span>
+                                                            <div className="flex flex-col">
+                                                                <ChevronUp className={`w-3 h-3 -mb-1 ${sortOrder === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                                                <ChevronDown className={`w-3 h-3 ${sortOrder === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
+                                                            </div>
+                                                        </div>
+                                                    </th>
                                                     <th className="px-4 py-3">場所名稱</th>
                                                     <th className="px-4 py-3">設備名稱</th>
                                                     <th className="px-4 py-3">設備編號</th>
@@ -1016,8 +1038,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {(() => {
-                                                    // Sort by date (newest first) and flatten
-                                                    const sortedReports = [...filteredReports].sort((a, b) => (b.date || 0) - (a.date || 0));
+                                                    // Sort by date based on sortOrder state
+                                                    const sortedReports = [...filteredReports].sort((a, b) => {
+                                                        if (sortOrder === 'desc') {
+                                                            return (b.date || 0) - (a.date || 0); // 最新在前
+                                                        } else {
+                                                            return (a.date || 0) - (b.date || 0); // 最舊在前
+                                                        }
+                                                    });
 
                                                     const allRows = sortedReports.flatMap(report =>
                                                         (report.items || [])
@@ -1080,14 +1108,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     if (deduplicatedRows.length === 0) {
                                                         return (
                                                             <tr>
-                                                                <td colSpan={keywordSearch ? 8 : 7} className="px-4 py-8 text-center text-slate-400">
+                                                                <td colSpan={keywordSearch ? 9 : 8} className="px-4 py-8 text-center text-slate-400">
                                                                     沒有找到相關紀錄
                                                                 </td>
                                                             </tr>
                                                         );
                                                     }
 
-                                                    return deduplicatedRows.flatMap(row => {
+                                                    return deduplicatedRows.flatMap((row, rowIndex) => {
                                                         const toggleExpand = () => {
                                                             setExpandedRows(prev => {
                                                                 const next = new Set(prev);
@@ -1103,6 +1131,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         return [
                                                             // Main Row
                                                             <tr key={row.uniqueKey} className="hover:bg-slate-50 transition-colors">
+                                                                <td className="px-4 py-3 text-center text-slate-500 font-medium">
+                                                                    {rowIndex + 1}
+                                                                </td>
                                                                 <td className="px-4 py-3">
                                                                     <button
                                                                         onClick={toggleExpand}
@@ -1166,7 +1197,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             // Expanded Details Row
                                                             row.isExpanded && (
                                                                 <tr key={`${row.uniqueKey}_details`} className="bg-slate-50">
-                                                                    <td colSpan={keywordSearch ? 8 : 7} className="px-4 py-4">
+                                                                    <td colSpan={keywordSearch ? 9 : 8} className="px-4 py-4">
                                                                         <div className="bg-white rounded-lg p-4 border border-slate-200">
                                                                             <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                                                                                 <ClipboardList className="w-4 h-4" />
@@ -1369,7 +1400,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     onClick={() => setSettingsTab('GENERAL')}
                                     className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                                 >
-                                    <Palette className="w-4 h-4 mr-2" /> {t('general')}
+                                    <Palette className="w-4 h-4 mr-2" /> 背景顏色
                                 </button>
                                 <button
                                     onClick={() => setSettingsTab('LIGHTS')}
@@ -1615,17 +1646,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <div className="space-y-6">
                                         {/* Theme Settings */}
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('theme')}</label>
+                                            <label className="text-xs font-bold text-slate-500 uppercase">背景顏色</label>
                                             <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                                                 {[
-                                                    { id: 'light', icon: <Sun className="w-4 h-4" />, label: t('themeLight'), color: 'bg-white' },
-                                                    { id: 'dark', icon: <Moon className="w-4 h-4" />, label: t('themeDark'), color: 'bg-slate-900' },
-                                                    { id: 'blue', icon: <Palette className="w-4 h-4" />, label: t('themeBlue'), color: 'bg-blue-600' },
-                                                    { id: 'green', icon: <Leaf className="w-4 h-4" />, label: t('themeGreen'), color: 'bg-emerald-600' },
-                                                    { id: 'orange', icon: <Zap className="w-4 h-4" />, label: t('themeOrange'), color: 'bg-orange-600' },
-                                                    { id: 'purple', icon: <Sparkles className="w-4 h-4" />, label: t('themePurple'), color: 'bg-purple-600' },
-                                                    { id: 'high-contrast', icon: <Eye className="w-4 h-4" />, label: t('themeContrast'), color: 'bg-black' },
-                                                    { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('themeSystem'), color: 'bg-gradient-to-br from-white to-slate-900' }
+                                                    { id: 'light', icon: <Sun className="w-4 h-4" />, label: 'Light+', color: 'bg-[#f3f3f3]' },
+                                                    { id: 'dark', icon: <Moon className="w-4 h-4" />, label: 'Dark+', color: 'bg-[#1e1e1e]' },
+                                                    { id: 'monokai', icon: <Palette className="w-4 h-4" />, label: 'Monokai', color: 'bg-[#272822]' },
+                                                    { id: 'solarized', icon: <Droplets className="w-4 h-4" />, label: 'Solarized', color: 'bg-[#002b36]' },
+                                                    { id: 'dracula', icon: <Sparkles className="w-4 h-4" />, label: 'Dracula', color: 'bg-[#282a36]' },
+                                                    { id: 'nord', icon: <Leaf className="w-4 h-4" />, label: 'Nord', color: 'bg-[#2e3440]' },
+                                                    { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: 'One Dark', color: 'bg-[#282c34]' },
+                                                    { id: 'system', icon: <Monitor className="w-4 h-4" />, label: '跟隨系統', color: 'bg-gradient-to-br from-white to-slate-900' }
                                                 ].map((item) => (
                                                     <button
                                                         key={item.id}

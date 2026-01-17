@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type ThemeType = 'light' | 'dark' | 'blue' | 'green' | 'orange' | 'purple' | 'high-contrast' | 'system';
+export type ThemeType = 'light' | 'dark' | 'monokai' | 'solarized' | 'dracula' | 'nord' | 'onedark' | 'system';
 
 interface ThemeStyles {
     bg: string;
@@ -15,84 +15,92 @@ interface ThemeStyles {
 
 // Define the styles for each theme using Tailwind classes
 export const THEME_STYLES: Record<ThemeType, ThemeStyles> = {
+    // VS Code Light+ 風格
     light: {
-        bg: 'bg-slate-50',
-        text: 'text-slate-900',
+        bg: 'bg-[#f3f3f3]',
+        text: 'text-[#1e1e1e]',
         card: 'bg-white',
-        border: 'border-slate-100',
-        primary: 'bg-red-600',
-        secondary: 'bg-slate-800',
-        highlight: 'text-red-600',
+        border: 'border-[#e5e5e5]',
+        primary: 'bg-[#007acc]',
+        secondary: 'bg-[#68217a]',
+        highlight: 'text-[#007acc]',
         buttonText: 'text-white'
     },
+    // VS Code Dark+ 風格
     dark: {
-        bg: 'bg-slate-950',
-        text: 'text-slate-100',
-        card: 'bg-slate-900',
-        border: 'border-slate-800',
-        primary: 'bg-red-700',
-        secondary: 'bg-slate-700',
-        highlight: 'text-red-500',
+        bg: 'bg-[#1e1e1e]',
+        text: 'text-[#d4d4d4]',
+        card: 'bg-[#252526]',
+        border: 'border-[#3e3e42]',
+        primary: 'bg-[#0e639c]',
+        secondary: 'bg-[#37373d]',
+        highlight: 'text-[#4fc1ff]',
         buttonText: 'text-white'
     },
-    blue: {
-        bg: 'bg-blue-50',
-        text: 'text-slate-900',
-        card: 'bg-white',
-        border: 'border-blue-100',
-        primary: 'bg-blue-600',
-        secondary: 'bg-slate-800',
-        highlight: 'text-blue-600',
+    // Monokai 風格
+    monokai: {
+        bg: 'bg-[#272822]',
+        text: 'text-[#f8f8f2]',
+        card: 'bg-[#3e3d32]',
+        border: 'border-[#49483e]',
+        primary: 'bg-[#a6e22e]',
+        secondary: 'bg-[#66d9ef]',
+        highlight: 'text-[#f92672]',
+        buttonText: 'text-[#272822]'
+    },
+    // Solarized Dark 風格
+    solarized: {
+        bg: 'bg-[#002b36]',
+        text: 'text-[#839496]',
+        card: 'bg-[#073642]',
+        border: 'border-[#586e75]',
+        primary: 'bg-[#268bd2]',
+        secondary: 'bg-[#2aa198]',
+        highlight: 'text-[#b58900]',
         buttonText: 'text-white'
     },
-    green: {
-        bg: 'bg-emerald-50',
-        text: 'text-slate-900',
-        card: 'bg-white',
-        border: 'border-emerald-100',
-        primary: 'bg-emerald-600',
-        secondary: 'bg-slate-800',
-        highlight: 'text-emerald-600',
+    // Dracula 風格
+    dracula: {
+        bg: 'bg-[#282a36]',
+        text: 'text-[#f8f8f2]',
+        card: 'bg-[#44475a]',
+        border: 'border-[#6272a4]',
+        primary: 'bg-[#bd93f9]',
+        secondary: 'bg-[#ff79c6]',
+        highlight: 'text-[#50fa7b]',
+        buttonText: 'text-[#282a36]'
+    },
+    // Nord 風格
+    nord: {
+        bg: 'bg-[#2e3440]',
+        text: 'text-[#d8dee9]',
+        card: 'bg-[#3b4252]',
+        border: 'border-[#4c566a]',
+        primary: 'bg-[#88c0d0]',
+        secondary: 'bg-[#81a1c1]',
+        highlight: 'text-[#8fbcbb]',
+        buttonText: 'text-[#2e3440]'
+    },
+    // One Dark Pro 風格
+    onedark: {
+        bg: 'bg-[#282c34]',
+        text: 'text-[#abb2bf]',
+        card: 'bg-[#21252b]',
+        border: 'border-[#181a1f]',
+        primary: 'bg-[#61afef]',
+        secondary: 'bg-[#c678dd]',
+        highlight: 'text-[#98c379]',
         buttonText: 'text-white'
     },
-    orange: {
-        bg: 'bg-orange-50',
-        text: 'text-slate-900',
-        card: 'bg-white',
-        border: 'border-orange-100',
-        primary: 'bg-orange-600',
-        secondary: 'bg-slate-800',
-        highlight: 'text-orange-600',
-        buttonText: 'text-white'
-    },
-    purple: {
-        bg: 'bg-purple-50',
-        text: 'text-slate-900',
-        card: 'bg-white',
-        border: 'border-purple-100',
-        primary: 'bg-purple-600',
-        secondary: 'bg-slate-800',
-        highlight: 'text-purple-600',
-        buttonText: 'text-white'
-    },
-    'high-contrast': {
-        bg: 'bg-[#000000]',
-        text: 'text-[#FFFF00]',
-        card: 'bg-[#001f3f]',
-        border: 'border-white',
-        primary: 'bg-[#FFFF00]',
-        secondary: 'bg-white',
-        highlight: 'text-[#FFFF00]',
-        buttonText: 'text-black'
-    },
+    // System (跟隨系統)
     system: {
-        bg: 'bg-slate-50',
-        text: 'text-slate-900',
+        bg: 'bg-[#f3f3f3]',
+        text: 'text-[#1e1e1e]',
         card: 'bg-white',
-        border: 'border-slate-100',
-        primary: 'bg-red-600',
-        secondary: 'bg-slate-800',
-        highlight: 'text-red-600',
+        border: 'border-[#e5e5e5]',
+        primary: 'bg-[#007acc]',
+        secondary: 'bg-[#68217a]',
+        highlight: 'text-[#007acc]',
         buttonText: 'text-white'
     }
 };

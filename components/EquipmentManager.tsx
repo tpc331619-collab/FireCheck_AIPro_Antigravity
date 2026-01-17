@@ -258,7 +258,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       id: Date.now().toString() + Math.random().toString().slice(2, 5),
       name: '',
       category,
-      inputType: 'boolean'
+      inputType: 'boolean',
+      thresholdMode: 'range', // 預設判定模式
+      unit: '' // 預設空單位
     };
     setCheckItems([...checkItems, newItem]);
   };
@@ -286,6 +288,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     }
 
     // Validate numeric check items have threshold values
+    console.log('[EquipmentManager] Starting validation. Total checkItems:', checkItems.length);
+    console.log('[EquipmentManager] CheckItems:', JSON.stringify(checkItems, null, 2));
+
     const invalidNumericItems = checkItems.filter(item => {
       if (item.inputType === 'number') {
         console.log('[Validation]', item.name, '- mode:', item.thresholdMode, 'val1:', item.val1, 'type:', typeof item.val1, 'val2:', item.val2, 'type:', typeof item.val2, 'unit:', item.unit);
@@ -297,17 +302,15 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
         }
 
         // Check if val1 is set (convert to number and check)
-        const num1 = Number(item.val1);
-        if (item.val1 === undefined || item.val1 === null || item.val1 === '' || isNaN(num1)) {
-          console.log('  -> FAIL: Missing or invalid val1');
+        if (item.val1 === undefined || item.val1 === null || isNaN(item.val1)) {
+          console.log('  -> FAIL: Missing or invalid val1', item.val1);
           return true;
         }
 
         // For range mode, check if val2 is also set
         if (item.thresholdMode === 'range') {
-          const num2 = Number(item.val2);
-          if (item.val2 === undefined || item.val2 === null || item.val2 === '' || isNaN(num2)) {
-            console.log('  -> FAIL: Missing or invalid val2 for range mode');
+          if (item.val2 === undefined || item.val2 === null || isNaN(item.val2)) {
+            console.log('  -> FAIL: Missing or invalid val2 for range mode', item.val2);
             return true;
           }
         }
@@ -323,9 +326,20 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       return false;
     });
 
+    console.log('[EquipmentManager] Validation complete. Invalid items:', invalidNumericItems.length);
+
     if (invalidNumericItems.length > 0) {
-      const itemNames = invalidNumericItems.map(item => `「${item.name}」`).join('、');
-      alert(`以下數值檢查項目缺少完整的閾值設定（判定模式、數值、單位）：\n${itemNames}\n\n請完整填寫後再儲存。`);
+      const itemDetails = invalidNumericItems.map(item => {
+        const issues = [];
+        if (!item.thresholdMode) issues.push('缺少判定模式');
+        if (item.val1 === undefined || item.val1 === null || isNaN(item.val1)) issues.push('缺少或無效的數值1');
+        if (item.thresholdMode === 'range' && (item.val2 === undefined || item.val2 === null || isNaN(item.val2))) issues.push('缺少或無效的數值2 (Max)');
+        if (!item.unit || item.unit.trim() === '') issues.push('缺少單位');
+        return `「${item.name}」: ${issues.join('、')}`;
+      }).join('\n');
+
+      console.error('[EquipmentManager] Validation failed details:\n', itemDetails);
+      alert(`以下數值檢查項目缺少完整的閾值設定：\n\n${itemDetails}\n\n請完整填寫後再儲存。`);
       return;
     }
 
@@ -589,8 +603,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
                         <input
                           type="number"
-                          value={item.val1 || ''}
-                          onChange={(e) => updateCheckItem(item.id, { val1: parseFloat(e.target.value) })}
+                          value={item.val1 ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            updateCheckItem(item.id, { val1: val === '' ? undefined : parseFloat(val) });
+                          }}
                           placeholder={item.thresholdMode === 'range' ? "Min" : "Value"}
                           className="w-20 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
                         />
@@ -600,8 +617,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                             <span className="text-slate-400 text-[10px]">~</span>
                             <input
                               type="number"
-                              value={item.val2 || ''}
-                              onChange={(e) => updateCheckItem(item.id, { val2: parseFloat(e.target.value) })}
+                              value={item.val2 ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                updateCheckItem(item.id, { val2: val === '' ? undefined : parseFloat(val) });
+                              }}
                               placeholder="Max"
                               className="w-20 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
                             />

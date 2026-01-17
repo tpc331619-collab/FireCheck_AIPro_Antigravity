@@ -31,6 +31,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRecord, setSelectedRecord] = useState<AbnormalRecord | null>(null);
     const [equipmentPhotoMap, setEquipmentPhotoMap] = useState<Record<string, string>>({});
+    const [viewMode, setViewMode] = useState<'pending' | 'fixed'>('pending'); // 切換待複檢/已完成
 
     // 修復表單狀態
     const [fixedDate, setFixedDate] = useState('');
@@ -47,8 +48,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                 StorageService.getEquipmentDefinitions(user.uid)
             ]);
 
-            // 只顯示待複檢的記錄
-            setRecords(recordsData.filter(r => r.status === 'pending'));
+            // 根據 viewMode 篩選記錄
+            setRecords(recordsData.filter(r => r.status === viewMode));
 
             // Build Photo Map
             const photoMap: Record<string, string> = {};
@@ -65,18 +66,20 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
 
     useEffect(() => {
         fetchRecords();
-    }, [user.uid]);
+    }, [user.uid, viewMode]); // 當 viewMode 改變時重新載入
 
-    // 初始化修復時間為當前日期
+    // 初始化修復表單
     useEffect(() => {
         if (selectedRecord) {
-            // Default to today, properly formatted for input type="date"
-            const today = new Date();
-            const yyyy = today.getFullYear();
-            const mm = String(today.getMonth() + 1).padStart(2, '0');
-            const dd = String(today.getDate()).padStart(2, '0');
-            setFixedDate(`${yyyy}-${mm}-${dd}`);
-            setFixedNotes('');
+            if (selectedRecord.status === 'fixed') {
+                // 已完成：顯示已儲存的資料
+                setFixedDate(selectedRecord.fixedDate ? new Date(selectedRecord.fixedDate).toISOString().split('T')[0] : '');
+                setFixedNotes(selectedRecord.fixedNotes || '');
+            } else {
+                // 待複檢：清空表單
+                setFixedDate(''); // 預設空白，讓用戶自行選擇
+                setFixedNotes('');
+            }
         }
     }, [selectedRecord]);
 
@@ -446,31 +449,34 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                     <div className="p-3 border-b border-black">
                                         <div className="flex items-center gap-4">
                                             <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
-                                                修復完成日期 <span className="font-normal scale-90 inline-block text-slate-500">Completion Date</span> <span className="text-red-500">*</span>：
+                                                修復完成日期 <span className="font-normal scale-90 inline-block text-slate-500">Completion Date</span> {selectedRecord.status === 'pending' && <span className="text-red-500">*</span>}：
                                             </label>
                                             <input
                                                 type="date"
                                                 value={fixedDate}
                                                 onChange={(e) => setFixedDate(e.target.value)}
-                                                className="flex-1 px-2 py-1 bg-transparent border-b border-slate-300 focus:outline-none focus:border-black font-medium print:border-none"
+                                                disabled={selectedRecord.status === 'fixed'}
+                                                className="flex-1 px-2 py-1 bg-transparent border-b border-slate-300 focus:outline-none focus:border-black font-medium print:border-none disabled:opacity-70 disabled:cursor-not-allowed"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="p-3 min-h-[140px]">
-                                        <div className="flex justify-between items-center mb-2 no-print">
-                                            <label className="text-sm font-bold text-slate-700">修復處置說明 <span className="text-red-500">*</span></label>
-                                            <select
-                                                className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:border-slate-500"
-                                                onChange={handleQuickTextSelect}
-                                                defaultValue=""
-                                            >
-                                                <option value="" disabled>✨ 快速帶入常用說明...</option>
-                                                {QUICK_FIX_TEMPLATES.map((tpl, i) => (
-                                                    <option key={i} value={tpl}>{tpl}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                        {selectedRecord.status === 'pending' && (
+                                            <div className="flex justify-between items-center mb-2 no-print">
+                                                <label className="text-sm font-bold text-slate-700">修復處置說明 <span className="text-red-500">*</span></label>
+                                                <select
+                                                    className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:border-slate-500"
+                                                    onChange={handleQuickTextSelect}
+                                                    defaultValue=""
+                                                >
+                                                    <option value="" disabled>✨ 快速帶入常用說明...</option>
+                                                    {QUICK_FIX_TEMPLATES.map((tpl, i) => (
+                                                        <option key={i} value={tpl}>{tpl}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
                                         <label className="text-xs text-slate-500 font-bold mb-1 hidden print:block">
                                             修復處置說明 <span className="font-normal scale-90 inline-block">Action Taken</span>
                                         </label>
@@ -479,32 +485,43 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                             value={fixedNotes}
                                             onChange={(e) => setFixedNotes(e.target.value)}
                                             placeholder="請輸入詳細修復過程..."
-                                            className="w-full h-full min-h-[100px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed"
+                                            disabled={selectedRecord.status === 'fixed'}
+                                            className="w-full h-full min-h-[100px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100"
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             {/* 操作按鈕 (列印時隱藏) */}
-                            <div className="mt-8 mb-4 text-center no-print">
-                                <button
-                                    onClick={handleSubmit}
-                                    disabled={isSubmitting}
-                                    className="px-10 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center justify-center gap-2 text-base tracking-wide group"
-                                >
-                                    {isSubmitting ? (
-                                        <>
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            <span>處理中...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                            <span>確認送出 (完成複檢)</span>
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                            {selectedRecord.status === 'pending' && (
+                                <div className="mt-8 mb-4 text-center no-print">
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={isSubmitting}
+                                        className="px-10 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center justify-center gap-2 text-base tracking-wide group"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                <span>處理中...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                                                <span>確認送出 (完成複檢)</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                            {selectedRecord.status === 'fixed' && (
+                                <div className="mt-8 mb-4 text-center no-print">
+                                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-50 border-2 border-green-200 rounded-full text-green-700 font-bold">
+                                        <CheckCircle className="w-5 h-5" />
+                                        <span>此複檢單已完成（唯讀模式）</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* 簽名欄 */}
                             <div className="mt-12 grid grid-cols-2 gap-12">
@@ -535,8 +552,34 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                 <ArrowLeft className="w-6 h-6" />
                             </button>
                             <h1 className="font-bold text-lg text-slate-800">異常複檢清單</h1>
-                            <span className="ml-auto bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold">
-                                {filteredRecords.length} 筆待複檢
+
+                            {/* 切換按鈕 */}
+                            <div className="ml-auto flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                                <button
+                                    onClick={() => setViewMode('pending')}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'pending'
+                                        ? 'bg-orange-500 text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                >
+                                    待複檢
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('fixed')}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'fixed'
+                                        ? 'bg-green-500 text-white shadow-sm'
+                                        : 'text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                >
+                                    已完成
+                                </button>
+                            </div>
+
+                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${viewMode === 'pending'
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-green-100 text-green-700'
+                                }`}>
+                                {filteredRecords.length} 筆
                             </span>
                         </div>
                     </div>
@@ -563,8 +606,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                             ) : filteredRecords.length === 0 ? (
                                 <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
                                     <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-400" />
-                                    <h3 className="text-lg font-bold text-slate-700">目前無待複檢記錄</h3>
-                                    <p className="text-slate-500 text-sm mt-1">太棒了！所有異常設備都已處理完畢</p>
+                                    <h3 className="text-lg font-bold text-slate-700">
+                                        {viewMode === 'pending' ? '目前無待複檢記錄' : '目前無已完成記錄'}
+                                    </h3>
+                                    <p className="text-slate-500 text-sm mt-1">
+                                        {viewMode === 'pending' ? '太棒了！所有異常設備都已處理完畢' : '尚未完成任何異常複檢'}
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -580,10 +627,14 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                                     <div className="flex items-start justify-between gap-4">
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-2 mb-2">
-                                                                <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-orange-100 text-orange-700">
-                                                                    待複檢
+                                                                <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${viewMode === 'pending'
+                                                                    ? 'bg-orange-100 text-orange-700'
+                                                                    : 'bg-green-100 text-green-700'
+                                                                    }`}>
+                                                                    {viewMode === 'pending' ? '待複檢' : '已完成'}
                                                                 </span>
-                                                                <h3 className="font-bold text-slate-800 text-lg group-hover:text-orange-600 transition-colors">
+                                                                <h3 className={`font-bold text-slate-800 text-lg transition-colors ${viewMode === 'pending' ? 'group-hover:text-orange-600' : 'group-hover:text-green-600'
+                                                                    }`}>
                                                                     {record.equipmentName}
                                                                 </h3>
                                                                 {record.barcode && (
