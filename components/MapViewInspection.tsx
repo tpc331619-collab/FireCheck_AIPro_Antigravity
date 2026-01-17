@@ -28,7 +28,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     // Check Items State
     const [checkResults, setCheckResults] = useState<Record<string, any>>({});
     const [notes, setNotes] = useState('');
-    const [photos, setPhotos] = useState<string[]>([]);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
@@ -103,37 +103,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         });
         setCheckResults(initialResults);
         setNotes('');
-        setPhotos([]);
     };
 
     const handleCheckItemChange = (itemId: string, value: any) => {
         setCheckResults(prev => ({ ...prev, [itemId]: value }));
     };
 
-    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files || files.length === 0) return;
 
-        const file = files[0];
-        if (file.size > 5 * 1024 * 1024) {
-            alert('照片大小不可超過 5MB');
-            return;
-        }
-
-        try {
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-
-            setPhotos(prev => [...prev, base64]);
-        } catch (error) {
-            console.error('Photo upload failed:', error);
-            alert('照片上傳失敗');
-        }
-    };
 
     const determineStatus = (): InspectionStatus => {
         if (!currentEquipment) return InspectionStatus.Normal;
@@ -211,7 +187,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 checkPoints: JSON.parse(JSON.stringify(checkResults)), // Remove undefineds
                 checkResults: JSON.parse(JSON.stringify(checkResultsSnapshot)), // Remove undefineds
                 notes: notes || '',
-                ...(photos.length > 0 && { photoUrl: photos[0] }),
+                // Photo upload removed
                 lastUpdated: now
             };
 
@@ -366,7 +342,6 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 setSelectedMarker(null);
                 setCheckResults({});
                 setNotes('');
-                setPhotos([]);
                 setIsSubmitting(false);
             }, 100);
         }
@@ -392,7 +367,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         const isAbnormal = reports.some(r =>
             r.items.some(i => i.equipmentId === equipment.id && i.status === InspectionStatus.Abnormal)
         );
-        if (isAbnormal) return 'bg-orange-500 animate-pulse';
+        if (isAbnormal) return lightSettings?.abnormal?.color ? '' : 'bg-orange-500 animate-pulse';
 
         // Check frequency status
         // 1. Check Override first (Robust Multi-Key)
@@ -434,6 +409,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         }
 
         if (!equipment) return {};
+
+        // Check abnormal first
+        const isAbnormal = reports.some(r =>
+            r.items.some(i => i.equipmentId === equipment.id && i.status === InspectionStatus.Abnormal)
+        );
+        if (isAbnormal && lightSettings?.abnormal?.color) return { backgroundColor: lightSettings.abnormal.color };
+        if (isAbnormal) return {}; // Fallback to class
 
         const status = getFrequencyStatus(equipment, lightSettings);
         if (status === 'PENDING' && lightSettings?.red?.color) return { backgroundColor: lightSettings.red.color };
@@ -532,7 +514,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     }}
                 >
                     {currentMap && (
-                        <div className="relative">
+                        <div className="relative shadow-2xl inline-block">
                             <img
                                 src={currentMap.imageUrl}
                                 alt={currentMap.name}
@@ -654,34 +636,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             </div>
 
                             {/* Photos */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold text-slate-700">照片</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {photos.map((photo, idx) => (
-                                        <div key={idx} className="relative aspect-square">
-                                            <img src={photo} alt={`Photo ${idx + 1}`} className="w-full h-full object-cover rounded-lg" />
-                                            <button
-                                                onClick={() => setPhotos(prev => prev.filter((_, i) => i !== idx))}
-                                                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                                            >
-                                                <Trash2 className="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {photos.length < 3 && (
-                                        <label className="aspect-square border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-colors">
-                                            <Camera className="w-6 h-6 text-slate-400 mb-1" />
-                                            <span className="text-xs text-slate-500">上傳照片</span>
-                                            <input
-                                                type="file"
-                                                accept="image/*"
-                                                onChange={handlePhotoUpload}
-                                                className="hidden"
-                                            />
-                                        </label>
-                                    )}
-                                </div>
-                            </div>
+                            {/* Photos section removed as per user request */}
                         </div>
 
                         {/* Modal Footer */}

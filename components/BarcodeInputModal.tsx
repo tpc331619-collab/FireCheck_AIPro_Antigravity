@@ -112,7 +112,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                     type="text"
                                     value={manualInput}
                                     onChange={(e) => {
-                                        setManualInput(e.target.value);
+                                        setManualInput(e.target.value.toUpperCase());
                                         setValidationError(null);
                                     }}
                                     onKeyPress={(e) => {
@@ -120,7 +120,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                             handleManualSubmit();
                                         }
                                     }}
-                                    placeholder={`請輸入 ${expectedBarcode}`}
+                                    placeholder=""
                                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-mono"
                                     autoFocus
                                 />

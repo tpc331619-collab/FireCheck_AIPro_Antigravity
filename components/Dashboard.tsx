@@ -684,7 +684,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     console.log('[Dashboard] showAbnormalRecheck:', showAbnormalRecheck);
     if (showAbnormalRecheck) {
         console.log('[Dashboard] Rendering AbnormalRecheckList');
-        return <AbnormalRecheckList user={user} onBack={() => setShowAbnormalRecheck(false)} />;
+        return <AbnormalRecheckList user={user} onBack={() => setShowAbnormalRecheck(false)} lightSettings={lightSettings} />;
     }
 
     return (
@@ -1675,12 +1675,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         ) : (
                                             <div className="space-y-4">
+                                                {/* Abnormal Recheck */}
+                                                <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="font-bold text-orange-700 flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
+                                                            異常複檢
+                                                        </span>
+                                                        <input
+                                                            type="color"
+                                                            value={lightSettings.abnormal?.color || '#f97316'}
+                                                            onChange={e => setLightSettings({ ...lightSettings, abnormal: { color: e.target.value } })}
+                                                            className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                                        />
+                                                    </div>
+                                                    <div className="text-xs text-slate-500">
+                                                        設定「異常」狀態的顯示顏色 (預設為橘色)
+                                                    </div>
+                                                </div>
+
                                                 {/* Red */}
                                                 <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-red-700 flex items-center gap-2">
                                                             <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.red.color }}></div>
-                                                            需檢查 (RED)
+                                                            需檢查
                                                         </span>
                                                         <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
                                                     </div>
@@ -1696,7 +1715,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-amber-700 flex items-center gap-2">
                                                             <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.yellow.color }}></div>
-                                                            可以檢查 (YELLOW)
+                                                            可以檢查
                                                         </span>
                                                         <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
                                                     </div>
@@ -1713,7 +1732,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-emerald-700 flex items-center gap-2">
                                                             <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.green.color }}></div>
-                                                            不需檢查 (GREEN)
+                                                            不需檢查
                                                         </span>
                                                         <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
                                                     </div>
@@ -1730,7 +1749,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-blue-700 flex items-center gap-2">
                                                             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
-                                                            已檢查 (COMPLETED)
+                                                            已檢查
                                                         </span>
                                                         <input
                                                             type="color"

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText } from 'lucide-react';
-import { AbnormalRecord, UserProfile, InspectionStatus } from '../types';
+import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface AbnormalRecheckListProps {
     user: UserProfile;
     onBack: () => void;
+    lightSettings?: LightSettings;
 }
 
 // 常用修復說明 (快選)
@@ -24,7 +25,7 @@ const QUICK_FIX_TEMPLATES = [
     '環境因素導致（如潮濕/灰塵），已排除環境問題'
 ];
 
-const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack }) => {
+const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack, lightSettings }) => {
     const { t, language } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<AbnormalRecord[]>([]);
@@ -656,7 +657,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack 
                                                             </div>
 
                                                             <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
-                                                                <div className="w-6 h-6 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5" />
+                                                                <div
+                                                                    className="w-6 h-6 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5"
+                                                                    style={lightSettings?.abnormal?.color ? { backgroundColor: lightSettings.abnormal.color } : {}}
+                                                                />
                                                                 <div>
                                                                     <p className="text-xs font-bold text-red-500 mb-1">
                                                                         異常原因

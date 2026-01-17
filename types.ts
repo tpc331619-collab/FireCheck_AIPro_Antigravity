@@ -156,4 +156,5 @@ export interface LightSettings {
   yellow: { days: number; color: string }; // <= days
   green: { days: number; color: string };  // >= days
   completed?: { color: string }; // Custom color for 'Completed (Normal)'
+  abnormal?: { color: string }; // Custom color for 'Abnormal'
 }

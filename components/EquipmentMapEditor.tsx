@@ -346,7 +346,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
         // 1. Abnormal Check (Higher Priority)
         // Check both Barcode and UUID matching in reports
-        if (isMarkerAbnormal(marker)) return 'bg-orange-500 animate-pulse';
+        if (isMarkerAbnormal(marker)) return 'animate-pulse';
 
         // 2. Frequency/Status Check (Same as ChecklistInspection)
         const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
@@ -364,7 +364,14 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     };
 
     const getMarkerStyle = (marker: EquipmentMarker): React.CSSProperties => {
-        if (!marker.equipmentId || isMarkerAbnormal(marker)) return {}; // Default styles/Abnormal orange
+        if (!marker.equipmentId) return {};
+
+        if (isMarkerAbnormal(marker)) {
+            if (lightSettings?.abnormal?.color) {
+                return { backgroundColor: lightSettings.abnormal.color };
+            }
+            return { backgroundColor: '#f97316' }; // Default Orange
+        }
 
         const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
         if (!equip) return {};
@@ -625,7 +632,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             // No, the canvas uses hex codes. We need to map the status to Hex.
 
                             let fillStyle = colorHex;
-                            if (isAbnormal) fillStyle = '#f97316'; // Orange-500
+                            if (isAbnormal) fillStyle = lightSettings?.abnormal?.color || '#f97316'; // Orange-500 or custom
 
                             ctx.save();
                             ctx.translate(mx, my);
@@ -777,29 +784,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             // Frequency status is NOT calculated here in the original loop easily without 'getMarkerColor' logic, 
             // but for 'Export', usually we want WYSIWYG.
             // The original code used 'colorHex' which was hardcoded to #ef4444? 
-            // Wait, line 548 in handleSave had `const colorHex = '#ef4444';`.
-            // The `handleExport` loop uses `isAbnormal` but for others it just drew circle. 
-            // The colors for NORMAL markers in Export/Save were defaulting to Red?
-            // Let's look at `getMarkerColor` results. It returns classes `bg-red-500`, `bg-amber-500`, `bg-emerald-500`.
-            // We should ideally match that.
-            // For now, let's just fix the Abnormal one as requested: Brown Circle + Number.
-
-            // Re-calculate basic color if possible, or default to Red (as per existing code limitation?)
-            // Actually, let's just separate Abnormal vs Normal but use same SHAPE.
-
-            if (isAbnormal) fillStyle = '#f97316';
-            // else fillStyle = '#ef4444'; // This is redundant as fillStyle is already #ef4444
-            // Note: The previous code for normal markers in Export just used #ef4444? 
-            // Actually, the previous code block for 'else' was:
-            // ctx.fillStyle = colorHex (which was undefined in handleExport scope? No, wait)
-            // in handleExport (line 727+), there is no `colorHex` variable defined for normal markers!
-            // It was using hardcoded style in `else` block?
-            // Let's look at lines 753-756 in original view.
-            // Ah, the previous view showed `ctx.fillStyle = '#ef4444'; // red-500` inside the `if (isAbnormal)`? 
-            // No, that was my replacement.
-            // The `else` block in handleExport seems to have been:
-            // ctx.fillStyle = '#ef4444' (implied from typical behavior or missing variable).
-            // Let's assume red.
+            if (isAbnormal) {
+                fillStyle = lightSettings?.abnormal?.color || '#f97316';
+            }
 
             // DRAW CIRCLE
             ctx.beginPath();
@@ -1156,7 +1143,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 return (
                                                     <div
                                                         key={marker.id}
-                                                        className={`absolute ${sizeClasses} ${getMarkerColor(marker)} rounded-full flex items-center justify-center shadow-sm hover:scale-150 z-10 group cursor-grab 
+                                                        className={`absolute ${sizeClasses} ${colorClasses} rounded-full flex items-center justify-center shadow-sm hover:scale-150 z-10 group cursor-grab 
                                                             ${draggingMarkerId === marker.id ? 'opacity-80 scale-125 cursor-grabbing pointer-events-none' : ''}
                                                             ${selectedMarkerId === marker.id ? 'ring-4 ring-blue-400 ring-opacity-75 z-20' : ''}
                                                         `}
@@ -1256,7 +1243,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                         <div className="flex items-center gap-3">
                                                             <div
                                                                 className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors shadow-sm text-white ${isMarkerAbnormal(marker)
-                                                                    ? 'bg-orange-500 animate-pulse'
+                                                                    ? 'animate-pulse'
                                                                     : (isSelected ? colorClass + ' ring-2 ring-offset-1 ring-blue-500' : colorClass + ' opacity-75 group-hover:opacity-100')
                                                                     }`}
                                                                 style={getMarkerStyle(marker)}
@@ -1365,11 +1352,14 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 {/* Abnormal Status - Logic Updates */}
                                 <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
                                     <div className="w-10 h-10 flex items-center justify-center shrink-0">
-                                        <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-md animate-pulse">
+                                        <div
+                                            className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-md animate-pulse"
+                                            style={lightSettings?.abnormal?.color ? { backgroundColor: lightSettings.abnormal.color } : {}}
+                                        >
                                         </div>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-bold text-slate-800">異常狀態</p>
+                                        <p className="text-sm font-bold text-slate-800">異常複檢</p>
                                         <p className="text-xs text-slate-600">表示設備異常</p>
                                     </div>
                                 </div>
@@ -1400,16 +1390,29 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     </div>
                                 </div>
 
-                                {/* Green Light - Normal */}
-                                <div className="flex items-center gap-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                {/* Green Light - Normal (Unnecessary) */}
+                                <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
                                     <div
-                                        className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shrink-0 animate-pulse"
+                                        className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center shadow-md shrink-0"
                                         style={lightSettings?.green?.color ? { backgroundColor: lightSettings.green.color } : {}}
                                     >
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm font-bold text-slate-800">不需檢查</p>
                                         <p className="text-xs text-slate-600">剩餘 &gt; {lightSettings?.yellow?.days || 5} 天</p>
+                                    </div>
+                                </div>
+
+                                {/* Completed Light */}
+                                <div className="flex items-center gap-4 p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                    <div
+                                        className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-md shrink-0"
+                                        style={lightSettings?.completed?.color ? { backgroundColor: lightSettings.completed.color } : {}}
+                                    >
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-slate-800">已檢查</p>
+                                        <p className="text-xs text-slate-600">檢查完成</p>
                                     </div>
                                 </div>
 
