@@ -80,8 +80,8 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <button
                             onClick={() => setInputMode('SCAN')}
                             className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'SCAN'
-                                    ? 'bg-purple-600 text-white shadow-md'
-                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                ? 'bg-purple-600 text-white shadow-md'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                                 }`}
                         >
                             <Camera className="w-4 h-4" />
@@ -90,8 +90,8 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <button
                             onClick={() => setInputMode('MANUAL')}
                             className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'MANUAL'
-                                    ? 'bg-purple-600 text-white shadow-md'
-                                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                                ? 'bg-purple-600 text-white shadow-md'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                                 }`}
                         >
                             <Keyboard className="w-4 h-4" />
@@ -102,12 +102,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
 
                 {/* Content */}
                 <div className="p-4">
-                    {inputMode === 'SCAN' ? (
-                        <BarcodeScanner
-                            onScanSuccess={handleScanSuccess}
-                            onClose={handleClose}
-                        />
-                    ) : (
+                    {inputMode === 'MANUAL' && (
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
@@ -175,6 +170,14 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* Barcode Scanner as separate modal */}
+            {inputMode === 'SCAN' && (
+                <BarcodeScanner
+                    onScanSuccess={handleScanSuccess}
+                    onClose={handleClose}
+                />
+            )}
         </div>
     );
 };
