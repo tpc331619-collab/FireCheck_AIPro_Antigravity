@@ -15,7 +15,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
     onScan,
     onCancel
 }) => {
-    const [inputMode, setInputMode] = useState<'SCAN' | 'MANUAL'>('SCAN');
+    const [inputMode, setInputMode] = useState<'SCAN' | 'MANUAL'>('MANUAL');
     const [manualInput, setManualInput] = useState('');
     const [validationError, setValidationError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
@@ -53,7 +53,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
     const handleClose = () => {
         setManualInput('');
         setValidationError(null);
-        setInputMode('SCAN');
+        setInputMode('MANUAL');
         onCancel();
     };
 
@@ -101,7 +101,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                 </div>
 
                 {/* Content */}
-                <div className="p-4">
+                <div className="p-4 min-h-[200px]">
                     {inputMode === 'MANUAL' && (
                         <div className="space-y-4">
                             <div>
