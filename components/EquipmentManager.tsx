@@ -302,14 +302,14 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
         }
 
         // Check if val1 is set (convert to number and check)
-        if (item.val1 === undefined || item.val1 === null || isNaN(item.val1)) {
+        if (typeof item.val1 !== 'number' || isNaN(item.val1)) {
           console.log('  -> FAIL: Missing or invalid val1', item.val1);
           return true;
         }
 
         // For range mode, check if val2 is also set
         if (item.thresholdMode === 'range') {
-          if (item.val2 === undefined || item.val2 === null || isNaN(item.val2)) {
+          if (typeof item.val2 !== 'number' || isNaN(item.val2)) {
             console.log('  -> FAIL: Missing or invalid val2 for range mode', item.val2);
             return true;
           }
@@ -332,8 +332,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       const itemDetails = invalidNumericItems.map(item => {
         const issues = [];
         if (!item.thresholdMode) issues.push('缺少判定模式');
-        if (item.val1 === undefined || item.val1 === null || isNaN(item.val1)) issues.push('缺少或無效的數值1');
-        if (item.thresholdMode === 'range' && (item.val2 === undefined || item.val2 === null || isNaN(item.val2))) issues.push('缺少或無效的數值2 (Max)');
+        if (typeof item.val1 !== 'number' || isNaN(item.val1)) issues.push('缺少或無效的數值1');
+        if (item.thresholdMode === 'range' && (typeof item.val2 !== 'number' || isNaN(item.val2))) issues.push('缺少或無效的數值2 (Max)');
         if (!item.unit || item.unit.trim() === '') issues.push('缺少單位');
         return `「${item.name}」: ${issues.join('、')}`;
       }).join('\n');
