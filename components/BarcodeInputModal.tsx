@@ -173,10 +173,12 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
 
             {/* Barcode Scanner as separate modal */}
             {inputMode === 'SCAN' && (
-                <BarcodeScanner
-                    onScanSuccess={handleScanSuccess}
-                    onClose={handleClose}
-                />
+                <div className="fixed inset-0 z-[60]">
+                    <BarcodeScanner
+                        onScanSuccess={handleScanSuccess}
+                        onClose={handleClose}
+                    />
+                </div>
             )}
         </div>
     );
