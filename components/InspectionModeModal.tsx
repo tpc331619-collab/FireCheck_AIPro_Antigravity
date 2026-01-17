@@ -21,7 +21,7 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
         },
         {
             id: 'MAP_VIEW',
-            title: 'Map View 檢查',
+            title: 'MAP VIEW',
             description: '透過場域地圖進行直觀檢查',
             icon: <Map className="w-8 h-8 text-purple-500" />,
             color: 'bg-purple-50 border-purple-100 hover:border-purple-300',
