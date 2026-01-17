@@ -410,8 +410,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [reports]);
 
     const filteredReports = reports.filter(r => {
-        // Basic search term filter (building name or inspector name)
-        const matchesSearch = r.buildingName.includes(searchTerm) || r.inspectorName.includes(searchTerm);
+        // Basic search term filter (building name or inspector name or equipment info)
+        const matchesSearch =
+            r.buildingName.includes(searchTerm) ||
+            r.inspectorName.includes(searchTerm) ||
+            (r.items?.some(item =>
+                item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+            ) ?? false);
 
         // Status filter
         const matchesFilter = filterStatus === 'ALL' || r.overallStatus === filterStatus;
