@@ -256,6 +256,18 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     : e
             ));
 
+            // Update local reports state immediately for instant marker update
+            setReports(prev => {
+                const existingIndex = prev.findIndex(r => r.id === report!.id);
+                if (existingIndex >= 0) {
+                    const updated = [...prev];
+                    updated[existingIndex] = report!;
+                    return updated;
+                } else {
+                    return [...prev, report!];
+                }
+            });
+
             // If abnormal, save to abnormal records
             if (status === InspectionStatus.Abnormal) {
                 const abnormalItems = currentEquipment.checkItems
