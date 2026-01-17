@@ -30,7 +30,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [notes, setNotes] = useState('');
     const [photos, setPhotos] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [forceRender, setForceRender] = useState(0); // Force re-render trigger
+
+    const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
+    const [renderKey, setRenderKey] = useState(0);
 
     // Transform State
     const [zoom, setZoom] = useState(1);
@@ -175,11 +177,12 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         try {
             const now = Date.now();
 
+            // 1. Prepare Snapshot Data
             // Build check results snapshot
             const checkResultsSnapshot = currentEquipment.checkItems.map(item => {
                 const result: any = {
-                    name: item.name,
-                    value: checkResults[item.id]
+                    name: item.name || '',
+                    value: checkResults[item.id] ?? ''
                 };
 
                 if (item.inputType === 'number') {
@@ -192,30 +195,93 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                         result.unit = item.unit;
                     }
                 }
-
                 return result;
             });
 
-            // Create inspection item
-            const inspectionItem: InspectionItem = {
+            // 2. Prepare Inspection Item (Raw)
+            const rawInspectionItem: InspectionItem = {
                 id: `item_${now}`,
                 equipmentId: currentEquipment.id,
                 type: currentEquipment.equipmentType || 'Custom',
-                name: currentEquipment.name,
-                barcode: currentEquipment.barcode,
-                checkFrequency: currentEquipment.checkFrequency,
-                location: `${currentEquipment.siteName} - ${currentEquipment.buildingName}`,
+                name: currentEquipment.name || '',
+                barcode: currentEquipment.barcode || '',
+                checkFrequency: currentEquipment.checkFrequency || '',
+                location: `${currentEquipment.siteName || ''} - ${currentEquipment.buildingName || ''}`,
                 status: status,
-                checkPoints: checkResults,
-                checkResults: checkResultsSnapshot,
-                notes: notes,
-                ...(photos.length > 0 && { photoUrl: photos[0] }), // Only include if photo exists
+                checkPoints: JSON.parse(JSON.stringify(checkResults)), // Remove undefineds
+                checkResults: JSON.parse(JSON.stringify(checkResultsSnapshot)), // Remove undefineds
+                notes: notes || '',
+                ...(photos.length > 0 && { photoUrl: photos[0] }),
                 lastUpdated: now
             };
 
-            // Find or create report for this map/building
-            let report = reports.find(r => r.buildingName === currentMap.name && r.date >= new Date().setHours(0, 0, 0, 0));
+            // 3. Deep Sanitation (Crucial for Firebase)
+            const inspectionItem = JSON.parse(JSON.stringify(rawInspectionItem));
 
+            console.log('[handleSubmit] Sanitized Item:', inspectionItem);
+
+            // 4. OPTIMISTIC UI UPDATE (The "Different Method")
+            // A. Force Override State (Guaranteed Update - Multi-Key)
+            const barcodeKey = (currentEquipment.barcode || 'UNKNOWN').trim();
+            const idKey = currentEquipment.id;
+            console.log('[handleSubmit] Setting Override for:', barcodeKey, idKey, 'Time:', now);
+            setInspectedOverrides(prev => ({
+                ...prev,
+                [barcodeKey]: now,
+                [idKey]: now
+            }));
+
+            // B. Update local equipment state (Standard)
+            setAllEquipment(prev => prev.map(e =>
+                e.id === currentEquipment.id
+                    ? { ...e, lastInspectedDate: now, updatedAt: now }
+                    : e
+            ));
+
+            // Immediately update reports state locally
+            setReports(prev => {
+                const today = new Date().setHours(0, 0, 0, 0);
+                const existingReportIndex = prev.findIndex(r =>
+                    r.buildingName === currentMap.name && r.date >= today
+                );
+
+                if (existingReportIndex >= 0) {
+                    const newReports = [...prev];
+                    const report = { ...newReports[existingReportIndex] };
+                    const items = [...report.items];
+                    const itemIndex = items.findIndex(i => i.equipmentId === currentEquipment.id);
+
+                    if (itemIndex >= 0) {
+                        items[itemIndex] = inspectionItem;
+                    } else {
+                        items.push(inspectionItem);
+                    }
+                    report.items = items;
+                    newReports[existingReportIndex] = report;
+                    return newReports;
+                } else {
+                    return [...prev, {
+                        id: `temp_report_${now}`,
+                        buildingName: currentMap.name,
+                        inspectorName: user.displayName || 'Guest',
+                        date: now,
+                        items: [inspectionItem],
+                        overallStatus: 'In Progress'
+                    } as InspectionReport];
+                }
+            });
+
+            // Force Re-render Immediately
+            // This ensures the green light appears instantly
+            setTimeout(() => {
+                setRenderKey(prev => prev + 1);
+                console.log('[handleSubmit] Optimistic Render Triggered');
+            }, 0);
+
+
+            // 5. ASYNC SAVING (Firebase)
+            // Find or create actual report for storage
+            let report = reports.find(r => r.buildingName === currentMap.name && r.date >= new Date().setHours(0, 0, 0, 0));
             if (!report) {
                 report = {
                     id: `report_${now}`,
@@ -227,60 +293,30 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 };
             }
 
-            // Add or update item in report
-            const existingIndex = report.items.findIndex(i => i.equipmentId === currentEquipment.id);
-            if (existingIndex >= 0) {
-                report.items[existingIndex] = inspectionItem;
+            // Sync item to target report object
+            const itemIndex = report.items.findIndex(i => i.equipmentId === currentEquipment.id);
+            if (itemIndex >= 0) {
+                report.items[itemIndex] = inspectionItem;
             } else {
                 report.items.push(inspectionItem);
             }
 
-            // Save report
+            // Save report to Firebase
             if (report.id.startsWith('report_')) {
                 const newId = await StorageService.saveReport(report, user.uid);
-                report.id = newId;
+                // Update local ID if needed, but optimistic update covers specific usage
             } else {
                 await StorageService.updateReport(report);
             }
 
-            // Update equipment last inspected date
+            // Update equipment definition in Firebase
             await StorageService.updateEquipmentDefinition({
                 id: currentEquipment.id,
                 lastInspectedDate: now,
                 updatedAt: now
             });
 
-            // Update local equipment state immediately for instant marker update
-            console.log('[MapViewInspection] Updating equipment state for:', currentEquipment.name, 'ID:', currentEquipment.id, 'with lastInspectedDate:', now);
-            setAllEquipment(prev => {
-                const updated = prev.map(e =>
-                    e.id === currentEquipment.id
-                        ? { ...e, lastInspectedDate: now, updatedAt: now }
-                        : e
-                );
-                console.log('[MapViewInspection] Updated equipment in array:', updated.find(e => e.id === currentEquipment.id));
-                return updated;
-            });
-
-            // Force re-render to update marker colors
-            setForceRender(prev => prev + 1);
-
-            // Update local reports state immediately for instant marker update
-            console.log('[MapViewInspection] Updating reports state with report:', report!.id);
-            setReports(prev => {
-                const existingIndex = prev.findIndex(r => r.id === report!.id);
-                if (existingIndex >= 0) {
-                    const updated = [...prev];
-                    updated[existingIndex] = report!;
-                    console.log('[MapViewInspection] Updated existing report at index:', existingIndex);
-                    return updated;
-                } else {
-                    console.log('[MapViewInspection] Added new report');
-                    return [...prev, report!];
-                }
-            });
-
-            // If abnormal, save to abnormal records
+            // Handle Abnormal Records
             if (status === InspectionStatus.Abnormal) {
                 const abnormalItems = currentEquipment.checkItems
                     .filter(item => {
@@ -316,35 +352,39 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 }, user.uid);
             }
 
-            // Reload data to refresh marker status
-            await loadData();
+            console.log('[handleSubmit] Save Complete');
 
-            // Show success message first
-            alert(`✅ 檢查完成！\n\n設備：${currentEquipment.name}\n狀態：${status === InspectionStatus.Normal ? '正常' : '異常'}`);
-
-            // Reset state after a short delay to allow marker colors to update
+        } catch (error) {
+            console.error('[handleSubmit] Error:', error);
+            alert(`提交失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
+            // Note: We deliberately do NOT revert optimistic updates here to avoid UI flickering, 
+            // unless users manually refresh, assuming retry might be possible or it's a transient network issue.
+            // But realistically, user will just try again.
+        } finally {
             setTimeout(() => {
                 setCurrentEquipment(null);
                 setSelectedMarker(null);
                 setCheckResults({});
                 setNotes('');
                 setPhotos([]);
+                setIsSubmitting(false);
             }, 100);
-
-        } catch (error) {
-            console.error('Submit failed:', error);
-            alert('提交失敗，請重試');
-        } finally {
-            setIsSubmitting(false);
         }
     };
 
     const getMarkerColor = (marker: EquipmentMarker): string => {
-        if (!marker.equipmentId) return 'bg-slate-400';
+        console.log('[getMarkerColor] Marker:', marker.id, 'equipmentId:', marker.equipmentId);
+
+        if (!marker.equipmentId) {
+            console.log('[getMarkerColor] No equipmentId, returning gray');
+            return 'bg-slate-400';
+        }
 
         const equipment = allEquipment.find(e => e.barcode === marker.equipmentId);
+        console.log('[getMarkerColor] Looking for barcode:', marker.equipmentId, 'Found:', equipment?.name || 'NOT FOUND');
+
         if (!equipment) {
-            console.log('[getMarkerColor] Equipment not found for barcode:', marker.equipmentId);
+            console.log('[getMarkerColor] Equipment not found, returning gray. Available barcodes:', allEquipment.map(e => e.barcode).join(', '));
             return 'bg-slate-400';
         }
 
@@ -352,20 +392,28 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         const isAbnormal = reports.some(r =>
             r.items.some(i => i.equipmentId === equipment.id && i.status === InspectionStatus.Abnormal)
         );
-        if (isAbnormal) {
-            console.log('[getMarkerColor]', equipment.name, '- ABNORMAL');
-            return 'bg-orange-500 animate-pulse';
-        }
+        if (isAbnormal) return 'bg-orange-500 animate-pulse';
 
         // Check frequency status
+        // 1. Check Override first (Robust Multi-Key)
+        const overrideTime = inspectedOverrides[marker.equipmentId] || (equipment && inspectedOverrides[equipment.id]);
+
+        if (overrideTime) {
+            // If overridden within last 24 hours, show GREEN
+            if (Date.now() - overrideTime < 24 * 60 * 60 * 1000) {
+                console.log('[getMarkerColor] OVERRIDE HIT for:', marker.equipmentId);
+                return 'bg-emerald-500';
+            }
+        }
+
         const status = getFrequencyStatus(equipment, lightSettings);
-        console.log('[getMarkerColor]', equipment.name, '- lastInspectedDate:', equipment.lastInspectedDate, 'status:', status);
+        console.log('[getMarkerColor]', equipment.name, '- lastInspectedDate:', equipment.lastInspectedDate, 'status:', status, 'renderKey:', renderKey);
 
         switch (status) {
             case 'PENDING': return 'bg-red-500 animate-pulse';
             case 'CAN_INSPECT': return 'bg-yellow-400 animate-pulse';
-            case 'UNNECESSARY': return 'bg-emerald-500 animate-pulse';
-            case 'COMPLETED': return 'bg-emerald-500';
+            case 'UNNECESSARY': return 'bg-blue-500'; // Blue for Unnecessary (Not due)
+            case 'COMPLETED': return 'bg-emerald-500'; // Green for Completed
             default: return 'bg-slate-400';
         }
     };
@@ -374,12 +422,24 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         if (!marker.equipmentId) return {};
 
         const equipment = allEquipment.find(e => e.barcode === marker.equipmentId);
+
+        // Check Override first (Robust Multi-Key)
+        const overrideTime = inspectedOverrides[marker.equipmentId] || (equipment && inspectedOverrides[equipment.id]);
+        if (overrideTime && Date.now() - overrideTime < 24 * 60 * 60 * 1000) {
+            // Force Green/Completed Color
+            // DEBUG: Add Yellow Border to Confirm Logic Hit
+            return {
+                backgroundColor: lightSettings?.green?.color || '#10b981'
+            };
+        }
+
         if (!equipment) return {};
 
         const status = getFrequencyStatus(equipment, lightSettings);
         if (status === 'PENDING' && lightSettings?.red?.color) return { backgroundColor: lightSettings.red.color };
         if (status === 'CAN_INSPECT' && lightSettings?.yellow?.color) return { backgroundColor: lightSettings.yellow.color };
-        if ((status === 'UNNECESSARY' || status === 'COMPLETED') && lightSettings?.green?.color) return { backgroundColor: lightSettings.green.color };
+        if (status === 'UNNECESSARY') return { backgroundColor: '#3b82f6' }; // Default Blue
+        if (status === 'COMPLETED' && lightSettings?.green?.color) return { backgroundColor: lightSettings.green.color };
 
         return {};
     };
@@ -481,7 +541,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             {/* Markers */}
                             {currentMap.markers.map(marker => (
                                 <button
-                                    key={`${marker.id}-${forceRender}`}
+                                    key={`${marker.id}-${renderKey}`}
                                     onClick={() => handleMarkerClick(marker)}
                                     className={`absolute w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform ${getMarkerColor(marker)}`}
                                     style={{

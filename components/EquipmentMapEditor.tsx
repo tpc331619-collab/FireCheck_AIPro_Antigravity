@@ -1382,7 +1382,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     >
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-bold text-slate-800">🔴 紅色「需檢查」</p>
+                                        <p className="text-sm font-bold text-slate-800">需檢查</p>
                                         <p className="text-xs text-slate-600">剩餘 &le; {lightSettings?.red?.days || 2} 天</p>
                                     </div>
                                 </div>
@@ -1395,7 +1395,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     >
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-bold text-slate-800">🟠 黃色「可以檢查」</p>
+                                        <p className="text-sm font-bold text-slate-800">可以檢查</p>
                                         <p className="text-xs text-slate-600">剩餘 {(lightSettings?.red?.days || 2) + 1} - {lightSettings?.yellow?.days || 5} 天</p>
                                     </div>
                                 </div>
@@ -1408,7 +1408,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     >
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm font-bold text-slate-800">🟢 綠色「不需檢查」</p>
+                                        <p className="text-sm font-bold text-slate-800">不需檢查</p>
                                         <p className="text-xs text-slate-600">剩餘 &gt; {lightSettings?.yellow?.days || 5} 天</p>
                                     </div>
                                 </div>
