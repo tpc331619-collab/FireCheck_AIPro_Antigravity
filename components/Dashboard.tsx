@@ -682,7 +682,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }
 
     return (
-        <div className={`flex flex-col h-full overflow-hidden ${styles.bg} ${styles.text} transition-colors duration-300`}>
+        <div className={`flex flex-col h-full ${styles.bg} ${styles.text} transition-colors duration-300`}>
             {/* Header Hero Section */}
             <div className="bg-slate-900 text-white pt-8 px-6 pb-28 rounded-b-[2.5rem] shadow-2xl relative overflow-hidden flex-shrink-0">
                 {/* Decorative background elements */}
@@ -745,8 +745,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             </div>
 
             {/* Main Content Area-Overlapping the Header */}
-
-            <div className="flex-1 px-4 sm:px-6 -mt-16 pb-24 overflow-y-auto min-h-0 custom-scrollbar">
+            <div className="flex-1 px-4 sm:px-6 -mt-16 overflow-y-auto pb-24 custom-scrollbar">
                 <div className="max-w-7xl mx-auto w-full space-y-6">
 
                     {/* Quick Search Bar (Moved to Top) */}
