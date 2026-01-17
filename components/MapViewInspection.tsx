@@ -30,6 +30,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [notes, setNotes] = useState('');
     const [photos, setPhotos] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [forceRender, setForceRender] = useState(0); // Force re-render trigger
 
     // Transform State
     const [zoom, setZoom] = useState(1);
@@ -250,12 +251,19 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             });
 
             // Update local equipment state immediately for instant marker update
-            console.log('[MapViewInspection] Updating equipment state for:', currentEquipment.name, 'with lastInspectedDate:', now);
-            setAllEquipment(prev => prev.map(e =>
-                e.id === currentEquipment.id
-                    ? { ...e, lastInspectedDate: now, updatedAt: now }
-                    : e
-            ));
+            console.log('[MapViewInspection] Updating equipment state for:', currentEquipment.name, 'ID:', currentEquipment.id, 'with lastInspectedDate:', now);
+            setAllEquipment(prev => {
+                const updated = prev.map(e =>
+                    e.id === currentEquipment.id
+                        ? { ...e, lastInspectedDate: now, updatedAt: now }
+                        : e
+                );
+                console.log('[MapViewInspection] Updated equipment in array:', updated.find(e => e.id === currentEquipment.id));
+                return updated;
+            });
+
+            // Force re-render to update marker colors
+            setForceRender(prev => prev + 1);
 
             // Update local reports state immediately for instant marker update
             console.log('[MapViewInspection] Updating reports state with report:', report!.id);
