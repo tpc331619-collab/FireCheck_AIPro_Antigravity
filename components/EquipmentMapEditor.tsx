@@ -1089,7 +1089,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     </div>
                 ) : (
                     // === EDIT VIEW ===
-                    <div className="flex-1 flex overflow-hidden bg-slate-100">
+                    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
 
                         {/* Middle Canvas */}
                         <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner">
