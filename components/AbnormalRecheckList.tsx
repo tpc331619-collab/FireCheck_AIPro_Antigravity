@@ -161,24 +161,33 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
             // 3. 找到並更新原始的異常 InspectionReport
             try {
                 // 獲取所有 reports
-                const allReports = await StorageService.getReports(user.uid);
+                // Note: getReports default does NOT fetch items for Firestore. We need items to find the equipment.
+                // Improvement: Fetch with items = true, OR filtering by date to minimize reads.
+                // For robustness, let's try matching by date first (since inspectionDate is recorded).
+                let allReports = await StorageService.getReports(user.uid, true);
 
-                // 找到包含此設備的異常 report（不限制日期，因為可能很久以前的異常才修復）
+                // Fallback: If no items loaded (legacy/error), we might need to load items for reports near the date.
+                // For now, getReports(uid, true) should handle it for Firestore.
+
+                // 找到包含此設備的異常 report
                 const originalReport = allReports.find(r =>
                     r.items?.some(item =>
                         item.equipmentId === selectedRecord.equipmentId &&
-                        item.status === InspectionStatus.Abnormal
+                        (item.status === InspectionStatus.Abnormal || item.status === 'Abnormal')
                     )
                 );
 
                 if (originalReport) {
                     // 更新原始 report
                     const updatedItems = originalReport.items.map(item => {
-                        if (item.equipmentId === selectedRecord.equipmentId && item.status === InspectionStatus.Abnormal) {
-                            // 更新為正常狀態，並加入修復資訊
+                        // Fix lint: use type assertion or cleaner check
+                        const isAbnormalItem = item.status === InspectionStatus.Abnormal || (item.status as any) === 'Abnormal';
+
+                        if (item.equipmentId === selectedRecord.equipmentId && isAbnormalItem) {
+                            // 更新為已改善狀態 (Fixed)，並加入修復資訊
                             return {
                                 ...item,
-                                status: InspectionStatus.Normal,
+                                status: InspectionStatus.Fixed,
                                 notes: `${item.notes || ''} [異常複檢 - 已修復]`,
                                 lastUpdated: fixedDateTime,
                                 repairDate: fixedDateTime,

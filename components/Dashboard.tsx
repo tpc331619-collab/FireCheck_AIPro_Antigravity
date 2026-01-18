@@ -103,6 +103,8 @@ const getEquipmentIcon = (name: string) => {
 const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor }) => {
     const { t, language, setLanguage } = useLanguage();
     const { theme, setTheme, styles } = useTheme(); // Use Theme Hook
+    const [activeModal, setActiveModal] = useState<{ type: 'INSPECTION' | 'RECHECK', item: any } | null>(null);
+    const { user: userFromContext } = useTheme(); // Access user from context if needed for role checks
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -141,6 +143,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [showArchived, setShowArchived] = useState(false); // Toggle for archived reports
     const [abnormalCount, setAbnormalCount] = useState(0); // Count of pending abnormal records
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
+
+    // Column Visibility State
+    const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem('visibleColumns');
+        return saved ? new Set(JSON.parse(saved)) : new Set(['date', 'building', 'equipment', 'status', 'inspector', 'barcode', 'notes', 'stats']);
+    });
+    const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+    // Save column settings
+    useEffect(() => {
+        localStorage.setItem('visibleColumns', JSON.stringify(Array.from(visibleColumns)));
+    }, [visibleColumns]);
+
+    const toggleColumn = (columnId: string) => {
+        setVisibleColumns(prev => {
+            const next = new Set(prev);
+            if (next.has(columnId)) {
+                next.delete(columnId);
+            } else {
+                next.add(columnId);
+            }
+            return next;
+        });
+    };
 
     // Enhanced Filter States (Phase 2)
     const [dateRange, setDateRange] = useState({
@@ -377,6 +403,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         fetchReports();
     }, [user]);
 
+    // Re-fetch reports when returning from Abnormal Recheck view to ensure updates are visible
+    useEffect(() => {
+        if (!showAbnormalRecheck) {
+            fetchReports();
+        }
+    }, [showAbnormalRecheck]);
+
     // Update avatar state if user changes (e.g. after update)
     useEffect(() => {
         if (user.photoURL) {
@@ -409,13 +442,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         return true;
     });
 
-    const flattenedHistory = React.useMemo(() => {
-        const sortedReports = [...filteredReports].sort((a, b) => {
-            return sortOrder === 'desc' ? b.date - a.date : a.date - b.date;
-        });
+    const [sortBy, setSortBy] = useState<'date' | 'building' | 'equipment' | 'status'>('date');
 
+    const flattenedHistory = React.useMemo(() => {
+        // 1. Flatten first
         const flattened: any[] = [];
-        sortedReports.forEach(report => {
+        // Use reports directly (filteredReports is derived from reports)
+        filteredReports.forEach(report => {
             if (!report.items || report.items.length === 0) return;
 
             report.items.forEach(item => {
@@ -425,19 +458,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                 const matchesHeaderSearch = !itemSearchTerm ||
                     (item.name?.toLowerCase() || '').includes(itemSearchTerm) ||
-                    (item.barcode?.toLowerCase() || '').includes(itemSearchTerm) ||
-                    (report.buildingName?.toLowerCase() || '').includes(itemSearchTerm);
+                    (item.barcode?.toLowerCase() || '').includes(itemSearchTerm);
 
                 const matchesNameFilter = !itemLocationFilter ||
-                    (item.name?.toLowerCase() || '').includes(itemLocationFilter) ||
-                    (report.buildingName?.toLowerCase() || '').includes(itemLocationFilter);
+                    (item.name?.toLowerCase() || '').includes(itemLocationFilter);
 
                 const matchesKeyword = !itemKeywordSearch ||
                     (item.name?.toLowerCase() || '').includes(itemKeywordSearch) ||
                     (item.barcode?.toLowerCase() || '').includes(itemKeywordSearch) ||
-                    (item.notes?.toLowerCase() || '').includes(itemKeywordSearch) ||
-                    (report.buildingName?.toLowerCase() || '').includes(itemKeywordSearch) ||
-                    (report.inspectorName?.toLowerCase() || '').includes(itemKeywordSearch);
+                    (item.notes?.toLowerCase() || '').includes(itemKeywordSearch);
+
+                if (itemKeywordSearch === '5' && matchesKeyword) {
+                    // Debug log retained for safety
+                    /* console.log('Match Found:', { ... }); */
+                }
 
                 const matchesStatus = filterStatus === 'ALL' ||
                     (item.status === filterStatus) ||
@@ -456,8 +490,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 }
             });
         });
-        return flattened;
-    }, [filteredReports, sortOrder, searchTerm, locationFilter, keywordSearch, filterStatus]);
+
+        // 2. Sort the flattened array
+        return flattened.sort((a, b) => {
+            let comparison = 0;
+            switch (sortBy) {
+                case 'date':
+                    comparison = a.date - b.date;
+                    break;
+                case 'building':
+                    comparison = (a.buildingName || '').localeCompare(b.buildingName || '', 'zh-TW');
+                    break;
+                case 'equipment':
+                    comparison = (a.name || '').localeCompare(b.name || '', 'zh-TW');
+                    break;
+                case 'status': // Optional
+                    comparison = (a.status || '').localeCompare(b.status || '');
+                    break;
+            }
+            return sortOrder === 'desc' ? -comparison : comparison;
+        });
+
+    }, [filteredReports, sortOrder, sortBy, searchTerm, locationFilter, keywordSearch, filterStatus]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -692,6 +746,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         return <AbnormalRecheckList user={user} onBack={() => setShowAbnormalRecheck(false)} lightSettings={lightSettings} />;
     }
 
+    const handleSort = (column: 'date' | 'building' | 'equipment') => {
+        if (sortBy === column) {
+            setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
+        } else {
+            setSortBy(column);
+            if (column === 'date') {
+                setSortOrder('desc');
+            } else {
+                setSortOrder('asc');
+            }
+        }
+    };
+
     return (
         <div className={`flex flex-col h-full ${styles.bg} ${styles.text} transition-colors duration-300`}>
             {/* Simplified Teal Header */}
@@ -836,7 +903,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto animate-in fade-in duration-200">
                             <div className="max-w-7xl mx-auto p-6 space-y-6">
                                 {/* Header */}
-                                <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100 sticky top-4 z-10">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-4 rounded-2xl shadow-sm border-l-4 border-blue-500 sticky top-4 z-30 gap-4 sm:gap-0">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-blue-100 p-2 rounded-xl">
                                             {searchTerm ? <Search className="w-6 h-6 text-blue-600" /> : <History className="w-6 h-6 text-blue-600" />}
@@ -846,29 +913,45 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <p className="text-xs text-slate-500">{searchTerm ? `關鍵字: "${searchTerm}"` : '所有檢查紀錄'}</p>
                                         </div>
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            setShowArchived(false);
-                                            setSearchTerm('');
-                                        }}
-                                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
-                                    >
-                                        <ChevronRight className="w-4 h-4 rotate-180" />
-                                        返回儀表板
-                                    </button>
+
+                                    <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+                                        {/* Filter Toggle */}
+                                        <button
+                                            onClick={() => setShowFilters(!showFilters)}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showFilters ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                            <Filter className="w-4 h-4" />
+                                            {showFilters ? '隱藏篩選' : '顯示篩選'}
+                                        </button>
+
+                                        {/* Column Toggle */}
+                                        <button
+                                            onClick={() => {
+                                                setShowColumnMenu(!showColumnMenu);
+                                                setShowFilters(false); // Close filters if open to avoid clutter
+                                            }}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showColumnMenu ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            顯示欄位
+                                        </button>
+
+                                        <div className="w-px h-8 bg-slate-200 mx-1"></div>
+
+                                        <button
+                                            onClick={() => {
+                                                setShowArchived(false);
+                                                setSearchTerm('');
+                                            }}
+                                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-slate-200"
+                                        >
+                                            <ChevronRight className="w-4 h-4 rotate-180" />
+                                            返回儀表板
+                                        </button>
+                                    </div>
                                 </div>
 
-                                {/* Filter Toggle Button */}
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={() => setShowFilters(!showFilters)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl font-bold transition-colors border border-slate-200 shadow-sm"
-                                    >
-                                        <Filter className="w-4 h-4" />
-                                        {showFilters ? '隱藏篩選' : '顯示篩選'}
-                                        <ChevronRight className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-90' : ''}`} />
-                                    </button>
-                                </div>
+                                {/* Filter Controls (Moved button to header) */}
 
                                 {/* Filter Controls */}
                                 {showFilters && (
@@ -949,6 +1032,42 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
                                 )}
 
+                                {/* Column Menu Panel (New Design) */}
+                                {showColumnMenu && (
+                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in slide-in-from-top-2">
+                                        <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                                            <Settings className="w-4 h-4" />
+                                            選擇顯示欄位
+                                        </h3>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            {[
+                                                { id: 'date', label: '檢查日期' },
+                                                { id: 'building', label: '建築物名稱' },
+                                                { id: 'equipment', label: '設備名稱' },
+                                                { id: 'barcode', label: '設備編號' },
+                                                { id: 'status', label: '項目統計' },
+                                                { id: 'notes', label: '備註' },
+                                                { id: 'inspector', label: '檢查人員' }
+                                            ].map(col => (
+                                                <label key={col.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-blue-50 hover:border-blue-100 cursor-pointer transition-all">
+                                                    <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors shadow-sm ${visibleColumns.has(col.id) ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                        {visibleColumns.has(col.id) && <CheckCircle className="w-3.5 h-3.5 text-white" />}
+                                                    </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={visibleColumns.has(col.id)}
+                                                        onChange={() => toggleColumn(col.id)}
+                                                        className="hidden"
+                                                    />
+                                                    <span className="text-sm text-slate-700 font-bold">{col.label}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Column Toggle (Moved to header) */}
+
                                 {/* Table */}
                                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                     <div className="overflow-x-auto">
@@ -957,21 +1076,49 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <tr>
                                                     <th className="px-4 py-3 w-16 text-center">序號</th>
                                                     <th className="px-4 py-3 w-12 text-center">明細</th>
-                                                    <th
-                                                        className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
-                                                        onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            <span>檢查日期</span>
-                                                            {sortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-600" /> : <ChevronDown className="w-3 h-3 text-blue-600" />}
-                                                        </div>
-                                                    </th>
-                                                    <th className="px-4 py-3">建築物名稱</th>
-                                                    <th className="px-4 py-3">設備名稱</th>
-                                                    <th className="px-4 py-3">設備編號</th>
-                                                    <th className="px-4 py-3">項目統計</th>
-                                                    <th className="px-4 py-3">備註</th>
-                                                    <th className="px-4 py-3">檢查人員</th>
+                                                    {visibleColumns.has('date') && (
+                                                        <th
+                                                            className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                                            onClick={() => handleSort('date')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span>檢查日期</span>
+                                                                {sortBy === 'date' && (
+                                                                    sortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-600" /> : <ChevronDown className="w-3 h-3 text-blue-600" />
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                    )}
+                                                    {visibleColumns.has('building') && (
+                                                        <th
+                                                            className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                                            onClick={() => handleSort('building')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span>建築物名稱</span>
+                                                                {sortBy === 'building' && (
+                                                                    sortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-600" /> : <ChevronDown className="w-3 h-3 text-blue-600" />
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                    )}
+                                                    {visibleColumns.has('equipment') && (
+                                                        <th
+                                                            className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
+                                                            onClick={() => handleSort('equipment')}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <span>設備名稱</span>
+                                                                {sortBy === 'equipment' && (
+                                                                    sortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-600" /> : <ChevronDown className="w-3 h-3 text-blue-600" />
+                                                                )}
+                                                            </div>
+                                                        </th>
+                                                    )}
+                                                    {visibleColumns.has('barcode') && <th className="px-4 py-3">設備編號</th>}
+                                                    {visibleColumns.has('status') && <th className="px-4 py-3">項目統計</th>}
+                                                    {visibleColumns.has('notes') && <th className="px-4 py-3">備註</th>}
+                                                    {visibleColumns.has('inspector') && <th className="px-4 py-3">檢查人員</th>}
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
@@ -991,7 +1138,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     const paginatedHistory = flattenedHistory.slice(startIndex, startIndex + itemsPerPage);
 
                                                     return paginatedHistory.map((item, index) => {
-                                                        const rowId = `${item.reportId}_${item.equipmentId}`;
+                                                        const rowId = `${item.reportId}_${item.equipmentId}_${index}`;
                                                         const isExpanded = expandedReportIds.has(rowId);
                                                         const date = new Date(item.date);
                                                         const dateStr = !isNaN(date.getTime()) ? date.toLocaleDateString(language) : '-';
@@ -1013,62 +1160,78 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                             <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                                                         </button>
                                                                     </td>
-                                                                    <td className="px-4 py-3 text-slate-600">{dateStr}</td>
-                                                                    <td className="px-4 py-3 font-bold text-slate-800">{item.buildingName || '-'}</td>
-                                                                    <td className="px-4 py-3 text-slate-700 font-medium">{item.name || '未命名項目'}</td>
-                                                                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.barcode || '-'}</td>
-                                                                    <td className="px-4 py-3">
-                                                                        {item.status === 'Abnormal' || item.status === '異常' ? (
-                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
-                                                                                <AlertTriangle className="w-3.5 h-3.5" /> 異常
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
-                                                                                <CheckCircle className="w-3.5 h-3.5" /> 正常
-                                                                            </span>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-slate-600 text-xs italic truncate max-w-[150px]" title={item.notes}>{item.notes || '-'}</td>
-                                                                    <td className="px-4 py-3 text-slate-600">{item.inspectorName || '未知'}</td>
+                                                                    {visibleColumns.has('date') && <td className="px-4 py-3 text-slate-600">{dateStr}</td>}
+                                                                    {visibleColumns.has('building') && <td className="px-4 py-3 font-bold text-slate-800">{item.buildingName || '-'}</td>}
+                                                                    {visibleColumns.has('equipment') && <td className="px-4 py-3 text-slate-700 font-medium">{item.name || '未命名項目'}</td>}
+                                                                    {visibleColumns.has('barcode') && <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.barcode || '-'}</td>}
+                                                                    {visibleColumns.has('status') && (
+                                                                        <td className="px-4 py-3">
+                                                                            {item.status === 'Abnormal' || item.status === '異常' ? (
+                                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
+                                                                                    <AlertTriangle className="w-3.5 h-3.5" /> 異常
+                                                                                </span>
+                                                                            ) : item.status === 'Fixed' || item.status === '已改善' ? (
+                                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
+                                                                                    <CheckCircle className="w-3.5 h-3.5" /> 已改善
+                                                                                </span>
+                                                                            ) : (
+                                                                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
+                                                                                    <CheckCircle className="w-3.5 h-3.5" /> 正常
+                                                                                </span>
+                                                                            )}
+                                                                        </td>
+                                                                    )}
+                                                                    {visibleColumns.has('notes') && <td className="px-4 py-3 text-slate-600 text-xs italic whitespace-normal break-words min-w-[200px] leading-relaxed border-l border-slate-50">{item.notes || '-'}</td>}
+                                                                    {visibleColumns.has('inspector') && <td className="px-4 py-3 text-slate-600">{item.inspectorName || '未知'}</td>}
                                                                 </tr>
                                                                 {isExpanded && (
                                                                     <tr className="bg-slate-50 border-b border-slate-200">
-                                                                        <td colSpan={9} className="px-4 py-4">
-                                                                            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                                                                                <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-3 border-b pb-2 text-base">
-                                                                                    <ClipboardList className="w-5 h-5 text-blue-600" />
+                                                                        <td colSpan={20} className="px-0 py-2 sm:px-4 sm:py-4">
+                                                                            <div className="bg-white rounded-xl border border-slate-200 p-2 sm:p-4 shadow-sm mx-2 sm:mx-0 w-full">
+                                                                                <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-2 sm:mb-3 border-b pb-2 text-sm sm:text-base">
+                                                                                    <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                                                                                     詳細查檢紀錄
                                                                                 </h4>
-                                                                                {item.checkResults && item.checkResults.length > 0 ? (
-                                                                                    <div className="border border-slate-100 rounded-lg overflow-hidden">
-                                                                                        <table className="w-full text-sm">
-                                                                                            <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
-                                                                                                <tr>
-                                                                                                    <th className="px-4 py-2 text-left font-bold">查檢項目</th>
-                                                                                                    <th className="px-4 py-2 text-right font-bold w-40">結果</th>
-                                                                                                </tr>
-                                                                                            </thead>
-                                                                                            <tbody className="divide-y divide-slate-50">
-                                                                                                {item.checkResults.map((res: any, idx: number) => {
-                                                                                                    const isAbnormal = res.value === false || res.status === 'Abnormal' || res.status === '異常';
-                                                                                                    const isNormal = res.value === true || res.status === 'Normal' || res.status === '正常';
+                                                                                {/* Desktop/Tablet/Mobile: Action Buttons for Details */}
+                                                                                <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                                                                    {/* Inspection Details Button (Blue) */}
+                                                                                    {item.checkResults && item.checkResults.length > 0 && (
+                                                                                        <button
+                                                                                            onClick={() => setActiveModal({ type: 'INSPECTION', item })}
+                                                                                            className="flex-1 min-w-[280px] bg-white border border-blue-200 shadow-sm p-4 rounded-xl flex items-center justify-between hover:bg-blue-50 transition-all group scale-100 hover:scale-[1.02] active:scale-95 duration-200"
+                                                                                        >
+                                                                                            <div className="flex items-center gap-3">
+                                                                                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors shadow-inner">
+                                                                                                    <ClipboardList className="w-5 h-5 text-blue-600" />
+                                                                                                </div>
+                                                                                                <div className="text-left">
+                                                                                                    <span className="block font-bold text-slate-700 text-sm sm:text-base">詳細查檢紀錄</span>
+                                                                                                    <span className="text-xs text-slate-500 font-medium">點擊查看 {item.checkResults.length} 項檢查結果</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 transition-colors bg-slate-50 rounded-full" />
+                                                                                        </button>
+                                                                                    )}
 
-                                                                                                    return (
-                                                                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                                                                                            <td className="px-4 py-1.5 text-slate-700">{res.name}</td>
-                                                                                                            <td className={`px-4 py-1.5 text-right font-black ${isAbnormal ? 'text-red-600' : isNormal ? 'text-green-600' : 'text-blue-600'}`}>
-                                                                                                                {typeof res.value === 'boolean' ? (res.value ? '正常' : '異常') : `${res.value}${res.unit || ''}`}
-                                                                                                                {isAbnormal && <AlertTriangle className="inline-block w-4 h-4 ml-1 mb-0.5" />}
-                                                                                                            </td>
-                                                                                                        </tr>
-                                                                                                    );
-                                                                                                })}
-                                                                                            </tbody>
-                                                                                        </table>
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <div className="text-center py-6 text-slate-400 text-sm italic">無詳細查檢記錄快照</div>
-                                                                                )}
+                                                                                    {/* Recheck Info Button (Red) */}
+                                                                                    {(item.repairDate || item.status === 'Fixed' || item.status === '已改善') && (
+                                                                                        <button
+                                                                                            onClick={() => setActiveModal({ type: 'RECHECK', item })}
+                                                                                            className="flex-1 min-w-[280px] bg-white border border-red-200 shadow-sm p-4 rounded-xl flex items-center justify-between hover:bg-red-50 transition-all group scale-100 hover:scale-[1.02] active:scale-95 duration-200"
+                                                                                        >
+                                                                                            <div className="flex items-center gap-3">
+                                                                                                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center group-hover:bg-red-200 transition-colors shadow-inner">
+                                                                                                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                                                                                                </div>
+                                                                                                <div className="text-left">
+                                                                                                    <span className="block font-bold text-slate-700 text-sm sm:text-base">異常複檢資訊</span>
+                                                                                                    <span className="text-xs text-slate-500 font-medium">點擊查看修復詳情</span>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition-colors bg-slate-50 rounded-full" />
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
                                                                         </td>
                                                                     </tr>
@@ -1128,6 +1291,119 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     )}
                 </div>
             </div >
+
+            {/* Active Details Modal */}
+            {activeModal && (
+                <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                        {/* Modal Header */}
+                        <div className={`p-6 border-b flex justify-between items-center shrink-0 ${activeModal.type === 'INSPECTION' ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'}`}>
+                            <h3 className={`font-bold text-lg flex items-center gap-2 ${activeModal.type === 'INSPECTION' ? 'text-blue-800' : 'text-red-800'}`}>
+                                {activeModal.type === 'INSPECTION' ? <ClipboardList className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                                {activeModal.type === 'INSPECTION' ? '詳細查檢紀錄' : '異常複檢資訊'}
+                            </h3>
+                            <button
+                                onClick={() => setActiveModal(null)}
+                                className={`p-2 rounded-full transition-colors ${activeModal.type === 'INSPECTION' ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-red-100 text-red-500'}`}
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                            {activeModal.type === 'INSPECTION' ? (
+                                <div className="p-0">
+                                    {/* Inspection Table View */}
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50 text-slate-700 font-bold sticky top-0 z-10 shadow-sm">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left border-b border-slate-200 whitespace-nowrap bg-slate-50">查檢項目</th>
+                                                <th className="px-4 py-3 text-center border-b border-slate-200 whitespace-nowrap bg-slate-50">標準</th>
+                                                <th className="px-4 py-3 text-center border-b border-slate-200 whitespace-nowrap bg-slate-50">結果</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {activeModal.item.checkResults?.map((res: any, idx: number) => {
+                                                let displayValue = '';
+                                                if (res.value === 'true' || res.value === true) displayValue = '正常';
+                                                else if (res.value === 'false' || res.value === false) displayValue = '異常';
+                                                else if (res.threshold) displayValue = `${res.value}${res.unit || ''}`;
+                                                else displayValue = res.value === 'true' ? '正常' : res.value === 'false' ? '異常' : res.value;
+
+                                                if (displayValue === 'true') displayValue = '正常';
+                                                if (displayValue === 'false') displayValue = '異常';
+                                                if (!isNaN(Number(res.value)) && res.unit && !displayValue.includes(res.unit)) displayValue += res.unit;
+                                                if (res.status === 'Normal') {
+                                                    displayValue = res.value ? '正常' : '異常';
+                                                    if (res.value && !isNaN(Number(res.value))) displayValue = `${res.value}${res.unit || ''}`;
+                                                }
+
+                                                const isRed = res.value === false || res.status === 'Abnormal' || res.status === '異常';
+
+                                                return (
+                                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="px-4 py-3 text-slate-700 font-medium">{res.name}</td>
+                                                        <td className="px-4 py-3 text-center text-slate-500 font-mono text-xs bg-slate-50/50">{res.threshold || '-'}</td>
+                                                        <td className={`px-4 py-3 text-center font-bold flex justify-center items-center gap-2 ${isRed ? 'text-red-600' : 'text-green-600'}`}>
+                                                            {isRed && <AlertTriangle className="w-4 h-4" />}
+                                                            {displayValue}
+                                                            {!isRed && <CheckCircle className="w-4 h-4 opacity-50" />}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="p-6 space-y-4">
+                                    {/* Recheck Info View */}
+                                    <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3">
+                                        <Info className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="font-bold text-red-800 mb-1">異常處理狀態</p>
+                                            <p className="text-sm text-red-700">
+                                                {activeModal.item.status === 'Fixed' || activeModal.item.status === '已改善' ? '已完成改善' : '待處理'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        {activeModal.item.repairDate && (
+                                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">修復日期</label>
+                                                <div className="font-mono text-lg font-bold text-slate-700 flex items-center gap-2">
+                                                    <Calendar className="w-5 h-5 text-slate-400" />
+                                                    {new Date(activeModal.item.repairDate).toLocaleDateString(language)}
+                                                </div>
+                                            </div>
+                                        )}
+                                        {activeModal.item.repairNotes && (
+                                            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">處置說明</label>
+                                                <div className="text-slate-700 leading-relaxed font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                    {activeModal.item.repairNotes}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                            <button
+                                onClick={() => setActiveModal(null)}
+                                className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all shadow-lg shadow-slate-200"
+                            >
+                                關閉視窗
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* FAB (Maintained for quick access) */}
             <button
