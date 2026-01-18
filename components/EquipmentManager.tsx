@@ -36,7 +36,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [eqType, setEqType] = useState(initialData?.equipmentType || '');
   const [eqDetail, setEqDetail] = useState(initialData?.equipmentDetail || '');
   const [hierarchy, setHierarchy] = useState<EquipmentHierarchy>({});
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<CheckCategory>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<CheckCategory>>(new Set(['visual', 'performance', 'comprehensive']));
 
   // Validation errors state
   const [validationErrors, setValidationErrors] = useState<{
@@ -535,13 +535,18 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
   const renderCategorySection = (category: CheckCategory, icon: React.ReactNode, title: string) => {
     const items = checkItems.filter(i => i.category === category);
-    const isCollapsed = collapsedCategories[category];
+    const isCollapsed = collapsedCategories.has(category);
 
     const toggleCollapse = () => {
-      setCollapsedCategories(prev => ({
-        ...prev,
-        [category]: !prev[category]
-      }));
+      setCollapsedCategories(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(category)) {
+          newSet.delete(category);
+        } else {
+          newSet.add(category);
+        }
+        return newSet;
+      });
     };
 
     return (
