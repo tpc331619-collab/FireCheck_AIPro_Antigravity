@@ -15,7 +15,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
     onScan,
     onCancel
 }) => {
-    const [inputMode, setInputMode] = useState<'SCAN' | 'MANUAL'>('MANUAL');
+    const [inputMode, setInputMode] = useState<'SCAN' | 'MANUAL'>('SCAN');
     const [manualInput, setManualInput] = useState('');
     const [validationError, setValidationError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
@@ -35,6 +35,9 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
     };
 
     const validateAndSubmit = (barcode: string) => {
+        // Prevent multiple submissions
+        if (isValidating) return;
+
         setIsValidating(true);
         setValidationError(null);
 
@@ -46,14 +49,16 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
         }
 
         // 驗證成功
-        setIsValidating(false);
         onScan(barcode);
+        // Note: Modal will be closed by parent, no need to reset isValidating manually usually,
+        // but if parent doesn't close immediately, this prevents double tap.
     };
 
     const handleClose = () => {
         setManualInput('');
         setValidationError(null);
-        setInputMode('MANUAL');
+        setInputMode('SCAN'); // Reset to default SCAN
+        setIsValidating(false);
         onCancel();
     };
 
@@ -112,8 +117,14 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                     type="text"
                                     value={manualInput}
                                     onChange={(e) => {
-                                        setManualInput(e.target.value.toUpperCase());
+                                        const val = e.target.value.toUpperCase();
+                                        setManualInput(val);
                                         setValidationError(null);
+
+                                        // Auto-submit if strictly matches expected barcode
+                                        if (val.trim() === expectedBarcode) {
+                                            validateAndSubmit(val.trim());
+                                        }
                                     }}
                                     onKeyPress={(e) => {
                                         if (e.key === 'Enter') {
@@ -177,6 +188,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                     <BarcodeScanner
                         onScanSuccess={handleScanSuccess}
                         onClose={handleClose}
+                        onManualInput={() => setInputMode('MANUAL')}
                     />
                 </div>
             )}

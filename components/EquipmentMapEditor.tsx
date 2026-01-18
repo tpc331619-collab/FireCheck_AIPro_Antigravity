@@ -348,7 +348,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
         // 1. Abnormal Check (Higher Priority)
         // Check both Barcode and UUID matching in reports
-        if (isMarkerAbnormal(marker)) return 'animate-pulse';
+        if (isMarkerAbnormal(marker)) return 'bg-orange-500';
 
         // 2. Frequency/Status Check (Same as ChecklistInspection)
         const equip = allEquipment.find(e => e.barcode === marker.equipmentId);
@@ -357,10 +357,10 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         const status = getFrequencyStatus(equip, lightSettings);
 
         switch (status) {
-            case 'PENDING': return 'bg-red-500 animate-pulse';     // 需檢查
-            case 'CAN_INSPECT': return 'bg-yellow-400 animate-pulse'; // 可以檢查
-            case 'UNNECESSARY': return 'bg-emerald-500 animate-pulse'; // 不需檢查
-            case 'COMPLETED': return 'bg-emerald-500 animate-pulse'; // 已完成
+            case 'PENDING': return 'bg-red-500';     // 需檢查
+            case 'CAN_INSPECT': return 'bg-yellow-400'; // 可以檢查
+            case 'UNNECESSARY': return 'bg-emerald-500'; // 不需檢查
+            case 'COMPLETED': return 'bg-emerald-500'; // 已完成
             default: return 'bg-slate-400';
         }
     };
@@ -896,7 +896,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             {isSaving && (
                 <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
                     <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                    <p className="text-lg font-bold text-slate-700 animate-pulse">正在處理中，請稍候...</p>
+                    <p className="text-lg font-bold text-slate-700">正在處理中，請稍候...</p>
                 </div>
             )}
 
@@ -1092,59 +1092,60 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
 
                         {/* Middle Canvas */}
-                        <div className="flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner">
+                        <div className="h-[45vh] lg:h-auto lg:flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner shrink-0">
 
                             {/* Floating Toolbar */}
-                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 rounded-full px-4 py-2 flex items-center gap-2 z-30">
-                                <div className="flex items-center gap-1">
-                                    <button onClick={zoomOut} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom Out">
-                                        <ZoomOut className="w-5 h-5" />
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 rounded-full px-1.5 py-1 sm:px-4 sm:py-2 flex items-center gap-0.5 sm:gap-2 z-30 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                    <button onClick={zoomOut} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom Out">
+                                        <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </button>
-                                    <span className="text-xs font-mono font-bold w-12 text-center select-none text-slate-600">{Math.round(zoom * 100)}%</span>
-                                    <button onClick={zoomIn} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom In">
-                                        <ZoomIn className="w-5 h-5" />
-                                    </button>
-                                </div>
-                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                                <div className="flex items-center gap-1">
-                                    <button onClick={rotateLeft} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Rotate Left">
-                                        <RotateCw className="w-5 h-5 -scale-x-100" />
-                                    </button>
-                                    <button onClick={rotateRight} className="p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Rotate Right">
-                                        <RotateCw className="w-5 h-5" />
+                                    <span className="text-[10px] sm:text-xs font-mono font-bold w-10 sm:w-12 text-center select-none text-slate-600">{Math.round(zoom * 100)}%</span>
+                                    <button onClick={zoomIn} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom In">
+                                        <ZoomIn className="w-4 h-4 sm:w-5 sm:h-5" />
                                     </button>
                                 </div>
-                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                                <button onClick={() => setShowGrid(!showGrid)} className={`p-2 rounded-full transition-all ${showGrid ? 'bg-indigo-50 text-indigo-600 shadow-inner' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`} title="Toggle Grid">
-                                    <Grid className="w-5 h-5" />
+                                <div className="w-px h-3 sm:h-6 bg-slate-200 mx-0.5 shrink-0"></div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                    <button onClick={rotateLeft} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Rotate Left">
+                                        <RotateCw className="w-4 h-4 sm:w-5 sm:h-5 -scale-x-100" />
+                                    </button>
+                                    <button onClick={rotateRight} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Rotate Right">
+                                        <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    </button>
+                                </div>
+                                <div className="w-px h-3 sm:h-6 bg-slate-200 mx-0.5 shrink-0"></div>
+                                <button onClick={() => setShowGrid(!showGrid)} className={`p-1.5 sm:p-2 rounded-full transition-all shrink-0 ${showGrid ? 'bg-indigo-50 text-indigo-600 shadow-inner' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`} title="Toggle Grid">
+                                    <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
-                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-full border border-slate-200">
+                                <div className="w-px h-3 sm:h-6 bg-slate-200 mx-0.5 shrink-0"></div>
+                                <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 sm:p-1 rounded-full border border-slate-200 shrink-0">
                                     <button
                                         onClick={() => setToolMode('SELECT')}
-                                        className={`p-2 rounded-full transition-all flex items-center gap-2 ${toolMode === 'SELECT' ? 'bg-white text-blue-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`p-1.5 sm:p-2 rounded-full transition-all flex items-center gap-1 sm:gap-2 ${toolMode === 'SELECT' ? 'bg-white text-blue-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
                                         title="選擇模式 (不增加標記)"
                                     >
-                                        <MousePointer2 className="w-4 h-4" />
-                                        {toolMode === 'SELECT' && <span className="text-[10px] font-bold pr-1">選擇</span>}
+                                        <MousePointer2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                        {/* Hide text on mobile for extreme compactness, or keep very small */}
+                                        {toolMode === 'SELECT' && <span className="text-[10px] font-bold pr-1 hidden sm:inline">選擇</span>}
                                     </button>
                                     <button
                                         onClick={() => setToolMode('ADD_MARKER')}
-                                        className={`p-2 rounded-full transition-all flex items-center gap-2 ${toolMode === 'ADD_MARKER' ? 'bg-white text-red-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`p-1.5 sm:p-2 rounded-full transition-all flex items-center gap-1 sm:gap-2 ${toolMode === 'ADD_MARKER' ? 'bg-white text-red-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
                                         title="新增標記模式"
                                     >
-                                        <Plus className="w-4 h-4" />
-                                        {toolMode === 'ADD_MARKER' && <span className="text-[10px] font-bold pr-1 text-red-500">標記</span>}
+                                        <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                        {toolMode === 'ADD_MARKER' && <span className="text-[10px] font-bold pr-1 text-red-500 hidden sm:inline">標記</span>}
                                     </button>
                                 </div>
-                                <div className="w-px h-6 bg-slate-200 mx-1"></div>
-                                <button onClick={zoomReset} className="px-3 py-1 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center gap-1" title="Reset View">
+                                <div className="w-px h-3 sm:h-6 bg-slate-200 mx-0.5 shrink-0"></div>
+                                <button onClick={zoomReset} className="px-1.5 py-1 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center gap-1 shrink-0" title="Reset View">
                                     <span>重置</span>
                                 </button>
                             </div>
 
                             {/* Canvas Scroll Area */}
-                            <div className="w-full h-full overflow-auto flex items-center justify-center p-20 cursor-move">
+                            <div className="w-full h-full overflow-auto flex items-center justify-center p-4 sm:p-20 cursor-move">
                                 <div
                                     className="transition-transform duration-200 ease-out origin-center select-none relative shadow-2xl ring-4 ring-white/50"
                                     style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
@@ -1315,7 +1316,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                         <div className="flex items-center gap-3">
                                                             <div
                                                                 className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors shadow-sm text-white ${isMarkerAbnormal(marker)
-                                                                    ? 'animate-pulse'
+                                                                    ? 'bg-orange-500'
                                                                     : (isSelected ? colorClass + ' ring-2 ring-offset-1 ring-blue-500' : colorClass + ' opacity-75 group-hover:opacity-100')
                                                                     }`}
                                                                 style={getMarkerStyle(marker)}
@@ -1425,7 +1426,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
                                     <div className="w-10 h-10 flex items-center justify-center shrink-0">
                                         <div
-                                            className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-md animate-pulse"
+                                            className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-md"
                                             style={lightSettings?.abnormal?.color ? { backgroundColor: lightSettings.abnormal.color } : {}}
                                         >
                                         </div>
@@ -1439,7 +1440,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 {/* Red Light - Overdue */}
                                 <div className="flex items-center gap-4 p-3 bg-red-50 rounded-xl border border-red-100">
                                     <div
-                                        className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-md shrink-0 animate-pulse"
+                                        className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center shadow-md shrink-0"
                                         style={lightSettings?.red?.color ? { backgroundColor: lightSettings.red.color } : {}}
                                     >
                                     </div>
@@ -1452,7 +1453,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 {/* Yellow Light - Warning */}
                                 <div className="flex items-center gap-4 p-3 bg-yellow-50 rounded-xl border border-yellow-100">
                                     <div
-                                        className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-md shrink-0 animate-pulse"
+                                        className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center shadow-md shrink-0"
                                         style={lightSettings?.yellow?.color ? { backgroundColor: lightSettings.yellow.color } : {}}
                                     >
                                     </div>
@@ -1518,6 +1519,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 isOpen={isStorageManagerOpen}
                 onClose={() => setIsStorageManagerOpen(false)}
                 onSelect={modalMode === 'SELECT' ? handleSelectFile : undefined}
+                allowUpload={modalMode !== 'SELECT'}
+                allowDelete={modalMode !== 'SELECT'}
             />
 
             {/* Add Marker Confirmation Modal */}

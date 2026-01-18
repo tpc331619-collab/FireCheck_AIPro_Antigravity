@@ -658,7 +658,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
                                                             <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
                                                                 <div
-                                                                    className="w-6 h-6 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5"
+                                                                    className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5"
                                                                     style={lightSettings?.abnormal?.color ? { backgroundColor: lightSettings.abnormal.color } : {}}
                                                                 />
                                                                 <div>

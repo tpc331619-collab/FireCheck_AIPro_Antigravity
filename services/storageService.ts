@@ -16,7 +16,7 @@ export const StorageService = {
     this.isGuest = enabled;
   },
 
-  async getReports(userId: string): Promise<InspectionReport[]> {
+  async getReports(userId: string, withItems: boolean = false): Promise<InspectionReport[]> {
     if (this.isGuest || !db) {
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!data) return [];
@@ -27,6 +27,14 @@ export const StorageService = {
         const q = query(collection(db, 'reports'), where('userId', '==', userId));
         const snapshot = await getDocs(q);
         const reports = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as InspectionReport));
+
+        if (withItems) {
+          await Promise.all(reports.map(async (report) => {
+            const itemsSnap = await getDocs(collection(db, 'reports', report.id, 'items'));
+            report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
+          }));
+        }
+
         return reports.sort((a, b) => b.date - a.date);
       } catch (e) {
         console.error("Firebase fetch error", e);
@@ -126,17 +134,49 @@ export const StorageService = {
   },
 
   async updateReport(report: InspectionReport): Promise<void> {
-    const { id, ...data } = report;
+    const { id, items, ...reportData } = report;
+
+    // Calculate stats
+    const stats = {
+      total: items?.length || 0,
+      passed: items?.filter(i => i.status === InspectionStatus.Normal).length || 0,
+      failed: items?.filter(i => i.status === InspectionStatus.Abnormal).length || 0,
+      fixed: items?.filter(i => i.status === InspectionStatus.Fixed).length || 0,
+      others: items?.filter(i => i.status !== InspectionStatus.Normal && i.status !== InspectionStatus.Abnormal && i.status !== InspectionStatus.Fixed).length || 0
+    };
+
     if (this.isGuest || !db) {
       const dataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!dataStr) return;
       let reports: InspectionReport[] = JSON.parse(dataStr);
-      reports = reports.map(r => r.id === report.id ? report : r);
+      // For LocalStorage, keep items embedded
+      const updatedReport = { ...reportData, id, items, stats };
+      reports = reports.map(r => r.id === id ? updatedReport : r);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
     } else {
       try {
         const reportRef = doc(db, 'reports', id);
-        await updateDoc(reportRef, data);
+        // Do NOT store items in the main doc, only stats
+        await updateDoc(reportRef, { ...reportData, stats });
+
+        // Update items in subcollection
+        if (items && items.length > 0) {
+          // Typically in our app, we might update individual items or overwrite the whole set.
+          // Given the structure, we'll assume we want to sync the current state of items.
+          // To be safe and simple: delete existing? Or just upsert?
+          // Since we don't have item IDs in the subcollection that match the array index reliably,
+          // we'll update based on equipmentId if possible, but the simplest is to just add new ones
+          // or have a more robust sync. For now, let's at least ensure they are added.
+          // [Correction]: The batch set with EquipmentId as ID would be ideal if equipmentId is unique per report.
+          const batch = writeBatch(db);
+          items.forEach(item => {
+            // Use equipmentId as secondary ID or just let Firebase generate IDs
+            // If we use equipmentId as ID, we only get one entry per equipment per report, which is correct.
+            const itemRef = doc(collection(db, 'reports', id, 'items'), item.equipmentId);
+            batch.set(itemRef, item, { merge: true });
+          });
+          await batch.commit();
+        }
       } catch (e) {
         console.error("Firebase update error", e);
         throw e;

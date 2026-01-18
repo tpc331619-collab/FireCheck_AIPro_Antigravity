@@ -5,9 +5,10 @@ import { X, Camera, AlertCircle } from 'lucide-react';
 interface BarcodeScannerProps {
     onScanSuccess: (decodedText: string) => void;
     onClose: () => void;
+    onManualInput?: () => void;
 }
 
-const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose }) => {
+const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose, onManualInput }) => {
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [error, setError] = useState<string>('');
     const [isScanning, setIsScanning] = useState(false);
@@ -74,6 +75,15 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose 
         onClose();
     };
 
+    const handleManualInput = () => {
+        stopScanner();
+        if (onManualInput) {
+            onManualInput();
+        } else {
+            onClose();
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
@@ -120,7 +130,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose 
                 {/* Footer */}
                 <div className="p-4 bg-slate-50 border-t border-slate-200 space-y-2">
                     <button
-                        onClick={handleClose}
+                        onClick={handleManualInput}
                         className="w-full py-3 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors"
                     >
                         取消 / 改用手動輸入

@@ -407,7 +407,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                   // If custom color is used, we strip the default color classes but keep layout classes
                                   const containerClass = `flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${customColor ? '' : colorClass}`;
                                   // Pulse for pending
-                                  const dotClass = `w-2 h-2 rounded-full ${status === 'PENDING' && !customColor ? 'animate-pulse' : ''}`;
+                                  const dotClass = `w-2 h-2 rounded-full`;
 
                                   return (
                                     <div className="flex items-center gap-2">
@@ -577,7 +577,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
             <div className="bg-white p-2 rounded-3xl shadow-2xl overflow-hidden mb-6 w-full aspect-square sm:aspect-auto sm:min-h-[400px] sm:max-h-[70vh] flex items-center justify-center relative bg-slate-50">
               {/* Fallback & Loading Indicator */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 gap-2">
-                <Image className="w-12 h-12 animate-pulse" />
+                <Image className="w-12 h-12" />
                 <span className="text-xs font-bold text-slate-400">正在努力讀取照片...</span>
               </div>
 

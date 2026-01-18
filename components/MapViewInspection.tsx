@@ -30,6 +30,12 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [notes, setNotes] = useState('');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+    const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+        setToastMsg({ text, type });
+        setTimeout(() => setToastMsg(null), 3000);
+    };
 
     const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
     const [renderKey, setRenderKey] = useState(0);
@@ -37,6 +43,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     // Transform State
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ x: 0, y: 0 });
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +62,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 StorageService.getEquipmentMaps(user.uid),
                 StorageService.getEquipmentDefinitions(user.uid),
                 StorageService.getLightSettings(user.uid),
-                StorageService.getReports(user.uid)
+                StorageService.getReports(user.uid, true)
             ]);
             setMaps(mapsData);
             setAllEquipment(equipmentData);
@@ -107,6 +116,40 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
     const handleCheckItemChange = (itemId: string, value: any) => {
         setCheckResults(prev => ({ ...prev, [itemId]: value }));
+    };
+
+    // --- Drag & Pan Handlers ---
+    const handlePointerDown = (e: React.PointerEvent) => {
+        // Only start drag if dragging on the container or image, not markers
+        // (Markers stop propagation in their own click handler if needs be, but pointer events usually bubble)
+        if ((e.target as HTMLElement).tagName.toLowerCase() === 'button') return;
+
+        setIsDragging(true);
+        dragStartRef.current = {
+            x: e.clientX - position.x,
+            y: e.clientY - position.y
+        };
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMove = (e: React.PointerEvent) => {
+        if (!isDragging) return;
+        setPosition({
+            x: e.clientX - dragStartRef.current.x,
+            y: e.clientY - dragStartRef.current.y
+        });
+    };
+
+    const handlePointerUp = (e: React.PointerEvent) => {
+        if (!isDragging) return;
+        setIsDragging(false);
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    };
+
+    const handleResetView = () => {
+        setZoom(1);
+        setPosition({ x: 0, y: 0 });
+        setRotation(0);
     };
 
 
@@ -224,7 +267,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 if (existingReportIndex >= 0) {
                     const newReports = [...prev];
                     const report = { ...newReports[existingReportIndex] };
-                    const items = [...report.items];
+                    const items = [...(report.items || [])];
                     const itemIndex = items.findIndex(i => i.equipmentId === currentEquipment.id);
 
                     if (itemIndex >= 0) {
@@ -232,6 +275,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     } else {
                         items.push(inspectionItem);
                     }
+
                     report.items = items;
                     newReports[existingReportIndex] = report;
                     return newReports;
@@ -261,6 +305,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             if (!report) {
                 report = {
                     id: `report_${now}`,
+                    userId: user.uid,
                     buildingName: currentMap.name,
                     inspectorName: user.displayName || 'Guest',
                     date: now,
@@ -269,7 +314,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 };
             }
 
-            // Sync item to target report object
+            // Sync item to target report object (Ensure items array exists)
+            if (!report.items) report.items = [];
             const itemIndex = report.items.findIndex(i => i.equipmentId === currentEquipment.id);
             if (itemIndex >= 0) {
                 report.items[itemIndex] = inspectionItem;
@@ -330,6 +376,12 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
             console.log('[handleSubmit] Save Complete');
 
+            // Refresh reports to get the latest status (including items)
+            const updatedReports = await StorageService.getReports(user.uid, true);
+            setReports(updatedReports);
+
+            showToast('✅ 提交成功！');
+
         } catch (error) {
             console.error('[handleSubmit] Error:', error);
             alert(`提交失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
@@ -363,11 +415,17 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             return 'bg-slate-400';
         }
 
-        // Check if abnormal in recent reports
-        const isAbnormal = reports.some(r =>
-            r.items.some(i => i.equipmentId === equipment.id && i.status === InspectionStatus.Abnormal)
-        );
-        if (isAbnormal) return lightSettings?.abnormal?.color ? '' : 'bg-orange-500 animate-pulse';
+        // Check if abnormal in LATEST report only
+        const relevantReports = reports
+            .filter(r => r.items?.some(i => i.equipmentId === equipment.id))
+            .sort((a, b) => b.date - a.date);
+
+        if (relevantReports.length > 0) {
+            const latestItem = relevantReports[0].items?.find(i => i.equipmentId === equipment.id);
+            if (latestItem?.status === InspectionStatus.Abnormal) {
+                return lightSettings?.abnormal?.color ? '' : 'bg-orange-500';
+            }
+        }
 
         // Check frequency status
         // 1. Check Override first (Robust Multi-Key)
@@ -385,9 +443,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         console.log('[getMarkerColor]', equipment.name, '- lastInspectedDate:', equipment.lastInspectedDate, 'status:', status, 'renderKey:', renderKey);
 
         switch (status) {
-            case 'PENDING': return 'bg-red-500 animate-pulse';
-            case 'CAN_INSPECT': return 'bg-yellow-400 animate-pulse';
-            case 'UNNECESSARY': return 'bg-blue-500'; // Blue for Unnecessary (Not due)
+            case 'PENDING': return 'bg-red-500';
+            case 'CAN_INSPECT': return 'bg-yellow-400';
+            case 'UNNECESSARY': return 'bg-emerald-500'; // Default Green (matches Editor)
             case 'COMPLETED': return 'bg-emerald-500'; // Green for Completed
             default: return 'bg-slate-400';
         }
@@ -410,17 +468,23 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
         if (!equipment) return {};
 
-        // Check abnormal first
-        const isAbnormal = reports.some(r =>
-            r.items.some(i => i.equipmentId === equipment.id && i.status === InspectionStatus.Abnormal)
-        );
-        if (isAbnormal && lightSettings?.abnormal?.color) return { backgroundColor: lightSettings.abnormal.color };
-        if (isAbnormal) return {}; // Fallback to class
+        // Check abnormal first (LATEST Only)
+        const relevantReports = reports
+            .filter(r => (r.items || []).some(i => i.equipmentId === equipment.id))
+            .sort((a, b) => b.date - a.date);
+
+        if (relevantReports.length > 0) {
+            const latestItem = (relevantReports[0].items || []).find(i => i.equipmentId === equipment.id);
+            if (latestItem?.status === InspectionStatus.Abnormal) {
+                if (lightSettings?.abnormal?.color) return { backgroundColor: lightSettings.abnormal.color };
+                // else fallback to class
+            }
+        }
 
         const status = getFrequencyStatus(equipment, lightSettings);
         if (status === 'PENDING' && lightSettings?.red?.color) return { backgroundColor: lightSettings.red.color };
         if (status === 'CAN_INSPECT' && lightSettings?.yellow?.color) return { backgroundColor: lightSettings.yellow.color };
-        if (status === 'UNNECESSARY') return { backgroundColor: '#3b82f6' }; // Default Blue
+        if (status === 'UNNECESSARY' && lightSettings?.green?.color) return { backgroundColor: lightSettings.green.color };
         if (status === 'COMPLETED' && lightSettings?.green?.color) return { backgroundColor: lightSettings.green.color };
 
         return {};
@@ -485,60 +549,132 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     return (
         <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
             {/* Header */}
-            <div className="bg-white border-b p-4 flex items-center justify-between">
-                <button onClick={() => setViewMode('SELECT')} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+            <div className="bg-white border-b p-4 flex items-center justify-between z-10 relative shadow-sm">
+                <button onClick={() => setViewMode('SELECT')} className="p-2 hover:bg-slate-100 rounded-full transition-colors font-bold text-slate-600 flex items-center gap-2">
                     <ArrowLeft className="w-6 h-6" />
+                    <span className="text-sm">返回列表</span>
                 </button>
-                <h2 className="text-lg font-bold">{currentMap?.name}</h2>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setZoom(z => Math.max(0.5, z - 0.1))} className="p-2 hover:bg-slate-100 rounded-full">
-                        <ZoomOut className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => setZoom(z => Math.min(3, z + 0.1))} className="p-2 hover:bg-slate-100 rounded-full">
-                        <ZoomIn className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => setRotation(r => (r + 90) % 360)} className="p-2 hover:bg-slate-100 rounded-full">
-                        <RotateCw className="w-5 h-5" />
-                    </button>
-                </div>
+                <h2 className="text-lg font-bold truncate max-w-[200px]">{currentMap?.name}</h2>
+                <div className="w-10"></div> {/* Spacer for center alignment balance */}
             </div>
 
             {/* Map Container */}
-            <div className="flex-1 overflow-hidden relative bg-slate-800">
+            <div className="flex-1 overflow-hidden relative bg-slate-800 touch-none cursor-move select-none">
                 <div
                     ref={imageContainerRef}
-                    className="absolute inset-0 flex items-center justify-center"
+                    className="absolute inset-0 flex items-center justify-center transform-gpu will-change-transform"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerLeave={handlePointerUp} // Stop dragging if cursor leaves
                     style={{
-                        transform: `scale(${zoom}) rotate(${rotation}deg)`,
-                        transition: 'transform 0.3s ease'
+                        transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                        transition: isDragging ? 'none' : 'transform 0.1s ease-out'
                     }}
                 >
                     {currentMap && (
-                        <div className="relative shadow-2xl inline-block">
+                        <div className="relative shadow-2xl inline-block pointer-events-none">
+                            {/* Re-enable pointer events for markers so they can be clicked */}
                             <img
                                 src={currentMap.imageUrl}
                                 alt={currentMap.name}
-                                className="max-w-full max-h-full"
+                                className="max-w-full max-h-full pointer-events-auto"
+                                draggable={false}
+                                onDragStart={(e) => e.preventDefault()}
                             />
                             {/* Markers */}
-                            {currentMap.markers.map(marker => (
-                                <button
-                                    key={`${marker.id}-${renderKey}`}
-                                    onClick={() => handleMarkerClick(marker)}
-                                    className={`absolute w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg hover:scale-110 transition-transform ${getMarkerColor(marker)}`}
-                                    style={{
-                                        left: `${marker.x}%`,
-                                        top: `${marker.y}%`,
-                                        transform: 'translate(-50%, -50%)',
-                                        ...getMarkerStyle(marker)
-                                    }}
-                                >
-                                    {marker.equipmentId}
-                                </button>
-                            ))}
+                            {currentMap.markers.map(marker => {
+                                // Determine status for interaction logic
+                                let isInteractable = true;
+                                const equipment = allEquipment.find(e => e.barcode === marker.equipmentId);
+
+                                if (equipment) {
+                                    // 1. Check Override (Optimistic Completed)
+                                    const overrideTime = inspectedOverrides[marker.equipmentId] || inspectedOverrides[equipment.id];
+                                    const isOverridden = overrideTime && (Date.now() - overrideTime < 24 * 60 * 60 * 1000);
+
+                                    // 2. Check Real Status
+                                    const freqStatus = getFrequencyStatus(equipment, lightSettings);
+
+                                    // Disable if Completed (Real or Optimistic) or Unnecessary
+                                    // Exception: If it is Abnormal, we might still want to allow clicking? 
+                                    // User said "Completed" or "Unnecessary" cannot be clicked.
+                                    // Usually "Abnormal" shows as Orange/Red, distinct from Completed/Unnecessary (Green).
+                                    // We assume Abnormal should still be clickable if needed, but if the status *category* is Completed, it overrides.
+                                    // Actually, let's stick to the color logic: Green = No Click.
+
+                                    if (isOverridden || freqStatus === 'COMPLETED' || freqStatus === 'UNNECESSARY') {
+                                        isInteractable = false;
+                                    }
+                                }
+
+                                return (
+                                    <button
+                                        key={`${marker.id}-${renderKey}`}
+                                        onClick={() => isInteractable && handleMarkerClick(marker)}
+                                        disabled={!isInteractable}
+                                        // Optimized Sizes for RWD (Matches Editor)
+                                        // Mobile: w-3 h-3 (12px), text-[6px]
+                                        // Tablet: w-4 h-4 (16px), text-[8px]
+                                        // Desktop: w-6 h-6 (24px), text-[10px]
+                                        className={`absolute w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6 rounded-full flex items-center justify-center text-white font-bold text-[6px] sm:text-[8px] md:text-[10px] shadow-sm transition-transform pointer-events-auto 
+                                            ${getMarkerColor(marker)}
+                                            ${isInteractable ? 'hover:scale-125 hover:z-50 cursor-pointer' : 'cursor-default opacity-80'}
+                                        `}
+                                        style={{
+                                            left: `${marker.x}%`,
+                                            top: `${marker.y}%`,
+                                            // CRITICAL: Inverse Scale Logic (1 / zoom)
+                                            // This cancels out the parent's zoom scale, keeping marker constant physics size
+                                            transform: `translate(-50%, -50%) scale(${1 / zoom}) rotate(${-rotation}deg)`,
+                                            ...getMarkerStyle(marker)
+                                        }}
+                                    >
+                                        {marker.equipmentId}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* Floating Controls Toolbar (RWD Optimized) */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-0.5 sm:gap-2 bg-white/90 backdrop-blur shadow-xl rounded-full px-1.5 py-1 sm:px-4 sm:py-2 border border-slate-200 z-40 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
+                <button
+                    onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
+                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
+                    title="縮小"
+                >
+                    <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <span className="text-[10px] sm:text-xs font-bold text-slate-500 min-w-[2.5rem] sm:min-w-[3rem] text-center select-none shrink-0">
+                    {Math.round(zoom * 100)}%
+                </span>
+                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <button
+                    onClick={() => setZoom(z => Math.min(4, z + 0.25))}
+                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
+                    title="放大"
+                >
+                    <ZoomIn className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <button
+                    onClick={() => setRotation(r => (r + 90) % 360)}
+                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
+                    title="旋轉"
+                >
+                    <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <button
+                    onClick={handleResetView}
+                    className="px-1.5 py-1 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-[10px] sm:text-xs font-bold text-slate-600 transition-colors shrink-0"
+                >
+                    重置
+                </button>
             </div>
 
             {/* Barcode Input Modal */}
@@ -659,6 +795,15 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {/* Toast Notification */}
+            {toastMsg && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-bottom-5 duration-300 w-max">
+                    <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
+                        {toastMsg.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                        <span className="font-bold text-sm tracking-wide">{toastMsg.text}</span>
                     </div>
                 </div>
             )}

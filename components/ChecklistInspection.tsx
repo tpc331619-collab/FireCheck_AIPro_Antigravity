@@ -44,6 +44,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const [scannerOpen, setScannerOpen] = useState(false);
     const [manualInput, setManualInput] = useState('');
 
+    const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+    const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+        setToastMsg({ text, type });
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
     // Load Initial Data (All Equipment & Settings)
     useEffect(() => {
         const fetchData = async () => {
@@ -135,6 +142,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         // Create a draft report object in memory (not saved yet)
                         setCurrentReport({
                             id: 'draft_' + Date.now(),
+                            userId: user.uid,
                             buildingName: selectedBuilding,
                             inspectorName: user.displayName || 'Guest',
                             date: Date.now(),
@@ -165,21 +173,21 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         // This function was used for Report Items, but for the LIST view, we now use Frequency Logic primarily.
         // However, we still need to know if there's an active draft report item for it.
         if (!currentReport) return 'UseFrequency';
-        const found = currentReport.items.find((i: any) => i.equipmentId === equipId);
+        const found = (currentReport.items || []).find((i: any) => i.equipmentId === equipId);
         if (found) return found.status;
         return 'UseFrequency';
     };
 
     const getInspectionItem = (equipId: string) => {
         if (!currentReport) return undefined;
-        return currentReport.items.find((i: any) => i.equipmentId === equipId);
+        return (currentReport.items || []).find((i: any) => i.equipmentId === equipId);
     }
 
     const handleInspect = (item: EquipmentDefinition) => {
         setInspectingItem(item);
 
         // Find existing draft in current report
-        const exist = currentReport?.items.find(i => i.equipmentId === item.id);
+        const exist = (currentReport?.items || []).find(i => i.equipmentId === item.id);
 
         if (exist) {
             setActiveInspectionItem({ ...exist });
@@ -304,7 +312,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             }
 
             // Upsert Item
-            const newItems = [...report.items];
+            const newItems = [...(report.items || [])];
             const idx = newItems.findIndex((i: any) => i.equipmentId === inspectingItem.id);
             if (idx >= 0) {
                 newItems[idx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
@@ -318,7 +326,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             const shouldArchive = updatedItem.status === InspectionStatus.Normal;
             report.archived = shouldArchive;
 
-            // 清理函數:遞迴移除所有 undefined 值
+            // 清理函數:遞迴移除所有 undefined 值，但保留必要的空數組
             const removeUndefined = (obj: any): any => {
                 if (obj === null || obj === undefined) return null;
                 if (Array.isArray(obj)) {
@@ -332,6 +340,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             cleaned[key] = removeUndefined(value);
                         }
                     });
+                    // Ensure items exists for report objects
+                    if (obj.buildingName || obj.inspectorName || obj.date) {
+                        if (!cleaned.items) cleaned.items = [];
+                    }
                     return cleaned;
                 }
                 return obj;
@@ -412,15 +424,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             }
 
             // 更新本地狀態,確保統計數字和燈號即時更新
-            // 使用深拷貝確保 React 檢測到變化
-            const updatedReport = removeUndefined({
-                ...report,
-                items: [...report.items],
-                updatedAt: Date.now() // 強制觸發更新
-            });
-
-            // Update the report (don't create a new one)
-            await StorageService.updateReport(updatedReport);
+            const updatedReport = {
+                ...cleanedReport,
+                updatedAt: Date.now()
+            };
 
             // Update Equipment Definition's lastInspectedDate to reflect current status
             await StorageService.updateEquipmentDefinition({
@@ -447,11 +454,12 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
             // Show success notification
             const statusText = updatedItem.status === InspectionStatus.Normal ? '正常' : '異常';
-            alert(`✅ 檢查完成！\n\n設備：${inspectingItem.name}\n狀態：${statusText}\n時間：${new Date(now).toLocaleString('zh-TW')}`);
+            showToast(`✅ 檢查完成！\n設備：${inspectingItem.name}\n狀態：${statusText}`);
 
-            // If Abnormal, show additional info
+            // If Abnormal, show toast instead of alert (or combined message)
             if (updatedItem.status === InspectionStatus.Abnormal) {
-                alert(`已記錄異常，並將加入「異常複檢」清單。\n原因: ${updatedItem.notes}`);
+                // We already have a toast, maybe append or show a slightly different one
+                // showToast(`已記錄異常，將加入「異常複檢」清單。`, 'success');
             }
 
         } catch (e: any) {
@@ -527,7 +535,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         needInspectionCount++;  // 紅色: 需檢查
                                     } else if (status === 'COMPLETED') {
                                         // 檢查是否異常 - 從 currentReport 中查找
-                                        const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === e.id);
+                                        const inspectionItem = (currentReport?.items || []).find((i: any) => i.equipmentId === e.id);
                                         if (inspectionItem?.status === InspectionStatus.Abnormal) {
                                             abnormalCount++;    // 異常
                                         } else {
@@ -633,7 +641,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                                     // Check if item is in current report (active session)
                                     // Use 'item.id' (UUID) to match
-                                    const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === item.id);
+                                    const inspectionItem = (currentReport?.items || []).find((i: any) => i.equipmentId === item.id);
 
                                     // Effective Status: If in current report, treat as COMPLETED. Else use database status.
                                     const freqStatus = inspectionItem ? 'COMPLETED' : freqStatusRaw;
@@ -652,7 +660,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             statusLabel = '已檢查+異常';
                                             statusColor = 'bg-red-100 text-red-600';
                                             rowBorder = 'border-red-200 bg-red-50/30';
-                                            iconBg = 'bg-orange-500 animate-pulse';
+                                            iconBg = 'bg-orange-500';
                                             iconContent = <span className="font-bold text-lg">!</span>;
                                         } else {
                                             statusLabel = '已檢查';
@@ -675,9 +683,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         rowBorder = 'border-yellow-200 hover:border-yellow-300';
                                         if (lightSettings?.yellow?.color) {
                                             iconStyle = { backgroundColor: lightSettings.yellow.color };
-                                            iconBg = 'animate-pulse';
-                                        } else {
-                                            iconBg = 'bg-yellow-400 animate-pulse';
+                                            iconBg = 'bg-yellow-400';
                                         }
                                     } else if (freqStatus === 'UNNECESSARY') {
                                         statusLabel = '不須檢查';
@@ -685,17 +691,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         rowBorder = 'border-slate-200 opacity-75';
                                         if (lightSettings?.green?.color) {
                                             iconStyle = { backgroundColor: lightSettings.green.color };
-                                            iconBg = 'animate-pulse';
-                                        } else {
-                                            iconBg = 'bg-emerald-500 animate-pulse';
+                                            iconBg = 'bg-emerald-500';
                                         }
                                     } else {
                                         // PENDING
                                         if (lightSettings?.red?.color) {
                                             iconStyle = { backgroundColor: lightSettings.red.color };
-                                            iconBg = 'animate-pulse';
-                                        } else {
-                                            iconBg = 'bg-red-500 animate-pulse';
+                                            iconBg = 'bg-red-500';
                                         }
                                     }
 
@@ -739,23 +741,23 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             <div className="flex items-center gap-2">
                                                 {/* Status Light Indicator (Right Side) */}
                                                 {freqStatus === 'PENDING' && (
-                                                    <div className="w-3 h-3 rounded-full animate-pulse shadow-lg"
+                                                    <div className="w-3 h-3 rounded-full shadow-lg"
                                                         style={{ backgroundColor: lightSettings?.red?.color || '#ef4444', boxShadow: `0 0 10px ${lightSettings?.red?.color || '#ef4444'}66` }}></div>
                                                 )}
                                                 {freqStatus === 'CAN_INSPECT' && (
-                                                    <div className="w-3 h-3 rounded-full animate-pulse shadow-lg"
+                                                    <div className="w-3 h-3 rounded-full shadow-lg"
                                                         style={{ backgroundColor: lightSettings?.yellow?.color || '#facc15', boxShadow: `0 0 10px ${lightSettings?.yellow?.color || '#facc15'}66` }}></div>
                                                 )}
                                                 {freqStatus === 'UNNECESSARY' && (
-                                                    <div className="w-3 h-3 rounded-full animate-pulse shadow-lg"
+                                                    <div className="w-3 h-3 rounded-full shadow-lg"
                                                         style={{ backgroundColor: lightSettings?.green?.color || '#10b981', boxShadow: `0 0 10px ${lightSettings?.green?.color || '#10b981'}66` }}></div>
                                                 )}
                                                 {freqStatus === 'COMPLETED' && (() => {
-                                                    const inspectionItem = currentReport?.items.find((i: any) => i.equipmentId === item.id);
+                                                    const inspectionItem = (currentReport?.items || []).find((i: any) => i.equipmentId === item.id);
                                                     const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal;
 
                                                     if (isAbnormal) {
-                                                        return <div className="w-3 h-3 rounded-full bg-orange-500 animate-pulse shadow-lg shadow-orange-300" />;
+                                                        return <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-300" />;
                                                     } else {
                                                         // Completed Normal - Custom color or default emerald
                                                         return <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings?.completed?.color || '#10b981' }}></div>;
@@ -1035,6 +1037,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     onScanSuccess={handleBarcodeScanned}
                     onClose={() => setScannerOpen(false)}
                 />
+            )}
+
+            {/* Toast Notification */}
+            {toastMsg && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-5 duration-300 w-max">
+                    <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
+                        {toastMsg.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                        <span className="font-bold text-sm tracking-wide whitespace-pre-line">{toastMsg.text}</span>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -149,11 +149,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     });
     const [locationFilter, setLocationFilter] = useState('');
     const [keywordSearch, setKeywordSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
     const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
     const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
     // Refactoring: Report Expand State
     const [expandedReportIds, setExpandedReportIds] = useState<Set<string>>(new Set());
     const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterStatus, dateRange, locationFilter, keywordSearch]);
 
     useEffect(() => {
         const fetchEquipment = async () => {
@@ -354,19 +361,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
-    useEffect(() => {
-        const fetchReports = async () => {
-            setLoading(true);
-            try {
-                const data = await StorageService.getReports(user.uid);
-                setReports(data);
-            } catch (error) {
-                console.error("Failed to load reports", error);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchReports = async () => {
+        setLoading(true);
+        try {
+            const data = await StorageService.getReports(user.uid, true);
+            setReports(data);
+        } catch (error) {
+            console.error("Failed to load reports", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchReports();
     }, [user]);
 
@@ -387,15 +394,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [reports]);
 
     const filteredReports = reports.filter(r => {
-        // Basic search term filter (building name or inspector name or equipment info)
-        const matchesSearch =
-            (r.items?.some(item =>
-                item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (item.barcode && item.barcode.toLowerCase().includes(searchTerm.toLowerCase()))
-            ) ?? false);
-
-        // Status filter
-        const matchesFilter = filterStatus === 'ALL' || r.overallStatus === filterStatus;
+        // Status filter (Optional optimization: if report status exists, can check here)
+        // But for exact item filtering, we do it at the item level below.
 
         // Date range filter
         if (dateRange.start && r.date < new Date(dateRange.start).getTime()) return false;
@@ -406,28 +406,58 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             if (r.date > endDate.getTime()) return false;
         }
 
-        // Equipment name filter (using locationFilter variable)
-        if (locationFilter) {
-            const equipmentName = locationFilter.toLowerCase();
-            const matchesEquipment = r.items?.some(item =>
-                item.name?.toLowerCase().includes(equipmentName)
-            );
-            if (!matchesEquipment) return false;
-        }
-
-        // Keyword search (equipment name, barcode, notes)
-        if (keywordSearch) {
-            const keyword = keywordSearch.toLowerCase();
-            const matchesKeyword = r.items?.some(item =>
-                item.name?.toLowerCase().includes(keyword) ||
-                item.barcode?.toLowerCase().includes(keyword) ||
-                item.notes?.toLowerCase().includes(keyword)
-            );
-            if (!matchesKeyword) return false;
-        }
-
-        return matchesSearch && matchesFilter;
+        return true;
     });
+
+    const flattenedHistory = React.useMemo(() => {
+        const sortedReports = [...filteredReports].sort((a, b) => {
+            return sortOrder === 'desc' ? b.date - a.date : a.date - b.date;
+        });
+
+        const flattened: any[] = [];
+        sortedReports.forEach(report => {
+            if (!report.items || report.items.length === 0) return;
+
+            report.items.forEach(item => {
+                const itemSearchTerm = (searchTerm || '').trim().toLowerCase();
+                const itemLocationFilter = (locationFilter || '').trim().toLowerCase();
+                const itemKeywordSearch = (keywordSearch || '').trim().toLowerCase();
+
+                const matchesHeaderSearch = !itemSearchTerm ||
+                    (item.name?.toLowerCase() || '').includes(itemSearchTerm) ||
+                    (item.barcode?.toLowerCase() || '').includes(itemSearchTerm) ||
+                    (report.buildingName?.toLowerCase() || '').includes(itemSearchTerm);
+
+                const matchesNameFilter = !itemLocationFilter ||
+                    (item.name?.toLowerCase() || '').includes(itemLocationFilter) ||
+                    (report.buildingName?.toLowerCase() || '').includes(itemLocationFilter);
+
+                const matchesKeyword = !itemKeywordSearch ||
+                    (item.name?.toLowerCase() || '').includes(itemKeywordSearch) ||
+                    (item.barcode?.toLowerCase() || '').includes(itemKeywordSearch) ||
+                    (item.notes?.toLowerCase() || '').includes(itemKeywordSearch) ||
+                    (report.buildingName?.toLowerCase() || '').includes(itemKeywordSearch) ||
+                    (report.inspectorName?.toLowerCase() || '').includes(itemKeywordSearch);
+
+                const matchesStatus = filterStatus === 'ALL' ||
+                    (item.status === filterStatus) ||
+                    (filterStatus === 'Pass' && (item.status === 'OK' || item.status === 'Normal' || item.status === '正常')) ||
+                    (filterStatus === 'Fail' && (item.status === 'Abnormal' || item.status === '異常'));
+
+                if (matchesHeaderSearch && matchesNameFilter && matchesKeyword && matchesStatus) {
+                    flattened.push({
+                        ...item,
+                        reportId: report.id,
+                        date: report.date,
+                        buildingName: report.buildingName,
+                        inspectorName: report.inspectorName,
+                        overallStatus: report.overallStatus
+                    });
+                }
+            });
+        });
+        return flattened;
+    }, [filteredReports, sortOrder, searchTerm, locationFilter, keywordSearch, filterStatus]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -441,7 +471,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         switch (status) {
             case 'Pass': return <CheckCircle className="w-5 h-5 text-green-600" />;
             case 'Fail': return (
-                <div className="w-5 h-5 rounded-full bg-orange-500 animate-pulse flex items-center justify-center shadow-lg shadow-orange-300" />
+                <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-300" />
             );
             default: return <FileText className="w-5 h-5 text-yellow-600" />;
         }
@@ -766,7 +796,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="text-center">
                                 <span className="font-bold text-slate-700 block">{t('history')}</span>
                                 <span className="text-xs text-teal-600 font-medium">
-                                    {reports.reduce((total, report) => total + (report.items?.length || 0), 0)} 筆
+                                    {reports.reduce((total, report) => total + (report.stats?.total || report.items?.length || 0), 0)} 筆
                                 </span>
                             </div>
                         </button>
@@ -925,8 +955,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <table className="w-full text-left text-sm whitespace-nowrap">
                                             <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                                                 <tr>
-                                                    <th className="px-4 py-3 w-16 text-center">#</th>
-                                                    <th className="px-4 py-3 w-12">詳情</th>
+                                                    <th className="px-4 py-3 w-16 text-center">序號</th>
+                                                    <th className="px-4 py-3 w-12 text-center">明細</th>
                                                     <th
                                                         className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                                         onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
@@ -936,121 +966,110 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             {sortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-600" /> : <ChevronDown className="w-3 h-3 text-blue-600" />}
                                                         </div>
                                                     </th>
-                                                    <th className="px-4 py-3">場所/建築</th>
-                                                    <th className="px-4 py-3">狀態</th>
-                                                    <th className="px-4 py-3">統計摘要</th>
+                                                    <th className="px-4 py-3">建築物名稱</th>
+                                                    <th className="px-4 py-3">設備名稱</th>
+                                                    <th className="px-4 py-3">設備編號</th>
+                                                    <th className="px-4 py-3">項目統計</th>
+                                                    <th className="px-4 py-3">備註</th>
                                                     <th className="px-4 py-3">檢查人員</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {(() => {
-                                                    const sortedReports = [...filteredReports].sort((a, b) => {
-                                                        return sortOrder === 'desc' ? b.date - a.date : a.date - b.date;
-                                                    });
-
-                                                    if (sortedReports.length === 0) {
+                                                    if (flattenedHistory.length === 0) {
                                                         return (
                                                             <tr>
-                                                                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                                                                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                                                                     沒有找到相關紀錄
                                                                 </td>
                                                             </tr>
                                                         );
                                                     }
 
-                                                    return sortedReports.map((report, index) => {
-                                                        const isExpanded = expandedReportIds.has(report.id);
-                                                        const isLoading = loadingReports.has(report.id);
-                                                        const date = new Date(report.date);
+                                                    // Pagination logic on flattened data
+                                                    const startIndex = (currentPage - 1) * itemsPerPage;
+                                                    const paginatedHistory = flattenedHistory.slice(startIndex, startIndex + itemsPerPage);
+
+                                                    return paginatedHistory.map((item, index) => {
+                                                        const rowId = `${item.reportId}_${item.equipmentId}`;
+                                                        const isExpanded = expandedReportIds.has(rowId);
+                                                        const date = new Date(item.date);
                                                         const dateStr = !isNaN(date.getTime()) ? date.toLocaleDateString(language) : '-';
 
-                                                        // Stats logic
-                                                        const stats = report.stats || {
-                                                            total: report.items?.length || 0,
-                                                            passed: report.items?.filter(i => i.status === 'Normal' || i.status === '正常').length || 0,
-                                                            failed: report.items?.filter(i => i.status === 'Abnormal' || i.status === '異常').length || 0,
-                                                            fixed: report.items?.filter(i => i.status === 'Fixed' || i.status === '已改善').length || 0,
-                                                            others: 0
-                                                        };
-
                                                         return (
-                                                            <React.Fragment key={report.id}>
+                                                            <React.Fragment key={rowId}>
                                                                 <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50/80' : ''}`}>
-                                                                    <td className="px-4 py-3 text-center text-slate-500 font-medium">{index + 1}</td>
+                                                                    <td className="px-4 py-3 text-center text-slate-500 font-medium">{startIndex + index + 1}</td>
                                                                     <td className="px-4 py-3">
                                                                         <button
-                                                                            onClick={() => handleExpandReport(report)}
+                                                                            onClick={() => {
+                                                                                const newExpanded = new Set(expandedReportIds);
+                                                                                if (newExpanded.has(rowId)) newExpanded.delete(rowId);
+                                                                                else newExpanded.add(rowId);
+                                                                                setExpandedReportIds(newExpanded);
+                                                                            }}
                                                                             className="p-1 hover:bg-slate-200 rounded transition-colors"
                                                                         >
                                                                             <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                                                         </button>
                                                                     </td>
                                                                     <td className="px-4 py-3 text-slate-600">{dateStr}</td>
-                                                                    <td className="px-4 py-3 font-bold text-slate-800">{report.buildingName || '-'}</td>
+                                                                    <td className="px-4 py-3 font-bold text-slate-800">{item.buildingName || '-'}</td>
+                                                                    <td className="px-4 py-3 text-slate-700 font-medium">{item.name || '未命名項目'}</td>
+                                                                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.barcode || '-'}</td>
                                                                     <td className="px-4 py-3">
-                                                                        {report.overallStatus === 'Pass' ? (
-                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
-                                                                                <CheckCircle className="w-3.5 h-3.5" /> 合格
+                                                                        {item.status === 'Abnormal' || item.status === '異常' ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
+                                                                                <AlertTriangle className="w-3.5 h-3.5" /> 異常
                                                                             </span>
                                                                         ) : (
-                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
-                                                                                <AlertTriangle className="w-3.5 h-3.5" /> 不合格
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
+                                                                                <CheckCircle className="w-3.5 h-3.5" /> 正常
                                                                             </span>
                                                                         )}
                                                                     </td>
-                                                                    <td className="px-4 py-3 text-sm">
-                                                                        <div className="flex items-center gap-3">
-                                                                            <span className="text-slate-600">總計: <span className="font-bold">{stats.total}</span></span>
-                                                                            {stats.failed > 0 ? (
-                                                                                <span className="text-red-600 font-bold bg-red-50 px-2 rounded">異常: {stats.failed}</span>
-                                                                            ) : (
-                                                                                <span className="text-green-600 font-bold bg-green-50 px-2 rounded">全數正常</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-4 py-3 text-slate-600">{report.inspectorName || '未知'}</td>
+                                                                    <td className="px-4 py-3 text-slate-600 text-xs italic truncate max-w-[150px]" title={item.notes}>{item.notes || '-'}</td>
+                                                                    <td className="px-4 py-3 text-slate-600">{item.inspectorName || '未知'}</td>
                                                                 </tr>
                                                                 {isExpanded && (
                                                                     <tr className="bg-slate-50 border-b border-slate-200">
-                                                                        <td colSpan={7} className="px-4 py-4">
-                                                                            {isLoading ? (
-                                                                                <div className="flex justify-center py-8">
-                                                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-                                                                                    <div className="mb-3 flex justify-between items-center">
-                                                                                        <h4 className="font-bold text-slate-700 flex items-center gap-2">
-                                                                                            <ClipboardList className="w-4 h-4" /> 檢查細項列表 ({report.items?.length || 0})
-                                                                                        </h4>
+                                                                        <td colSpan={9} className="px-4 py-4">
+                                                                            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                                                                                <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-3 border-b pb-2 text-base">
+                                                                                    <ClipboardList className="w-5 h-5 text-blue-600" />
+                                                                                    詳細查檢紀錄
+                                                                                </h4>
+                                                                                {item.checkResults && item.checkResults.length > 0 ? (
+                                                                                    <div className="border border-slate-100 rounded-lg overflow-hidden">
+                                                                                        <table className="w-full text-sm">
+                                                                                            <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
+                                                                                                <tr>
+                                                                                                    <th className="px-4 py-2 text-left font-bold">查檢項目</th>
+                                                                                                    <th className="px-4 py-2 text-right font-bold w-40">結果</th>
+                                                                                                </tr>
+                                                                                            </thead>
+                                                                                            <tbody className="divide-y divide-slate-50">
+                                                                                                {item.checkResults.map((res: any, idx: number) => {
+                                                                                                    const isAbnormal = res.value === false || res.status === 'Abnormal' || res.status === '異常';
+                                                                                                    const isNormal = res.value === true || res.status === 'Normal' || res.status === '正常';
+
+                                                                                                    return (
+                                                                                                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                                                                                            <td className="px-4 py-1.5 text-slate-700">{res.name}</td>
+                                                                                                            <td className={`px-4 py-1.5 text-right font-black ${isAbnormal ? 'text-red-600' : isNormal ? 'text-green-600' : 'text-blue-600'}`}>
+                                                                                                                {typeof res.value === 'boolean' ? (res.value ? '正常' : '異常') : `${res.value}${res.unit || ''}`}
+                                                                                                                {isAbnormal && <AlertTriangle className="inline-block w-4 h-4 ml-1 mb-0.5" />}
+                                                                                                            </td>
+                                                                                                        </tr>
+                                                                                                    );
+                                                                                                })}
+                                                                                            </tbody>
+                                                                                        </table>
                                                                                     </div>
-                                                                                    {report.items && report.items.length > 0 ? (
-                                                                                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2">
-                                                                                            {report.items.map((item, idx) => (
-                                                                                                <div key={idx} className={`flex items-center justify-between p-3 rounded-lg border ${item.status === 'Abnormal' || item.status === '異常' ? 'bg-red-50 border-red-200' : 'bg-white border-slate-100'}`}>
-                                                                                                    <div className="flex items-center gap-3">
-                                                                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${item.status === 'Abnormal' || item.status === '異常' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                                                                                                            {item.status === 'Abnormal' || item.status === '異常' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                                                                                                        </div>
-                                                                                                        <div>
-                                                                                                            <div className="font-bold text-slate-800 text-sm">{item.name || '未命名項目'}</div>
-                                                                                                            <div className="text-xs text-slate-500 font-mono">{item.barcode || '-'}</div>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <div className="text-right">
-                                                                                                        <div className={`font-bold text-sm ${item.status === 'Abnormal' || item.status === '異常' ? 'text-red-600' : 'text-green-600'}`}>
-                                                                                                            {item.status === 'Abnormal' || item.status === '異常' ? '異常' : '正常'}
-                                                                                                        </div>
-                                                                                                        {item.notes && <div className="text-xs text-slate-400 max-w-[200px] truncate" title={item.notes}>{item.notes}</div>}
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            ))}
-                                                                                        </div>
-                                                                                    ) : (
-                                                                                        <div className="text-center py-4 text-slate-400">無詳細項目 (或資料讀取失敗)</div>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
+                                                                                ) : (
+                                                                                    <div className="text-center py-6 text-slate-400 text-sm italic">無詳細查檢記錄快照</div>
+                                                                                )}
+                                                                            </div>
                                                                         </td>
                                                                     </tr>
                                                                 )}
@@ -1061,6 +1080,48 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </tbody>
                                         </table>
                                     </div>
+
+                                    {/* Pagination */}
+                                    {(() => {
+                                        const totalItems = flattenedHistory.length;
+                                        const totalPages = Math.ceil(totalItems / itemsPerPage);
+                                        if (totalPages <= 1) return null;
+
+                                        return (
+                                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                                                <div className="text-xs font-medium text-slate-500">
+                                                    顯示第 {((currentPage - 1) * itemsPerPage) + 1} 至 {Math.min(currentPage * itemsPerPage, totalItems)} 筆，共 {totalItems} 筆
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                        disabled={currentPage === 1}
+                                                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        上一頁
+                                                    </button>
+                                                    <div className="flex gap-1">
+                                                        {[...Array(totalPages)].map((_, i) => (
+                                                            <button
+                                                                key={i}
+                                                                onClick={() => setCurrentPage(i + 1)}
+                                                                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === i + 1 ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                                                            >
+                                                                {i + 1}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                        disabled={currentPage === totalPages}
+                                                        className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                                                    >
+                                                        下一頁
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>
@@ -1385,7 +1446,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-orange-700 flex items-center gap-2">
-                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
                                                             異常複檢
                                                         </span>
                                                         <input
@@ -1404,7 +1465,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-red-700 flex items-center gap-2">
-                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.red.color }}></div>
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.red.color }}></div>
                                                             需檢查
                                                         </span>
                                                         <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
@@ -1420,7 +1481,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-3">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-amber-700 flex items-center gap-2">
-                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.yellow.color }}></div>
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.yellow.color }}></div>
                                                             可以檢查
                                                         </span>
                                                         <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
@@ -1437,7 +1498,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3">
                                                     <div className="flex items-center justify-between">
                                                         <span className="font-bold text-emerald-700 flex items-center gap-2">
-                                                            <div className="w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: lightSettings.green.color }}></div>
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.green.color }}></div>
                                                             不需檢查
                                                         </span>
                                                         <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
@@ -1650,7 +1711,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             <MapViewInspection
                 user={user}
                 isOpen={isMapViewInspectionOpen}
-                onClose={() => setIsMapViewInspectionOpen(false)}
+                onClose={() => {
+                    setIsMapViewInspectionOpen(false);
+                    fetchReports(); // Refresh data when map view closes
+                }}
             />
         </div >
     );

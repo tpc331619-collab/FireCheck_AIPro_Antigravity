@@ -16,9 +16,18 @@ interface StorageManagerModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSelect?: (file: StorageFile) => Promise<void> | void;
+    allowUpload?: boolean;
+    allowDelete?: boolean;
 }
 
-const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen, onClose, onSelect }) => {
+const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
+    user,
+    isOpen,
+    onClose,
+    onSelect,
+    allowUpload = true,
+    allowDelete = true
+}) => {
     const [files, setFiles] = useState<StorageFile[]>([]);
     const [loading, setLoading] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -173,14 +182,16 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                             <HardDrive className="w-3 h-3" />
                             {files.length} 個檔案
                         </div>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-95 shadow-blue-200"
-                            disabled={loading}
-                        >
-                            <Upload className="w-4 h-4 mr-2" />
-                            上傳圖片
-                        </button>
+                        {allowUpload && (
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-md active:scale-95 shadow-blue-200"
+                                disabled={loading}
+                            >
+                                <Upload className="w-4 h-4 mr-2" />
+                                上傳圖片
+                            </button>
+                        )}
                         <button
                             onClick={loadFiles}
                             className="flex items-center px-3 py-2 bg-white hover:bg-blue-50 text-slate-600 hover:text-blue-600 border border-slate-200 hover:border-blue-200 rounded-xl font-bold text-sm transition-all shadow-sm active:scale-95"
@@ -227,7 +238,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                                         {/* Thumbnail Area - Smaller & Fixed Size */}
                                         <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 bg-slate-100 rounded-xl overflow-hidden border border-slate-100 relative group-hover:scale-105 transition-transform duration-300">
                                             {/* Loading Skeleton */}
-                                            <div className="absolute inset-0 bg-slate-200 animate-pulse z-0" />
+                                            <div className="absolute inset-0 bg-slate-200 z-0" />
                                             <img
                                                 src={file.url}
                                                 alt="preview"
@@ -257,18 +268,20 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({ user, isOpen,
                                         {/* Action Buttons */}
                                         <div className="flex items-center gap-2 pl-2">
                                             {/* Delete Button */}
-                                            <button
-                                                onClick={(e) => handleDelete(file, e)}
-                                                className="p-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
-                                                disabled={isDeleting || isSelecting}
-                                                title="刪除"
-                                            >
-                                                {isDeleting ? (
-                                                    <RefreshCcw className="w-5 h-5 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="w-5 h-5" />
-                                                )}
-                                            </button>
+                                            {allowDelete && (
+                                                <button
+                                                    onClick={(e) => handleDelete(file, e)}
+                                                    className="p-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
+                                                    disabled={isDeleting || isSelecting}
+                                                    title="刪除"
+                                                >
+                                                    {isDeleting ? (
+                                                        <RefreshCcw className="w-5 h-5 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-5 h-5" />
+                                                    )}
+                                                </button>
+                                            )}
 
                                             {/* Select Button */}
                                             {onSelect && (
