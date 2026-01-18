@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw, ChevronRight, HardDrive } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionStatus, LightSettings } from '../types';
 import StorageManagerModal from './StorageManagerModal';
@@ -89,6 +89,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     }, [isOpen, user.uid]);
 
     const loadMaps = async (options?: { keepView?: boolean }) => {
+        // First sync any files from storage that might be missing in Firestore (e.g. from data reset)
+        // await StorageService.syncMapsFromStorage(user.uid); // Removed as per user request to avoid auto-creating maps from raw images
         const data = await StorageService.getEquipmentMaps(user.uid);
         setMaps(data);
         if (!options?.keepView) setViewMode('LIST');
@@ -932,7 +934,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             <div className="flex justify-between items-center">
                                 <h3 className="text-lg font-bold text-slate-700">已上傳圖片清單</h3>
                                 <div className="flex items-center gap-4">
-                                    <p className="text-sm text-slate-500">共 {maps.filter(map => map.markers && map.markers.length > 0).length} 張圖面</p>
+                                    <p className="text-sm text-slate-500">共 {maps.length} 張圖面</p>
 
                                     <button
                                         onClick={() => setIsStorageManagerOpen(true)}
@@ -944,80 +946,144 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 </div>
                             </div>
 
-                            {/* Map List Table View */}
+                            {/* Map List - Responsive View */}
                             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                <table className="w-full text-left border-collapse">
-                                    <thead className="bg-slate-50 border-b border-slate-200">
-                                        <tr>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">預覽</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">圖面名稱</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">大小</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">最後編輯</th>
-                                            <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">操作</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-200">
-                                        {/* Create New Row */}
-                                        <tr
-                                            onClick={() => {
-                                                setModalMode('SELECT');
-                                                setIsStorageManagerOpen(true);
-                                            }}
-                                            className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
-                                        >
-                                            <td className="px-6 py-4"></td>
-                                            <td className="px-6 py-4">
-                                                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                                                    <Plus className="w-6 h-6" />
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4" colSpan={4}>
-                                                <div className="flex items-center gap-3">
-                                                    <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">建立新位置圖</span>
-                                                    <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">從雲端圖庫選擇</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-
-                                        {/* Existing Maps - Only show maps with markers */}
-                                        {maps.filter(map => map.markers && map.markers.length > 0).map((map, index) => (
-                                            <tr key={map.id} onClick={() => editMap(map)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
-                                                <td className="px-6 py-4 text-sm text-slate-500 font-bold">
-                                                    {index + 1}
-                                                </td>
+                                {/* Desktop Table View */}
+                                <div className="hidden md:block">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">預覽</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">圖面名稱</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">大小</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">最後編輯</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200">
+                                            {/* Create New Row */}
+                                            <tr
+                                                onClick={() => {
+                                                    setModalMode('SELECT');
+                                                    setIsStorageManagerOpen(true);
+                                                }}
+                                                className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
+                                            >
+                                                <td className="px-6 py-4"></td>
                                                 <td className="px-6 py-4">
-                                                    <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 relative">
-                                                        <img
-                                                            src={map.imageUrl}
-                                                            alt={map.name}
-                                                            className="w-full h-full object-cover"
-                                                        />
+                                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                                                        <Plus className="w-6 h-6" />
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="font-bold text-slate-700 text-base group-hover:text-blue-600 transition-colors">{map.name}</div>
-                                                    <div className="text-xs text-slate-400 mt-0.5">{map.markers?.length || 0} 個標記</div>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-slate-600 font-mono">
-                                                    {map.size ? (map.size / 1024 / 1024).toFixed(2) + ' MB' : '-'}
-                                                </td>
-                                                <td className="px-6 py-4 text-sm text-slate-600">
-                                                    {new Date(map.updatedAt).toLocaleString('zh-TW')}
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button
-                                                        onClick={(e) => deleteMap(e, map.id)}
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                        title="刪除"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
+                                                <td className="px-6 py-4" colSpan={4}>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">建立新位置圖</span>
+                                                        <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">從雲端圖庫選擇</span>
+                                                    </div>
                                                 </td>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+
+                                            {/* Existing Maps */}
+                                            {maps.map((map, index) => (
+                                                <tr key={map.id} onClick={() => editMap(map)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                                    <td className="px-6 py-4 text-sm text-slate-500 font-bold">
+                                                        {index + 1}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 relative">
+                                                            <img
+                                                                src={map.imageUrl}
+                                                                alt={map.name}
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-bold text-slate-700 text-base group-hover:text-blue-600 transition-colors">{map.name}</div>
+                                                        <div className="text-xs text-slate-400 mt-0.5">{map.markers?.length || 0} 個標記</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-slate-600 font-mono">
+                                                        {map.size ? (map.size / 1024 / 1024).toFixed(2) + ' MB' : '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                                        {new Date(map.updatedAt).toLocaleString('zh-TW')}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={(e) => deleteMap(e, map.id)}
+                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                            title="刪除"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Mobile List View */}
+                                <div className="md:hidden divide-y divide-slate-100">
+                                    {/* Create New Card */}
+                                    <div
+                                        onClick={() => {
+                                            setModalMode('SELECT');
+                                            setIsStorageManagerOpen(true);
+                                        }}
+                                        className="p-4 flex items-center gap-4 hover:bg-blue-50 active:bg-blue-100 transition-colors cursor-pointer"
+                                    >
+                                        <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center text-blue-500 shrink-0">
+                                            <Plus className="w-6 h-6" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-slate-800 text-lg">建立新位置圖</h4>
+                                            <p className="text-sm text-blue-600">從雲端圖庫選擇</p>
+                                        </div>
+                                        <ChevronRight className="w-5 h-5 text-slate-400" />
+                                    </div>
+
+                                    {/* Existing Maps Cards */}
+                                    {maps.map((map) => (
+                                        <div
+                                            key={map.id}
+                                            onClick={() => editMap(map)}
+                                            className="p-4 flex items-center gap-4 hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer relative"
+                                        >
+                                            <div className="w-16 h-16 bg-slate-200 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                                                <img
+                                                    src={map.imageUrl}
+                                                    alt={map.name}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-slate-800 text-base truncate pr-8">{map.name}</h4>
+                                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                                    <span className="flex items-center gap-1">
+                                                        <MapPin className="w-3 h-3" /> {map.markers?.length || 0} 標記
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <HardDrive className="w-3 h-3" /> {map.size ? (map.size / 1024 / 1024).toFixed(1) + 'MB' : '-'}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-slate-400 mt-1">
+                                                    {new Date(map.updatedAt).toLocaleDateString('zh-TW')}
+                                                </div>
+                                            </div>
+
+                                            {/* Stop Propagation logic for delete button on mobile might be tricky if row is clickable. 
+                                                Using a specialized delete button area or just absolute positioning. */}
+                                            <button
+                                                onClick={(e) => deleteMap(e, map.id)}
+                                                className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

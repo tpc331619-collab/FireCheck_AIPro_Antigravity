@@ -5,8 +5,8 @@ import { StorageService } from '../services/storageService';
 // Fix: Use modular imports from firebase/auth
 import { updateProfile, updatePassword } from 'firebase/auth';
 import { Mail, Bell } from 'lucide-react';
-import DeclarationSettingsModal from './DeclarationSettingsModal';
-import NotificationSettingsModal from './NotificationSettingsModal';
+
+
 import InspectionModeModal from './InspectionModeModal';
 import MapViewInspection from './MapViewInspection';
 import AddEquipmentModeModal from './AddEquipmentModeModal';
@@ -113,11 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [declarationSettings, setDeclarationSettings] = useState<DeclarationSettings | null>(null);
     const [isDeclarationModalOpen, setIsDeclarationModalOpen] = useState(false);
 
-    // Notification State
-    const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
-    const [notificationEmails, setNotificationEmails] = useState<string[]>(['', '', '']);
-    const [loadingNotifications, setLoadingNotifications] = useState(false);
-    const [savingNotifications, setSavingNotifications] = useState(false);
+
 
     // Light Settings State
     const [lightSettings, setLightSettings] = useState<any>(null);
@@ -126,7 +122,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Map State
 
     // Settings State
-    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS'>('PROFILE');
+    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS' | 'DECLARATION'>('PROFILE');
     const [displayName, setDisplayName] = useState(user.displayName || '');
     const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
     const [newPassword, setNewPassword] = useState('');
@@ -154,7 +150,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [locationFilter, setLocationFilter] = useState('');
     const [keywordSearch, setKeywordSearch] = useState('');
     const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
-    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // 排序順序：desc=最新在前，asc=最舊在前
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+    // Refactoring: Report Expand State
+    const [expandedReportIds, setExpandedReportIds] = useState<Set<string>>(new Set());
+    const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         const fetchEquipment = async () => {
@@ -222,6 +221,42 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     };
 
 
+    const handleExpandReport = async (report: InspectionReport) => {
+        const isExpanded = expandedReportIds.has(report.id);
+        if (isExpanded) {
+            setExpandedReportIds(prev => {
+                const next = new Set(prev);
+                next.delete(report.id);
+                return next;
+            });
+            return;
+        }
+
+        // Expanding
+        // lazy load items if they are missing but stats indicate they exist
+        const hasItems = report.items && report.items.length > 0;
+        const totalItems = report.stats?.total || 0;
+        const shouldHaveItems = totalItems > 0;
+
+        if (!hasItems && shouldHaveItems && user?.uid) {
+            setLoadingReports(prev => new Set(prev).add(report.id));
+            try {
+                const items = await StorageService.getReportItems(report.id, user.uid);
+                // Update local reports state to cache the items
+                setReports((prev: InspectionReport[]) => prev.map(r => r.id === report.id ? { ...r, items } : r));
+            } catch (e) {
+                console.error("Failed to load details", e);
+            } finally {
+                setLoadingReports(prev => {
+                    const next = new Set(prev);
+                    next.delete(report.id);
+                    return next;
+                });
+            }
+        }
+
+        setExpandedReportIds(prev => new Set(prev).add(report.id));
+    };
 
     const scrollToHistory = () => {
         setShowArchived(true); // Open history table directly
@@ -294,90 +329,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
-    // Load notification emails when settings tab is NOTIFICATIONS
-    useEffect(() => {
-        if (settingsTab === 'NOTIFICATIONS') {
-            loadNotificationSettings();
-        }
-    }, [settingsTab, user.uid]);
 
-    const loadNotificationSettings = async () => {
-        setLoadingNotifications(true);
-        try {
-            const data = await StorageService.getNotificationSettings(user.uid);
-            if (data) {
-                const padded = [...data, '', '', ''].slice(0, 3);
-                setNotificationEmails(padded);
-            }
-        } catch (error) {
-            console.error("Failed to load notification settings", error);
-        } finally {
-            setLoadingNotifications(false);
-        }
-    };
-
-    const handleSaveNotifications = async () => {
-        setSavingNotifications(true);
-        try {
-            const validEmails = notificationEmails.filter(e => e.trim() !== '');
-            await StorageService.saveNotificationSettings(validEmails, user.uid);
-            alert('通知設定已儲存');
-        } catch (error) {
-            console.error("Failed to save notification settings", error);
-            alert('儲存失敗,請稍後再試');
-        } finally {
-            setSavingNotifications(false);
-        }
-    };
 
     const calculateCountdown = () => {
-        if (!declarationSettings) return null;
+        if (!declarationSettings?.nextDate) return null;
+
         const now = new Date();
-        const year = now.getFullYear();
-        let target = new Date(year, declarationSettings.month - 1, declarationSettings.day);
+        // Reset time part of now calculation to match date-only comparison
+        now.setHours(0, 0, 0, 0);
 
-        // Set to end of day to avoid premature timeout
-        target.setHours(23, 59, 59, 999);
+        const target = new Date(declarationSettings.nextDate);
 
-        // If target is passed, calculate for next year
-        if (now > target) {
-            target.setFullYear(year + 1);
-        }
+        // Check for invalid date
+        if (isNaN(target.getTime())) return null;
 
         const diff = target.getTime() - now.getTime();
         const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
         return days;
     };
 
     const countdownDays = calculateCountdown();
 
-    // Notification Logic (Client-side simulation)
-    useEffect(() => {
-        if (countdownDays !== null && countdownDays <= 30 && declarationSettings) {
-            const checkAndNotify = async () => {
-                const notifSettings = await StorageService.getNotificationSettings(user.uid);
-                if (notifSettings && notifSettings.length > 0 && notifSettings.some(e => e)) {
-                    const key = `notif_sent_${user.uid}_${declarationSettings.month}_${declarationSettings.day}_${new Date().getFullYear()}`;
-                    const hasNotified = localStorage.getItem(key);
 
-                    if (!hasNotified) {
-                        // Simulate Email Sending
-                        console.log(`[System] Simulating email notification to: ${notifSettings.join(', ')}`);
-                        console.log(`[System] Content: Declaration expiring in ${countdownDays} days!`);
-
-                        // Visual Feedback for User (Toast mock via Alert for now, or console)
-                        // For a "Pro" app, we shouldn't alert() aggressively, but user reported "not sending", so we need to be visible.
-                        // But alert() interrupts flow. Let's rely on a console log and maybe a banner if we had one.
-                        // However, to "Fix" the user's perception, let's show a one-time alert.
-                        alert(`[系統模擬郵件] 申報期限將至！(剩餘 ${countdownDays} 天)\n\n系統已嘗試發送通知至:\n${notifSettings.filter(e => e).join('\n')}\n\n(注意: 實際郵件功能需連接後端伺服器)`);
-
-                        localStorage.setItem(key, 'true');
-                    }
-                }
-            };
-            checkAndNotify();
-        }
-    }, [countdownDays, user.uid, declarationSettings]);
 
 
     useEffect(() => {
@@ -824,23 +798,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                             <span className="font-bold text-slate-700 z-10 text-center">{"\u8A2D\u5099\u4F4D\u7F6E\u5716"}</span>
                         </button>
-                        <button
-                            onClick={() => setIsDeclarationModalOpen(true)}
-                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center group-hover:bg-red-600 transition-colors z-10">
-                                <Calendar className="w-6 h-6 text-red-600 group-hover:text-white transition-colors" />
-                            </div>
-                            <div className="z-10 text-center">
-                                <span className="font-bold text-slate-700 block">{"\u6D88\u9632\u7533\u5831"}</span>
-                                {countdownDays !== null && (
-                                    <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-1 inline-block">
-                                        {"\u5012\u6578"} {countdownDays} {"\u5929"}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
                     </div>
 
                     {/* Full Page Search Results / History Table */}
@@ -969,340 +926,136 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
                                                 <tr>
                                                     <th className="px-4 py-3 w-16 text-center">#</th>
-                                                    <th className="px-4 py-3 w-12"></th>
+                                                    <th className="px-4 py-3 w-12">詳情</th>
                                                     <th
                                                         className="px-4 py-3 cursor-pointer hover:bg-slate-100 transition-colors select-none"
                                                         onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-                                                        title="點擊切換排序"
                                                     >
                                                         <div className="flex items-center gap-2">
                                                             <span>檢查日期</span>
-                                                            <div className="flex flex-col">
-                                                                <ChevronUp className={`w-3 h-3 -mb-1 ${sortOrder === 'asc' ? 'text-blue-600' : 'text-slate-300'}`} />
-                                                                <ChevronDown className={`w-3 h-3 ${sortOrder === 'desc' ? 'text-blue-600' : 'text-slate-300'}`} />
-                                                            </div>
+                                                            {sortOrder === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-600" /> : <ChevronDown className="w-3 h-3 text-blue-600" />}
                                                         </div>
                                                     </th>
-                                                    <th className="px-4 py-3">場所名稱</th>
-                                                    <th className="px-4 py-3">設備名稱</th>
-                                                    <th className="px-4 py-3">設備編號</th>
-                                                    <th className="px-4 py-3">檢查結果</th>
-                                                    {keywordSearch && <th className="px-4 py-3">搜尋匹配</th>}
-                                                    <th className="px-4 py-3">備註</th>
+                                                    <th className="px-4 py-3">場所/建築</th>
+                                                    <th className="px-4 py-3">狀態</th>
+                                                    <th className="px-4 py-3">統計摘要</th>
+                                                    <th className="px-4 py-3">檢查人員</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100">
                                                 {(() => {
-                                                    // Sort by date based on sortOrder state
                                                     const sortedReports = [...filteredReports].sort((a, b) => {
-                                                        if (sortOrder === 'desc') {
-                                                            return (b.date || 0) - (a.date || 0); // 最新在前
-                                                        } else {
-                                                            return (a.date || 0) - (b.date || 0); // 最舊在前
-                                                        }
+                                                        return sortOrder === 'desc' ? b.date - a.date : a.date - b.date;
                                                     });
 
-                                                    const allRows = sortedReports.flatMap(report =>
-                                                        (report.items || [])
-                                                            .filter(item => {
-                                                                // Apply item-level filters
-                                                                if (locationFilter) {
-                                                                    const equipmentName = locationFilter.toLowerCase();
-                                                                    if (!item.name?.toLowerCase().includes(equipmentName)) return false;
-                                                                }
-
-                                                                // Apply Quick Search filter to items
-                                                                if (searchTerm) {
-                                                                    const lowerSearch = searchTerm.toLowerCase();
-                                                                    const matchesQuickSearch =
-                                                                        item.name?.toLowerCase().includes(lowerSearch) ||
-                                                                        (item.barcode && item.barcode.toLowerCase().includes(lowerSearch));
-                                                                    if (!matchesQuickSearch) return false;
-                                                                }
-
-                                                                if (keywordSearch) {
-                                                                    const keyword = keywordSearch.toLowerCase();
-                                                                    const matchesKeyword =
-                                                                        item.name?.toLowerCase().includes(keyword) ||
-                                                                        item.barcode?.toLowerCase().includes(keyword) ||
-                                                                        item.notes?.toLowerCase().includes(keyword);
-                                                                    if (!matchesKeyword) return false;
-                                                                }
-                                                                return true;
-                                                            })
-                                                            .map((item, idx) => {
-                                                                const eqId = item.equipmentId || item.id;
-                                                                const eqData = equipmentMap[eqId] || {};
-                                                                const name = item.name || eqData.name || '未命名設備';
-                                                                const barcode = item.barcode || eqData.barcode || '-';
-
-                                                                const checkDetails = Array.isArray(item.checkResults) && item.checkResults.length > 0
-                                                                    ? item.checkResults
-                                                                    : (item.checkPoints ? Object.keys(item.checkPoints).map(k => ({ name: k, value: item.checkPoints[k], unit: '' })) : []);
-
-                                                                const isAbnormal = item.status === 'Abnormal' || item.status === '異常';
-                                                                const uniqueKey = `${report.id}_${item.equipmentId || item.id}_${idx}_${report.date}`;
-                                                                const isExpanded = expandedRows.has(uniqueKey);
-
-                                                                return {
-                                                                    ...item,
-                                                                    displayName: name,
-                                                                    displayBarcode: barcode,
-                                                                    reportId: report.id,
-                                                                    reportDate: report.date,
-                                                                    reportBuilding: report.buildingName,
-                                                                    uniqueKey,
-                                                                    checkDetails,
-                                                                    isAbnormal,
-                                                                    isExpanded
-                                                                };
-                                                            })
-                                                    );
-
-                                                    // Deduplicate based on uniqueKey
-                                                    const seen = new Set<string>();
-                                                    const deduplicatedRows = allRows.filter(row => {
-                                                        if (seen.has(row.uniqueKey)) {
-                                                            console.warn('[Dashboard] Duplicate row detected:', row.uniqueKey);
-                                                            return false;
-                                                        }
-                                                        seen.add(row.uniqueKey);
-                                                        return true;
-                                                    });
-
-                                                    if (deduplicatedRows.length === 0) {
+                                                    if (sortedReports.length === 0) {
                                                         return (
                                                             <tr>
-                                                                <td colSpan={keywordSearch ? 9 : 8} className="px-4 py-8 text-center text-slate-400">
+                                                                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
                                                                     沒有找到相關紀錄
                                                                 </td>
                                                             </tr>
                                                         );
                                                     }
 
-                                                    return deduplicatedRows.flatMap((row, rowIndex) => {
-                                                        const toggleExpand = () => {
-                                                            setExpandedRows(prev => {
-                                                                const next = new Set(prev);
-                                                                if (next.has(row.uniqueKey)) {
-                                                                    next.delete(row.uniqueKey);
-                                                                } else {
-                                                                    next.add(row.uniqueKey);
-                                                                }
-                                                                return next;
-                                                            });
+                                                    return sortedReports.map((report, index) => {
+                                                        const isExpanded = expandedReportIds.has(report.id);
+                                                        const isLoading = loadingReports.has(report.id);
+                                                        const date = new Date(report.date);
+                                                        const dateStr = !isNaN(date.getTime()) ? date.toLocaleDateString(language) : '-';
+
+                                                        // Stats logic
+                                                        const stats = report.stats || {
+                                                            total: report.items?.length || 0,
+                                                            passed: report.items?.filter(i => i.status === 'Normal' || i.status === '正常').length || 0,
+                                                            failed: report.items?.filter(i => i.status === 'Abnormal' || i.status === '異常').length || 0,
+                                                            fixed: report.items?.filter(i => i.status === 'Fixed' || i.status === '已改善').length || 0,
+                                                            others: 0
                                                         };
 
-                                                        return [
-                                                            // Main Row
-                                                            <tr key={row.uniqueKey} className="hover:bg-slate-50 transition-colors">
-                                                                <td className="px-4 py-3 text-center text-slate-500 font-medium">
-                                                                    {rowIndex + 1}
-                                                                </td>
-                                                                <td className="px-4 py-3">
-                                                                    <button
-                                                                        onClick={toggleExpand}
-                                                                        className="p-1 hover:bg-slate-200 rounded transition-colors"
-                                                                        title={row.isExpanded ? "收合" : "展開"}
-                                                                    >
-                                                                        <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${row.isExpanded ? 'rotate-90' : ''}`} />
-                                                                    </button>
-                                                                </td>
-                                                                <td className="px-4 py-3 text-slate-600">
-                                                                    {(() => {
-                                                                        const d = new Date(row.reportDate);
-                                                                        return !isNaN(d.getTime()) ? d.toLocaleDateString(language) : '-';
-                                                                    })()}
-                                                                </td>
-                                                                <td className="px-4 py-3 font-bold text-slate-800">
-                                                                    {row.reportBuilding}
-                                                                    <div className="text-xs text-slate-400 font-normal">{row.location}</div>
-                                                                </td>
-                                                                <td className="px-4 py-3 font-medium text-slate-800">
-                                                                    {row.displayName}
-                                                                </td>
-                                                                <td className="px-4 py-3 text-slate-500 font-mono text-xs">
-                                                                    {row.displayBarcode}
-                                                                </td>
-                                                                <td className="px-4 py-3">
-                                                                    {row.isAbnormal ? (
-                                                                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold">
-                                                                            <AlertTriangle className="w-3.5 h-3.5" />
-                                                                            異常
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-bold">
-                                                                            <CheckCircle className="w-3.5 h-3.5" />
-                                                                            正常
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                                {keywordSearch && (
-                                                                    <td className="px-4 py-3 text-sm text-blue-600 font-medium">
-                                                                        {(() => {
-                                                                            const keyword = keywordSearch.toLowerCase();
-                                                                            const matches = [];
-                                                                            if (row.displayName?.toLowerCase().includes(keyword)) {
-                                                                                matches.push(`名稱: ${row.displayName}`);
-                                                                            }
-                                                                            if (row.displayBarcode?.toLowerCase().includes(keyword)) {
-                                                                                matches.push(`條碼: ${row.displayBarcode}`);
-                                                                            }
-                                                                            if (row.notes?.toLowerCase().includes(keyword)) {
-                                                                                matches.push(`備註: ${row.notes}`);
-                                                                            }
-                                                                            return matches.length > 0 ? matches.join(', ') : '-';
-                                                                        })()}
+                                                        return (
+                                                            <React.Fragment key={report.id}>
+                                                                <tr className={`hover:bg-slate-50 transition-colors ${isExpanded ? 'bg-slate-50/80' : ''}`}>
+                                                                    <td className="px-4 py-3 text-center text-slate-500 font-medium">{index + 1}</td>
+                                                                    <td className="px-4 py-3">
+                                                                        <button
+                                                                            onClick={() => handleExpandReport(report)}
+                                                                            className="p-1 hover:bg-slate-200 rounded transition-colors"
+                                                                        >
+                                                                            <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                                        </button>
                                                                     </td>
-                                                                )}
-                                                                <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate" title={row.notes}>
-                                                                    {row.notes || '-'}
-                                                                </td>
-                                                            </tr>,
-                                                            // Expanded Details Row
-                                                            row.isExpanded && (
-                                                                <tr key={`${row.uniqueKey}_details`} className="bg-slate-50">
-                                                                    <td colSpan={keywordSearch ? 9 : 8} className="px-4 py-4">
-                                                                        <div className="bg-white rounded-lg p-4 border border-slate-200">
-                                                                            <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                                                                <ClipboardList className="w-4 h-4" />
-                                                                                檢查項目詳情
-                                                                            </h4>
-                                                                            {row.checkDetails.length > 0 ? (
-                                                                                /* Logic: Pre-process and Sort Details */
-                                                                                (() => {
-                                                                                    // Helper: Check Threshold
-                                                                                    const checkIsAbnormal = (val: any, limit: string) => {
-                                                                                        if (!limit || !val) return false;
-                                                                                        const numVal = parseFloat(val);
-                                                                                        if (isNaN(numVal)) return false;
-                                                                                        const cleanLimit = limit.replace(/[^\d.\-~><=]/g, '');
-                                                                                        if (cleanLimit.includes('~') || (cleanLimit.includes('-') && !cleanLimit.startsWith('-'))) {
-                                                                                            const [min, max] = cleanLimit.split(/[~-]/).map(parseFloat);
-                                                                                            return numVal < min || numVal > max;
-                                                                                        }
-                                                                                        if (cleanLimit.startsWith('>=')) return numVal < parseFloat(cleanLimit.slice(2));
-                                                                                        if (cleanLimit.startsWith('>')) return numVal <= parseFloat(cleanLimit.slice(1));
-                                                                                        if (cleanLimit.startsWith('<=')) return numVal > parseFloat(cleanLimit.slice(2));
-                                                                                        if (cleanLimit.startsWith('<')) return numVal >= parseFloat(cleanLimit.slice(1));
-                                                                                        return false;
-                                                                                    };
-
-                                                                                    const processedDetails = row.checkDetails.map(detail => {
-                                                                                        const calculatedAbnormal = detail.threshold ? checkIsAbnormal(detail.value, detail.threshold) : false;
-                                                                                        const explicitAbnormal = ['false', 'unqualified', 'fail', 'no', '異常', '不合格', 'abnormal'].includes(String(detail.value).toLowerCase()) || detail.status === 'Abnormal' || detail.status === '異常';
-
-                                                                                        const isFailure = explicitAbnormal || calculatedAbnormal;
-                                                                                        const isSuccess = !isFailure && (['true', 'qualified', 'pass', 'yes', '正常', '合格', 'normal'].includes(String(detail.value).toLowerCase()) || detail.status === 'Normal' || detail.status === '正常');
-
-                                                                                        return { ...detail, isFailure, isSuccess };
-                                                                                    }).sort((a, b) => (Number(b.isFailure) - Number(a.isFailure))); // Sort Abnormal First
-
-                                                                                    const failedItems = processedDetails.filter(d => d.isFailure);
-
-                                                                                    return (
-                                                                                        <div className="space-y-4">
-                                                                                            {/* Summary Banner for Abnormal items */}
-                                                                                            {failedItems.length > 0 && (
-                                                                                                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
-                                                                                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                                                                                                    <div>
-                                                                                                        <div className="font-bold text-red-800 text-sm">
-                                                                                                            檢測發現 {failedItems.length} 項異常
-                                                                                                        </div>
-                                                                                                        <div className="text-xs text-red-600 mt-1">
-                                                                                                            {failedItems.map(d => d.name || '項目').join(', ')}
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            )}
-
-                                                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                                                                {processedDetails.map((detail, i) => (
-                                                                                                    <div
-                                                                                                        key={i}
-                                                                                                        className={`flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-1 ${detail.isFailure ? 'border-l-4 border-l-red-500 border-slate-200 bg-red-50' :
-                                                                                                            detail.isSuccess ? 'border-l-4 border-l-emerald-500 border-slate-200' :
-                                                                                                                'border-l-4 border-l-blue-400 border-slate-200'
-                                                                                                            }`}
-                                                                                                    >
-                                                                                                        <div className="flex-1 min-w-0 pr-4">
-                                                                                                            <div className="text-[10px] text-slate-400 font-medium mb-0.5">檢查項目</div>
-                                                                                                            <div className="text-sm font-bold text-slate-800 truncate" title={detail.name}>{detail.name || '項目'}</div>
-                                                                                                            {(detail.threshold || detail.standard) && (
-                                                                                                                <div className="text-xs text-slate-500 mt-1.5 font-medium bg-slate-50 inline-flex items-center gap-1.5 px-2 py-1 rounded border border-slate-200">
-                                                                                                                    <Ruler className="w-3 h-3 text-slate-400" />
-                                                                                                                    <span>標準: <span className="text-slate-700">{detail.threshold || detail.standard}</span> <span className="text-slate-500">{detail.unit}</span></span>
-                                                                                                                </div>
-                                                                                                            )}
-                                                                                                        </div>
-
-                                                                                                        <div className="shrink-0 flex flex-col items-end gap-1">
-                                                                                                            {/* Value Display */}
-                                                                                                            <div className="flex flex-col items-end">
-                                                                                                                <span className="text-[10px] text-slate-400 font-medium mb-0.5">結果</span>
-                                                                                                                <span className={`font-mono font-bold text-base ${detail.isFailure ? 'text-red-600' : detail.isSuccess ? 'text-emerald-700' : 'text-slate-900'}`}>
-                                                                                                                    {String(detail.value).toLowerCase() === 'true' ? '合格' :
-                                                                                                                        String(detail.value).toLowerCase() === 'false' ? '不合格' :
-                                                                                                                            detail.value}
-                                                                                                                    {detail.unit && <span className="text-xs font-normal text-slate-500 ml-1">{detail.unit}</span>}
-                                                                                                                </span>
-                                                                                                            </div>
-
-                                                                                                            {/* Status Badge */}
-                                                                                                            {detail.isFailure ? (
-                                                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold">
-                                                                                                                    <AlertTriangle className="w-3 h-3" /> 異常
-                                                                                                                </span>
-                                                                                                            ) : detail.isSuccess ? (
-                                                                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-xs font-bold">
-                                                                                                                    <CheckCircle className="w-3 h-3" /> 正常
-                                                                                                                </span>
-                                                                                                            ) : null}
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                ))}
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                })()
+                                                                    <td className="px-4 py-3 text-slate-600">{dateStr}</td>
+                                                                    <td className="px-4 py-3 font-bold text-slate-800">{report.buildingName || '-'}</td>
+                                                                    <td className="px-4 py-3">
+                                                                        {report.overallStatus === 'Pass' ? (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
+                                                                                <CheckCircle className="w-3.5 h-3.5" /> 合格
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
+                                                                                <AlertTriangle className="w-3.5 h-3.5" /> 不合格
+                                                                            </span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-sm">
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className="text-slate-600">總計: <span className="font-bold">{stats.total}</span></span>
+                                                                            {stats.failed > 0 ? (
+                                                                                <span className="text-red-600 font-bold bg-red-50 px-2 rounded">異常: {stats.failed}</span>
                                                                             ) : (
-                                                                                <p className="text-slate-400 text-sm italic">無檢查細項</p>
-                                                                            )}
-
-                                                                            {/* 備註區域 */}
-                                                                            {row.notes && (
-                                                                                <div className="mt-4 pt-4 border-t border-slate-200">
-                                                                                    <h5 className="text-xs font-bold text-slate-600 mb-2">備註</h5>
-                                                                                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                                                                                        <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{row.notes}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {/* 修復紀錄區域 */}
-                                                                            {row.repairDate && (
-                                                                                <div className="mt-4 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
-                                                                                    <div className="flex items-start gap-3">
-                                                                                        <div className="p-1.5 bg-emerald-100 rounded-full mt-0.5">
-                                                                                            <Wrench className="w-4 h-4 text-emerald-600" />
-                                                                                        </div>
-                                                                                        <div className="flex-1">
-                                                                                            <h5 className="text-sm font-bold text-emerald-800 mb-1 flex items-center gap-2">
-                                                                                                已完成修復 ({new Date(row.repairDate!).toLocaleDateString('zh-TW')})
-                                                                                            </h5>
-                                                                                            <p className="text-sm text-emerald-700 whitespace-pre-wrap leading-relaxed">
-                                                                                                {row.repairNotes || '無詳細說明'}
-                                                                                            </p>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
+                                                                                <span className="text-green-600 font-bold bg-green-50 px-2 rounded">全數正常</span>
                                                                             )}
                                                                         </div>
                                                                     </td>
+                                                                    <td className="px-4 py-3 text-slate-600">{report.inspectorName || '未知'}</td>
                                                                 </tr>
-                                                            )
-                                                        ];
+                                                                {isExpanded && (
+                                                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                                                        <td colSpan={7} className="px-4 py-4">
+                                                                            {isLoading ? (
+                                                                                <div className="flex justify-center py-8">
+                                                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                                                                                    <div className="mb-3 flex justify-between items-center">
+                                                                                        <h4 className="font-bold text-slate-700 flex items-center gap-2">
+                                                                                            <ClipboardList className="w-4 h-4" /> 檢查細項列表 ({report.items?.length || 0})
+                                                                                        </h4>
+                                                                                    </div>
+                                                                                    {report.items && report.items.length > 0 ? (
+                                                                                        <div className="max-h-[400px] overflow-y-auto custom-scrollbar space-y-2">
+                                                                                            {report.items.map((item, idx) => (
+                                                                                                <div key={idx} className={`flex items-center justify-between p-3 rounded-lg border ${item.status === 'Abnormal' || item.status === '異常' ? 'bg-red-50 border-red-200' : 'bg-white border-slate-100'}`}>
+                                                                                                    <div className="flex items-center gap-3">
+                                                                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${item.status === 'Abnormal' || item.status === '異常' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                                                                                            {item.status === 'Abnormal' || item.status === '異常' ? <AlertTriangle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                                                                                        </div>
+                                                                                                        <div>
+                                                                                                            <div className="font-bold text-slate-800 text-sm">{item.name || '未命名項目'}</div>
+                                                                                                            <div className="text-xs text-slate-500 font-mono">{item.barcode || '-'}</div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <div className="text-right">
+                                                                                                        <div className={`font-bold text-sm ${item.status === 'Abnormal' || item.status === '異常' ? 'text-red-600' : 'text-green-600'}`}>
+                                                                                                            {item.status === 'Abnormal' || item.status === '異常' ? '異常' : '正常'}
+                                                                                                        </div>
+                                                                                                        {item.notes && <div className="text-xs text-slate-400 max-w-[200px] truncate" title={item.notes}>{item.notes}</div>}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="text-center py-4 text-slate-400">無詳細項目 (或資料讀取失敗)</div>
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
+                                                            </React.Fragment>
+                                                        );
                                                     });
                                                 })()}
                                             </tbody>
@@ -1360,7 +1113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     onClick={() => setSettingsTab('GENERAL')}
                                     className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                                 >
-                                    <Palette className="w-4 h-4 mr-2" /> 背景顏色
+                                    <Palette className="w-4 h-4 mr-2" /> 背景
                                 </button>
                                 <button
                                     onClick={() => setSettingsTab('LIGHTS')}
@@ -1368,6 +1121,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 >
                                     <Zap className="w-4 h-4 mr-2" /> 燈號
                                 </button>
+                                <button
+                                    onClick={() => setSettingsTab('DECLARATION')}
+                                    className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                >
+                                    <Calendar className="w-4 h-4 mr-2" /> 申報
+                                </button>
+
                             </div>
 
                             {/* Content */}
@@ -1538,6 +1298,67 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     </button>
                                                 ))}
                                             </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* DECLARATION TAB */}
+                                {settingsTab === 'DECLARATION' && (
+                                    <div className="space-y-6 animate-in fade-in duration-300">
+                                        <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex gap-3">
+                                            <Calendar className="w-12 h-12 text-red-500 shrink-0 p-2 bg-white rounded-xl shadow-sm" />
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-bold text-red-900">消防安全設備檢修申報</p>
+                                                <p className="text-xs text-red-700 leading-relaxed">
+                                                    請設定下次申報日期，系統將自動倒數並提醒您。
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700 mb-2">下次申報日期</label>
+                                                <input
+                                                    type="date"
+                                                    value={declarationSettings?.nextDate || ''}
+                                                    onChange={(e) => {
+                                                        const newSettings = {
+                                                            ...declarationSettings,
+                                                            nextDate: e.target.value,
+                                                            lastModified: Date.now(),
+                                                            emailNotificationsEnabled: declarationSettings?.emailNotificationsEnabled || false,
+                                                            emailRecipients: declarationSettings?.emailRecipients || []
+                                                        };
+                                                        setDeclarationSettings(newSettings);
+                                                        StorageService.saveDeclarationSettings(newSettings, user.uid);
+                                                    }}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer hover:bg-slate-100"
+                                                />
+                                            </div>
+
+                                            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                                                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                                                    <History className="w-5 h-5 text-slate-400" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-bold text-slate-400">上次更新</div>
+                                                    <div className="text-sm font-bold text-slate-700">
+                                                        {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : '尚未設定'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                                            <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
+                                                <Info className="w-4 h-4" />
+                                                法規提醒
+                                            </h5>
+                                            <ul className="text-xs text-yellow-800/80 space-y-1 list-disc list-inside font-medium">
+                                                <li>甲類場所：每半年申報一次</li>
+                                                <li>甲類以外場所：每年申報一次</li>
+                                                <li>請務必於期限前完成檢修與申報作業</li>
+                                            </ul>
                                         </div>
                                     </div>
                                 )}
@@ -1733,20 +1554,53 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         )}
                                     </div>
                                 )}
+
+                                {/* DECLARATION TAB */}
+                                {settingsTab === 'DECLARATION' && (
+                                    <div className="space-y-6 animate-in fade-in duration-300">
+                                        <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex gap-3">
+                                            <Calendar className="w-12 h-12 text-red-500 shrink-0 p-2 bg-white rounded-xl shadow-sm" />
+                                            <div className="space-y-1">
+                                                <p className="text-sm font-bold text-red-900">消防安全設備檢修申報</p>
+                                                <p className="text-xs text-red-700 leading-relaxed">
+                                                    請設定下次申報日期，系統將自動倒數並提醒您。
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                    <Calendar className="w-4 h-4 text-slate-400" />
+                                                    下次申報日期
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    value={declarationSettings?.nextDate || ''}
+                                                    onChange={(e) => {
+                                                        const newSettings: DeclarationSettings = {
+                                                            ...declarationSettings || { lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+                                                            nextDate: e.target.value,
+                                                            lastModified: Date.now()
+                                                        };
+                                                        handleSaveSettings(newSettings);
+                                                    }}
+                                                    className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all outline-none font-medium text-slate-700 shadow-sm"
+                                                />
+                                                <p className="text-xs text-slate-400 pl-1">
+                                                    設定後，儀表板將顯示倒數天數。
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 )
             }
             {
-                isDeclarationModalOpen && (
-                    <DeclarationSettingsModal
-                        user={user}
-                        currentSettings={declarationSettings}
-                        onClose={() => setIsDeclarationModalOpen(false)}
-                        onSave={(settings) => setDeclarationSettings(settings)}
-                    />
-                )
+
             }
             {/* Equipment Stats Modal */}
             {
@@ -1831,11 +1685,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 onSelectMode={handleAddEquipmentModeSelect}
             />
 
-            <NotificationSettingsModal
-                user={user}
-                isOpen={isNotificationModalOpen}
-                onClose={() => setIsNotificationModalOpen(false)}
-            />
+
 
             <MapViewInspection
                 user={user}

@@ -364,74 +364,59 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                   const nextTs = getNextInspectionDate(item);
                                   const status = getFrequencyStatus(item, lightSettings);
 
-                                  // Map Status to UI
-                                  let colorClass = '';
-                                  let dotClass = '';
                                   let label = '';
+                                  let colorClass = '';
+                                  // Default base colors
+                                  let defaultDotColor = '';
 
+                                  // Determine Lable and Default Colors
                                   if (status === 'COMPLETED') {
                                     label = '已檢查';
                                     colorClass = 'bg-green-50 text-green-600 border-green-200';
-                                    dotClass = 'bg-green-500';
+                                    defaultDotColor = '#22c55e'; // green-500
                                   } else if (status === 'CAN_INSPECT') {
                                     label = '可以檢查';
                                     colorClass = 'bg-blue-50 text-blue-600 border-blue-200';
-                                    dotClass = 'bg-blue-500';
+                                    defaultDotColor = '#3b82f6'; // blue-500
                                   } else if (status === 'PENDING') {
                                     label = '需檢查';
                                     colorClass = 'bg-red-50 text-red-600 border-red-200';
-                                    dotClass = 'bg-red-500 animate-pulse';
+                                    defaultDotColor = '#ef4444'; // red-500
                                   } else if (status === 'UNNECESSARY') {
                                     label = '不須檢查';
                                     colorClass = 'bg-slate-50 text-slate-500 border-slate-200';
-                                    dotClass = 'bg-slate-400';
+                                    defaultDotColor = '#94a3b8'; // slate-400
                                   }
+
+                                  // Check for Custom Colors from Settings
+                                  let customColor = '';
+                                  if (status === 'COMPLETED' && lightSettings?.completed?.color) customColor = lightSettings.completed.color;
+                                  if (status === 'CAN_INSPECT' && lightSettings?.yellow?.color) customColor = lightSettings.yellow.color;
+                                  if (status === 'PENDING' && lightSettings?.red?.color) customColor = lightSettings.red.color;
+                                  if (status === 'UNNECESSARY' && lightSettings?.green?.color) customColor = lightSettings.green.color;
+
+                                  // Styles
+                                  const dotStyle: React.CSSProperties = { backgroundColor: customColor || defaultDotColor };
+                                  const textStyle: React.CSSProperties = customColor ? { color: customColor } : {};
+                                  const containerStyle: React.CSSProperties = customColor ? {
+                                    borderColor: customColor + '40', // 25% opacity
+                                    backgroundColor: customColor + '10' // ~6% opacity
+                                  } : {};
+
+                                  // Classes
+                                  // If custom color is used, we strip the default color classes but keep layout classes
+                                  const containerClass = `flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${customColor ? '' : colorClass}`;
+                                  // Pulse for pending
+                                  const dotClass = `w-2 h-2 rounded-full ${status === 'PENDING' && !customColor ? 'animate-pulse' : ''}`;
 
                                   return (
                                     <div className="flex items-center gap-2">
-                                      {(() => {
-                                        let bgStyle = {};
-                                        let dotStyle = {};
-                                        let textStyle = {};
-
-                                        if (status === 'COMPLETED') {
-                                          if (lightSettings?.completed?.color) {
-                                            // Custom Color Logic (using hex for border/text approximation or just dot)
-                                            // For simplicity in list view, let's tint the dot and maybe the badge background
-                                            // Actually, custom colors are usually strong hex codes.
-                                            // For the "dot", use the custom color directly.
-                                            dotStyle = { backgroundColor: lightSettings.completed.color };
-                                            // For the pill background/text, it's harder to derive "50" or "600" shades from a hex.
-                                            // Fallback to default classes if we can't easily generate shades, OR 
-                                            // just use the dot for custom color and keep standard pill for readability?
-                                            // User request implies "Light Color Sync", which usually means the main indicator (dot) should match.
-                                            // Let's force the DOT to match.
-                                          }
-                                        } else if (status === 'CAN_INSPECT') {
-                                          if (lightSettings?.yellow?.color) {
-                                            dotStyle = { backgroundColor: lightSettings.yellow.color };
-                                          }
-                                        } else if (status === 'PENDING') {
-                                          if (lightSettings?.red?.color) {
-                                            dotStyle = { backgroundColor: lightSettings.red.color };
-                                          }
-                                        } else if (status === 'UNNECESSARY') {
-                                          if (lightSettings?.green?.color) {
-                                            dotStyle = { backgroundColor: lightSettings.green.color };
-                                          }
-                                        }
-
-                                        return (
-                                          <>
-                                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${colorClass}`} style={bgStyle}>
-                                              <div className={`w-2 h-2 rounded-full ${dotClass}`} style={dotStyle}></div>
-                                              <span style={textStyle}>{label}</span>
-                                            </div>
-                                            <span className="text-slate-400">下一次檢查:</span>
-                                            <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
-                                          </>
-                                        );
-                                      })()}
+                                      <div className={containerClass} style={containerStyle}>
+                                        <div className={dotClass} style={dotStyle}></div>
+                                        <span style={textStyle}>{label}</span>
+                                      </div>
+                                      <span className="text-slate-400">下一次檢查:</span>
+                                      <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
                                     </div>
                                   );
                                 })()}
@@ -443,40 +428,40 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                           <div className="flex items-center gap-2 transition-all">
                             <button
                               onClick={(e) => handleShowPhoto(e, item)}
-                              className={`p-2.5 rounded-xl border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
+                              className={`p-1.5 rounded-lg border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
                               title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
                               disabled={!(item.photoUrl || (item as any).photoURL)}
                             >
-                              <Image className="w-5 h-5" />
+                              <Image className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleShowQr(e, item)}
-                              className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                              className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
                               title={t('viewQr')}
                             >
-                              <QrCode className="w-5 h-5" />
+                              <QrCode className="w-4 h-4" />
                             </button>
-                            <div className="w-px h-6 bg-slate-100 mx-1 hidden sm:block"></div>
+                            <div className="w-px h-5 bg-slate-100 mx-1 hidden sm:block"></div>
                             <button
                               onClick={(e) => handleEdit(e, item)}
-                              className="p-2.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-xl shadow-sm hover:bg-blue-100 transition-all active:scale-95"
+                              className="p-1.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition-all active:scale-95"
                               title={t('edit')}
                             >
-                              <Edit2 className="w-5 h-5" />
+                              <Edit2 className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleCopy(e, item)}
-                              className="p-2.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-xl shadow-sm hover:bg-slate-100 transition-all active:scale-95"
+                              className="p-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-100 transition-all active:scale-95"
                               title={t('copy')}
                             >
-                              <Copy className="w-5 h-5" />
+                              <Copy className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handleDeleteClick(e, item)}
-                              className="p-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl shadow-sm hover:bg-red-100 transition-all active:scale-95"
+                              className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg shadow-sm hover:bg-red-100 transition-all active:scale-95"
                               title={t('delete')}
                             >
-                              <Trash2 className="w-5 h-5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
 

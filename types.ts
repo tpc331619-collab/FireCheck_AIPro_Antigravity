@@ -41,15 +41,25 @@ export interface InspectionItem {
   repairNotes?: string;
 }
 
+export interface InspectionStats {
+  total: number;
+  passed: number;
+  failed: number;
+  fixed: number;
+  others: number;
+}
+
 export interface InspectionReport {
   id: string;
   buildingName: string;
   inspectorName: string;
   date: number;
-  items: InspectionItem[];
+  items?: InspectionItem[]; // Optional: Loaded on demand or if legacy data
+  stats?: InspectionStats;  // New: Summary statistics for the report
   overallStatus: 'Pass' | 'Fail' | 'In Progress';
   aiSummary?: string;
   archived?: boolean; // Auto-archive normal inspections to history
+  userId?: string;    // Added for clarity, though handled by service logic
 }
 
 export type AuthMode = 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD';
@@ -101,8 +111,10 @@ export type EquipmentHierarchy = Record<string, Record<string, string[]>>;
 
 // 消防申報設定
 export interface DeclarationSettings {
-  month: number; // 1-12
-  day: number;   // 1-31
+  nextDate: string;
+  lastModified: number;
+  emailNotificationsEnabled: boolean;
+  emailRecipients: string[];
 }
 
 export interface NotificationSettings {

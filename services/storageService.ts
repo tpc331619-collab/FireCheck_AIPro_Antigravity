@@ -1,6 +1,6 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus } from '../types';
 import { db, storage } from './firebase';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
 
 const LOCAL_STORAGE_KEY = 'firecheck_reports';
@@ -36,23 +36,91 @@ export const StorageService = {
   },
 
   async saveReport(report: Omit<InspectionReport, 'id'>, userId: string): Promise<string> {
-    const newReport = { ...report, userId };
+    // Separate items from report data
+    const { items, ...reportData } = report;
+
+    // Calculate stats
+    const stats = {
+      total: items?.length || 0,
+      passed: items?.filter(i => i.status === InspectionStatus.Normal).length || 0,
+      failed: items?.filter(i => i.status === InspectionStatus.Abnormal).length || 0,
+      fixed: items?.filter(i => i.status === InspectionStatus.Fixed).length || 0,
+      others: items?.filter(i => i.status !== InspectionStatus.Normal && i.status !== InspectionStatus.Abnormal && i.status !== InspectionStatus.Fixed).length || 0
+    };
+
+    // Prepare new report object (without items for Firestore main doc)
+    const newReport = { ...reportData, userId, stats, items: [] }; // Explicitly set items to empty for main doc to avoid confusion, or omission
+    // Actually, if we omit it, it's cleaner.
+    const firestoreReport = { ...reportData, userId, stats };
 
     if (this.isGuest || !db) {
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       const reports: InspectionReport[] = data ? JSON.parse(data) : [];
       const id = 'local_' + Date.now().toString();
-      const reportWithId = { ...newReport, id };
+      // For LocalStorage, we keep items embedded as there are no subcollections
+      const reportWithId = { ...reportData, userId, stats, items, id };
       reports.unshift(reportWithId);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
       return id;
     } else {
       try {
-        const docRef = await addDoc(collection(db, 'reports'), newReport);
-        return docRef.id;
+        // 1. Create Main Report Doc
+        const reportRef = doc(collection(db, 'reports'));
+        await setDoc(reportRef, firestoreReport);
+
+        // 2. Add Items to Subcollection (Batch Write)
+        if (items && items.length > 0) {
+          const BATCH_SIZE = 450; // Firestore limit is 500, keep safety margin
+          const chunks = [];
+          for (let i = 0; i < items.length; i += BATCH_SIZE) {
+            chunks.push(items.slice(i, i + BATCH_SIZE));
+          }
+
+          for (const chunk of chunks) {
+            const batch = writeBatch(db);
+            chunk.forEach(item => {
+              const itemRef = doc(collection(db, 'reports', reportRef.id, 'items'));
+              batch.set(itemRef, item);
+            });
+            await batch.commit();
+          }
+        }
+
+        return reportRef.id;
       } catch (e) {
         console.error("Firebase save error", e);
         throw e;
+      }
+    }
+  },
+
+  async getReportItems(reportId: string, userId: string): Promise<InspectionItem[]> {
+    if (this.isGuest || !db) {
+      const reports = await this.getReports(userId);
+      const report = reports.find(r => r.id === reportId);
+      return report?.items || [];
+    } else {
+      try {
+        // 1. Try to fetch from subcollection
+        const q = collection(db, 'reports', reportId, 'items');
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          return snapshot.docs.map(d => d.data() as InspectionItem);
+        }
+
+        // 2. Fallback: Check if main doc has items (Legacy Data)
+        const reportRef = doc(db, 'reports', reportId);
+        const reportSnap = await getDoc(reportRef);
+        if (reportSnap.exists()) {
+          const data = reportSnap.data() as InspectionReport;
+          return data.items || [];
+        }
+
+        return [];
+      } catch (e) {
+        console.error("Fetch report items error", e);
+        return [];
       }
     }
   },

@@ -295,6 +295,12 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       missingFields.push('設備編號');
     }
 
+    // Validate Frequency (Must select one)
+    if (!frequency) {
+      errors.frequency = true;
+      missingFields.push('檢查頻率');
+    }
+
     // Validate at least one check item
     if (checkItems.length === 0) {
       errors.checkItems = true;
@@ -982,8 +988,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   <div className="flex gap-2">
                     <select
                       value={frequency}
-                      onChange={(e) => setFrequency(e.target.value)}
-                      className="flex-1 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                      onChange={(e) => setFrequency(e.target.value as any)}
+                      className={`flex-1 p-3 bg-slate-50 border-2 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors ${validationErrors.frequency ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                     >
                       <option value="">未設定</option>
                       <option value="monthly">每月</option>
