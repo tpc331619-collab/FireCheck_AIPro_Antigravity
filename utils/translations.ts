@@ -14,7 +14,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     history: '歷史資料',
     systemSettings: '系統設定',
     recentRecords: '近期查檢紀錄',
-    searchPlaceholder: '快速搜索場所、檢查員...',
+    searchPlaceholder: '輸入設備編號....',
     all: '全部顯示',
     pass: '合格項目',
     fail: '不合格項目',

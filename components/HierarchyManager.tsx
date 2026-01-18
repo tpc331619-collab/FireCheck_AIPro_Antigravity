@@ -257,11 +257,11 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                 </div>
             </div>
 
-            <div className="flex-1 overflow-hidden p-4 sm:p-6">
-                <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex-1 overflow-y-auto md:overflow-hidden p-4 sm:p-6">
+                <div className="max-w-7xl mx-auto h-auto md:h-full grid grid-cols-1 md:grid-cols-3 gap-6">
 
                     {/* Column 1: Category */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden">
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                             <h3 className="font-bold text-slate-700 mb-2">1. 設備分類</h3>
                             <div className="flex gap-2">
@@ -281,13 +281,13 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                     <div
                                         key={cat}
                                         onClick={() => { setSelectedCategory(cat); setSelectedType(null); }}
-                                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${selectedCategory === cat ? 'bg-red-50 text-red-700 border border-red-100 shadow-sm' : 'hover:bg-slate-50 text-slate-600'}`}
+                                        className={`flex items-center justify-between p-4 mb-2 rounded-xl cursor-pointer transition-colors border ${selectedCategory === cat ? 'bg-red-50 text-red-700 border-red-200 shadow-sm' : 'bg-white border-transparent hover:bg-slate-50 text-slate-700'}`}
                                     >
-                                        <span className="font-medium">{cat}</span>
-                                        <div className="flex items-center gap-1">
-                                            {selectedCategory === cat && <ChevronRight className="w-4 h-4" />}
-                                            <button onClick={(e) => { e.stopPropagation(); editCategory(cat); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-white rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); deleteCategory(cat); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                                        <span className="font-bold text-base">{cat}</span>
+                                        <div className="flex items-center gap-2">
+                                            {selectedCategory === cat && <ChevronRight className="w-5 h-5 text-red-400" />}
+                                            <button onClick={(e) => { e.stopPropagation(); editCategory(cat); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); deleteCategory(cat); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                 ))
@@ -296,7 +296,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     </div>
 
                     {/* Column 2: Type */}
-                    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden transition-opacity ${!selectedCategory ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedCategory ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                             <h3 className="font-bold text-slate-700 mb-2">2. 設備種類</h3>
                             <div className="flex gap-2">
@@ -315,13 +315,13 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                 <div
                                     key={type}
                                     onClick={() => setSelectedType(type)}
-                                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${selectedType === type ? 'bg-red-50 text-red-700 border border-red-100 shadow-sm' : 'hover:bg-slate-50 text-slate-600'}`}
+                                    className={`flex items-center justify-between p-4 mb-2 rounded-xl cursor-pointer transition-colors border ${selectedType === type ? 'bg-red-50 text-red-700 border-red-200 shadow-sm' : 'bg-white border-transparent hover:bg-slate-50 text-slate-700'}`}
                                 >
-                                    <span className="font-medium">{type}</span>
-                                    <div className="flex items-center gap-1">
-                                        {selectedType === type && <ChevronRight className="w-4 h-4" />}
-                                        <button onClick={(e) => { e.stopPropagation(); editType(type); }} className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-white rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); deleteType(type); }} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-white rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    <span className="font-bold text-base">{type}</span>
+                                    <div className="flex items-center gap-2">
+                                        {selectedType === type && <ChevronRight className="w-5 h-5 text-red-400" />}
+                                        <button onClick={(e) => { e.stopPropagation(); editType(type); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); deleteType(type); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 </div>
                             ))}
@@ -330,7 +330,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     </div>
 
                     {/* Column 3: Detail */}
-                    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full overflow-hidden transition-opacity ${!selectedType ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedType ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                             <h3 className="font-bold text-slate-700 mb-2">3. 詳細規格</h3>
                             <div className="flex gap-2">

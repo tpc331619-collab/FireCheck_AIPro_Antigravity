@@ -690,60 +690,70 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     return (
         <div className={`flex flex-col h-full ${styles.bg} ${styles.text} transition-colors duration-300`}>
             {/* Header Hero Section */}
-            <div className="bg-slate-900 text-white pt-8 px-6 pb-28 rounded-b-[2.5rem] shadow-2xl relative overflow-hidden flex-shrink-0">
+            <div className="bg-slate-900 text-white pt-6 px-4 pb-20 sm:pb-28 rounded-b-[2rem] sm:rounded-b-[2.5rem] shadow-2xl relative overflow-hidden flex-shrink-0">
                 {/* Decorative background elements */}
                 <div className="absolute top-0 right-0 w-80 h-80 bg-red-600/20 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[60px] -ml-20 -mb-20 pointer-events-none"></div>
                 <div className="absolute top-4 left-6 flex items-center opacity-50">
-                    <ShieldCheck className="w-4 h-4 mr-1.5" />
-                    <span className="text-xs font-bold tracking-widest uppercase">FireCheck AI Pro</span>
+                    <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />
+                    <span className="text-[10px] sm:text-xs font-bold tracking-widest uppercase">FireCheck AI Pro</span>
                 </div>
 
-                <div className="relative z-10 max-w-7xl mx-auto w-full mt-6">
-                    <div className="flex justify-between items-end">
-                        <div className="flex-1">
-                            <p className="text-slate-400 text-sm font-medium mb-1 flex items-center gap-2">
-                                <span>{getTimeGreeting()}，{t('welcome')}</span>
-                                <span className="w-1 h-1 rounded-full bg-slate-500"></span>
-                                <span className="font-mono text-slate-300">{formatDateTime(currentDateTime)}</span>
-                            </p>
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/20 bg-slate-800">
-                                    <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+                <div className="relative z-10 max-w-7xl mx-auto w-full mt-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                        <div className="flex-1 w-full">
+                            <div className="flex justify-between items-start w-full">
+                                <div>
+                                    <p className="text-slate-400 text-xs sm:text-sm font-medium mb-1 flex items-center gap-2 flex-wrap">
+                                        <span>{getTimeGreeting()}，{t('welcome')}</span>
+                                        <span className="hidden sm:inline w-1 h-1 rounded-full bg-slate-500"></span>
+                                        <span className="font-mono text-slate-300 text-xs">{formatDateTime(currentDateTime)}</span>
+                                    </p>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 border-white/20 bg-slate-800 flex-shrink-0">
+                                            <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+                                        </div>
+                                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white truncate pr-2">
+                                            {user.displayName || t('guest')}
+                                        </h1>
+                                    </div>
                                 </div>
-                                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white truncate pr-4">
-                                    {user.displayName || t('guest')}
-                                </h1>
+                                <div className="flex items-center gap-2 sm:hidden">
+                                    <div className={`inline-flex items-center px-2 py-1 rounded-full border backdrop-blur-md transition-colors ${user.isGuest ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-green-500/10 border-green-500/30 text-green-400'} `}>
+                                        {user.isGuest ? <WifiOff className="w-3 h-3" /> : <Signal className="w-3 h-3" />}
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className={`inline-flex items-center px-3 py-1.5 rounded-full border backdrop-blur-md transition-colors ${user.isGuest ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-green-500/10 border-green-500/30 text-green-400'} `}>
+                            <div className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full border backdrop-blur-md transition-colors mt-1 mb-1 sm:mb-0
+                                ${user.isGuest ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-500' : 'bg-green-500/10 border-green-500/30 text-green-400'}">
                                 {user.isGuest ? <WifiOff className="w-3.5 h-3.5 mr-2" /> : <Signal className="w-3.5 h-3.5 mr-2" />}
                                 <span className="text-xs font-bold">{user.isGuest ? t('guestMode') : t('onlineMode')}</span>
                             </div>
                         </div>
 
                         {/* Header Actions */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3 absolute right-0 top-0 sm:relative">
                             <button
                                 onClick={() => setIsStatsModalOpen(true)}
-                                className="group relative p-3 bg-slate-800/50 hover:bg-slate-700/80 rounded-2xl transition-all border border-slate-700/50 backdrop-blur-sm active:scale-95"
+                                className="group relative p-2 sm:p-3 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl sm:rounded-2xl transition-all border border-slate-700/50 backdrop-blur-sm active:scale-95"
                                 aria-label="Inventory"
                             >
-                                <ClipboardList className="w-6 h-6 text-slate-300 group-hover:text-white transition-colors" />
+                                <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 group-hover:text-white transition-colors" />
                             </button>
                             <button
                                 onClick={() => setIsSettingsOpen(true)}
-                                className="group relative p-3 bg-slate-800/50 hover:bg-slate-700/80 rounded-2xl transition-all border border-slate-700/50 backdrop-blur-sm active:scale-95"
+                                className="group relative p-2 sm:p-3 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl sm:rounded-2xl transition-all border border-slate-700/50 backdrop-blur-sm active:scale-95"
                                 aria-label={t('settings')}
                             >
-                                <Settings className="w-6 h-6 text-slate-300 group-hover:text-white transition-colors" />
+                                <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 group-hover:text-white transition-colors" />
                             </button>
                             <button
                                 onClick={onLogout}
-                                className="group relative p-3 bg-slate-800/50 hover:bg-red-900/30 rounded-2xl transition-all border border-slate-700/50 hover:border-red-800/50 backdrop-blur-sm active:scale-95"
+                                className="group relative p-2 sm:p-3 bg-slate-800/50 hover:bg-red-900/30 rounded-xl sm:rounded-2xl transition-all border border-slate-700/50 hover:border-red-800/50 backdrop-blur-sm active:scale-95"
                                 aria-label={t('logout')}
                             >
-                                <LogOut className="w-6 h-6 text-slate-300 group-hover:text-red-400 transition-colors" />
+                                <LogOut className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 group-hover:text-red-400 transition-colors" />
                             </button>
                         </div>
                     </div>
@@ -751,97 +761,86 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             </div>
 
             {/* Main Content Area-Overlapping the Header */}
-            <div className="flex-1 px-4 sm:px-6 -mt-16 overflow-y-auto pb-24 custom-scrollbar">
-                <div className="max-w-7xl mx-auto w-full space-y-6">
+            <div className="flex-1 px-3 sm:px-6 -mt-12 sm:-mt-16 overflow-y-auto pb-24 custom-scrollbar">
+                <div className="max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
 
                     {/* Quick Search Bar (Moved to Top) */}
-                    <div className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex items-center gap-4">
-                        <div className="bg-red-50 p-2 rounded-xl">
-                            <Search className="w-6 h-6 text-red-600" />
+                    <div className="bg-white p-3 sm:p-4 rounded-2xl shadow-lg border border-slate-100 flex items-center gap-3 sm:gap-4">
+                        <div className="bg-red-50 p-1.5 sm:p-2 rounded-xl">
+                            <Search className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                         </div>
                         <div className="flex-1 relative">
                             <input
                                 type="text"
                                 placeholder={t('searchPlaceholder')}
-                                className="w-full pl-4 pr-10 py-2 bg-slate-50 border-none rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all font-medium"
+                                className="w-full pl-2 sm:pl-4 pr-8 sm:pr-10 py-1.5 sm:py-2 bg-slate-50 border-none rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all font-medium text-sm sm:text-base"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                             {searchTerm && (
                                 <button
                                     onClick={() => setSearchTerm('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                                 >
-                                    <X className="w-4 h-4" />
+                                    <X className="w-3 h-3 sm:w-4 sm:h-4" />
                                 </button>
                             )}
                         </div>
                     </div>
 
                     {/* Action Grid */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                         <button
                             onClick={() => setIsInspectionModeOpen(true)}
-                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                            className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-2 sm:gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-28 sm:h-36 relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div className="w-12 h-12 bg-red-100 rounded-2xl flex items-center justify-center group-hover:bg-red-600 transition-colors z-10">
-                                <PlayCircle className="w-6 h-6 text-red-600 group-hover:text-white transition-colors" />
+                            <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 bg-red-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:bg-red-600 transition-colors z-10">
+                                <PlayCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-600 group-hover:text-white transition-colors" />
                             </div>
-                            <span className="font-bold text-slate-700 z-10 text-center">{"\u958B\u59CB\u6AA2\u67E5"}</span>
+                            <span className="font-bold text-slate-700 z-10 text-center text-sm sm:text-base">{"\u958B\u59CB\u6AA2\u67E5"}</span>
                         </button>
 
                         <button
                             onClick={() => setIsAddEquipmentModeOpen(true)}
-                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                            className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-2 sm:gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-28 sm:h-36 relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center group-hover:bg-orange-500 transition-colors z-10">
-                                <Database className="w-6 h-6 text-orange-600 group-hover:text-white transition-colors" />
+                            <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 bg-orange-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:bg-orange-500 transition-colors z-10">
+                                <Database className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600 group-hover:text-white transition-colors" />
                             </div>
                             <span className="font-bold text-slate-700 z-10 text-center">{t('addEquipment')}</span>
                         </button>
 
                         <button
                             onClick={onMyEquipment}
-                            className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
+                            className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-2 sm:gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-28 sm:h-36 relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-purple-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-purple-600 transition-colors z-10">
-                                <LayoutGrid className="w-6 h-6 text-purple-600 group-hover:text-white transition-colors" />
+                            <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 bg-purple-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:bg-purple-600 transition-colors z-10">
+                                <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 group-hover:text-white transition-colors" />
                             </div>
-                            <div className="z-10 text-center">
-                                <span className="font-bold text-slate-700 block">{"\u6211\u7684\u8A2D\u5099"}</span>
-                                {(Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number) > 0 && (
-                                    <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full mt-1 inline-block">
-                                        {Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number} 筆
-                                    </span>
-                                )}
+                            <div className="text-center z-10">
+                                <span className="font-bold text-slate-700 block text-sm sm:text-base">{t('myEquipment')}</span>
+                                <span className="text-[10px] sm:text-xs text-purple-500 font-medium bg-purple-50 px-1.5 sm:px-2 py-0.5 rounded-full mt-1 inline-block">
+                                    {Object.keys(equipmentStats).length} 筆
+                                </span>
                             </div>
                         </button>
 
                         <button
-                            onClick={() => setShowArchived(!showArchived)}
-                            className={`bg-white p-4 rounded-2xl shadow-lg border flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden ${showArchived ? 'border-blue-500 ring-2 ring-blue-200' : 'border-slate-100'
-                                }`}
+                            onClick={scrollToHistory}
+                            className="bg-white p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-md sm:shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-2 sm:gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-28 sm:h-36 relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                            <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-500 transition-colors z-10">
-                                <History className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
+                            <div className="absolute top-0 right-0 w-12 h-12 sm:w-16 sm:h-16 bg-blue-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover:bg-blue-600 transition-colors z-10">
+                                <History className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 group-hover:text-white transition-colors" />
                             </div>
-                            <div className="z-10 text-center">
-                                <span className="font-bold text-slate-700 block">{showArchived ? '當前紀錄' : '歷史紀錄'}</span>
-                                {!showArchived && reports.length > 0 && (
-                                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">
-                                        {(() => {
-                                            // 計算所有報告中的檢查項目總數
-                                            const totalItems = reports.reduce((sum, report) => {
-                                                return sum + (report.items?.length || 0);
-                                            }, 0);
-                                            return totalItems;
-                                        })()} 筆
-                                    </span>
-                                )}
+                            <div className="text-center z-10">
+                                <span className="font-bold text-slate-700 block text-sm sm:text-base">{t('history')}</span>
+                                <span className="text-[10px] sm:text-xs text-blue-500 font-medium bg-blue-50 px-1.5 sm:px-2 py-0.5 rounded-full mt-1 inline-block">
+                                    {reports.length} 筆
+                                </span>
                             </div>
                         </button>
 

@@ -14,7 +14,7 @@ const AddEquipmentModeModal: React.FC<AddEquipmentModeModalProps> = ({ isOpen, o
         {
             id: 'ADD_INSTANCE',
             title: '新增設備',
-            description: '為已有名稱新增具體設備 (含財產編號、位置)',
+            description: '(場所、編號、頻率等)',
             icon: <Database className="w-8 h-8 text-orange-500" />,
             color: 'bg-orange-50 border-orange-100 hover:border-orange-300',
             bgIcon: 'bg-orange-100'
@@ -22,7 +22,7 @@ const AddEquipmentModeModal: React.FC<AddEquipmentModeModalProps> = ({ isOpen, o
         {
             id: 'ADD_NAME',
             title: '新增設備清單',
-            description: '建立新的設備類別與名稱 (如: 滅火器-乾粉滅火器)',
+            description: '(滅火器、消防栓等)',
             icon: <ListPlus className="w-8 h-8 text-teal-500" />,
             color: 'bg-teal-50 border-teal-100 hover:border-teal-300',
             bgIcon: 'bg-teal-100'
