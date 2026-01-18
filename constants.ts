@@ -1,8 +1,10 @@
 import { EquipmentType } from './types';
 
 export const THEME_COLORS = {
-  primary: '#CE2029', // Fire Engine Red
-  secondary: '#FF5F00', // Safety Orange
+  primary: '#14B8A6', // Teal 500
+  secondary: '#0D9488', // Teal 600
+  accent: '#FB7185', // Rose 400 (for hero cards)
+  headerBg: '#0F766E', // Teal 700 (darker for header)
   dark: '#1e293b', // Slate 800
   light: '#f8fafc',
   success: '#10b981',
