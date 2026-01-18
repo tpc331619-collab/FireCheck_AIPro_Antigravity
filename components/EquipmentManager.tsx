@@ -22,7 +22,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [buildingName, setBuildingName] = useState(initialData?.buildingName || '');
   const [name, setName] = useState(initialData?.name || '');
   const [barcode, setBarcode] = useState(initialData?.barcode || '');
-  const [frequency, setFrequency] = useState(initialData?.checkFrequency || 'monthly');
+  const [frequency, setFrequency] = useState(initialData?.checkFrequency || '');
   const [customFrequency, setCustomFrequency] = useState(initialData?.customFrequency || '');
   const [startDate, setStartDate] = useState(initialData?.checkStartDate ? new Date(initialData.checkStartDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
   const [lifespan, setLifespan] = useState(initialData?.lifespan || '');
@@ -875,16 +875,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <input
                   type="text"
                   value={name}
-                  onChange={e => {
-                    setName(e.target.value);
-                    if (validationErrors.name) {
-                      setValidationErrors(prev => ({ ...prev, name: false }));
-                    }
-                  }}
+                  readOnly
                   placeholder="輸入設備名稱 (或由上方選單自動帶入)"
-                  className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.name
-                    ? 'border-red-500 focus:border-red-600'
-                    : 'border-slate-200 focus:border-teal-500'
+                  className={`w-full p-3 bg-slate-50 border-2 rounded-lg text-slate-900 focus:outline-none transition-all cursor-not-allowed ${validationErrors.name
+                    ? 'border-red-500'
+                    : 'border-slate-200'
                     }`}
                 />
                 {validationErrors.name && (
@@ -990,6 +985,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                       onChange={(e) => setFrequency(e.target.value)}
                       className="flex-1 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
                     >
+                      <option value="">未設定</option>
                       <option value="monthly">每月</option>
                       <option value="quarterly">每季</option>
                       <option value="yearly">每年</option>
