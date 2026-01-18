@@ -743,7 +743,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
                                 <Database className="w-4 h-4" />
-                                <span className="text-white/90">設備總數: <span className="font-bold">{Object.keys(equipmentStats).length}</span></span>
+                                <span className="text-white/90">設備總數: <span className="font-bold">{nameCount}</span></span>
                             </div>
                             {countdownDays !== null && countdownDays <= 60 && (
                                 <div className="flex items-center gap-2">
@@ -777,7 +777,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="text-center">
                                 <span className="font-bold text-slate-700 block">{t('myEquipment')}</span>
                                 <span className="text-xs text-teal-600 font-medium">
-                                    {Object.keys(equipmentStats).length} 筆
+                                    {nameCount} 筆
                                 </span>
                             </div>
                         </button>
@@ -792,7 +792,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="text-center">
                                 <span className="font-bold text-slate-700 block">{t('history')}</span>
                                 <span className="text-xs text-teal-600 font-medium">
-                                    {reports.length} 筆
+                                    {reports.reduce((total, report) => total + (report.items?.length || 0), 0)} 筆
                                 </span>
                             </div>
                         </button>
