@@ -133,7 +133,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setBuildingName('');
       setName('');
       setBarcode('');
-      setFrequency('monthly');
+      setFrequency('');
       setCustomFrequency('');
       setCustomFrequency('');
       const d = new Date();
