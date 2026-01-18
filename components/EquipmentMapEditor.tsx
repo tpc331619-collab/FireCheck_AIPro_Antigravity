@@ -1213,7 +1213,13 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                             ${draggingMarkerId === marker.id ? 'opacity-80 scale-125 cursor-grabbing pointer-events-none' : ''}
                                                             ${selectedMarkerId === marker.id ? 'ring-4 ring-blue-400 ring-opacity-75 z-20' : ''}
                                                         `}
-                                                        style={{ left: `${marker.x}%`, top: `${marker.y}%`, ...getMarkerStyle(marker) }}
+                                                        style={{
+                                                            left: `${marker.x}%`,
+                                                            top: `${marker.y}%`,
+                                                            transform: `scale(${1 / zoom})`,
+                                                            transformOrigin: 'center center',
+                                                            ...getMarkerStyle(marker)
+                                                        }}
                                                         onMouseDown={(e) => handleMarkerMouseDown(e, marker.id)}
                                                         onClick={(e) => handleMarkerClick(e, marker.id)}
                                                     >

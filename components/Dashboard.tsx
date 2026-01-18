@@ -720,14 +720,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <span className="text-white/90">設備總數: <span className="font-bold">{nameCount}</span></span>
                             </div>
                             {countdownDays !== null && countdownDays <= 60 && (
-                                <div className={`flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border ${countdownDays <= 30
-                                        ? 'bg-red-500/20 border-red-500/30 text-red-200'
-                                        : 'bg-amber-500/20 border-amber-500/30 text-amber-200'
-                                    }`}>
-                                    <Calendar className={`w-4 h-4 ${countdownDays <= 30 ? 'text-red-400 animate-pulse' : 'text-amber-400'}`} />
-                                    <span className="font-bold">
-                                        申報倒數: <span className={`${countdownDays <= 30 ? 'text-red-100' : 'text-amber-100'}`}>{countdownDays}</span> 天
-                                    </span>
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    <span className="text-white/90">申報倒數: <span className="font-bold">{countdownDays}</span> 天</span>
                                 </div>
                             )}
                         </div>
