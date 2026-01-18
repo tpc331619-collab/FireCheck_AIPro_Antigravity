@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp, Image as ImageIcon, Upload } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp, Image as ImageIcon, Upload, Database } from 'lucide-react';
 import { THEME_COLORS, EQUIPMENT_HIERARCHY } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { EquipmentDefinition, CheckCategory, CheckInputType, CustomCheckItem, UserProfile, EquipmentHierarchy } from '../types';
@@ -695,308 +695,319 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-        <div className="max-w-3xl mx-auto">
-          {/* Unified Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            {/* Main Header */}
-            <div className="bg-slate-50/80 p-4 border-b border-slate-200 flex items-center">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center mr-3 text-blue-600">
-                <LayoutList className="w-5 h-5" />
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar bg-slate-50">
+        <div className="max-w-4xl mx-auto space-y-6">
+
+          {/* Card 1: Basic Information (Teal Theme) */}
+          <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+            {/* Teal Header */}
+            <div className="bg-gradient-to-r from-teal-500 to-teal-600 p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                <Database className="w-6 h-6 text-white" />
               </div>
-              <h3 className="font-bold text-slate-800 text-lg">{initialData ? t('editEquipment') : t('addEquipment')}</h3>
+              <div>
+                <h3 className="text-white font-bold text-lg">基本資料</h3>
+                <p className="text-white/80 text-xs">設備基本信息</p>
+              </div>
             </div>
 
-            <div className="p-6 space-y-8">
-              {/* Section 1: Basic Info */}
-              <div className="space-y-6">
-                {/* Location Section */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                      <span className="w-1 h-3 bg-red-500 rounded-full mr-1.5"></span>
-                      {t('siteName')} <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={siteName}
-                      onChange={e => setSiteName(e.target.value)}
-                      placeholder={t('enterSiteName')}
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                      <span className="w-1 h-3 bg-red-500 rounded-full mr-1.5"></span>
-                      {t('buildingName')} <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={buildingName}
-                      onChange={e => setBuildingName(e.target.value)}
-                      placeholder={t('enterBuildingName')}
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
-                    />
-                  </div>
+            <div className="p-6 space-y-5">
+              {/* Location Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-red-500 rounded-full"></span>
+                    場所名稱 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={siteName}
+                    onChange={e => setSiteName(e.target.value)}
+                    placeholder="輸入場所名稱"
+                    className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                  />
                 </div>
-
-                {/* Equipment Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                      {t('equipmentName')} <span className="text-red-500 ml-1">*</span>
-                    </label>
-
-                    {/* Hierarchy Selection */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
-                      <select
-                        value={eqCategory}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEqCategory(val);
-                          setEqType('');
-                          setEqDetail('');
-                        }}
-                        className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500"
-                      >
-                        <option value="">選擇分類...</option>
-                        {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-
-                      <select
-                        value={eqType}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEqType(val);
-                          setEqDetail('');
-                        }}
-                        disabled={!eqCategory}
-                        className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
-                      >
-                        <option value="">選擇種類...</option>
-                        {eqCategory && hierarchy[eqCategory] &&
-                          Object.keys(hierarchy[eqCategory]).map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))
-                        }
-                      </select>
-
-                      <select
-                        value={eqDetail}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setEqDetail(val);
-                          if (val) {
-                            setName(`${eqType} - ${val}`);
-                          }
-                        }}
-                        disabled={!eqType}
-                        className="w-full p-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-blue-500 disabled:opacity-50"
-                      >
-                        <option value="">選擇細項...</option>
-                        {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
-                          hierarchy[eqCategory][eqType].map((d) => (
-                            <option key={d} value={d}>{d}</option>
-                          ))
-                        }
-                      </select>
-                    </div>
-
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      placeholder={t('enterEquipmentName') + " (或由上方選單自動帶入)"}
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                      {t('equipmentId')} <span className="text-red-500 ml-1">*</span>
-                    </label>
-
-                    <div className="flex gap-3 items-start">
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          value={barcode}
-                          onChange={e => setBarcode(e.target.value.toUpperCase())}
-                          placeholder={t('enterBarcode')}
-                          className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-slate-900 focus:border-red-500 focus:outline-none transition-all group-hover:border-slate-400"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Photo Upload - Right Column (Compact) */}
-                  <div className="space-y-1.5 align-top">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center mb-1">
-                      <ImageIcon className="w-3 h-3 mr-1" />
-                      設備照片 <span className="text-[10px] text-slate-400 font-normal ml-2">Max 1MB</span>
-                    </label>
-
-                    <div className="flex items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                      {/* Thumbnail */}
-                      <div className="w-12 h-12 bg-white border border-slate-200 rounded-md overflow-hidden flex-shrink-0 relative group">
-                        {photoUrl ? (
-                          <>
-                            <img src={photoUrl} alt="Equip" className="w-full h-full object-cover" />
-                            <button
-                              onClick={handleDeletePhoto}
-                              className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 className="w-4 h-4 text-white" />
-                            </button>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-slate-300">
-                            <ImageIcon className="w-5 h-5" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Compact Upload Control */}
-                      <div className="flex-1">
-                        <label className={`flex items-center justify-center w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-600 text-xs font-bold hover:bg-slate-50 hover:text-blue-600 hover:border-blue-300 transition-all cursor-pointer shadow-sm ${isUploadingPhoto ? 'opacity-50' : ''}`}>
-                          <Upload className="w-3 h-3 mr-2" />
-                          {isUploadingPhoto ? '上傳中...' : '選擇照片'}
-                          <input
-                            type="file"
-                            accept="image/png, image/jpeg"
-                            className="hidden"
-                            onChange={handlePhotoUpload}
-                            disabled={isUploadingPhoto}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-red-500 rounded-full"></span>
+                    建築物名稱 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={buildingName}
+                    onChange={e => setBuildingName(e.target.value)}
+                    placeholder="輸入建築物名稱"
+                    className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                  />
                 </div>
               </div>
 
-              {/* Section 2: Schedule Settings */}
-              <div className="pt-6 border-t border-slate-100">
-                <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
-                  <CalendarClock className="w-4 h-4 mr-2 text-slate-400" />
-                  排程設定
-                </h4>
+              {/* Equipment Name Section */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-red-500 rounded-full"></span>
+                  設備名稱 <span className="text-red-500">*</span>
+                </label>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">{t('checkFrequency')}</label>
-                    <div className="flex gap-2">
-                      <select
-                        value={frequency}
-                        onChange={(e) => setFrequency(e.target.value)}
-                        className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
-                      >
-                        <option value="monthly">每月</option>
-                        <option value="quarterly">每季</option>
-                        <option value="yearly">每年</option>
-                        <option value="custom_date">自訂日期</option>
-                        <option value="custom_days">自訂天數</option>
-                      </select>
-                      {frequency === 'custom_date' && (
-                        <input
-                          type="date"
-                          value={customFrequency}
-                          onChange={(e) => setCustomFrequency(e.target.value)}
-                          className="w-36 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
-                        />
-                      )}
-                      {frequency === 'custom_days' && (
-                        <input
-                          type="number"
-                          value={customFrequency}
-                          onChange={(e) => setCustomFrequency(e.target.value)}
-                          placeholder="天數"
-                          className="w-24 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
-                        />
-                      )}
-                    </div>
-                  </div>
+                {/* Hierarchy Selection */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                  <select
+                    value={eqCategory}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEqCategory(val);
+                      setEqType('');
+                      setEqDetail('');
+                    }}
+                    className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 transition-colors"
+                  >
+                    <option value="">選擇分類...</option>
+                    {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-500 uppercase">{t('checkStartDate')}</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
+                  <select
+                    value={eqType}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEqType(val);
+                      setEqDetail('');
+                    }}
+                    disabled={!eqCategory}
+                    className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
+                  >
+                    <option value="">選擇種類...</option>
+                    {eqCategory && hierarchy[eqCategory] &&
+                      Object.keys(hierarchy[eqCategory]).map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))
+                    }
+                  </select>
+
+                  <select
+                    value={eqDetail}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEqDetail(val);
+                      if (val) {
+                        setName(`${eqType} - ${val}`);
+                      }
+                    }}
+                    disabled={!eqType}
+                    className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
+                  >
+                    <option value="">選擇細項...</option>
+                    {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
+                      hierarchy[eqCategory][eqType].map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))
+                    }
+                  </select>
                 </div>
 
-                {/* Next Date Preview */}
-                <div className="mt-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-500">
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">下次檢查日期</p>
-                      <p className="text-lg font-black text-slate-800 tracking-tight">{getNextDatePreview()}</p>
-                    </div>
-                  </div>
-                  {initialData?.lastInspectedDate && (
-                    <span className="px-3 py-1 bg-white/60 backdrop-blur-sm rounded-full text-xs font-medium text-slate-600 border border-white/50">
-                      已有檢查紀錄
-                    </span>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="輸入設備名稱 (或由上方選單自動帶入)"
+                  className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                />
+              </div>
 
-                {/* Lifespan Settings */}
-                <div className="space-y-1.5 md:col-span-2 border-t border-slate-100 pt-5 mt-5">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                    設定壽命
-                    <span className="text-[10px] font-normal text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">將於到期時發送通知</span>
+              {/* Equipment ID and Photo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <span className="w-1 h-4 bg-red-500 rounded-full"></span>
+                    設備編號 <span className="text-red-500">*</span>
                   </label>
-                  <div className="flex gap-2 items-center flex-wrap">
-                    <select
-                      value={lifespan}
-                      onChange={(e) => setLifespan(e.target.value)}
-                      className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors min-w-[120px]"
-                    >
-                      <option value="">未設定</option>
-                      <option value="1m">1 個月</option>
-                      <option value="3m">1 季 (3個月)</option>
-                      <option value="12m">1 年 (12個月)</option>
-                      <option value="24m">2 年 (24個月)</option>
-                      <option value="36m">3 年 (36個月)</option>
-                      <option value="120m">10 年 (120個月)</option>
-                      <option value="custom">自訂日期</option>
-                    </select>
+                  <input
+                    type="text"
+                    value={barcode}
+                    onChange={e => setBarcode(e.target.value.toUpperCase())}
+                    placeholder="輸入設備編號"
+                    className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                  />
+                </div>
 
-                    {lifespan === 'custom' && (
+                {/* Photo Upload */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    設備照片 <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
+                  </label>
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
+                    <div className="w-14 h-14 bg-white border-2 border-slate-200 rounded-lg overflow-hidden flex-shrink-0 relative group">
+                      {photoUrl ? (
+                        <>
+                          <img src={photoUrl} alt="Equipment" className="w-full h-full object-cover" />
+                          <button
+                            onClick={handleDeletePhoto}
+                            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Trash2 className="w-5 h-5 text-white" />
+                          </button>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                          <ImageIcon className="w-6 h-6" />
+                        </div>
+                      )}
+                    </div>
+                    <label className={`flex-1 flex items-center justify-center px-4 py-2.5 bg-white border-2 border-teal-200 rounded-lg text-teal-600 text-sm font-bold hover:bg-teal-50 hover:border-teal-400 transition-all cursor-pointer ${isUploadingPhoto ? 'opacity-50' : ''}`}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {isUploadingPhoto ? '上傳中...' : '選擇照片'}
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg"
+                        className="hidden"
+                        onChange={handlePhotoUpload}
+                        disabled={isUploadingPhoto}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Schedule Settings (Blue Theme) */}
+          <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+            {/* Blue Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                <CalendarClock className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">排程設定</h3>
+                <p className="text-white/80 text-xs">檢查頻率與日期設定</p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Frequency and Start Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">檢查頻率</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value)}
+                      className="flex-1 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                    >
+                      <option value="monthly">每月</option>
+                      <option value="quarterly">每季</option>
+                      <option value="yearly">每年</option>
+                      <option value="custom_date">自訂日期</option>
+                      <option value="custom_days">自訂天數</option>
+                    </select>
+                    {frequency === 'custom_date' && (
                       <input
                         type="date"
-                        value={customLifespan}
-                        onChange={(e) => setCustomLifespan(e.target.value)}
-                        className="w-36 p-2.5 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 animate-in fade-in slide-in-from-left-2"
+                        value={customFrequency}
+                        onChange={(e) => setCustomFrequency(e.target.value)}
+                        className="w-36 p-3 bg-white border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
                       />
                     )}
-
-                    {lifespan && (
-                      <div className="ml-auto text-xs font-medium text-slate-500 bg-orange-50 px-3 py-2 rounded-lg border border-orange-100 flex items-center gap-2">
-                        <span className="text-orange-500">預計到期日:</span>
-                        <span className="text-slate-700 font-bold text-sm">{getExpiryDatePreview()}</span>
-                      </div>
+                    {frequency === 'custom_days' && (
+                      <input
+                        type="number"
+                        value={customFrequency}
+                        onChange={(e) => setCustomFrequency(e.target.value)}
+                        placeholder="天數"
+                        className="w-24 p-3 bg-white border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
+                      />
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">檢查起始日期</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
               </div>
 
-              {/* Section 3: Checklist Configuration */}
-              <div className="pt-6 border-t border-slate-100">
-                <h4 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
-                  <ClipboardCheck className="w-5 h-5 mr-2 text-slate-400" />
-                  {t('checkItemsConfig')}
-                </h4>
-
-                {renderCategorySection('visual', <Eye className="w-5 h-5 text-blue-500" />, t('visualCheck'))}
-                {renderCategorySection('performance', <Gauge className="w-5 h-5 text-orange-500" />, t('performanceCheck'))}
-                {renderCategorySection('comprehensive', <ClipboardCheck className="w-5 h-5 text-purple-500" />, t('comprehensiveCheck'))}
+              {/* Next Date Preview */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm text-blue-600">
+                    <Calendar className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">下次檢查日期</p>
+                    <p className="text-xl font-black text-slate-800 tracking-tight">{getNextDatePreview()}</p>
+                  </div>
+                </div>
+                {initialData?.lastInspectedDate && (
+                  <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full text-xs font-bold text-slate-600 border-2 border-white">
+                    已有檢查紀錄
+                  </span>
+                )}
               </div>
+
+              {/* Lifespan Settings */}
+              <div className="space-y-2 pt-4 border-t-2 border-slate-100">
+                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                  設定壽命
+                  <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">將於到期時發送通知</span>
+                </label>
+                <div className="flex gap-2 items-center flex-wrap">
+                  <select
+                    value={lifespan}
+                    onChange={(e) => setLifespan(e.target.value)}
+                    className="p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors min-w-[140px]"
+                  >
+                    <option value="">未設定</option>
+                    <option value="1m">1 個月</option>
+                    <option value="3m">1 季 (3個月)</option>
+                    <option value="12m">1 年 (12個月)</option>
+                    <option value="24m">2 年 (24個月)</option>
+                    <option value="36m">3 年 (36個月)</option>
+                    <option value="120m">10 年 (120個月)</option>
+                    <option value="custom">自訂日期</option>
+                  </select>
+
+                  {lifespan === 'custom' && (
+                    <input
+                      type="date"
+                      value={customLifespan}
+                      onChange={(e) => setCustomLifespan(e.target.value)}
+                      className="w-40 p-3 bg-white border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 animate-in fade-in slide-in-from-left-2"
+                    />
+                  )}
+
+                  {lifespan && (
+                    <div className="ml-auto text-sm font-medium bg-orange-50 px-4 py-2.5 rounded-lg border-2 border-orange-200 flex items-center gap-2">
+                      <span className="text-orange-600 font-bold">預計到期日:</span>
+                      <span className="text-slate-800 font-bold">{getExpiryDatePreview()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3: Checklist Configuration (Purple Theme) */}
+          <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+            {/* Purple Header */}
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                <ClipboardCheck className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">檢查項目配置</h3>
+                <p className="text-white/80 text-xs">設定檢查清單內容</p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {renderCategorySection('visual', <Eye className="w-5 h-5 text-blue-500" />, t('visualCheck'))}
+              {renderCategorySection('performance', <Gauge className="w-5 h-5 text-orange-500" />, t('performanceCheck'))}
+              {renderCategorySection('comprehensive', <ClipboardCheck className="w-5 h-5 text-purple-500" />, t('comprehensiveCheck'))}
             </div>
           </div>
         </div>
