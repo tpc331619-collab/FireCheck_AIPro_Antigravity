@@ -862,8 +862,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         </button>
 
-
-
                         <button
                             onClick={onOpenMapEditor}
                             className="bg-white p-4 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center justify-center gap-3 hover:shadow-xl hover:scale-[1.02] transition-all group h-36 relative overflow-hidden"
@@ -1363,7 +1361,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
                     )}
                 </div>
-            </div>
+            </div >
 
             {/* FAB (Maintained for quick access) */}
             <button
