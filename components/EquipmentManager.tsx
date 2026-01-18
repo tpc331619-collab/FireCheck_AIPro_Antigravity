@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp, Image as ImageIcon, Upload, Database } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Trash2, Eye, Gauge, ClipboardCheck, LayoutList, Download, QrCode, CalendarClock, Calendar, CheckCircle, Bell, Mail, ChevronDown, ChevronUp, Image as ImageIcon, Upload, Database, AlertTriangle } from 'lucide-react';
 import { THEME_COLORS, EQUIPMENT_HIERARCHY } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
 import { EquipmentDefinition, CheckCategory, CheckInputType, CustomCheckItem, UserProfile, EquipmentHierarchy } from '../types';
@@ -18,32 +18,36 @@ interface EquipmentManagerProps {
 
 const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, onBack, onSaved }) => {
   const { t } = useLanguage();
-  const [siteName, setSiteName] = useState('');
-  const [buildingName, setBuildingName] = useState('');
-  const [name, setName] = useState('');
-  const [barcode, setBarcode] = useState('');
-  const [frequency, setFrequency] = useState('monthly');
-  const [customFrequency, setCustomFrequency] = useState('');
-  const [startDate, setStartDate] = useState(() => {
-    // Default to today in local time format YYYY-MM-DD
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-
-  // Lifespan Settings
-  const [lifespan, setLifespan] = useState(''); // default empty or specific default
-  const [customLifespan, setCustomLifespan] = useState('');
-
-  // Hierarchy
-  const [eqCategory, setEqCategory] = useState('');
-  const [eqType, setEqType] = useState('');
-  const [eqDetail, setEqDetail] = useState('');
-  const [photoUrl, setPhotoUrl] = useState('');
+  const [siteName, setSiteName] = useState(initialData?.siteName || '');
+  const [buildingName, setBuildingName] = useState(initialData?.buildingName || '');
+  const [name, setName] = useState(initialData?.name || '');
+  const [barcode, setBarcode] = useState(initialData?.barcode || '');
+  const [frequency, setFrequency] = useState(initialData?.checkFrequency || 'monthly');
+  const [customFrequency, setCustomFrequency] = useState(initialData?.customFrequency || '');
+  const [startDate, setStartDate] = useState(initialData?.checkStartDate ? new Date(initialData.checkStartDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+  const [lifespan, setLifespan] = useState(initialData?.lifespan || '');
+  const [customLifespan, setCustomLifespan] = useState(initialData?.customLifespan || '');
+  const [checkItems, setCheckItems] = useState<CustomCheckItem[]>(initialData?.checkItems || []);
+  const [photoUrl, setPhotoUrl] = useState(initialData?.photoUrl || '');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-
-
-  // Dynamic Hierarchy State
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [eqCategory, setEqCategory] = useState(initialData?.equipmentCategory || '');
+  const [eqType, setEqType] = useState(initialData?.equipmentType || '');
+  const [eqDetail, setEqDetail] = useState(initialData?.equipmentDetail || '');
   const [hierarchy, setHierarchy] = useState<EquipmentHierarchy>({});
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<CheckCategory>>(new Set());
+
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<{
+    siteName?: boolean;
+    buildingName?: boolean;
+    name?: boolean;
+    barcode?: boolean;
+    checkItems?: boolean;
+  }>({});
+
+  const [qrCodeUrl, setQrCodeUrl] = useState('');
 
   // Load Hierarchy on Mount
   useEffect(() => {
@@ -78,15 +82,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     fetchHierarchy();
   }, [user.uid]);
 
-  const [checkItems, setCheckItems] = useState<CustomCheckItem[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [qrCodeUrl, setQrCodeUrl] = useState('');
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({
-    visual: false,
-    performance: true,
-    comprehensive: true
-  });
+
 
   // Initialize form if editing, or reset if adding
   useEffect(() => {
@@ -276,8 +272,47 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   };
 
   const handleSave = async () => {
-    if (!siteName || !buildingName || !name || !barcode) {
-      alert(t('fillRequired'));
+    // Reset validation errors
+    setValidationErrors({});
+    const errors: typeof validationErrors = {};
+    const missingFields: string[] = [];
+
+    // Validate required fields
+    if (!siteName.trim()) {
+      errors.siteName = true;
+      missingFields.push('場所名稱');
+    }
+    if (!buildingName.trim()) {
+      errors.buildingName = true;
+      missingFields.push('建築物名稱');
+    }
+    if (!name.trim()) {
+      errors.name = true;
+      missingFields.push('設備名稱');
+    }
+    if (!barcode.trim()) {
+      errors.barcode = true;
+      missingFields.push('設備編號');
+    }
+
+    // Validate at least one check item
+    if (checkItems.length === 0) {
+      errors.checkItems = true;
+      missingFields.push('檢查項目 (至少需要一項)');
+    }
+
+    // If there are missing fields, show error and return
+    if (missingFields.length > 0) {
+      setValidationErrors(errors);
+      alert(`請填寫以下必填欄位：\n\n${missingFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}`);
+
+      // Scroll to first error
+      setTimeout(() => {
+        const firstErrorElement = document.querySelector('.border-red-500');
+        if (firstErrorElement) {
+          firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
       return;
     }
 
@@ -722,10 +757,24 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   <input
                     type="text"
                     value={siteName}
-                    onChange={e => setSiteName(e.target.value)}
+                    onChange={e => {
+                      setSiteName(e.target.value);
+                      if (validationErrors.siteName) {
+                        setValidationErrors(prev => ({ ...prev, siteName: false }));
+                      }
+                    }}
                     placeholder="輸入場所名稱"
-                    className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                    className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.siteName
+                      ? 'border-red-500 focus:border-red-600'
+                      : 'border-slate-200 focus:border-teal-500'
+                      }`}
                   />
+                  {validationErrors.siteName && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      請填寫場所名稱
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -735,10 +784,24 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   <input
                     type="text"
                     value={buildingName}
-                    onChange={e => setBuildingName(e.target.value)}
+                    onChange={e => {
+                      setBuildingName(e.target.value);
+                      if (validationErrors.buildingName) {
+                        setValidationErrors(prev => ({ ...prev, buildingName: false }));
+                      }
+                    }}
                     placeholder="輸入建築物名稱"
-                    className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                    className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.buildingName
+                      ? 'border-red-500 focus:border-red-600'
+                      : 'border-slate-200 focus:border-teal-500'
+                      }`}
                   />
+                  {validationErrors.buildingName && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      請填寫建築物名稱
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -807,10 +870,24 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <input
                   type="text"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={e => {
+                    setName(e.target.value);
+                    if (validationErrors.name) {
+                      setValidationErrors(prev => ({ ...prev, name: false }));
+                    }
+                  }}
                   placeholder="輸入設備名稱 (或由上方選單自動帶入)"
-                  className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                  className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.name
+                    ? 'border-red-500 focus:border-red-600'
+                    : 'border-slate-200 focus:border-teal-500'
+                    }`}
                 />
+                {validationErrors.name && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    請填寫設備名稱
+                  </p>
+                )}
               </div>
 
               {/* Equipment ID and Photo */}
@@ -823,10 +900,24 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   <input
                     type="text"
                     value={barcode}
-                    onChange={e => setBarcode(e.target.value.toUpperCase())}
+                    onChange={e => {
+                      setBarcode(e.target.value.toUpperCase());
+                      if (validationErrors.barcode) {
+                        setValidationErrors(prev => ({ ...prev, barcode: false }));
+                      }
+                    }}
                     placeholder="輸入設備編號"
-                    className="w-full p-3 bg-white border-2 border-slate-200 rounded-lg text-slate-900 focus:border-teal-500 focus:outline-none transition-all"
+                    className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.barcode
+                      ? 'border-red-500 focus:border-red-600'
+                      : 'border-slate-200 focus:border-teal-500'
+                      }`}
                   />
+                  {validationErrors.barcode && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      請填寫設備編號
+                    </p>
+                  )}
                 </div>
 
                 {/* Photo Upload */}
@@ -992,17 +1083,25 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
           </div>
 
           {/* Card 3: Checklist Configuration (Purple Theme) */}
-          <div className="bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+          <div className={`bg-white rounded-2xl shadow-md border-2 overflow-hidden ${validationErrors.checkItems ? 'border-red-500' : 'border-slate-200'
+            }`}>
             {/* Purple Header */}
             <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-4 flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
                 <ClipboardCheck className="w-6 h-6 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-white font-bold text-lg">檢查項目配置</h3>
-                <p className="text-white/80 text-xs">設定檢查清單內容</p>
+                <p className="text-white/80 text-xs">設定檢查清單內容 <span className="text-red-200">(至少需要一項)*</span></p>
               </div>
             </div>
+
+            {validationErrors.checkItems && (
+              <div className="bg-red-50 border-b-2 border-red-200 p-3 flex items-center gap-2 text-red-700">
+                <AlertTriangle className="w-5 h-5" />
+                <p className="text-sm font-bold">請至少新增一個檢查項目</p>
+              </div>
+            )}
 
             <div className="p-6 space-y-4">
               {renderCategorySection('visual', <Eye className="w-5 h-5 text-blue-500" />, t('visualCheck'))}
