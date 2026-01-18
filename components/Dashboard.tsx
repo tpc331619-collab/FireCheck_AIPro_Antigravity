@@ -1302,70 +1302,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
                                 )}
 
-                                {/* DECLARATION TAB */}
-                                {settingsTab === 'DECLARATION' && (
-                                    <div className="space-y-6 animate-in fade-in duration-300">
-                                        <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex gap-3">
-                                            <Calendar className="w-12 h-12 text-red-500 shrink-0 p-2 bg-white rounded-xl shadow-sm" />
-                                            <div className="space-y-1">
-                                                <p className="text-sm font-bold text-red-900">消防安全設備檢修申報</p>
-                                                <p className="text-xs text-red-700 leading-relaxed">
-                                                    請設定下次申報日期，系統將自動倒數並提醒您。
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-2">下次申報日期</label>
-                                                <input
-                                                    type="date"
-                                                    value={declarationSettings?.nextDate || ''}
-                                                    onChange={(e) => {
-                                                        const newSettings = {
-                                                            ...declarationSettings,
-                                                            nextDate: e.target.value,
-                                                            lastModified: Date.now(),
-                                                            emailNotificationsEnabled: declarationSettings?.emailNotificationsEnabled || false,
-                                                            emailRecipients: declarationSettings?.emailRecipients || []
-                                                        };
-                                                        setDeclarationSettings(newSettings);
-                                                        StorageService.saveDeclarationSettings(newSettings, user.uid);
-                                                    }}
-                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all cursor-pointer hover:bg-slate-100"
-                                                />
-                                            </div>
-
-                                            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                                                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-100">
-                                                    <History className="w-5 h-5 text-slate-400" />
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-slate-400">上次更新</div>
-                                                    <div className="text-sm font-bold text-slate-700">
-                                                        {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : '尚未設定'}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                                            <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
-                                                <Info className="w-4 h-4" />
-                                                法規提醒
-                                            </h5>
-                                            <ul className="text-xs text-yellow-800/80 space-y-1 list-disc list-inside font-medium">
-                                                <li>甲類場所：每半年申報一次</li>
-                                                <li>甲類以外場所：每年申報一次</li>
-                                                <li>請務必於期限前完成檢修與申報作業</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* NOTIFICATIONS TAB */}
-
-
                                 {/* GENERAL TAB */}
                                 {settingsTab === 'GENERAL' && (
                                     <div className="space-y-6">
@@ -1591,6 +1527,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     設定後，儀表板將顯示倒數天數。
                                                 </p>
                                             </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                                                <History className="w-5 h-5 text-slate-400" />
+                                            </div>
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-400">上次更新</div>
+                                                <div className="text-sm font-bold text-slate-700">
+                                                    {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : '尚未設定'}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                                            <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
+                                                <Info className="w-4 h-4" />
+                                                法規提醒
+                                            </h5>
+                                            <ul className="text-xs text-yellow-800/80 space-y-1 list-disc list-inside font-medium">
+                                                <li>甲類場所：每半年申報一次</li>
+                                                <li>甲類以外場所：每年申報一次</li>
+                                                <li>請務必於期限前完成檢修與申報作業</li>
+                                            </ul>
                                         </div>
                                     </div>
                                 )}
