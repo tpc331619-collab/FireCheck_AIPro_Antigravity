@@ -1,4 +1,4 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator } from '../types';
 import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
@@ -802,11 +802,166 @@ export const StorageService = {
           return docId;
         } else {
           // Create new
-          const docRef = await addDoc(collection(db, 'abnormalRecords'), newRecord);
+          const docRef = await addDoc(collection(db, 'abnormalRecords'), {
+            ...newRecord,
+            status: 'pending',
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          });
           return docRef.id;
         }
       } catch (e) {
-        console.error("Abnormal record save error", e);
+        console.error("Save abnormal record error", e);
+        throw e;
+      }
+    }
+  },
+
+
+
+  async addHealthIndicator(indicator: Omit<HealthIndicator, 'id' | 'updatedAt'>, userId: string): Promise<string> {
+    const KEY = `health_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      const indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+      const newId = Date.now().toString();
+      indicators.push({ ...indicator, id: newId, userId, updatedAt: Date.now() });
+      localStorage.setItem(KEY, JSON.stringify(indicators));
+      return newId;
+    } else {
+      try {
+        const docRef = await addDoc(collection(db, 'health'), {
+          ...indicator,
+          userId,
+          updatedAt: Date.now()
+        });
+        return docRef.id;
+      } catch (e: any) {
+        console.error("Add health indicator error", e);
+        if (e.code === 'permission-denied') {
+          // Fallback to local storage logic if needed, or throw
+          const data = localStorage.getItem(KEY);
+          const indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+          const newId = Date.now().toString();
+          indicators.push({ ...indicator, id: newId, userId, updatedAt: Date.now() });
+          localStorage.setItem(KEY, JSON.stringify(indicators));
+          return newId;
+        }
+        throw e;
+      }
+    }
+  },
+
+  async updateHealthIndicator(id: string, updates: Partial<HealthIndicator>, userId: string): Promise<void> {
+    const KEY = `health_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      let indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+      const index = indicators.findIndex(i => i.id === id);
+      if (index !== -1) {
+        indicators[index] = { ...indicators[index], ...updates, updatedAt: Date.now() };
+        localStorage.setItem(KEY, JSON.stringify(indicators));
+      }
+    } else {
+      try {
+        const docRef = doc(db, 'health', id);
+        await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          // Fallback local
+          const data = localStorage.getItem(KEY);
+          let indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+          const index = indicators.findIndex(i => i.id === id);
+          if (index !== -1) {
+            indicators[index] = { ...indicators[index], ...updates, updatedAt: Date.now() };
+            localStorage.setItem(KEY, JSON.stringify(indicators));
+          }
+          return;
+        }
+        console.error("Update health indicator error", e);
+        throw e;
+      }
+    }
+  },
+
+  async deleteHealthIndicator(id: string, userId: string): Promise<void> {
+    const KEY = `health_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      let indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+      indicators = indicators.filter(i => i.id !== id);
+      localStorage.setItem(KEY, JSON.stringify(indicators));
+    } else {
+      try {
+        await deleteDoc(doc(db, 'health', id));
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          // Fallback local
+          const data = localStorage.getItem(KEY);
+          let indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+          indicators = indicators.filter(i => i.id !== id);
+          localStorage.setItem(KEY, JSON.stringify(indicators));
+          return;
+        }
+        console.error("Delete health indicator error", e);
+        throw e;
+      }
+    }
+  },
+
+  async getHealthIndicators(userId: string): Promise<HealthIndicator[]> {
+    const KEY = `health_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      return data ? JSON.parse(data) : [];
+    } else {
+      try {
+        // Query the dedicated 'health' collection
+        const q = query(collection(db, 'health'), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HealthIndicator));
+        }
+
+        // --- MIGRATION CHECK ---
+        // If 'health' collection is empty, check old 'settings' document for legacy data
+        const settingsDocRef = doc(db, 'settings', `health_${userId}`);
+        const settingsSnapshot = await getDoc(settingsDocRef);
+        if (settingsSnapshot.exists()) {
+          const legacyData = settingsSnapshot.data().indicators as HealthIndicator[];
+          if (legacyData && legacyData.length > 0) {
+            // Return legacy data so UI works, user can choose to re-save if we added logic, 
+            // but for now, we just return it. 
+            // Ideally, we could auto-migrate here, but read-only is safer for getter.
+            return legacyData;
+          }
+        }
+
+        return [];
+      } catch (e: any) {
+        console.error("Fetch health indicators error", e);
+        const data = localStorage.getItem(KEY);
+        return data ? JSON.parse(data) : [];
+      }
+    }
+  },
+
+  // Deprecated: Use add/update/delete methods instead
+  async saveHealthIndicators(indicators: HealthIndicator[], userId: string): Promise<void> {
+    const KEY = `health_${userId}`;
+    if (this.isGuest || !db) {
+      localStorage.setItem(KEY, JSON.stringify(indicators));
+    } else {
+      try {
+        const docRef = doc(db, 'settings', `health_${userId}`);
+        await setDoc(docRef, { indicators });
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          localStorage.setItem(KEY, JSON.stringify(indicators));
+          return;
+        }
+        console.error("Save health indicators error", e);
         throw e;
       }
     }

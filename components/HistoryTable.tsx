@@ -182,20 +182,20 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                             <button
                                 onClick={() => onViewDetails(row)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm border border-blue-100"
-                                title="檢查內容"
+                                title="內容"
                             >
                                 <ClipboardList className="w-3.5 h-3.5" />
-                                檢查內容
+                                內容
                             </button>
                         )}
                         {(row.repairDate || row.status === 'Fixed' || row.status === '已改善') && (
                             <button
                                 onClick={() => onViewRecheck(row)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm border border-red-100"
-                                title="檢修紀錄"
+                                title="檢修"
                             >
                                 <Wrench className="w-3.5 h-3.5" />
-                                檢修紀錄
+                                檢修
                             </button>
                         )}
                     </div>
@@ -321,7 +321,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                         }`}
                                 >
                                     <ClipboardList className="w-4 h-4" />
-                                    檢查內容
+                                    內容
                                 </button>
 
                                 <button
@@ -333,7 +333,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                         }`}
                                 >
                                     <Wrench className="w-4 h-4" />
-                                    檢修紀錄
+                                    檢修
                                 </button>
                             </div>
                         )}

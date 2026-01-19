@@ -1,6 +1,6 @@
 ﻿
 import React, { useEffect, useState, useRef } from 'react';
-import { InspectionReport, UserProfile, LanguageCode } from '../types';
+import { InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, EquipmentType, HealthIndicator, UserProfile } from '../types';
 import { StorageService } from '../services/storageService';
 // Fix: Use modular imports from firebase/auth
 import { updateProfile, updatePassword } from 'firebase/auth';
@@ -8,12 +8,12 @@ import { Mail, Bell } from 'lucide-react';
 
 
 import InspectionModeModal from './InspectionModeModal';
-import MapViewInspection from './MapViewInspection';
+import MapViewInspection from "./MapViewInspection";
 import AddEquipmentModeModal from './AddEquipmentModeModal';
 import AbnormalRecheckList from './AbnormalRecheckList';
 import HistoryTable from './HistoryTable';
 
-import { DeclarationSettings } from '../types';
+
 import { RegulationFeed } from './RegulationFeed';
 import { useTheme, ThemeType } from '../contexts/ThemeContext'; // Import Theme Hook
 import {
@@ -58,6 +58,8 @@ import {
     Zap,
     Sparkles,
     Save,
+    Edit2,
+    Activity,
     Flame,
     BellRing,
     Droplets,
@@ -65,7 +67,8 @@ import {
     Lightbulb,
     DoorOpen,
     Box,
-    Filter
+    Filter,
+    Heart
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
@@ -112,6 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
 
     // Declaration State
     const [declarationSettings, setDeclarationSettings] = useState<DeclarationSettings | null>(null);
@@ -137,7 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [equipmentMap, setEquipmentMap] = useState<Record<string, { name: string, barcode: string, checkFrequency: string }>>({});
     const [equipmentStats, setEquipmentStats] = useState<Record<string, number>>({});
     const [nameCount, setNameCount] = useState(0);
-    const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
     const [isInspectionModeOpen, setIsInspectionModeOpen] = useState(false);
     const [isAddEquipmentModeOpen, setIsAddEquipmentModeOpen] = useState(false);
     const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
@@ -159,22 +163,116 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
     const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
 
+    // Health Indicator State
+    const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
+    const [editingHealthIndicator, setEditingHealthIndicator] = useState<Partial<HealthIndicator> | null>(null);
+    const [savingHealth, setSavingHealth] = useState(false);
+
+    // Fetch Health Indicators
+    useEffect(() => {
+        if (user?.uid) {
+            StorageService.getHealthIndicators(user.uid).then(setHealthIndicators);
+        }
+    }, [user?.uid]);
+
+    const handleSaveHealthIndicator = async () => {
+        if (!user?.uid || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
+            alert('請填寫完整資料');
+            return;
+        }
+
+        try {
+            setSavingHealth(true);
+            const indicatorData = {
+                ...editingHealthIndicator,
+                userId: user.uid,
+                updatedAt: Date.now()
+            };
+
+            if (editingHealthIndicator.id) {
+                // Update
+                await StorageService.updateHealthIndicator(editingHealthIndicator.id, indicatorData, user.uid);
+                setHealthIndicators(prev => prev.map(i => i.id === editingHealthIndicator.id ? { ...i, ...indicatorData } : i));
+            } else {
+                // Add
+                const newId = await StorageService.addHealthIndicator(indicatorData, user.uid);
+                setHealthIndicators(prev => [{ ...indicatorData, id: newId } as HealthIndicator, ...prev]);
+            }
+
+            setEditingHealthIndicator(null);
+            alert('指標已儲存');
+        } catch (error) {
+            console.error('Failed to save health indicator:', error);
+            alert('儲存失敗');
+        } finally {
+            setSavingHealth(false);
+        }
+    };
+
+    const handleDeleteHealthIndicator = async (id: string) => {
+        if (!user?.uid || !confirm('確定要刪除此指標嗎？')) return;
+
+        try {
+            await StorageService.deleteHealthIndicator(id, user.uid);
+            setHealthIndicators(prev => prev.filter(i => i.id !== id));
+        } catch (error) {
+            console.error('Failed to delete health indicator:', error);
+            alert('刪除失敗');
+        }
+    };
+
     // Column Visibility State (Lifted from HistoryTable)
     const [showColumns, setShowColumns] = useState(false);
-    const [visibleColumns, setVisibleColumns] = useState({
-        index: true,
-        date: true,
-        building: true,
-        equipment: true,
-        barcode: true,
-        result: true,
-        notes: true,
-        inspector: true,
-        actions: true
+    const [visibleColumns, setVisibleColumns] = useState(() => {
+        try {
+            const saved = localStorage.getItem('history_visibleColumns');
+            return saved ? JSON.parse(saved) : {
+                index: true,
+                date: true,
+                building: true,
+                equipment: true,
+                barcode: true,
+                result: true,
+                notes: true,
+                inspector: true,
+                actions: true
+            };
+        } catch {
+            return {
+                index: true,
+                date: true,
+                building: true,
+                equipment: true,
+                barcode: true,
+                result: true,
+                notes: true,
+                inspector: true,
+                actions: true
+            };
+        }
     });
-    const [columnOrder, setColumnOrder] = useState<string[]>([
-        'index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions'
-    ]);
+
+    const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('history_columnOrder');
+            return saved ? JSON.parse(saved) : [
+                'index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions'
+            ];
+        } catch {
+            return [
+                'index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions'
+            ];
+        }
+    });
+
+    // Persist column settings
+    useEffect(() => {
+        localStorage.setItem('history_visibleColumns', JSON.stringify(visibleColumns));
+    }, [visibleColumns]);
+
+    useEffect(() => {
+        localStorage.setItem('history_columnOrder', JSON.stringify(columnOrder));
+    }, [columnOrder]);
 
     const toggleColumn = (key: keyof typeof visibleColumns) => {
         setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
@@ -352,10 +450,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         // Reset time part of now calculation to match date-only comparison
         now.setHours(0, 0, 0, 0);
 
-        const target = new Date(declarationSettings.nextDate);
+        let target = new Date(declarationSettings.nextDate);
 
         // Check for invalid date
         if (isNaN(target.getTime())) return null;
+
+        // Auto-recalculate: if date passed, assume next year (or keep adding years until future)
+        if (target.getTime() < now.getTime()) {
+            while (target.getTime() < now.getTime()) {
+                target.setFullYear(target.getFullYear() + 1);
+            }
+        }
 
         const diff = target.getTime() - now.getTime();
         const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -717,8 +822,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <span className="font-bold text-lg">無盡維護</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => setIsStatsModalOpen(true)} className="p-2 hover:bg-teal-600 rounded-lg transition-colors" title="庫存">
-                            <ClipboardList className="w-5 h-5" />
+
+                        <button onClick={() => setIsHealthModalOpen(true)} className="p-2 hover:bg-teal-600 rounded-lg transition-colors" title="健康指標">
+                            <Activity className="w-5 h-5" />
                         </button>
                         <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-teal-600 rounded-lg transition-colors" title="設置">
                             <Settings className="w-5 h-5" />
@@ -764,12 +870,150 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <Database className="w-4 h-4" />
                                 <span className="text-white/90">設備總數: <span className="font-bold">{nameCount}</span></span>
                             </div>
-                            {countdownDays !== null && countdownDays <= 60 && (
+                            {countdownDays !== null && (
                                 <div className="flex items-center gap-2">
                                     <Calendar className="w-4 h-4" />
                                     <span className="text-white/90">申報倒數: <span className="font-bold">{countdownDays}</span> 天</span>
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Unified Overview Widget */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-bottom-2 duration-500 overflow-hidden">
+                        <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+
+                            {/* Left Side: Equipment Overview (Grow to fill) */}
+                            <div className="flex-1 p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                        <div className="p-2 bg-indigo-50 rounded-lg">
+                                            <ClipboardList className="w-5 h-5 text-indigo-600" />
+                                        </div>
+                                        設備概覽
+                                    </h3>
+                                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">
+                                        即時統計
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                    {Object.keys(equipmentStats).length === 0 ? (
+                                        <div className="col-span-full py-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                                            尚無設備資料
+                                        </div>
+                                    ) : (
+                                        Object.entries(equipmentStats)
+                                            .sort(([, a], [, b]) => (b as number) - (a as number))
+                                            .map(([name, count], idx) => {
+                                                const total = Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number;
+                                                const percent = Math.round(((count as number) / total) * 100);
+
+                                                return (
+                                                    <div key={idx} className="group relative bg-slate-50 hover:bg-white border border-slate-100 p-3 rounded-xl transition-all hover:shadow-md hover:-translate-y-0.5">
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div className="p-2 bg-white rounded-lg shadow-sm border border-slate-100 group-hover:scale-105 transition-transform">
+                                                                {getEquipmentIcon(name)}
+                                                            </div>
+                                                            <span className="font-black text-xl text-slate-700">{count as number}</span>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-xs font-bold text-slate-600 truncate max-w-[4rem]">{name}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{percent}%</span>
+                                                            </div>
+                                                            <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-indigo-500 rounded-full"
+                                                                    style={{ width: `${percent}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Right Side: Health Indicators (Fixed width on large screens) */}
+                            <div className="lg:w-[320px] xl:w-[360px] p-5 bg-slate-50 flex flex-col shrink-0 border-l border-slate-100">
+                                <div className="flex items-center justify-between mb-4 shrink-0">
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2">
+                                        <div className="p-1.5 bg-rose-100 rounded-lg">
+                                            <Heart className="w-4 h-4 text-rose-600 fill-rose-600" />
+                                        </div>
+                                        健康指標
+                                    </h3>
+                                    <button
+                                        onClick={() => setIsHealthModalOpen(true)}
+                                        className="text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-1 rounded shadow-sm transition-colors"
+                                    >
+                                        管理
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3 overflow-y-auto custom-scrollbar pr-1 max-h-[160px]">
+                                    {healthIndicators.length === 0 ? (
+                                        <div className="py-8 text-center bg-white rounded-xl border border-slate-200 border-dashed flex flex-col items-center gap-2">
+                                            <div className="p-2 bg-slate-50 rounded-full">
+                                                <Heart className="w-5 h-5 text-slate-300" />
+                                            </div>
+                                            <span className="text-xs text-slate-400 font-medium">尚無健康指標</span>
+                                        </div>
+                                    ) : (
+                                        healthIndicators.map(indicator => {
+                                            const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
+                                            const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                            const percent = Math.max(0, Math.min(100, Math.round((remainingDays / totalDays) * 100)));
+                                            const isExpired = remainingDays < 0;
+                                            const isUrgent = remainingDays < 30 && !isExpired;
+
+                                            return (
+                                                <div key={indicator.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 relative overflow-hidden group hover:border-indigo-300 transition-all hover:shadow-md">
+                                                    <div className="flex items-center gap-3">
+                                                        {/* Big Icon Box */}
+                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${isExpired ? 'bg-red-50' : isUrgent ? 'bg-amber-50' : 'bg-emerald-50'
+                                                            }`}>
+                                                            <Heart className={`w-6 h-6 ${isExpired ? 'text-red-500 fill-red-500' : isUrgent ? 'text-amber-500 fill-amber-500 animate-pulse' : 'text-emerald-500 fill-emerald-500'
+                                                                }`} />
+                                                        </div>
+
+                                                        {/* Content */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <div className="font-bold text-slate-700 text-sm truncate leading-tight mb-0.5" title={indicator.equipmentName}>
+                                                                        {indicator.equipmentName}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-slate-400 font-medium truncate">
+                                                                        剩餘天數
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Big Number Display */}
+                                                                <div className={`text-right ${isExpired ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                                    <span className="text-xl font-black tracking-tight">{remainingDays}</span>
+                                                                    <span className="text-[10px] font-bold ml-0.5">天</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Progress Bar */}
+                                                            <div className="mt-1.5 flex items-center gap-2">
+                                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                                    <div
+                                                                        className={`h-full rounded-full transition-all duration-500 ${isExpired ? 'bg-red-500' : isUrgent ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                                                        style={{ width: `${percent}%` }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1174,7 +1418,194 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 <Plus className="w-7 h-7" />
             </button>
 
-            {/* Expanded Settings Modal */}
+            {/* Health Modal */}
+            {
+                isHealthModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                    <Activity className="w-5 h-5 mr-2 text-red-500" />
+                                    健康指標設定
+                                </h3>
+                                <button onClick={() => setIsHealthModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-slate-500" />
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h4 className="font-bold text-slate-700">指標列表</h4>
+                                        <button
+                                            onClick={() => setEditingHealthIndicator({} as HealthIndicator)}
+                                            className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm shadow-red-200"
+                                        >
+                                            <Plus className="w-4 h-4" /> 新增指標
+                                        </button>
+                                    </div>
+
+                                    {/* Edit/Add Form */}
+                                    {editingHealthIndicator && (
+                                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 animate-in fade-in slide-in-from-top-2">
+                                            <h5 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                                <Edit2 className="w-4 h-4" />
+                                                {editingHealthIndicator.id ? '編輯指標' : '新增指標'}
+                                            </h5>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-bold text-slate-500">建築物名稱</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editingHealthIndicator.buildingName || ''}
+                                                        onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, buildingName: e.target.value }))}
+                                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                        placeholder="例: A棟"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-bold text-slate-500">設備名稱</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editingHealthIndicator.equipmentName || ''}
+                                                        onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, equipmentName: e.target.value }))}
+                                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                        placeholder="例: 滅火器"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-bold text-slate-500">起始日期</label>
+                                                    <input
+                                                        type="date"
+                                                        value={editingHealthIndicator.startDate || ''}
+                                                        onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, startDate: e.target.value }))}
+                                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-xs font-bold text-slate-500">到期日期</label>
+                                                    <input
+                                                        type="date"
+                                                        value={editingHealthIndicator.endDate || ''}
+                                                        onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, endDate: e.target.value }))}
+                                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Calculation Preview */}
+                                            {editingHealthIndicator.startDate && editingHealthIndicator.endDate && (
+                                                <div className="flex gap-4 mb-4 p-3 bg-white rounded-xl border border-slate-100">
+                                                    <div className="flex-1">
+                                                        <span className="text-xs text-slate-400 block mb-1">期間天數 (到期-起始)</span>
+                                                        <span className="font-bold text-slate-700">
+                                                            {Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date(editingHealthIndicator.startDate).getTime()) / (1000 * 60 * 60 * 24))} 天
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1 border-l border-slate-100 pl-4">
+                                                        <span className="text-xs text-slate-400 block mb-1">實際剩餘 (到期-今天)</span>
+                                                        <span className={`font-bold ${Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                            {Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} 天
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => setEditingHealthIndicator(null)}
+                                                    className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors"
+                                                >
+                                                    取消
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (!editingHealthIndicator.buildingName || !editingHealthIndicator.equipmentName || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
+                                                            alert('請填寫完整資訊');
+                                                            return;
+                                                        }
+                                                        handleSaveHealthIndicator();
+                                                    }}
+                                                    className="px-6 py-2 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700 transition-colors shadow-lg shadow-slate-200"
+                                                >
+                                                    儲存設定
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* List View */}
+                                    <div className="space-y-3">
+                                        {healthIndicators.length === 0 ? (
+                                            <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                                                尚無健康指標設定
+                                            </div>
+                                        ) : (
+                                            healthIndicators.map(indicator => {
+                                                const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
+                                                const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                                const isExpired = remainingDays < 0;
+
+                                                return (
+                                                    <div key={indicator.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                                        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                            <div>
+                                                                <label className="text-xs text-slate-400 block">建築物</label>
+                                                                <div className="font-bold text-slate-700 truncate">{indicator.buildingName}</div>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-slate-400 block">設備名稱</label>
+                                                                <div className="font-bold text-slate-700 truncate">{indicator.equipmentName}</div>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-slate-400 block">期間天數</label>
+                                                                <div className="font-mono font-medium text-slate-600">{totalDays} 天</div>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-xs text-slate-400 block">實際剩餘</label>
+                                                                <div className={`font-mono font-bold ${isExpired ? 'text-red-500' : 'text-green-600'}`}>
+                                                                    {remainingDays} 天
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-50">
+                                                            <button
+                                                                onClick={() => setEditingHealthIndicator(indicator)}
+                                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                                <button
+                                    onClick={() => setIsHealthModalOpen(false)}
+                                    className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all shadow-lg shadow-slate-200"
+                                >
+                                    關閉視窗
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
             {
                 isSettingsOpen && (
                     <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
@@ -1223,6 +1654,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 >
                                     <Calendar className="w-4 h-4 mr-2" /> 申報
                                 </button>
+
 
                             </div>
 
@@ -1597,6 +2029,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <p className="text-xs text-red-700 leading-relaxed">
                                                     請設定下次申報日期，系統將自動倒數並提醒您。
                                                 </p>
+
+
                                             </div>
                                         </div>
 
@@ -1650,6 +2084,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         </div>
                                     </div>
                                 )}
+
+                                {/* HEALTH TAB */}
+
                             </div>
                         </div>
                     </div>
@@ -1658,76 +2095,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             {
 
             }
-            {/* Equipment Stats Modal */}
-            {
-                isStatsModalOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm transition-opacity" onClick={() => setIsStatsModalOpen(false)} />
-                        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh] z-10 animate-in zoom-in duration-200">
-                            {/* Header */}
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                                <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                    <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
-                                        <ClipboardList className="w-5 h-5 text-indigo-600" />
-                                    </div>
-                                    {"\u8A2D\u5099\u6982\u89BD"}
-                                </h3>
-                                <button onClick={() => setIsStatsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
-                                    <X className="w-5 h-5 text-slate-500" />
-                                </button>
-                            </div>
 
-                            {/* Content area with stats list */}
-                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-slate-50/50">
-                                <div className="space-y-3">
-                                    {Object.keys(equipmentStats).length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3 opacity-60">
-                                            <Box className="w-12 h-12" />
-                                            <span className="text-base font-medium">{"\u5C1A\u7121\u8A2D\u5099\u8CC7\u6599"}</span>
-                                        </div>
-                                    ) : (
-                                        Object.entries(equipmentStats)
-                                            .sort(([, a], [, b]) => (b as number) - (a as number)) // Sort by count descending
-                                            .map(([name, count], idx) => {
-                                                const total = Object.values(equipmentStats).reduce((a: number, b: number) => a + b, 0) as number;
-                                                const percent = Math.round(((count as number) / total) * 100);
-
-                                                return (
-                                                    <div key={idx} className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition-all duration-300">
-                                                        {/* Icon Box */}
-                                                        <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                                            {getEquipmentIcon(name)}
-                                                        </div>
-
-                                                        {/* Content */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex justify-between items-end mb-1.5">
-                                                                <span className="text-slate-700 font-bold text-base truncate pr-2">{name}</span>
-                                                                <span className="text-xs font-bold text-slate-400">{percent}%</span>
-                                                            </div>
-                                                            {/* Progress Bar */}
-                                                            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                                                <div
-                                                                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-1000 ease-out"
-                                                                    style={{ width: `${percent}%` }}
-                                                                ></div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Count Badge */}
-                                                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 font-black flex items-center justify-center text-lg shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                                                            {count as number}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
 
             <InspectionModeModal
                 isOpen={isInspectionModeOpen}

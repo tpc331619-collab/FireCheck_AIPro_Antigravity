@@ -170,3 +170,13 @@ export interface LightSettings {
   completed?: { color: string }; // Custom color for 'Completed (Normal)'
   abnormal?: { color: string }; // Custom color for 'Abnormal'
 }
+
+export interface HealthIndicator {
+  id: string;
+  userId: string;
+  buildingName: string;
+  equipmentName: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  updatedAt: number;
+}
