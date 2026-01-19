@@ -961,56 +961,65 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <span className="text-xs text-slate-400 font-medium">尚無健康指標</span>
                                         </div>
                                     ) : (
-                                        healthIndicators.map(indicator => {
-                                            const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
-                                            const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                            const percent = Math.max(0, Math.min(100, Math.round((remainingDays / totalDays) * 100)));
-                                            const isExpired = remainingDays < 0;
-                                            const isUrgent = remainingDays < 30 && !isExpired;
+                                        healthIndicators
+                                            .slice()
+                                            .sort((a, b) => {
+                                                const remA = new Date(a.endDate).getTime() - new Date().getTime();
+                                                const remB = new Date(b.endDate).getTime() - new Date().getTime();
+                                                return remA - remB;
+                                            })
+                                            .map(indicator => {
+                                                const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
+                                                const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                                // Visual percent: If > 60 days, show full. If < 60 days, scale linearly to 0. 
+                                                // This ensures urgent items have visually distinct bar lengths.
+                                                const percent = remainingDays > 60 ? 100 : Math.max(0, Math.round((remainingDays / 60) * 100));
+                                                const isExpired = remainingDays < 0;
+                                                const isUrgent = remainingDays < 30 && !isExpired;
 
-                                            return (
-                                                <div key={indicator.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 relative overflow-hidden group hover:border-indigo-300 transition-all hover:shadow-md">
-                                                    <div className="flex items-center gap-3">
-                                                        {/* Big Icon Box */}
-                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${isExpired ? 'bg-red-50' : isUrgent ? 'bg-amber-50' : 'bg-emerald-50'
-                                                            }`}>
-                                                            <Heart className={`w-6 h-6 ${isExpired ? 'text-red-500 fill-red-500' : isUrgent ? 'text-amber-500 fill-amber-500 animate-pulse' : 'text-emerald-500 fill-emerald-500'
-                                                                }`} />
-                                                        </div>
-
-                                                        {/* Content */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex justify-between items-start">
-                                                                <div>
-                                                                    <div className="font-bold text-slate-700 text-sm truncate leading-tight mb-0.5" title={indicator.equipmentName}>
-                                                                        {indicator.equipmentName}
-                                                                    </div>
-                                                                    <div className="text-[10px] text-slate-400 font-medium truncate">
-                                                                        剩餘天數
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Big Number Display */}
-                                                                <div className={`text-right ${isExpired ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                                                    <span className="text-xl font-black tracking-tight">{remainingDays}</span>
-                                                                    <span className="text-[10px] font-bold ml-0.5">天</span>
-                                                                </div>
+                                                return (
+                                                    <div key={indicator.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 relative overflow-hidden group hover:border-indigo-300 transition-all hover:shadow-md">
+                                                        <div className="flex items-center gap-3">
+                                                            {/* Big Icon Box */}
+                                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${isExpired ? 'bg-red-50' : isUrgent ? 'bg-amber-50' : 'bg-emerald-50'
+                                                                }`}>
+                                                                <Heart className={`w-6 h-6 ${isExpired ? 'text-red-500 fill-red-500' : isUrgent ? 'text-amber-500 fill-amber-500 animate-pulse' : 'text-emerald-500 fill-emerald-500'
+                                                                    }`} />
                                                             </div>
 
-                                                            {/* Progress Bar */}
-                                                            <div className="mt-1.5 flex items-center gap-2">
-                                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                                    <div
-                                                                        className={`h-full rounded-full transition-all duration-500 ${isExpired ? 'bg-red-500' : isUrgent ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                                                                        style={{ width: `${percent}%` }}
-                                                                    />
+                                                            {/* Content */}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <div className="font-bold text-slate-700 text-sm truncate leading-tight mb-0.5" title={indicator.equipmentName}>
+                                                                            {indicator.equipmentName}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-slate-400 font-medium truncate">
+                                                                            剩餘天數
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Big Number Display */}
+                                                                    <div className={`text-right ${isExpired ? 'text-red-600' : isUrgent ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                                                        <span className="text-xl font-black tracking-tight">{remainingDays}</span>
+                                                                        <span className="text-[10px] font-bold ml-0.5">天</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Progress Bar */}
+                                                                <div className="mt-1.5 flex items-center gap-2">
+                                                                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className={`h-full rounded-full transition-all duration-500 ${isExpired ? 'bg-red-500' : isUrgent ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                                                            style={{ width: `${percent}%` }}
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })
+                                                );
+                                            })
                                     )}
                                 </div>
                             </div>
