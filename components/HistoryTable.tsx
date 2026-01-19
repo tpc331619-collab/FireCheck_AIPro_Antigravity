@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ClipboardList, AlertTriangle, CheckCircle, Calendar, MapPin, Box, Hash, User, FileText, ChevronsUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { ClipboardList, AlertTriangle, CheckCircle, Calendar, MapPin, Box, Hash, User, FileText, ChevronsUpDown, ChevronUp, ChevronDown, Wrench } from 'lucide-react';
 
 interface HistoryItem {
     reportId: string;
@@ -181,19 +181,21 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                         {row.checkResults && row.checkResults.length > 0 && (
                             <button
                                 onClick={() => onViewDetails(row)}
-                                className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all hover:scale-105 active:scale-95"
-                                title="查檢紀錄"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm border border-blue-100"
+                                title="檢查內容"
                             >
-                                <ClipboardList className="w-4.5 h-4.5" />
+                                <ClipboardList className="w-3.5 h-3.5" />
+                                檢查內容
                             </button>
                         )}
                         {(row.repairDate || row.status === 'Fixed' || row.status === '已改善') && (
                             <button
                                 onClick={() => onViewRecheck(row)}
-                                className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-all hover:scale-105 active:scale-95"
-                                title="複檢紀錄"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm border border-red-100"
+                                title="檢修紀錄"
                             >
-                                <AlertTriangle className="w-4.5 h-4.5" />
+                                <Wrench className="w-3.5 h-3.5" />
+                                檢修紀錄
                             </button>
                         )}
                     </div>
@@ -319,7 +321,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                         }`}
                                 >
                                     <ClipboardList className="w-4 h-4" />
-                                    查檢紀錄
+                                    檢查內容
                                 </button>
 
                                 <button
@@ -330,8 +332,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                         : 'bg-white text-red-600 border border-red-200 shadow-sm hover:bg-red-50 active:scale-95'
                                         }`}
                                 >
-                                    <AlertTriangle className="w-4 h-4" />
-                                    複檢紀錄
+                                    <Wrench className="w-4 h-4" />
+                                    檢修紀錄
                                 </button>
                             </div>
                         )}
