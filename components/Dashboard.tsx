@@ -971,9 +971,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             .map(indicator => {
                                                 const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
                                                 const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                                // Visual percent: If > 60 days, show full. If < 60 days, scale linearly to 0. 
-                                                // This ensures urgent items have visually distinct bar lengths.
-                                                const percent = remainingDays > 60 ? 100 : Math.max(0, Math.round((remainingDays / 60) * 100));
+                                                // Visual percent: Inverse logic. Fewer days = Higher urgency = Longer bar.
+                                                // Baseline 60 days. > 60 days = 0% bar (Safe). 0 days = 100% bar (Critical).
+                                                const percent = remainingDays > 60 ? 0 : Math.min(100, Math.max(0, Math.round((1 - (remainingDays / 60)) * 100)));
                                                 const isExpired = remainingDays < 0;
                                                 const isUrgent = remainingDays < 30 && !isExpired;
 
