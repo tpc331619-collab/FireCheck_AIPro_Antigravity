@@ -498,10 +498,10 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
                 {/* Header */}
                 <div className="bg-white border-b p-4 flex items-center justify-between">
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h2 className="text-lg font-bold">選擇地圖</h2>
+                    <h2 className="text-lg font-bold text-slate-900">選擇地圖</h2>
                     <div className="w-10" /> {/* Spacer */}
                 </div>
 
@@ -554,7 +554,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     <ArrowLeft className="w-6 h-6" />
                     <span className="text-sm">返回列表</span>
                 </button>
-                <h2 className="text-lg font-bold truncate max-w-[200px]">{currentMap?.name}</h2>
+                <h2 className="text-lg font-bold truncate max-w-[200px] text-slate-900">{currentMap?.name}</h2>
                 <div className="w-10"></div> {/* Spacer for center alignment balance */}
             </div>
 
@@ -745,7 +745,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                                 step="0.01"
                                                 value={checkResults[item.id] || ''}
                                                 onChange={(e) => handleCheckItemChange(item.id, parseFloat(e.target.value))}
-                                                className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                                className="flex-1 px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900"
                                                 placeholder="輸入數值"
                                             />
                                             {item.unit && <span className="text-slate-600 font-medium">{item.unit}</span>}
@@ -766,7 +766,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
                                     rows={3}
-                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-900"
                                     placeholder="填寫檢查備註..."
                                 />
                             </div>

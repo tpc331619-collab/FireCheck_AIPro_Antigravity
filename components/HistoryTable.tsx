@@ -167,14 +167,14 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
     const renderCell = (key: string, row: HistoryItem, index: number) => {
         switch (key) {
-            case 'index': return <td key={key} className="px-4 py-3 text-center text-slate-500">{(currentPage - 1) * itemsPerPage + index + 1}</td>;
-            case 'date': return <td key={key} className="px-4 py-3">{renderDate(row.date)}</td>;
-            case 'building': return <td key={key} className="px-4 py-3">{row.buildingName || '-'}</td>;
-            case 'equipment': return <td key={key} className="px-4 py-3">{row.name || '未命名項目'}</td>;
-            case 'barcode': return <td key={key} className="px-4 py-3 font-mono text-xs">{row.barcode || '-'}</td>;
+            case 'index': return <td key={key} className="px-4 py-3 text-center text-slate-700 font-bold">{(currentPage - 1) * itemsPerPage + index + 1}</td>;
+            case 'date': return <td key={key} className="px-4 py-3 text-slate-900 font-medium">{renderDate(row.date)}</td>;
+            case 'building': return <td key={key} className="px-4 py-3 text-slate-900">{row.buildingName || '-'}</td>;
+            case 'equipment': return <td key={key} className="px-4 py-3 text-slate-900 font-bold">{row.name || '未命名項目'}</td>;
+            case 'barcode': return <td key={key} className="px-4 py-3 font-mono text-xs text-slate-600">{row.barcode || '-'}</td>;
             case 'result': return <td key={key} className="px-4 py-3">{renderStatusBadge(row.status)}</td>;
-            case 'notes': return <td key={key} className="px-4 py-3 text-xs italic text-slate-600">{(row.notes || '').replace('[異常複檢 - 已修復]', '').trim() || '-'}</td>;
-            case 'inspector': return <td key={key} className="px-4 py-3">{row.inspectorName || '未知'}</td>;
+            case 'notes': return <td key={key} className="px-4 py-3 text-xs text-slate-700 font-medium">{(row.notes || '').replace('[異常複檢 - 已修復]', '').trim() || '-'}</td>;
+            case 'inspector': return <td key={key} className="px-4 py-3 text-slate-900">{row.inspectorName || '未知'}</td>;
             case 'actions': return (
                 <td key={key} className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">

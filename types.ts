@@ -176,7 +176,19 @@ export interface HealthIndicator {
   userId: string;
   buildingName: string;
   equipmentName: string;
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
+  updatedAt: number;
+  replacementDate?: string;
+  lastPromptDismissed?: number;
+}
+
+export interface HealthHistoryRecord {
+  id: string;
+  indicatorId: string;
+  userId: string;
+  previousStartDate: string;
+  previousEndDate: string;
+  newStartDate: string;
+  newEndDate: string;
+  replacementDate: string;
   updatedAt: number;
 }

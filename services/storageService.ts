@@ -1,4 +1,4 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord } from '../types';
 import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
@@ -16,21 +16,26 @@ export const StorageService = {
     this.isGuest = enabled;
   },
 
-  async getReports(userId: string, withItems: boolean = false): Promise<InspectionReport[]> {
+  async getReports(userId: string, year?: number, withItems: boolean = false): Promise<InspectionReport[]> {
     if (this.isGuest || !db) {
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!data) return [];
       const reports: InspectionReport[] = JSON.parse(data);
-      return reports.sort((a, b) => b.date - a.date);
+      const targetYear = year || new Date().getFullYear();
+      return reports.filter(r => new Date(r.date).getFullYear() === targetYear)
+        .sort((a, b) => b.date - a.date);
     } else {
       try {
-        const q = query(collection(db, 'reports'), where('userId', '==', userId));
+        const targetYear = year || new Date().getFullYear();
+        const collectionName = `reports_${targetYear}`;
+
+        const q = query(collection(db, collectionName), where('userId', '==', userId));
         const snapshot = await getDocs(q);
         const reports = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as InspectionReport));
 
         if (withItems) {
           await Promise.all(reports.map(async (report) => {
-            const itemsSnap = await getDocs(collection(db, 'reports', report.id, 'items'));
+            const itemsSnap = await getDocs(collection(db, collectionName, report.id, 'items'));
             report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
           }));
         }
@@ -57,8 +62,6 @@ export const StorageService = {
     };
 
     // Prepare new report object (without items for Firestore main doc)
-    const newReport = { ...reportData, userId, stats, items: [] }; // Explicitly set items to empty for main doc to avoid confusion, or omission
-    // Actually, if we omit it, it's cleaner.
     const firestoreReport = { ...reportData, userId, stats };
 
     if (this.isGuest || !db) {
@@ -72,8 +75,11 @@ export const StorageService = {
       return id;
     } else {
       try {
+        const year = new Date(reportData.date).getFullYear();
+        const collectionName = `reports_${year}`;
+
         // 1. Create Main Report Doc
-        const reportRef = doc(collection(db, 'reports'));
+        const reportRef = doc(collection(db, collectionName));
         await setDoc(reportRef, firestoreReport);
 
         // 2. Add Items to Subcollection (Batch Write)
@@ -87,7 +93,7 @@ export const StorageService = {
           for (const chunk of chunks) {
             const batch = writeBatch(db);
             chunk.forEach(item => {
-              const itemRef = doc(collection(db, 'reports', reportRef.id, 'items'));
+              const itemRef = doc(collection(db, collectionName, reportRef.id, 'items'));
               batch.set(itemRef, item);
             });
             await batch.commit();
@@ -99,6 +105,60 @@ export const StorageService = {
         console.error("Firebase save error", e);
         throw e;
       }
+    }
+  },
+
+  async migrateLegacyReports(userId: string): Promise<string> {
+    if (this.isGuest || !db) return "Skipped (Guest Mode)";
+    try {
+      // Fetch specific user's legacy reports
+      const q = query(collection(db, 'reports'), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return "No legacy reports found";
+
+      let movedCount = 0;
+
+      for (const reportDoc of snapshot.docs) {
+        const reportData = reportDoc.data() as InspectionReport;
+        const year = new Date(reportData.date).getFullYear();
+        const targetCollection = `reports_${year}`;
+
+        // 1. Fetch Items
+        const itemsSnap = await getDocs(collection(db, 'reports', reportDoc.id, 'items'));
+        const items = itemsSnap.docs.map(d => d.data());
+
+        // 2. Write to New Collection
+        const newReportRef = doc(collection(db, targetCollection), reportDoc.id); // Keep ID
+        await setDoc(newReportRef, reportData);
+
+        // Write items
+        if (items.length > 0) {
+          const batch = writeBatch(db);
+          items.forEach(item => {
+            // Re-generate ID? Or use same? Items usually don't have IDs in data, just doc IDs.
+            // We can just add them.
+            const newItemRef = doc(collection(db, targetCollection, reportDoc.id, 'items'));
+            batch.set(newItemRef, item);
+          });
+          await batch.commit();
+        }
+
+        // 3. Delete Old (Optional: can comment out for safety first)
+        // Ideally we delete AFTER confirming write.
+        await deleteDoc(reportDoc.ref); // This deletes the document. Subcollections?
+        // Firestore does not auto-delete subcollections. We must delete them manually.
+        const deleteBatch = writeBatch(db);
+        itemsSnap.docs.forEach(d => deleteBatch.delete(d.ref));
+        await deleteBatch.commit();
+
+        movedCount++;
+      }
+
+      return `Migrated ${movedCount} reports.`;
+    } catch (e) {
+      console.error("Migration failed", e);
+      throw e;
     }
   },
 
@@ -155,24 +215,30 @@ export const StorageService = {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
     } else {
       try {
-        const reportRef = doc(db, 'reports', id);
-        // Do NOT store items in the main doc, only stats
-        await updateDoc(reportRef, { ...reportData, stats });
+        // Determine the correct collection based on report date
+        const year = new Date(report.date).getFullYear();
+        const collectionName = `reports_${year}`;
+
+        const reportRef = doc(db, collectionName, id);
+
+        // Check if document exists first
+        const docSnap = await getDoc(reportRef);
+        if (!docSnap.exists()) {
+          console.error(`[updateReport] Document ${id} not found in ${collectionName}, attempting to create it`);
+          // If document doesn't exist, create it instead of updating
+          await setDoc(reportRef, { ...reportData, stats });
+        } else {
+          // Do NOT store items in the main doc, only stats
+          await updateDoc(reportRef, { ...reportData, stats });
+        }
 
         // Update items in subcollection
         if (items && items.length > 0) {
-          // Typically in our app, we might update individual items or overwrite the whole set.
-          // Given the structure, we'll assume we want to sync the current state of items.
-          // To be safe and simple: delete existing? Or just upsert?
-          // Since we don't have item IDs in the subcollection that match the array index reliably,
-          // we'll update based on equipmentId if possible, but the simplest is to just add new ones
-          // or have a more robust sync. For now, let's at least ensure they are added.
-          // [Correction]: The batch set with EquipmentId as ID would be ideal if equipmentId is unique per report.
           const batch = writeBatch(db);
           items.forEach(item => {
             // Use equipmentId as secondary ID or just let Firebase generate IDs
             // If we use equipmentId as ID, we only get one entry per equipment per report, which is correct.
-            const itemRef = doc(collection(db, 'reports', id, 'items'), item.equipmentId);
+            const itemRef = doc(collection(db, collectionName, id, 'items'), item.equipmentId);
             batch.set(itemRef, item, { merge: true });
           });
           await batch.commit();
@@ -905,6 +971,84 @@ export const StorageService = {
         }
         console.error("Delete health indicator error", e);
         throw e;
+      }
+    }
+  },
+
+  async addHealthHistory(record: Omit<HealthHistoryRecord, 'id' | 'updatedAt'>, userId: string): Promise<string> {
+    const KEY = `health_history_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      const history: HealthHistoryRecord[] = data ? JSON.parse(data) : [];
+      const newId = Date.now().toString();
+      history.push({ ...record, id: newId, userId, updatedAt: Date.now() });
+      localStorage.setItem(KEY, JSON.stringify(history));
+      return newId;
+    } else {
+      try {
+        const docRef = await addDoc(collection(db, 'healthHistory'), {
+          ...record,
+          userId,
+          updatedAt: Date.now()
+        });
+        return docRef.id;
+      } catch (e: any) {
+        console.error("Add health history error", e);
+        if (e.code === 'permission-denied') {
+          // Fallback local
+          const data = localStorage.getItem(KEY);
+          const history: HealthHistoryRecord[] = data ? JSON.parse(data) : [];
+          const newId = Date.now().toString();
+          history.push({ ...record, id: newId, userId, updatedAt: Date.now() });
+          localStorage.setItem(KEY, JSON.stringify(history));
+          return newId;
+        }
+        throw e;
+      }
+    }
+  },
+
+  async getHealthHistory(indicatorId: string, userId: string): Promise<HealthHistoryRecord[]> {
+    const KEY = `health_history_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      if (!data) return [];
+      const history: HealthHistoryRecord[] = JSON.parse(data);
+      return history.filter(h => h.indicatorId === indicatorId).sort((a, b) => b.updatedAt - a.updatedAt);
+    } else {
+      try {
+        const q = query(
+          collection(db, 'healthHistory'),
+          where('userId', '==', userId),
+          where('indicatorId', '==', indicatorId)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs
+          .map(d => ({ ...d.data(), id: d.id } as HealthHistoryRecord))
+          .sort((a, b) => b.updatedAt - a.updatedAt);
+      } catch (e) {
+        console.error("Fetch health history error", e);
+        return [];
+      }
+    }
+  },
+
+  async getAllHealthHistory(userId: string): Promise<HealthHistoryRecord[]> {
+    const KEY = `health_history_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      return data ? JSON.parse(data) : [];
+    } else {
+      try {
+        const q = query(
+          collection(db, 'healthHistory'),
+          where('userId', '==', userId)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as HealthHistoryRecord));
+      } catch (e) {
+        console.error("Fetch all health history error", e);
+        return [];
       }
     }
   },

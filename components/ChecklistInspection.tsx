@@ -999,7 +999,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     value={activeInspectionItem.notes}
                                     onChange={(e) => setActiveInspectionItem({ ...activeInspectionItem, notes: e.target.value })}
                                     placeholder={activeInspectionItem.status === InspectionStatus.Abnormal ? "請詳細描述異常原因..." : "備註 (選填)"}
-                                    className={`w-full p-3 border rounded-xl text-sm focus:outline-none min-h-[80px] transition-colors
+                                    className={`w-full p-3 border rounded-xl text-sm focus:outline-none min-h-[80px] transition-colors text-slate-900
                                     ${activeInspectionItem.status === InspectionStatus.Abnormal && !activeInspectionItem.notes.trim()
                                             ? 'border-red-300 bg-red-50 focus:border-red-500 placeholder:text-red-300'
                                             : 'border-slate-200 focus:border-blue-500'}`}

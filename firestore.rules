@@ -7,11 +7,19 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
-    // 檢查報告集合
+    // 檢查報告集合 (Legacy)
     match /reports/{reportId} {
       allow read, write: if request.auth != null;
       
-      // 允許存取報告中的 items 子集合
+      match /items/{itemId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // 檢查報告集合 (Year-based Dynamic Collections)
+    match /{collectionName}/{reportId} {
+      allow read, write: if request.auth != null && collectionName.matches('^reports_[0-9]+$');
+      
       match /items/{itemId} {
         allow read, write: if request.auth != null;
       }
@@ -39,6 +47,11 @@ service cloud.firestore {
 
     // 健康指標集合
     match /health/{indicatorId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 健康歷史記錄集合
+    match /healthHistory/{historyId} {
       allow read, write: if request.auth != null;
     }
   }

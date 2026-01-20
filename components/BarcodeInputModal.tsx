@@ -4,7 +4,7 @@ import BarcodeScanner from './BarcodeScanner';
 
 interface BarcodeInputModalProps {
     isOpen: boolean;
-    expectedBarcode: string;
+    expectedBarcode?: string;
     onScan: (barcode: string) => void;
     onCancel: () => void;
 }
@@ -41,6 +41,13 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
         setIsValidating(true);
         setValidationError(null);
 
+        // 如果沒有預期編號，直接通過 (用於搜尋模式)
+        if (!expectedBarcode) {
+            onScan(barcode);
+            // reset isValidating will be handled by unmount or next open
+            return;
+        }
+
         // 驗證邏輯：標註點編號 === 掃描/輸入的編號
         if (barcode !== expectedBarcode) {
             setValidationError(`設備編號不符！預期: ${expectedBarcode}，實際: ${barcode}`);
@@ -68,8 +75,9 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                 {/* Header */}
                 <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 flex justify-between items-center">
                     <div className="text-white">
-                        <h3 className="font-bold text-lg">設備驗證</h3>
-                        <p className="text-sm text-purple-100">預期編號: <strong>{expectedBarcode}</strong></p>
+                        <h3 className="font-bold text-lg">{expectedBarcode ? '設備驗證' : '快速查詢'}</h3>
+                        {expectedBarcode && <p className="text-sm text-purple-100">預期編號: <strong>{expectedBarcode}</strong></p>}
+                        {!expectedBarcode && <p className="text-sm text-purple-100">掃描或輸入關鍵字查詢</p>}
                     </div>
                     <button
                         onClick={handleClose}
@@ -111,7 +119,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
-                                    設備編號
+                                    {expectedBarcode ? '設備編號' : '關鍵字 / 編號'}
                                 </label>
                                 <input
                                     type="text"
@@ -132,7 +140,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                         }
                                     }}
                                     placeholder=""
-                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-mono"
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-mono text-slate-900"
                                     autoFocus
                                 />
                             </div>
