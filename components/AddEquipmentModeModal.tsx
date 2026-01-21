@@ -5,24 +5,25 @@ interface AddEquipmentModeModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSelectMode: (mode: 'ADD_NAME' | 'ADD_INSTANCE') => void;
+    t: (key: string) => string;
 }
 
-const AddEquipmentModeModal: React.FC<AddEquipmentModeModalProps> = ({ isOpen, onClose, onSelectMode }) => {
+const AddEquipmentModeModal: React.FC<AddEquipmentModeModalProps> = ({ isOpen, onClose, onSelectMode, t }) => {
     if (!isOpen) return null;
 
     const modes = [
         {
             id: 'ADD_INSTANCE',
-            title: '新增設備',
-            description: '(場所、編號、頻率等)',
+            title: t('addInstance'),
+            description: t('addInstanceDesc'),
             icon: <Database className="w-8 h-8 text-orange-500" />,
             color: 'bg-orange-50 border-orange-100 hover:border-orange-300',
             bgIcon: 'bg-orange-100'
         },
         {
             id: 'ADD_NAME',
-            title: '新增設備清單',
-            description: '(滅火器、消防栓等)',
+            title: t('addNameList'),
+            description: t('addNameListDesc'),
             icon: <ListPlus className="w-8 h-8 text-teal-500" />,
             color: 'bg-teal-50 border-teal-100 hover:border-teal-300',
             bgIcon: 'bg-teal-100'
@@ -36,8 +37,8 @@ const AddEquipmentModeModal: React.FC<AddEquipmentModeModalProps> = ({ isOpen, o
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden animate-in zoom-in duration-200">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800">新增設備作業</h3>
-                        <p className="text-sm text-slate-500">請選擇新增類型</p>
+                        <h3 className="text-xl font-bold text-slate-800">{t('addEquipmentOperation')}</h3>
+                        <p className="text-sm text-slate-500">{t('selectAddType')}</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />

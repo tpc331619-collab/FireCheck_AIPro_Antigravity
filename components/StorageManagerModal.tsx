@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Trash2, FileText, Check, AlertTriangle, RefreshCcw, Image as ImageIcon, Calendar, HardDrive, Search, Filter, Upload } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { UserProfile } from '../types';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export interface StorageFile {
     name: string;
@@ -28,6 +29,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
     allowUpload = true,
     allowDelete = true
 }) => {
+    const { t } = useLanguage();
     const [files, setFiles] = useState<StorageFile[]>([]);
     const [loading, setLoading] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -51,7 +53,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
             setFiles(data);
         } catch (error) {
             console.error("Failed to load files", error);
-            alert("讀取檔案列表失敗");
+            alert(t('loadingFiles'));
         } finally {
             setLoading(false);
         }
@@ -65,12 +67,12 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
         event.target.value = '';
 
         if (file.size > 1024 * 1024) {
-            alert("檔案大小超過 1MB 限制");
+            alert(t('fileSizeExceeded'));
             return;
         }
 
         if (!file.type.startsWith('image/')) {
-            alert("請選擇圖片檔案");
+            alert(t('selectImageFile'));
             return;
         }
 
@@ -78,24 +80,26 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
         try {
             await StorageService.uploadMapImage(file, user.uid);
             await loadFiles();
+            alert(t('uploadSuccess'));
         } catch (error: any) {
             console.error(error);
-            alert("上傳失敗: " + (error.message || '未知錯誤'));
+            alert(t('uploadGenericError') + ": " + (error.message || 'Unknown error'));
             setLoading(false);
         }
     };
 
     const handleDelete = async (file: StorageFile, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!window.confirm(`確定要刪除 ${file.name} 嗎？此操作無法復原。`)) return;
+        if (!window.confirm(t('deleteFileConfirm').replace('{name}', file.name))) return;
 
         setDeletingId(file.fullPath);
         try {
             await StorageService.deleteStorageFile(file.fullPath);
             setFiles(files.filter(f => f.fullPath !== file.fullPath));
+            alert(t('deleteSuccess'));
         } catch (error: any) {
             console.error(error);
-            alert("刪除失敗: " + (error.message || '未知錯誤'));
+            alert(t('deleteFailed') + ": " + (error.message || 'Unknown error'));
         } finally {
             setDeletingId(null);
         }
@@ -122,7 +126,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('zh-TW');
+        return new Date(dateString).toLocaleDateString();
     };
 
     const filteredFiles = files.filter(f =>
@@ -152,7 +156,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                 <ImageIcon className="w-6 h-6" />
                             </div>
                             <div>
-                                <span>雲端圖庫管理</span>
+                                <span>{t('cloudStorageManager')}</span>
                                 <span className="block text-xs text-slate-400 font-medium mt-0.5">Cloud Storage Manager</span>
                             </div>
                         </h3>
@@ -171,7 +175,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="搜尋檔案名稱..."
+                                placeholder={t('searchFileName')}
                                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:font-medium"
                             />
                         </div>
@@ -180,7 +184,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                         <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-bold text-slate-500 flex items-center gap-2">
                             <HardDrive className="w-3 h-3" />
-                            {files.length} 個檔案
+                            {files.length} {t('fileCount')}
                         </div>
                         {allowUpload && (
                             <button
@@ -189,7 +193,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                 disabled={loading}
                             >
                                 <Upload className="w-4 h-4 mr-2" />
-                                上傳圖片
+                                {t('uploadImage')}
                             </button>
                         )}
                         <button
@@ -198,7 +202,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                             disabled={loading}
                         >
                             <RefreshCcw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                            重新整理
+                            {t('refresh')}
                         </button>
                     </div>
                 </div>
@@ -208,7 +212,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                             <div className="w-12 h-12 border-4 border-slate-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                            <p className="font-bold">正在讀取雲端檔案...</p>
+                            <p className="font-bold">{t('loadingFiles')}</p>
                         </div>
                     ) : filteredFiles.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-4">
@@ -216,8 +220,8 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                 <Search className="w-8 h-8 opacity-20" />
                             </div>
                             <div className="text-center">
-                                <p className="font-bold text-lg">沒有找到相關檔案</p>
-                                <p className="text-sm opacity-60">試著更換關鍵字或上傳新圖片</p>
+                                <p className="font-bold text-lg">{t('noFilesFound')}</p>
+                                <p className="text-sm opacity-60">{t('tryKeywords')}</p>
                             </div>
                         </div>
                     ) : (
@@ -273,7 +277,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                                     onClick={(e) => handleDelete(file, e)}
                                                     className="p-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
                                                     disabled={isDeleting || isSelecting}
-                                                    title="刪除"
+                                                    title={t('delete')}
                                                 >
                                                     {isDeleting ? (
                                                         <RefreshCcw className="w-5 h-5 animate-spin" />
@@ -292,14 +296,14 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                                             ? 'bg-blue-600 text-white shadow-blue-200'
                                                             : 'bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50'}
                                                     `}
-                                                    title="選擇"
+                                                    title={t('select')}
                                                 >
                                                     {isSelecting ? (
                                                         <RefreshCcw className="w-4 h-4 animate-spin" />
                                                     ) : (
                                                         <Check className="w-4 h-4" />
                                                     )}
-                                                    <span className="hidden sm:inline">選擇</span>
+                                                    <span className="hidden sm:inline">{t('select')}</span>
                                                 </button>
                                             )}
                                         </div>
@@ -314,7 +318,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                 <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-400 flex justify-between items-center font-bold">
                     <span className="flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
-                        請謹慎管理檔案，刪除後將無法復原
+                        {t('cautionDelete')}
                     </span>
                     {/* Removed branding as requested */}
                 </div>

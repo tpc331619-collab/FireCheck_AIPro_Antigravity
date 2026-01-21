@@ -62,7 +62,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                 }
             } catch (err) {
                 console.error(err);
-                showToast('載入失敗', 'error');
+                showToast(t('loadFailed') || 'Load Failed', 'error');
             } finally {
                 setLoading(false);
             }
@@ -74,10 +74,10 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
         setSaving(true);
         try {
             await StorageService.saveEquipmentHierarchy(hierarchy, user.uid);
-            showToast('儲存成功', 'success');
+            showToast(t('saveSuccess'), 'success');
         } catch (err) {
             console.error(err);
-            showToast('儲存失敗', 'error');
+            showToast(t('saveFailed') || 'Save Failed', 'error');
         } finally {
             setSaving(false);
         }
@@ -87,16 +87,16 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
     const addCategory = () => {
         if (!newCategory.trim()) return;
         if (hierarchy[newCategory.trim()]) {
-            showToast('分類已存在', 'error');
+            showToast(t('categoryExists'), 'error');
             return;
         }
         setHierarchy(prev => ({ ...prev, [newCategory.trim()]: {} }));
         setNewCategory('');
-        showToast('新增分類成功', 'success');
+        showToast(t('saveSuccess'), 'success');
     };
 
     const deleteCategory = (cat: string) => {
-        if (confirm(`確定要刪除分類「${cat}」嗎？其中的所有設備種類與細項都會被刪除。`)) {
+        if (confirm(`${t('confirmDeleteCategory')} "${cat}"?`)) {
             const newHierarchy = { ...hierarchy };
             delete newHierarchy[cat];
             setHierarchy(newHierarchy);
@@ -244,7 +244,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                         </button>
                         <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                             <FolderTree className="w-5 h-5 text-slate-500" />
-                            設備名稱管理
+                            {t('equipmentNameManager')}
                         </h1>
                     </div>
                     <button
@@ -263,13 +263,13 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     {/* Column 1: Category */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden">
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-bold text-slate-700 mb-2">1. 設備分類</h3>
+                            <h3 className="font-bold text-slate-700 mb-2">1. {t('category')}</h3>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={newCategory}
                                     onChange={e => setNewCategory(e.target.value)}
-                                    placeholder="新增分類..."
+                                    placeholder={t('addCategory') + "..."}
                                     className="flex-1 p-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-red-500"
                                 />
                                 <button onClick={addCategory} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Plus className="w-4 h-4" /></button>
@@ -298,13 +298,13 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     {/* Column 2: Type */}
                     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedCategory ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-bold text-slate-700 mb-2">2. 設備種類</h3>
+                            <h3 className="font-bold text-slate-700 mb-2">2. {t('type')}</h3>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={newType}
                                     onChange={e => setNewType(e.target.value)}
-                                    placeholder={selectedCategory ? `新增至 ${selectedCategory}...` : "請先選擇分類"}
+                                    placeholder={selectedCategory ? `${t('addType')}...` : t('selectCategoryFirst')}
                                     className="flex-1 p-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-red-500"
                                 />
                                 <button onClick={addType} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Plus className="w-4 h-4" /></button>
@@ -325,20 +325,20 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                     </div>
                                 </div>
                             ))}
-                            {!selectedCategory && <div className="p-10 text-center text-slate-300">請先選擇左側分類</div>}
+                            {!selectedCategory && <div className="p-10 text-center text-slate-300">{t('selectLeftCategory')}</div>}
                         </div>
                     </div>
 
                     {/* Column 3: Detail */}
                     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedType ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-bold text-slate-700 mb-2">3. 詳細規格</h3>
+                            <h3 className="font-bold text-slate-700 mb-2">3. {t('detail')}</h3>
                             <div className="flex gap-2">
                                 <input
                                     type="text"
                                     value={newDetail}
                                     onChange={e => setNewDetail(e.target.value)}
-                                    placeholder={selectedType ? `新增至 ${selectedType}...` : "請先選擇種類"}
+                                    placeholder={selectedType ? `${t('addDetail')}...` : t('selectTypeFirst')}
                                     className="flex-1 p-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-red-500"
                                 />
                                 <button onClick={addDetail} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Plus className="w-4 h-4" /></button>
@@ -358,7 +358,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                         </div>
                                     </div>
                                 ))}
-                            {!selectedType && <div className="p-10 text-center text-slate-300">請先選擇中間種類</div>}
+                            {!selectedType && <div className="p-10 text-center text-slate-300">{t('selectMiddleType')}</div>}
                         </div>
                     </div>
 

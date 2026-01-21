@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Camera, Keyboard, AlertCircle, CheckCircle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BarcodeInputModalProps {
     isOpen: boolean;
@@ -15,6 +16,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
     onScan,
     onCancel
 }) => {
+    const { t } = useLanguage();
     const [inputMode, setInputMode] = useState<'SCAN' | 'MANUAL'>('SCAN');
     const [manualInput, setManualInput] = useState('');
     const [validationError, setValidationError] = useState<string | null>(null);
@@ -28,7 +30,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
 
     const handleManualSubmit = () => {
         if (!manualInput.trim()) {
-            setValidationError('請輸入設備編號');
+            setValidationError(t('pleaseInputBarcode'));
             return;
         }
         validateAndSubmit(manualInput.trim());
@@ -50,7 +52,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
 
         // 驗證邏輯：標註點編號 === 掃描/輸入的編號
         if (barcode !== expectedBarcode) {
-            setValidationError(`設備編號不符！預期: ${expectedBarcode}，實際: ${barcode}`);
+            setValidationError(t('barcodeMismatch').replace('{expected}', expectedBarcode).replace('{actual}', barcode));
             setIsValidating(false);
             return;
         }
@@ -75,9 +77,9 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                 {/* Header */}
                 <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 flex justify-between items-center">
                     <div className="text-white">
-                        <h3 className="font-bold text-lg">{expectedBarcode ? '設備驗證' : '快速查詢'}</h3>
-                        {expectedBarcode && <p className="text-sm text-purple-100">預期編號: <strong>{expectedBarcode}</strong></p>}
-                        {!expectedBarcode && <p className="text-sm text-purple-100">掃描或輸入關鍵字查詢</p>}
+                        <h3 className="font-bold text-lg">{expectedBarcode ? t('deviceVerification') : t('quickSearch')}</h3>
+                        {expectedBarcode && <p className="text-sm text-purple-100">{t('expectedBarcode')}: <strong>{expectedBarcode}</strong></p>}
+                        {!expectedBarcode && <p className="text-sm text-purple-100">{t('scanOrInput')}</p>}
                     </div>
                     <button
                         onClick={handleClose}
@@ -98,7 +100,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                 }`}
                         >
                             <Camera className="w-4 h-4" />
-                            掃描條碼
+                            {t('scanBarcode')}
                         </button>
                         <button
                             onClick={() => setInputMode('MANUAL')}
@@ -108,7 +110,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                 }`}
                         >
                             <Keyboard className="w-4 h-4" />
-                            手動輸入
+                            {t('manualInput')}
                         </button>
                     </div>
                 </div>
@@ -119,7 +121,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
-                                    {expectedBarcode ? '設備編號' : '關鍵字 / 編號'}
+                                    {expectedBarcode ? t('equipmentId') : t('keywordOrBarcode')}
                                 </label>
                                 <input
                                     type="text"
@@ -153,12 +155,12 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                 {isValidating ? (
                                     <>
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        驗證中...
+                                        {t('verifying')}
                                     </>
                                 ) : (
                                     <>
                                         <CheckCircle className="w-5 h-5" />
-                                        確認
+                                        {t('confirm')}
                                     </>
                                 )}
                             </button>
@@ -170,7 +172,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-sm font-bold text-red-900">驗證失敗</p>
+                                <p className="text-sm font-bold text-red-900">{t('validationFailed')}</p>
                                 <p className="text-sm text-red-700 mt-1">{validationError}</p>
                             </div>
                         </div>
@@ -184,7 +186,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                             onClick={handleClose}
                             className="w-full py-2.5 text-slate-600 font-medium hover:bg-slate-200 rounded-lg transition-colors"
                         >
-                            取消
+                            {t('close')}
                         </button>
                     </div>
                 )}

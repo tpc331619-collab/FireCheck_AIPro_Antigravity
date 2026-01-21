@@ -195,3 +195,14 @@ export interface HealthHistoryRecord {
   replacementDate: string;
   updatedAt: number;
 }
+
+export type NotificationType = 'profile' | 'health' | 'declaration' | 'abnormal';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  timestamp: number;
+  read: boolean;
+}

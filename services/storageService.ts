@@ -1219,5 +1219,120 @@ export const StorageService = {
         throw e;
       }
     }
+  },
+
+  // Notification methods
+  async getNotifications(userId: string): Promise<any[]> {
+    const KEY = `notifications_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      return data ? JSON.parse(data) : [];
+    } else {
+      try {
+        const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        return snapshot.docs
+          .map(d => ({ ...d.data(), id: d.id }))
+          .sort((a: any, b: any) => b.timestamp - a.timestamp);
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          const data = localStorage.getItem(KEY);
+          return data ? JSON.parse(data) : [];
+        }
+        console.error("Get notifications error", e);
+        return [];
+      }
+    }
+  },
+
+  async addNotification(notification: any, userId: string): Promise<string> {
+    const KEY = `notifications_${userId}`;
+    const newNotification = {
+      ...notification,
+      userId,
+      id: notification.id || `NOTIF_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: notification.timestamp || Date.now(),
+      read: notification.read || false
+    };
+
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      const notifications = data ? JSON.parse(data) : [];
+      notifications.unshift(newNotification);
+      localStorage.setItem(KEY, JSON.stringify(notifications));
+      return newNotification.id;
+    } else {
+      try {
+        const docRef = await addDoc(collection(db, 'notifications'), newNotification);
+        return docRef.id;
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          const data = localStorage.getItem(KEY);
+          const notifications = data ? JSON.parse(data) : [];
+          notifications.unshift(newNotification);
+          localStorage.setItem(KEY, JSON.stringify(notifications));
+          return newNotification.id;
+        }
+        console.error("Add notification error", e);
+        throw e;
+      }
+    }
+  },
+
+  async markAsRead(notificationId: string, userId: string): Promise<void> {
+    const KEY = `notifications_${userId}`;
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(KEY);
+      if (data) {
+        const notifications = JSON.parse(data);
+        const index = notifications.findIndex((n: any) => n.id === notificationId);
+        if (index !== -1) {
+          notifications[index].read = true;
+          localStorage.setItem(KEY, JSON.stringify(notifications));
+        }
+      }
+    } else {
+      try {
+        const docRef = doc(db, 'notifications', notificationId);
+        await updateDoc(docRef, { read: true });
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          const data = localStorage.getItem(KEY);
+          if (data) {
+            const notifications = JSON.parse(data);
+            const index = notifications.findIndex((n: any) => n.id === notificationId);
+            if (index !== -1) {
+              notifications[index].read = true;
+              localStorage.setItem(KEY, JSON.stringify(notifications));
+            }
+          }
+          return;
+        }
+        console.error("Mark as read error", e);
+        throw e;
+      }
+    }
+  },
+
+  async clearAllNotifications(userId: string): Promise<void> {
+    const KEY = `notifications_${userId}`;
+    if (this.isGuest || !db) {
+      localStorage.removeItem(KEY);
+    } else {
+      try {
+        const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          localStorage.removeItem(KEY);
+          return;
+        }
+        console.error("Clear notifications error", e);
+        throw e;
+      }
+    }
   }
 };

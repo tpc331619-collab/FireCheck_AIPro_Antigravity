@@ -104,12 +104,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
         if (!selectedRecord) return;
 
         if (!fixedDate) {
-            alert('請選擇修復日期');
+            alert(t('fillRequired'));
             return;
         }
 
         if (!fixedNotes.trim()) {
-            alert('請輸入修復情況說明');
+            alert(t('fillRequired'));
             return;
         }
 
@@ -270,12 +270,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                 console.error('Failed to update history report:', e);
             }
 
-            alert('修復記錄已儲存並同步');
+            alert(t('saveSuccess'));
             setSelectedRecord(null);
             fetchRecords();
         } catch (e) {
             console.error('Submit error:', e);
-            alert('儲存失敗: ' + (e instanceof Error ? e.message : '未知錯誤'));
+            alert(t('saveFailed') + ': ' + (e instanceof Error ? e.message : '未知錯誤'));
         } finally {
             setIsSubmitting(false);
         }
@@ -336,14 +336,14 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                 <button onClick={() => setSelectedRecord(null)} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                                     <ArrowLeft className="w-6 h-6" />
                                 </button>
-                                <h1 className="font-bold text-lg text-slate-800">異常複檢處理單</h1>
+                                <h1 className="font-bold text-lg text-slate-800">{t('abnormalRecheckForm')}</h1>
                             </div>
                             <button
                                 onClick={handlePrint}
                                 className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-lg text-sm font-bold transition-colors shadow-sm"
                             >
                                 <Printer className="w-4 h-4" />
-                                列印 / 匯出 PDF
+                                {t('printExport')}
                             </button>
                         </div>
                     </div>
@@ -354,11 +354,11 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
                             {/* 表頭 */}
                             <div className="text-center mb-6 pb-2 border-b-2 border-black">
-                                <h1 className="text-3xl font-extrabold tracking-widest text-black mb-1 font-serif">消防安全設備異常複檢單</h1>
+                                <h1 className="text-3xl font-extrabold tracking-widest text-black mb-1 font-serif">{t('abnormalRecheckForm')}</h1>
                                 <h2 className="text-sm font-bold tracking-wider text-slate-500 uppercase">Fire Safety Equipment Abnormal Recheck List</h2>
                                 <div className="flex justify-between items-end mt-2 text-sm text-slate-600 font-medium">
-                                    <span>單號：{selectedRecord.id.slice(-8).toUpperCase()}</span>
-                                    <span>列印日期：{new Date().toLocaleDateString()}</span>
+                                    <span>{t('recheckNo')}：{selectedRecord.id.slice(-8).toUpperCase()}</span>
+                                    <span>{t('printDate')}：{new Date().toLocaleDateString()}</span>
                                 </div>
                             </div>
 
@@ -366,7 +366,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                             <div className="border-2 border-black">
                                 {/* 1. 設備資訊 (含照片) */}
                                 <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
-                                    <div className="font-bold text-lg">一、設備基本資料</div>
+                                    <div className="font-bold text-lg">一、{t('equipmentBasicInfo')}</div>
                                     <div className="text-xs font-bold text-slate-500 uppercase">I. Equipment Basic Information</div>
                                 </div>
                                 <div className="border-b border-black flex">
@@ -375,22 +375,22 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                         {/* Left Column */}
                                         <div className="flex-1 border-r border-black flex flex-col">
                                             <div className="border-b border-black p-3">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">設備名稱 <span className="font-normal scale-90 inline-block">Name</span></div>
+                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('equipmentName')} <span className="font-normal scale-90 inline-block">Name</span></div>
                                                 <div className="text-lg font-bold">{selectedRecord.equipmentName}</div>
                                             </div>
                                             <div className="p-3 flex-1">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">設置場所 <span className="font-normal scale-90 inline-block">Location</span></div>
+                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('siteName')} <span className="font-normal scale-90 inline-block">Location</span></div>
                                                 <div>{selectedRecord.siteName}</div>
                                             </div>
                                         </div>
                                         {/* Right Column */}
                                         <div className="flex-1 flex flex-col">
                                             <div className="border-b border-black p-3">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">設備編號 <span className="font-normal scale-90 inline-block">No.</span></div>
+                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('equipmentId')} <span className="font-normal scale-90 inline-block">No.</span></div>
                                                 <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
                                             </div>
                                             <div className="p-3 flex-1">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">區域/樓層 <span className="font-normal scale-90 inline-block">Area</span></div>
+                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('buildingName')} <span className="font-normal scale-90 inline-block">Area</span></div>
                                                 <div>{selectedRecord.buildingName}</div>
                                             </div>
                                         </div>
@@ -420,17 +420,17 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
                                 {/* 2. 異常資訊 (純文字) */}
                                 <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
-                                    <div className="font-bold text-lg">二、異常檢測記錄</div>
+                                    <div className="font-bold text-lg">二、{t('abnormalInfo')}</div>
                                     <div className="text-xs font-bold text-slate-500 uppercase">II. Abnormal Information</div>
                                 </div>
                                 <div className="border-b border-black">
                                     <div className="grid grid-cols-2 border-b border-black">
                                         <div className="border-r border-black p-3">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">發現日期 <span className="font-normal scale-90 inline-block">Date</span></div>
+                                            <div className="text-xs text-slate-500 font-bold mb-1">{t('discoveryDate')} <span className="font-normal scale-90 inline-block">Date</span></div>
                                             <div className="font-medium">{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</div>
                                         </div>
                                         <div className="p-3">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">異常項目歸類 <span className="font-normal scale-90 inline-block">Category</span></div>
+                                            <div className="text-xs text-slate-500 font-bold mb-1">{t('abnormalCategory')} <span className="font-normal scale-90 inline-block">Category</span></div>
                                             <div className="flex flex-wrap gap-1">
                                                 {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 ? (
                                                     selectedRecord.abnormalItems.map((item, idx) => (
@@ -445,7 +445,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                         </div>
                                     </div>
                                     <div className="p-3 min-h-[80px] border-b-0">
-                                        <div className="text-xs text-slate-500 font-bold mb-2">異常情況描述 <span className="font-normal scale-90 inline-block">Description</span></div>
+                                        <div className="text-xs text-slate-500 font-bold mb-2">{t('abnormalDescription')} <span className="font-normal scale-90 inline-block">Description</span></div>
                                         <div className="text-slate-900 leading-relaxed font-medium">
                                             {selectedRecord.abnormalReason}
                                         </div>
@@ -454,14 +454,14 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
                                 {/* 3. 修復資訊 */}
                                 <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
-                                    <div className="font-bold text-lg">三、修復處理報告</div>
+                                    <div className="font-bold text-lg">三、{t('repairReport')}</div>
                                     <div className="text-xs font-bold text-slate-500 uppercase">III. Repair Report</div>
                                 </div>
                                 <div>
                                     <div className="p-3 border-b border-black">
                                         <div className="flex items-center gap-4">
                                             <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
-                                                修復完成日期 <span className="font-normal scale-90 inline-block text-slate-500">Completion Date</span> {selectedRecord.status === 'pending' && <span className="text-red-500">*</span>}：
+                                                {t('repairDate')} <span className="font-normal scale-90 inline-block text-slate-500">Completion Date</span> {selectedRecord.status === 'pending' && <span className="text-red-500">*</span>}：
                                             </label>
                                             <input
                                                 type="date"
@@ -476,13 +476,13 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                     <div className="p-3 min-h-[140px]">
                                         {selectedRecord.status === 'pending' && (
                                             <div className="flex justify-between items-center mb-2 no-print">
-                                                <label className="text-sm font-bold text-slate-700">修復處置說明 <span className="text-red-500">*</span></label>
+                                                <label className="text-sm font-bold text-slate-700">{t('repairNotes')} <span className="text-red-500">*</span></label>
                                                 <select
                                                     className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:border-slate-500"
                                                     onChange={handleQuickTextSelect}
                                                     defaultValue=""
                                                 >
-                                                    <option value="" disabled>✨ 快速帶入常用說明...</option>
+                                                    <option value="" disabled>{t('quickFixTemplate')}</option>
                                                     {QUICK_FIX_TEMPLATES.map((tpl, i) => (
                                                         <option key={i} value={tpl}>{tpl}</option>
                                                     ))}
@@ -490,13 +490,13 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                             </div>
                                         )}
                                         <label className="text-xs text-slate-500 font-bold mb-1 hidden print:block">
-                                            修復處置說明 <span className="font-normal scale-90 inline-block">Action Taken</span>
+                                            {t('repairNotes')} <span className="font-normal scale-90 inline-block">Action Taken</span>
                                         </label>
 
                                         <textarea
                                             value={fixedNotes}
                                             onChange={(e) => setFixedNotes(e.target.value)}
-                                            placeholder="請輸入詳細修復過程..."
+                                            placeholder={t('repairNotesPlaceholder')}
                                             disabled={selectedRecord.status === 'fixed'}
                                             className="w-full h-full min-h-[100px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100"
                                         />
@@ -520,7 +520,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                         ) : (
                                             <>
                                                 <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                <span>確認送出 (完成複檢)</span>
+                                                <span>{t('confirmSubmit')}</span>
                                             </>
                                         )}
                                     </button>
@@ -530,7 +530,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                 <div className="mt-8 mb-4 text-center no-print">
                                     <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-50 border-2 border-green-200 rounded-full text-green-700 font-bold">
                                         <CheckCircle className="w-5 h-5" />
-                                        <span>此複檢單已完成（唯讀模式）</span>
+                                        <span>{t('readOnlyMode')}</span>
                                     </div>
                                 </div>
                             )}
@@ -538,11 +538,11 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                             {/* 簽名欄 */}
                             <div className="mt-12 grid grid-cols-2 gap-12">
                                 <div className="border-t border-black pt-2 text-center">
-                                    <p className="font-bold text-black mb-1">維修人員簽章</p>
+                                    <p className="font-bold text-black mb-1">{t('technicianSig')}</p>
                                     <p className="text-xs text-slate-500 uppercase mb-12">Technician Signature</p>
                                 </div>
                                 <div className="border-t border-black pt-2 text-center">
-                                    <p className="font-bold text-black mb-1">管理人員簽章</p>
+                                    <p className="font-bold text-black mb-1">{t('supervisorSig')}</p>
                                     <p className="text-xs text-slate-500 uppercase mb-12">Supervisor Signature</p>
                                 </div>
                             </div>
@@ -563,7 +563,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                             <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                                 <ArrowLeft className="w-6 h-6" />
                             </button>
-                            <h1 className="font-bold text-lg text-slate-800">異常複檢清單</h1>
+                            <h1 className="font-bold text-lg text-slate-800">{t('abnormalRecheckList')}</h1>
 
                             {/* 切換按鈕 */}
                             <div className="ml-auto flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
@@ -574,7 +574,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                         : 'text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
-                                    待複檢
+                                    {t('pendingRecheck')}
                                 </button>
                                 <button
                                     onClick={() => setViewMode('fixed')}
@@ -583,7 +583,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                         : 'text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
-                                    已完成
+                                    {t('completedRecheck')}
                                 </button>
                             </div>
 
@@ -619,10 +619,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                 <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
                                     <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-400" />
                                     <h3 className="text-lg font-bold text-slate-700">
-                                        {viewMode === 'pending' ? '目前無待複檢記錄' : '目前無已完成記錄'}
+                                        {viewMode === 'pending' ? t('noPendingRecords') : t('noCompletedRecords')}
                                     </h3>
                                     <p className="text-slate-500 text-sm mt-1">
-                                        {viewMode === 'pending' ? '太棒了！所有異常設備都已處理完畢' : '尚未完成任何異常複檢'}
+                                        {viewMode === 'pending' ? t('allAbnormalFixed') : t('noFixedYet')}
                                     </p>
                                 </div>
                             ) : (
@@ -643,7 +643,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                                                     ? 'bg-orange-100 text-orange-700'
                                                                     : 'bg-green-100 text-green-700'
                                                                     }`}>
-                                                                    {viewMode === 'pending' ? '待複檢' : '已完成'}
+                                                                    {viewMode === 'pending' ? t('pendingRecheck') : t('completedRecheck')}
                                                                 </span>
                                                                 <h3 className={`font-bold text-slate-800 text-lg transition-colors ${viewMode === 'pending' ? 'group-hover:text-orange-600' : 'group-hover:text-green-600'
                                                                     }`}>
@@ -658,12 +658,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
                                                             <div className="text-sm text-slate-500 space-y-1 mb-3">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="bg-slate-100 px-1.5 rounded text-xs">場所</span>
+                                                                    <span className="bg-slate-100 px-1.5 rounded text-xs">{t('siteName')}</span>
                                                                     {record.siteName} / {record.buildingName}
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <Calendar className="w-4 h-4" />
-                                                                    發現日期: {new Date(record.inspectionDate).toLocaleDateString(language)}
+                                                                    {t('discoveryDate')}: {new Date(record.inspectionDate).toLocaleDateString(language)}
                                                                 </div>
                                                             </div>
 
@@ -674,7 +674,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                                                 />
                                                                 <div>
                                                                     <p className="text-xs font-bold text-red-500 mb-1">
-                                                                        異常原因
+                                                                        {t('abnormalReason')}
                                                                     </p>
                                                                     <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
                                                                 </div>
@@ -693,7 +693,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                             )}
                         </div>
                     </div>
-                </div>
+                </div >
             )}
         </>
     );

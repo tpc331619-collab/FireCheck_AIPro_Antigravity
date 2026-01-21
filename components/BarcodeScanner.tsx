@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface BarcodeScannerProps {
     onScanSuccess: (decodedText: string) => void;
@@ -9,6 +10,7 @@ interface BarcodeScannerProps {
 }
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose, onManualInput }) => {
+    const { t } = useLanguage();
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [error, setError] = useState<string>('');
     const [isScanning, setIsScanning] = useState(false);
@@ -43,11 +45,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
             } catch (err: any) {
                 console.error('Scanner error:', err);
                 if (err.name === 'NotAllowedError') {
-                    setError('請允許使用攝影機權限');
+                    setError(t('cameraPermissionRequests'));
                 } else if (err.name === 'NotFoundError') {
-                    setError('找不到攝影機裝置');
+                    setError(t('cameraNotFound'));
                 } else {
-                    setError('無法啟動掃描器: ' + (err.message || '未知錯誤'));
+                    setError(t('scannerStartFailed') + ': ' + (err.message || 'Unknown error'));
                 }
             }
         };
@@ -91,7 +93,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 <div className="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 flex justify-between items-center">
                     <div className="flex items-center gap-2 text-white">
                         <Camera className="w-5 h-5" />
-                        <h3 className="font-bold text-lg">掃描條碼</h3>
+                        <h3 className="font-bold text-lg">{t('scanBarcode')}</h3>
                     </div>
                     <button
                         onClick={handleClose}
@@ -111,7 +113,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                                 onClick={handleClose}
                                 className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                             >
-                                關閉
+                                {t('close')}
                             </button>
                         </div>
                     ) : (
@@ -121,7 +123,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                                 className="rounded-xl overflow-hidden border-2 border-slate-200 aspect-square"
                             ></div>
                             <p className="text-sm text-slate-500 text-center mt-4">
-                                請將條碼對準框內進行掃描
+                                {t('alignBarcode')}
                             </p>
                         </>
                     )}
@@ -133,10 +135,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                         onClick={handleManualInput}
                         className="w-full py-3 bg-slate-600 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors"
                     >
-                        取消 / 改用手動輸入
+                        {t('cancelOrManual')}
                     </button>
                     <p className="text-xs text-slate-400 text-center">
-                        點擊上方按鈕可返回手動輸入模式
+                        {t('returnToManual')}
                     </p>
                 </div>
             </div>

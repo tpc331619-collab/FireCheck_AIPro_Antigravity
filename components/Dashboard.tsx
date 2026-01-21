@@ -16,6 +16,7 @@ import AddEquipmentModeModal from './AddEquipmentModeModal';
 import AbnormalRecheckList from './AbnormalRecheckList';
 import HistoryTable from './HistoryTable';
 import BarcodeInputModal from './BarcodeInputModal';
+import { NotificationBell } from './NotificationBell';
 
 
 import { RegulationFeed } from './RegulationFeed';
@@ -248,6 +249,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         checkExpired();
     }, [healthIndicators]);
 
+    // Notification Helper Function
+    const addNotification = async (type: 'profile' | 'health' | 'declaration' | 'abnormal', title: string, message: string) => {
+        if (!user?.uid) return;
+
+        try {
+            await StorageService.addNotification({
+                type,
+                title,
+                message,
+                timestamp: Date.now(),
+                read: false
+            }, user.uid);
+        } catch (error) {
+            console.error('Failed to add notification:', error);
+        }
+    };
+
+
     const handleSaveHealthIndicator = async () => {
         if (!user?.uid || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
             alert('請填寫完整資料');
@@ -273,6 +292,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             }
 
             setEditingHealthIndicator(null);
+
+            // Add notification
+            await addNotification(
+                'health',
+                '健康指標已更新',
+                `「${indicatorData.equipmentName || '設備'}」的健康指標已更新`
+            );
+
             alert('指標已儲存');
         } catch (error) {
             console.error('Failed to save health indicator:', error);
@@ -734,6 +761,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const countdownDays = calculateCountdown();
 
+    // Declaration countdown notification
+    useEffect(() => {
+        if (countdownDays === null || !user?.uid) return;
+
+        // Notify at 30, 7, and 1 days
+        if (countdownDays === 30 || countdownDays === 7 || countdownDays === 1) {
+            const notificationKey = `declaration_${countdownDays}_${declarationDeadline}`;
+            const sent = localStorage.getItem(notificationKey);
+
+            if (!sent) {
+                addNotification(
+                    'declaration',
+                    '申報倒數提醒',
+                    `距離下次申報還有 ${countdownDays} 天`
+                );
+                localStorage.setItem(notificationKey, 'true');
+            }
+        }
+    }, [countdownDays, user?.uid, declarationDeadline]);
+
+
     const fetchReports = async () => {
         setLoading(true);
         try {
@@ -769,7 +817,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             if (user?.uid) {
                 try {
                     const records = await StorageService.getAbnormalRecords(user.uid);
-                    const pendingCount = records.filter(r => r.status === 'pending' && !r.fixedDate).length;
+                    const pendingRecords = records.filter(r => r.status === 'pending' && !r.fixedDate);
+                    const pendingCount = pendingRecords.length;
+
+                    // Check for new abnormal records
+                    const previousCount = parseInt(localStorage.getItem(`abnormal_count_${user.uid}`) || '0');
+
+                    if (pendingCount > previousCount) {
+                        const newCount = pendingCount - previousCount;
+                        await addNotification(
+                            'abnormal',
+                            '新的異常複檢',
+                            `有 ${newCount} 筆新的異常項目需要處理`
+                        );
+                    }
+
+                    localStorage.setItem(`abnormal_count_${user.uid}`, pendingCount.toString());
                     setAbnormalCount(pendingCount);
                 } catch (error) {
                     console.error('Failed to fetch abnormal count:', error);
@@ -1144,6 +1207,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title="設置">
                             <Settings className="w-5 h-5" />
                         </button>
+                        <NotificationBell
+                            userId={user.uid}
+                            className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
+                            iconClassName="text-white w-5 h-5"
+                        />
                         <button onClick={onLogout} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title="登出">
                             <LogOut className="w-5 h-5" />
                         </button>
@@ -1170,6 +1238,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
                                 </div>
                             </div>
+
 
                             {/* Primary Action - Start Inspection */}
                             <button
@@ -1986,7 +2055,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                                         <h3 className="font-bold text-lg text-slate-800 flex items-center">
                                             <Activity className="w-5 h-5 mr-2 text-red-500" />
-                                            健康指標設定
+                                            {t('healthIndicatorSettings')}
                                         </h3>
                                         <button onClick={() => setIsHealthModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
                                             <X className="w-5 h-5 text-slate-500" />
@@ -1997,12 +2066,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
                                         <div className="space-y-6">
                                             <div className="flex justify-between items-center mb-4">
-                                                <h4 className="font-bold text-slate-700">指標列表</h4>
+                                                <h4 className="font-bold text-slate-700">{t('indicatorList')}</h4>
                                                 <button
                                                     onClick={() => setEditingHealthIndicator({} as HealthIndicator)}
                                                     className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm shadow-red-200"
                                                 >
-                                                    <Plus className="w-4 h-4" /> 新增指標
+                                                    <Plus className="w-4 h-4" /> {t('addIndicator')}
                                                 </button>
                                             </div>
 
@@ -2010,31 +2079,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-white p-6 rounded-2xl border-l-4 border-l-indigo-500 shadow-lg shadow-indigo-100/50 mb-8 animate-in fade-in slide-in-from-top-2 relative">
                                                     <h5 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
                                                         <Edit2 className="w-4 h-4" />
-                                                        {editingHealthIndicator.id ? '編輯指標' : '新增指標'}
+                                                        {editingHealthIndicator.id ? t('editIndicator') : t('addIndicator')}
                                                     </h5>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">建築物名稱</label>
+                                                            <label className="text-xs font-bold text-slate-500">{t('buildingName')}</label>
                                                             <input
                                                                 type="text"
                                                                 value={editingHealthIndicator.buildingName || ''}
                                                                 onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, buildingName: e.target.value }))}
                                                                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                                placeholder="例: A棟"
+                                                                placeholder={t('enterBuildingName')}
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">設備名稱</label>
+                                                            <label className="text-xs font-bold text-slate-500">{t('equipmentName')}</label>
                                                             <input
                                                                 type="text"
                                                                 value={editingHealthIndicator.equipmentName || ''}
                                                                 onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, equipmentName: e.target.value }))}
                                                                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                                placeholder="例: 滅火器"
+                                                                placeholder={t('enterEquipmentName')}
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">起始日期</label>
+                                                            <label className="text-xs font-bold text-slate-500">{t('validityStartDate')}</label>
                                                             <input
                                                                 type="date"
                                                                 value={editingHealthIndicator.startDate || ''}
@@ -2043,7 +2112,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">到期日期</label>
+                                                            <label className="text-xs font-bold text-slate-500">{t('validityEndDate')}</label>
                                                             <input
                                                                 type="date"
                                                                 value={editingHealthIndicator.endDate || ''}
@@ -2061,12 +2130,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     <Clock className="w-5 h-5" />
                                                                 </div>
                                                                 <div>
-                                                                    <span className="text-xs font-bold text-indigo-400 block mb-0.5">剩餘天數 (總效期)</span>
+                                                                    <span className="text-xs font-bold text-indigo-400 block mb-0.5">{t('remainingDays')} ({t('totalDays')})</span>
                                                                     <div className="flex items-baseline gap-1">
                                                                         <span className="text-2xl font-black text-indigo-900 tracking-tight">
                                                                             {Math.max(1, Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date(editingHealthIndicator.startDate).getTime()) / (1000 * 60 * 60 * 24)))}
                                                                         </span>
-                                                                        <span className="text-sm font-bold text-indigo-600">天</span>
+                                                                        <span className="text-sm font-bold text-indigo-600">{t('days')}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -2078,19 +2147,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             onClick={() => setEditingHealthIndicator(null)}
                                                             className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors"
                                                         >
-                                                            取消
+                                                            {t('cancel')}
                                                         </button>
                                                         <button
                                                             onClick={() => {
                                                                 if (!editingHealthIndicator.buildingName || !editingHealthIndicator.equipmentName || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
-                                                                    alert('請填寫完整資訊');
+                                                                    alert(t('fillAllFields'));
                                                                     return;
                                                                 }
                                                                 handleSaveHealthIndicator();
                                                             }}
                                                             className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
                                                         >
-                                                            儲存設定
+                                                            {t('saveSettings')}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -2100,7 +2169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <div className="space-y-3">
                                                 {healthIndicators.length === 0 ? (
                                                     <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
-                                                        尚無健康指標設定
+                                                        {t('noHealthIndicators')}
                                                     </div>
                                                 ) : (
                                                     healthIndicators.map(indicator => {
@@ -2116,7 +2185,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                             <Database className="w-5 h-5" />
                                                                         </div>
                                                                         <div className="min-w-0">
-                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">設備細節</div>
+                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('equipmentDetails')}</div>
                                                                             <div className="font-bold text-slate-700 truncate text-sm">
                                                                                 {indicator.buildingName}
                                                                                 <span className="text-slate-300 mx-2">|</span>
@@ -2130,10 +2199,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                             <Clock className="w-5 h-5" />
                                                                         </div>
                                                                         <div>
-                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">剩餘天數</div>
+                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('remainingDays')}</div>
                                                                             <div className="flex items-baseline gap-1">
                                                                                 <span className="font-black text-slate-700 text-base">{totalDays}</span>
-                                                                                <span className="text-xs font-bold text-slate-500">天</span>
+                                                                                <span className="text-xs font-bold text-slate-500">{t('days')}</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -2150,7 +2219,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     <button
                                                                         onClick={() => handleDeleteHealthIndicator(indicator.id)}
                                                                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                                        title="刪除"
+                                                                        title={t('delete')}
                                                                     >
                                                                         <Trash2 className="w-4 h-4" />
                                                                     </button>
@@ -2169,7 +2238,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             onClick={() => setIsHealthModalOpen(false)}
                                             className="px-6 py-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl font-bold hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
                                         >
-                                            關閉視窗
+                                            {t('close')}
                                         </button>
                                     </div>
                                 </div>
@@ -2210,19 +2279,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             onClick={() => setSettingsTab('GENERAL')}
                                             className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                                         >
-                                            <Palette className="w-4 h-4 mr-2" /> 背景
+                                            <Palette className="w-4 h-4 mr-2" /> {t('background')}
                                         </button>
                                         <button
                                             onClick={() => setSettingsTab('LIGHTS')}
                                             className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                                         >
-                                            <Zap className="w-4 h-4 mr-2" /> 燈號
+                                            <Zap className="w-4 h-4 mr-2" /> {t('lights')}
                                         </button>
                                         <button
                                             onClick={() => setSettingsTab('DECLARATION')}
                                             className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
                                         >
-                                            <Calendar className="w-4 h-4 mr-2" /> 申報
+                                            <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
                                         </button>
 
 
@@ -2280,7 +2349,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
                                                             </button>
                                                             <div className="mt-1 text-center">
-                                                                <span className="text-xs text-red-500 font-bold">{"\u8AAA\u660E: \u4E0A\u50B3\u6A94\u6848\u4E0D\u5F97\u8D85\u904E 1MB"}</span>
+                                                                <span className="text-xs text-red-500 font-bold">{t('fileSizeLimit')}</span>
                                                             </div>
                                                         </div>
                                                     )}
@@ -2325,8 +2394,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="space-y-4">
                                                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
                                                         <div>
-                                                            <h4 className="font-bold text-slate-800">啟用郵件通知</h4>
-                                                            <p className="text-xs text-slate-500 mt-1">定時發送檢查報告與異常警報</p>
+                                                            <h4 className="font-bold text-slate-800">{t('enableEmailNotifications')}</h4>
+                                                            <p className="text-xs text-slate-500 mt-1">{t('emailNotificationsDesc')}</p>
                                                         </div>
                                                         <label className="relative inline-flex items-center cursor-pointer">
                                                             <input
@@ -2344,7 +2413,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                     {declarationSettings.emailNotificationsEnabled && (
                                                         <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                            <label className="text-xs font-bold text-slate-500 uppercase">接收者信箱 (用逗號分隔)</label>
+                                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('recipientEmails')}</label>
                                                             <textarea
                                                                 value={declarationSettings.emailRecipients.join(', ')}
                                                                 onChange={(e) => setDeclarationSettings(prev => ({
@@ -2356,7 +2425,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
                                                             />
                                                             <p className="text-xs text-slate-400">
-                                                                * 系統將會寄送每日檢查摘要至這些信箱。
+                                                                {t('emailNote')}
                                                             </p>
                                                         </div>
                                                     )}
@@ -2365,12 +2434,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         onClick={() => {
                                                             // Trigger existing save logic
                                                             handleSaveSettings(declarationSettings);
-                                                            alert('通知設定已儲存');
+                                                            alert(t('notificationSettingsSaved'));
                                                         }}
                                                         className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 flex items-center justify-center gap-2"
                                                     >
                                                         <Save className="w-4 h-4" />
-                                                        儲存通知設定
+                                                        {t('saveNotificationSettings')}
                                                     </button>
                                                 </div>
                                             </div>
@@ -2390,7 +2459,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <button
                                                                 key={lang.code}
                                                                 onClick={() => setLanguage(lang.code as LanguageCode)}
-                                                                className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200'} `}
+                                                                className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
                                                             >
                                                                 <span className="font-bold text-base">{lang.name}</span>
                                                                 {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
@@ -2406,7 +2475,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <div className="space-y-6">
                                                 {/* Theme Settings */}
                                                 <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">背景顏色</label>
+                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('themeColor')}</label>
                                                     <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                                                         {[
                                                             { id: 'light', icon: <Sun className="w-4 h-4" />, label: 'Light+', color: 'bg-[#f3f3f3]' },
@@ -2416,7 +2485,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             { id: 'dracula', icon: <Sparkles className="w-4 h-4" />, label: 'Dracula', color: 'bg-[#282a36]' },
                                                             { id: 'nord', icon: <Leaf className="w-4 h-4" />, label: 'Nord', color: 'bg-[#2e3440]' },
                                                             { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: 'One Dark', color: 'bg-[#282c34]' },
-                                                            { id: 'system', icon: <Monitor className="w-4 h-4" />, label: '跟隨系統', color: 'bg-gradient-to-br from-white to-slate-900' }
+                                                            { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('followSystemTheme'), color: 'bg-gradient-to-br from-white to-slate-900' }
                                                         ].map((item) => (
                                                             <button
                                                                 key={item.id}
@@ -2467,9 +2536,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex gap-3">
                                                     <Zap className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                                                     <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-blue-900">燈號規則設定</p>
+                                                        <p className="text-sm font-bold text-blue-900">{t('lightSettings')}</p>
                                                         <p className="text-xs text-blue-700 leading-relaxed">
-                                                            自訂檢查狀態的判定標準。系統將依照您設定的天數與顏色重新同步顯示。
+                                                            {t('lightSettingsDesc')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -2485,7 +2554,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-bold text-orange-700 flex items-center gap-2">
                                                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
-                                                                    異常複檢
+                                                                    {t('abnormalLight')}
                                                                 </span>
                                                                 <input
                                                                     type="color"
@@ -2495,7 +2564,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 />
                                                             </div>
                                                             <div className="text-xs text-slate-500">
-                                                                設定「異常」狀態的顯示顏色 (預設為橘色)
+                                                                {t('abnormalColorDesc')}
                                                             </div>
                                                         </div>
 
@@ -2504,14 +2573,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-bold text-red-700 flex items-center gap-2">
                                                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.red.color }}></div>
-                                                                    需檢查
+                                                                    {t('needCheck')}
                                                                 </span>
                                                                 <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-slate-600 font-bold">剩餘天數 &le;</span>
+                                                                <span className="text-sm text-slate-600 font-bold">{t('remainingDaysLe')}</span>
                                                                 <input type="number" value={lightSettings.red.days} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-red-200 rounded-lg text-center font-bold text-red-700 focus:outline-none focus:border-red-500" />
-                                                                <span className="text-sm text-slate-600 font-bold">天</span>
+                                                                <span className="text-sm text-slate-600 font-bold">{t('days')}</span>
                                                             </div>
                                                         </div>
 
@@ -2520,15 +2589,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-bold text-amber-700 flex items-center gap-2">
                                                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.yellow.color }}></div>
-                                                                    可以檢查
+                                                                    {t('canCheck')}
                                                                 </span>
                                                                 <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-slate-600 font-bold">剩餘天數 &le;</span>
+                                                                <span className="text-sm text-slate-600 font-bold">{t('remainingDaysLe')}</span>
                                                                 <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-amber-200 rounded-lg text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
-                                                                <span className="text-sm text-slate-600 font-bold">天</span>
-                                                                <span className="text-xs text-slate-400 ml-2">(且 &gt; {lightSettings.red.days} 天)</span>
+                                                                <span className="text-sm text-slate-600 font-bold">{t('days')}</span>
+                                                                <span className="text-xs text-slate-400 ml-2">({t('andGt')} {lightSettings.red.days} {t('days')})</span>
                                                             </div>
                                                         </div>
 
@@ -2537,15 +2606,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-bold text-emerald-700 flex items-center gap-2">
                                                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.green.color }}></div>
-                                                                    不需檢查
+                                                                    {t('noNeedCheck')}
                                                                 </span>
                                                                 <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-slate-600 font-bold">剩餘天數 &ge;</span>
+                                                                <span className="text-sm text-slate-600 font-bold">{t('remainingDaysGe')}</span>
                                                                 <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-emerald-200 rounded-lg text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
-                                                                <span className="text-sm text-slate-600 font-bold">天</span>
-                                                                <span className="text-xs text-slate-400 ml-2">(系統判定 &gt; {lightSettings.yellow.days} 天)</span>
+                                                                <span className="text-sm text-slate-600 font-bold">{t('days')}</span>
+                                                                <span className="text-xs text-slate-400 ml-2">({t('systemJudgedGt')} {lightSettings.yellow.days} {t('days')})</span>
                                                             </div>
                                                         </div>
 
@@ -2554,7 +2623,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-bold text-blue-700 flex items-center gap-2">
                                                                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
-                                                                    已檢查
+                                                                    {t('completedCheck')}
                                                                 </span>
                                                                 <input
                                                                     type="color"
@@ -2564,7 +2633,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 />
                                                             </div>
                                                             <div className="text-xs text-slate-500">
-                                                                設定「正常且已完成」的檢查項目顯示顏色 (預設為綠色)
+                                                                {t('completedCheckDesc')}
                                                             </div>
                                                         </div>
 
@@ -2576,12 +2645,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             {savingLights ? (
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                                                    儲存中...
+                                                                    {t('saving')}
                                                                 </div>
                                                             ) : (
                                                                 <>
                                                                     <Save className="w-4 h-4" />
-                                                                    儲存設定
+                                                                    {t('saveSettings')}
                                                                 </>
                                                             )}
                                                         </button>
@@ -2598,9 +2667,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex gap-3">
                                                     <Calendar className="w-12 h-12 text-red-500 shrink-0 p-2 bg-white rounded-xl shadow-sm" />
                                                     <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-red-900">消防安全設備檢修申報</p>
+                                                        <p className="text-sm font-bold text-red-900">{t('declarationTitle')}</p>
                                                         <p className="text-xs text-red-700 leading-relaxed">
-                                                            請設定下次申報日期，系統將自動倒數並提醒您。
+                                                            {t('declarationDesc')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -2669,7 +2738,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all outline-none font-medium text-slate-700 shadow-sm"
                                                             />
                                                             <p className="text-xs text-slate-400 mt-2 pl-1">
-                                                                系統將自動依據「週期」與「基準日」計算下次申報截止日，並自動展延。
+                                                                {t('declarationAutoCalc')}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -2680,9 +2749,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         <History className="w-5 h-5 text-slate-400" />
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs font-bold text-slate-400">上次更新</div>
+                                                        <div className="text-xs font-bold text-slate-400">
+                                                            {t('lastUpdated')}
+                                                        </div>
                                                         <div className="text-sm font-bold text-slate-700">
-                                                            {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : '尚未設定'}
+                                                            {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : t('notSet')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2690,12 +2761,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                                                     <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
                                                         <Info className="w-4 h-4" />
-                                                        法規提醒
+                                                        {t('regulationReminder')}
                                                     </h5>
                                                     <ul className="text-xs text-yellow-800/80 space-y-1 list-disc list-inside font-medium">
-                                                        <li>甲類場所：每半年申報一次</li>
-                                                        <li>甲類以外場所：每年申報一次</li>
-                                                        <li>請務必於期限前完成檢修與申報作業</li>
+                                                        <li>{t('regulationItem1')}</li>
+                                                        <li>{t('regulationItem2')}</li>
+                                                        <li>{t('regulationNote')}</li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -2708,21 +2779,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         )
                     }
-                    {
-
-                    }
 
 
                     <InspectionModeModal
                         isOpen={isInspectionModeOpen}
                         onClose={() => setIsInspectionModeOpen(false)}
                         onSelectMode={handleInspectionModeSelect}
+                        t={t}
                     />
 
                     <AddEquipmentModeModal
                         isOpen={isAddEquipmentModeOpen}
                         onClose={() => setIsAddEquipmentModeOpen(false)}
                         onSelectMode={handleAddEquipmentModeSelect}
+                        t={t}
                     />
 
                     {/* Quick Search QR Scanner */}
@@ -2757,9 +2827,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <AlertTriangle className="w-8 h-8 text-red-600" />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-slate-800">設備使用期限已到</h3>
+                                            <h3 className="text-xl font-black text-slate-800">{t('equipmentExpiredTitle')}</h3>
                                             <p className="text-sm text-slate-500 mt-1 font-bold">
-                                                設備 <span className="text-slate-900 bg-slate-100 px-1 rounded">{renewalTarget.equipmentName || renewalTarget.name || 'Unknown'}</span> 需要進行替換
+                                                {t('equipmentPrefix')} <span className="text-slate-900 bg-slate-100 px-1 rounded">{renewalTarget.equipmentName || renewalTarget.name || 'Unknown'}</span> {t('needsReplacement')}
                                             </p>
                                         </div>
                                     </div>
@@ -2775,7 +2845,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-2">
                                                     <Calendar className="w-4 h-4 text-emerald-500" />
-                                                    設備替換日期 (新的起始日)
+                                                    {t('replacementDate')}
                                                 </label>
                                                 <input
                                                     type="date"
@@ -2787,7 +2857,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-2">
                                                     <Calendar className="w-4 h-4 text-rose-500" />
-                                                    新的到期日期
+                                                    {t('newExpiryDate')}
                                                 </label>
                                                 <input
                                                     type="date"
@@ -2804,13 +2874,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 onClick={handleRenewalCancel}
                                                 className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl font-bold transition-colors"
                                             >
-                                                稍後提醒 (12小時後)
+                                                {t('remindLater')}
                                             </button>
                                             <button
                                                 type="submit"
                                                 className="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95"
                                             >
-                                                確認更新
+                                                {t('confirmUpdate')}
                                             </button>
                                         </div>
                                     </form>
@@ -2828,7 +2898,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <div>
                                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                                                 <Clock className="w-6 h-6 text-slate-400" />
-                                                替換記錄
+                                                {t('replacementHistory')}
                                             </h3>
                                             <p className="text-sm text-slate-500 mt-1 font-bold">
                                                 {viewingHistory.equipmentName || viewingHistory.name}
@@ -2849,7 +2919,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         ) : historyData.length === 0 ? (
                                             <div className="text-center py-12 text-slate-400 font-bold">
-                                                尚無替換記錄
+                                                {t('noReplacementRecords')}
                                             </div>
                                         ) : (
                                             <div className="relative border-l-2 border-slate-100 ml-4 space-y-8 py-2">
@@ -2862,19 +2932,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     {record.newStartDate.replace(/-/g, '/')}
                                                                 </span>
                                                                 <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold">
-                                                                    更換作業
+                                                                    {t('replacementOperation')}
                                                                 </span>
                                                             </div>
                                                             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-sm space-y-2">
                                                                 <div className="grid grid-cols-2 gap-4">
                                                                     <div>
-                                                                        <div className="text-xs text-slate-400 mb-1">新的起始/到期日</div>
+                                                                        <div className="text-xs text-slate-400 mb-1">{t('newStartEndDate')}</div>
                                                                         <div className="font-bold text-slate-700">
                                                                             {record.newStartDate} ~ {record.newEndDate}
                                                                         </div>
                                                                     </div>
                                                                     <div>
-                                                                        <div className="text-xs text-slate-400 mb-1">舊的起始/到期日</div>
+                                                                        <div className="text-xs text-slate-400 mb-1">{t('oldStartEndDate')}</div>
                                                                         <div className="font-medium text-slate-500 line-through">
                                                                             {record.previousStartDate} ~ {record.previousEndDate}
                                                                         </div>

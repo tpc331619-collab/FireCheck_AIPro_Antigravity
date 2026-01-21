@@ -5,24 +5,25 @@ interface InspectionModeModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSelectMode: (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => void;
+    t: (key: string) => string;
 }
 
-const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClose, onSelectMode }) => {
+const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClose, onSelectMode, t }) => {
     if (!isOpen) return null;
 
     const modes = [
         {
             id: 'CHECKLIST',
-            title: '清單檢查',
-            description: '標準條列式設備檢查',
+            title: t('checklistInspection'),
+            description: t('checklistInspectionDesc'),
             icon: <ClipboardList className="w-8 h-8 text-blue-500" />,
             color: 'bg-blue-50 border-blue-100 hover:border-blue-300',
             bgIcon: 'bg-blue-100'
         },
         {
             id: 'MAP_VIEW',
-            title: 'MAP VIEW',
-            description: '透過場域地圖進行直觀檢查',
+            title: t('mapViewTitle'),
+            description: t('mapViewDesc'),
             icon: <Map className="w-8 h-8 text-purple-500" />,
             color: 'bg-purple-50 border-purple-100 hover:border-purple-300',
             bgIcon: 'bg-purple-100'
@@ -36,8 +37,8 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
             <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative z-10 overflow-hidden animate-in zoom-in duration-200">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <div>
-                        <h3 className="text-xl font-bold text-slate-800">選擇檢查方式</h3>
-                        <p className="text-sm text-slate-500">請選擇最適合的作業模式</p>
+                        <h3 className="text-xl font-bold text-slate-800">{t('selectInspectionMode')}</h3>
+                        <p className="text-sm text-slate-500">{t('selectInspectionModeDesc')}</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
                         <X className="w-5 h-5 text-slate-500" />

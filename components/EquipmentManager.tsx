@@ -634,17 +634,17 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     <div className="bg-white p-3 rounded-lg border border-blue-50 mt-1 space-y-3 sm:space-y-0 sm:flex sm:items-center sm:gap-4 animate-in slide-in-from-left-2 duration-300">
                       {/* Threshold Logic */}
                       <div className="flex items-center gap-2 flex-1 flex-wrap">
-                        <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded tracking-tighter uppercase">閾值判定</span>
+                        <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded tracking-tighter uppercase">{t('thresholdMode')}</span>
                         <select
                           value={item.thresholdMode || 'range'}
                           onChange={(e) => updateCheckItem(item.id, { thresholdMode: e.target.value as any })}
                           className="p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
                         >
-                          <option value="range">介於 (Range)</option>
-                          <option value="gt">大於 ({'>'})</option>
-                          <option value="gte">不小於 ({'>='})</option>
-                          <option value="lt">小於 ({'<'})</option>
-                          <option value="lte">不大於 ({'<='})</option>
+                          <option value="range">{t('range') || 'Range'} (Range)</option>
+                          <option value="gt">{t('greaterThan') || '>'} ({'>'})</option>
+                          <option value="gte">{t('notLessThan') || '>='} ({'>='})</option>
+                          <option value="lt">{t('lessThan') || '<'} ({'<'})</option>
+                          <option value="lte">{t('notGreaterThan') || '<='} ({'<='})</option>
                         </select>
 
                         <input
@@ -654,7 +654,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                             const val = e.target.value;
                             updateCheckItem(item.id, { val1: val === '' ? undefined : parseFloat(val) });
                           }}
-                          placeholder={item.thresholdMode === 'range' ? "Min" : "Value"}
+                          placeholder={item.thresholdMode === 'range' ? t('min') : t('value')}
                           className="w-20 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
                         />
 
@@ -668,7 +668,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                                 const val = e.target.value;
                                 updateCheckItem(item.id, { val2: val === '' ? undefined : parseFloat(val) });
                               }}
-                              placeholder="Max"
+                              placeholder={t('max')}
                               className="w-20 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
                             />
                           </>
@@ -679,7 +679,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
                       {/* Unit Selection */}
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded tracking-tighter uppercase">單位</span>
+                        <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded tracking-tighter uppercase">{t('unit')}</span>
                         <div className="flex gap-1">
                           <select
                             value={COMMON_UNITS.includes(item.unit || '') ? item.unit : 'custom'}
@@ -689,9 +689,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                             }}
                             className="p-1.5 w-24 text-xs bg-slate-50 border border-slate-100 rounded text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
                           >
-                            <option value="" disabled>選擇...</option>
+                            <option value="" disabled>{t('select') || 'Select...'}</option>
                             {COMMON_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                            <option value="custom">自訂</option>
+                            <option value="custom">{t('custom')}</option>
                           </select>
                           {(!COMMON_UNITS.includes(item.unit || '') || item.unit === '') && (
                             <input
@@ -752,8 +752,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <Database className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">基本資料</h3>
-                <p className="text-white/80 text-xs">設備基本信息</p>
+                <h3 className="text-white font-bold text-lg">{t('basicInfo')}</h3>
+                <p className="text-white/80 text-xs">{t('basicInfoDesc')}</p>
               </div>
             </div>
 
@@ -763,7 +763,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <span className="w-1 h-4 bg-red-500 rounded-full"></span>
-                    場所名稱 <span className="text-red-500">*</span>
+                    {t('siteName')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -774,7 +774,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         setValidationErrors(prev => ({ ...prev, siteName: false }));
                       }
                     }}
-                    placeholder="輸入場所名稱"
+                    placeholder={t('enterSiteName')}
                     className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.siteName
                       ? 'border-red-500 focus:border-red-600'
                       : 'border-slate-200 focus:border-teal-500'
@@ -783,14 +783,14 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   {validationErrors.siteName && (
                     <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
-                      請填寫場所名稱
+                      {t('fillRequired')}
                     </p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <span className="w-1 h-4 bg-red-500 rounded-full"></span>
-                    建築物名稱 <span className="text-red-500">*</span>
+                    {t('buildingName')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -801,7 +801,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         setValidationErrors(prev => ({ ...prev, buildingName: false }));
                       }
                     }}
-                    placeholder="輸入建築物名稱"
+                    placeholder={t('enterBuildingName')}
                     className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.buildingName
                       ? 'border-red-500 focus:border-red-600'
                       : 'border-slate-200 focus:border-teal-500'
@@ -810,7 +810,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   {validationErrors.buildingName && (
                     <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
-                      請填寫建築物名稱
+                      {t('fillRequired')}
                     </p>
                   )}
                 </div>
@@ -820,7 +820,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                   <span className="w-1 h-4 bg-red-500 rounded-full"></span>
-                  設備名稱 <span className="text-red-500">*</span>
+                  {t('equipmentName')} <span className="text-red-500">*</span>
                 </label>
 
                 {/* Hierarchy Selection */}
@@ -835,7 +835,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     }}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 transition-colors"
                   >
-                    <option value="">選擇分類...</option>
+                    <option value="">{t('selectCategory') || 'Select Category...'}</option>
                     {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
 
@@ -849,7 +849,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     disabled={!eqCategory}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
                   >
-                    <option value="">選擇種類...</option>
+                    <option value="">{t('selectType') || 'Select Type...'}</option>
                     {eqCategory && hierarchy[eqCategory] &&
                       Object.keys(hierarchy[eqCategory]).map(t => (
                         <option key={t} value={t}>{t}</option>
@@ -869,7 +869,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     disabled={!eqType}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
                   >
-                    <option value="">選擇細項...</option>
+                    <option value="">{t('selectDetail') || 'Select Detail...'}</option>
                     {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
                       hierarchy[eqCategory][eqType].map((d) => (
                         <option key={d} value={d}>{d}</option>
@@ -882,7 +882,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   type="text"
                   value={name}
                   readOnly
-                  placeholder="輸入設備名稱 (或由上方選單自動帶入)"
+                  placeholder={t('enterEquipmentName')}
                   className={`w-full p-3 bg-slate-50 border-2 rounded-lg text-slate-900 focus:outline-none transition-all cursor-not-allowed ${validationErrors.name
                     ? 'border-red-500'
                     : 'border-slate-200'
@@ -891,7 +891,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 {validationErrors.name && (
                   <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    請填寫設備名稱
+                    {t('fillRequired')}
                   </p>
                 )}
               </div>
@@ -901,7 +901,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <span className="w-1 h-4 bg-red-500 rounded-full"></span>
-                    設備編號 <span className="text-red-500">*</span>
+                    {t('equipmentId')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -912,7 +912,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         setValidationErrors(prev => ({ ...prev, barcode: false }));
                       }
                     }}
-                    placeholder="輸入設備編號"
+                    placeholder={t('enterBarcode')}
                     className={`w-full p-3 bg-white border-2 rounded-lg text-slate-900 focus:outline-none transition-all ${validationErrors.barcode
                       ? 'border-red-500 focus:border-red-600'
                       : 'border-slate-200 focus:border-teal-500'
@@ -921,7 +921,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   {validationErrors.barcode && (
                     <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3" />
-                      請填寫設備編號
+                      {t('fillRequired')}
                     </p>
                   )}
                 </div>
@@ -930,7 +930,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4" />
-                    設備照片 <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
+                    {t('equipmentPhoto') || 'Equipment Photo'} <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
                   </label>
                   <div className="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
                     <div className="w-14 h-14 bg-white border-2 border-slate-200 rounded-lg overflow-hidden flex-shrink-0 relative group">
@@ -952,7 +952,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     </div>
                     <label className={`flex-1 flex items-center justify-center px-4 py-2.5 bg-white border-2 border-teal-200 rounded-lg text-teal-600 text-sm font-bold hover:bg-teal-50 hover:border-teal-400 transition-all cursor-pointer ${isUploadingPhoto ? 'opacity-50' : ''}`}>
                       <Upload className="w-4 h-4 mr-2" />
-                      {isUploadingPhoto ? '上傳中...' : '選擇照片'}
+                      {isUploadingPhoto ? t('uploading') : t('uploadPhoto')}
                       <input
                         type="file"
                         accept="image/png, image/jpeg"
@@ -975,8 +975,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <CalendarClock className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">排程設定</h3>
-                <p className="text-white/80 text-xs">檢查頻率與日期設定</p>
+                <h3 className="text-white font-bold text-lg">{t('scheduleSettings')}</h3>
+                <p className="text-white/80 text-xs">{t('scheduleSettingsDesc')}</p>
               </div>
             </div>
 
@@ -984,19 +984,19 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
               {/* Frequency and Start Date */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">檢查頻率</label>
+                  <label className="text-sm font-bold text-slate-700">{t('checkFrequency')}</label>
                   <div className="flex gap-2">
                     <select
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value as any)}
                       className={`flex-1 p-3 bg-slate-50 border-2 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors ${validationErrors.frequency ? 'border-red-500 bg-red-50' : 'border-slate-200'}`}
                     >
-                      <option value="">未設定</option>
-                      <option value="monthly">每月</option>
-                      <option value="quarterly">每季</option>
-                      <option value="yearly">每年</option>
-                      <option value="custom_date">自訂日期</option>
-                      <option value="custom_days">自訂天數</option>
+                      <option value="">{t('notSet') || 'Not Set'}</option>
+                      <option value="monthly">{t('freqMonthly')}</option>
+                      <option value="quarterly">{t('freqQuarterly')}</option>
+                      <option value="yearly">{t('freqYearly')}</option>
+                      <option value="custom_date">{t('customDate') || 'Custom Date'}</option>
+                      <option value="custom_days">{t('customDays') || 'Custom Days'}</option>
                     </select>
                     {frequency === 'custom_date' && (
                       <input
@@ -1011,7 +1011,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                         type="number"
                         value={customFrequency}
                         onChange={(e) => setCustomFrequency(e.target.value)}
-                        placeholder="天數"
+                        placeholder={t('days')}
                         className="w-24 p-3 bg-white border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
                       />
                     )}
@@ -1019,7 +1019,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700">檢查起始日期</label>
+                  <label className="text-sm font-bold text-slate-700">{t('checkStartDate')}</label>
                   <input
                     type="date"
                     value={startDate}
@@ -1036,13 +1036,13 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     <Calendar className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">下次檢查日期</p>
+                    <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">{t('nextCheckDate')}</p>
                     <p className="text-xl font-black text-slate-800 tracking-tight">{getNextDatePreview()}</p>
                   </div>
                 </div>
                 {initialData?.lastInspectedDate && (
                   <span className="px-3 py-1.5 bg-white/80 backdrop-blur-sm rounded-full text-xs font-bold text-slate-600 border-2 border-white">
-                    已有檢查紀錄
+                    {t('hasInspectionRecord') || 'Has Record'}
                   </span>
                 )}
               </div>
@@ -1050,8 +1050,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
               {/* Lifespan Settings */}
               <div className="space-y-2 pt-4 border-t-2 border-slate-100">
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  設定壽命
-                  <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">將於到期時發送通知</span>
+                  {t('setLifespan') || 'Lifespan'}
+                  <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">{t('notifyOnExpiry') || 'Notify on Expiry'}</span>
                 </label>
                 <div className="flex gap-2 items-center flex-wrap">
                   <select
@@ -1059,14 +1059,14 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     onChange={(e) => setLifespan(e.target.value)}
                     className="p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors min-w-[140px]"
                   >
-                    <option value="">未設定</option>
-                    <option value="1m">1 個月</option>
-                    <option value="3m">1 季 (3個月)</option>
-                    <option value="12m">1 年 (12個月)</option>
-                    <option value="24m">2 年 (24個月)</option>
-                    <option value="36m">3 年 (36個月)</option>
-                    <option value="120m">10 年 (120個月)</option>
-                    <option value="custom">自訂日期</option>
+                    <option value="">{t('notSet') || 'Not Set'}</option>
+                    <option value="1m">1 {t('month') || 'Month'}</option>
+                    <option value="3m">1 {t('season') || 'Season'} (3 {t('months')})</option>
+                    <option value="12m">1 {t('year') || 'Year'} (12 {t('months')})</option>
+                    <option value="24m">2 {t('years') || 'Years'} (24 {t('months')})</option>
+                    <option value="36m">3 {t('years') || 'Years'} (36 {t('months')})</option>
+                    <option value="120m">10 {t('years') || 'Years'} (120 {t('months')})</option>
+                    <option value="custom">{t('customDate') || 'Custom Date'}</option>
                   </select>
 
                   {lifespan === 'custom' && (
@@ -1080,7 +1080,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
                   {lifespan && (
                     <div className="ml-auto text-sm font-medium bg-orange-50 px-4 py-2.5 rounded-lg border-2 border-orange-200 flex items-center gap-2">
-                      <span className="text-orange-600 font-bold">預計到期日:</span>
+                      <span className="text-orange-600 font-bold">{t('expiryDate')}:</span>
                       <span className="text-slate-800 font-bold">{getExpiryDatePreview()}</span>
                     </div>
                   )}
@@ -1098,15 +1098,15 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <ClipboardCheck className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="text-white font-bold text-lg">檢查項目配置</h3>
-                <p className="text-white/80 text-xs">設定檢查清單內容 <span className="text-red-200">(至少需要一項)*</span></p>
+                <h3 className="text-white font-bold text-lg">{t('checkItemsConfig')}</h3>
+                <p className="text-white/80 text-xs">{t('checkItemsDesc')} <span className="text-red-200">{t('minOneItem') || '(At least one)'}*</span></p>
               </div>
             </div>
 
             {validationErrors.checkItems && (
               <div className="bg-red-50 border-b-2 border-red-200 p-3 flex items-center gap-2 text-red-700">
                 <AlertTriangle className="w-5 h-5" />
-                <p className="text-sm font-bold">請至少新增一個檢查項目</p>
+                <p className="text-sm font-bold">{t('addAtLeastOne') || 'Please add at least one item'}</p>
               </div>
             )}
 

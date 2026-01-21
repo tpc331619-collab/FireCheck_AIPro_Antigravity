@@ -5,6 +5,7 @@ import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, Inspec
 import StorageManagerModal from './StorageManagerModal';
 import { calculateNextInspectionDate } from '../utils/dateUtils';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface EquipmentMapEditorProps {
     user: UserProfile;
@@ -15,6 +16,7 @@ interface EquipmentMapEditorProps {
 }
 
 const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId }) => {
+    const { t } = useLanguage();
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
     const [reports, setReports] = useState<InspectionReport[]>([]); // Store inspection reports
@@ -119,7 +121,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     // Silent fallback - user can still edit, but export will be disabled
                     resolve(img2);
                 };
-                img2.onerror = (err) => reject(new Error("圖片載入失敗 (無法讀取)"));
+                img2.onerror = (err) => reject(new Error(t('imageLoadFailed') || "Image load failed"));
                 img2.src = url;
             };
             img.src = url;
@@ -141,6 +143,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             // Extract name logic similar to sync
             const match = file.name.match(/^\d+_(.+)$/);
             const displayName = match ? match[1].split('.')[0] : file.name.split('.')[0];
+
 
             const newMap: Omit<EquipmentMap, 'id'> = {
                 userId: user.uid,
@@ -172,7 +175,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
         } catch (error: any) {
             console.error("Failed to load map from selection", error);
-            alert("載入圖面失敗: " + (error.message || "未知錯誤"));
+            alert((t('loadMapFailed') || "Load map failed: ") + (error.message || "Unknown error"));
+
             // Don't close modal so user can try another file
         }
     };
@@ -182,7 +186,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         if (file) {
             // File Size Limit (10MB)
             if (file.size > 10 * 1024 * 1024) {
-                alert('檔案大小超過 10MB，請上傳較小的圖片以確保系統穩定。');
+                alert(t('fileSizeExceeded') || 'File size exceeds 10MB.');
+
                 return;
             }
 
@@ -224,14 +229,15 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     setIsSaving(false);
                 };
                 img.onerror = () => {
-                    alert('圖片載入失敗，無法讀取圖片。');
+                    alert(t('imageLoadFailed') || 'Image load failed.');
                     setIsSaving(false);
                 };
                 img.src = blobUrl; // Load local blob
 
             } catch (error) {
                 console.error("Upload failed", error);
-                alert('圖片上傳失敗：' + (error instanceof Error ? error.message : '未知錯誤'));
+                alert((t('uploadFailed') || 'Upload failed: ') + (error instanceof Error ? error.message : 'Unknown Error'));
+
                 setIsSaving(false);
             }
         }
@@ -710,10 +716,10 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             }
 
             await loadMaps({ keepView: true });
-            alert('儲存成功');
+            alert(t('saveSuccess'));
         } catch (error: any) {
             console.error(error);
-            alert('儲存失敗: ' + (error.message || '未知錯誤'));
+            alert(t('saveFailed') + ': ' + (error.message || 'Unknown Error'));
         } finally {
             setIsSaving(false);
         }
@@ -722,7 +728,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const handleExport = () => {
         if (!image) return;
         if (!isCorsAllowed) {
-            alert('匯出失敗：因為圖片受到 CORS 跨域限制，瀏覽器無法可以輸出圖片。請聯絡管理員設定 Firebase Storage CORS 規則。');
+            alert(t('corsError') || 'Export failed: CORS missing.');
             return;
         }
 
@@ -832,7 +838,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             document.body.removeChild(link);
         } catch (e) {
             console.error("Export failed", e);
-            alert("匯出失敗：可能是因為跨網域圖片安全性限制。");
+            alert(t('corsError') || "Export failed: CORS restrictions.");
         }
     };
 
@@ -864,19 +870,20 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             setViewMode('EDIT');
         }).catch(err => {
             console.error("Edit map load error", err);
-            alert("載入圖面失敗，請重試");
+            alert(t('loadMapFailed') || "Load map failed, please retry.");
         });
     };
 
     const deleteMap = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (confirm('確定要刪除此地圖嗎？')) {
+        if (confirm(t('confirmDeleteMap') || 'Are you sure you want to delete this map?')) {
             try {
                 await StorageService.deleteEquipmentMap(id, user.uid);
                 loadMaps();
             } catch (error: any) {
                 console.error(error);
-                alert('刪除失敗: ' + (error.message || '未知錯誤'));
+                alert(t('deleteFailed') + ': ' + (error.message || '未知錯誤'));
+
             }
         }
     };
@@ -896,7 +903,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             {isSaving && (
                 <div className="absolute inset-0 z-[60] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center">
                     <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                    <p className="text-lg font-bold text-slate-700">正在處理中，請稍候...</p>
+                    <p className="text-lg font-bold text-slate-700">{t('processing') || 'Processing...'}</p>
                 </div>
             )}
 
@@ -912,13 +919,14 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             }
                         }}
                         className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
-                        title="回上一頁"
+                        title={t('back')}
+
                     >
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
                         <MapPin className="w-6 h-6 text-red-500" />
-                        {viewMode === 'LIST' ? '消防設備位置圖管理' : '編輯位置圖'}
+                        {viewMode === 'LIST' ? t('mapManager') : t('editMap')}
                     </h2>
                 </div>
                 <div className="flex items-center gap-2">
@@ -932,16 +940,16 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                         <div className="max-w-7xl mx-auto space-y-6">
                             <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-bold text-slate-700">已上傳圖片清單</h3>
+                                <h3 className="text-lg font-bold text-slate-700">{t('uploadedMaps')}</h3>
                                 <div className="flex items-center gap-4">
-                                    <p className="text-sm text-slate-500">共 {maps.length} 張圖面</p>
+                                    <p className="text-sm text-slate-500">{t('total') || 'Total'} {maps.length} {t('maps') || 'Maps'}</p>
 
                                     <button
                                         onClick={() => setIsStorageManagerOpen(true)}
                                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors"
                                     >
                                         <Upload className="w-4 h-4" />
-                                        雲端圖庫
+                                        {t('cloudGallery')}
                                     </button>
                                 </div>
                             </div>
@@ -954,11 +962,11 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                         <thead className="bg-slate-50 border-b border-slate-200">
                                             <tr>
                                                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">預覽</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">圖面名稱</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">大小</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">最後編輯</th>
-                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">操作</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">{t('preview')}</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('mapName')}</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('mapSize')}</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{t('lastEdited')}</th>
+                                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">{t('actions')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-200">
@@ -978,8 +986,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 </td>
                                                 <td className="px-6 py-4" colSpan={4}>
                                                     <div className="flex items-center gap-3">
-                                                        <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">建立新位置圖</span>
-                                                        <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">從雲端圖庫選擇</span>
+                                                        <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">{t('createNewMap')}</span>
+                                                        <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{t('selectFromCloud')}</span>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1001,7 +1009,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="font-bold text-slate-700 text-base group-hover:text-blue-600 transition-colors">{map.name}</div>
-                                                        <div className="text-xs text-slate-400 mt-0.5">{map.markers?.length || 0} 個標記</div>
+                                                        <div className="text-xs text-slate-400 mt-0.5">{map.markers?.length || 0} {t('markers')}</div>
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-slate-600 font-mono">
                                                         {map.size ? (map.size / 1024 / 1024).toFixed(2) + ' MB' : '-'}
@@ -1013,7 +1021,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                         <button
                                                             onClick={(e) => deleteMap(e, map.id)}
                                                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                            title="刪除"
+                                                            title={t('delete')}
                                                         >
                                                             <Trash2 className="w-5 h-5" />
                                                         </button>
@@ -1038,8 +1046,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             <Plus className="w-6 h-6" />
                                         </div>
                                         <div className="flex-1">
-                                            <h4 className="font-bold text-slate-800 text-lg">建立新位置圖</h4>
-                                            <p className="text-sm text-blue-600">從雲端圖庫選擇</p>
+                                            <h4 className="font-bold text-slate-800 text-lg">{t('createNewMap')}</h4>
+                                            <p className="text-sm text-blue-600">{t('selectFromCloud')}</p>
                                         </div>
                                         <ChevronRight className="w-5 h-5 text-slate-400" />
                                     </div>
@@ -1062,7 +1070,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 <h4 className="font-bold text-slate-800 text-base truncate pr-8">{map.name}</h4>
                                                 <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                                                     <span className="flex items-center gap-1">
-                                                        <MapPin className="w-3 h-3" /> {map.markers?.length || 0} 標記
+                                                        <MapPin className="w-3 h-3" /> {map.markers?.length || 0} {t('markers')}
                                                     </span>
                                                     <span className="flex items-center gap-1">
                                                         <HardDrive className="w-3 h-3" /> {map.size ? (map.size / 1024 / 1024).toFixed(1) + 'MB' : '-'}
@@ -1123,24 +1131,24 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     <button
                                         onClick={() => setToolMode('SELECT')}
                                         className={`p-1.5 sm:p-2 rounded-full transition-all flex items-center gap-1 sm:gap-2 ${toolMode === 'SELECT' ? 'bg-white text-blue-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
-                                        title="選擇模式 (不增加標記)"
+                                        title={t('selectMode')}
                                     >
                                         <MousePointer2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                         {/* Hide text on mobile for extreme compactness, or keep very small */}
-                                        {toolMode === 'SELECT' && <span className="text-[10px] font-bold pr-1 hidden sm:inline">選擇</span>}
+                                        {toolMode === 'SELECT' && <span className="text-[10px] font-bold pr-1 hidden sm:inline">{t('select')}</span>}
                                     </button>
                                     <button
                                         onClick={() => setToolMode('ADD_MARKER')}
                                         className={`p-1.5 sm:p-2 rounded-full transition-all flex items-center gap-1 sm:gap-2 ${toolMode === 'ADD_MARKER' ? 'bg-white text-red-600 shadow-md ring-1 ring-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
-                                        title="新增標記模式"
+                                        title={t('addMarkerMode')}
                                     >
                                         <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                        {toolMode === 'ADD_MARKER' && <span className="text-[10px] font-bold pr-1 text-red-500 hidden sm:inline">標記</span>}
+                                        {toolMode === 'ADD_MARKER' && <span className="text-[10px] font-bold pr-1 text-red-500 hidden sm:inline">{t('marker')}</span>}
                                     </button>
                                 </div>
                                 <div className="w-px h-3 sm:h-6 bg-slate-200 mx-0.5 shrink-0"></div>
                                 <button onClick={zoomReset} className="px-1.5 py-1 sm:px-3 sm:py-1 text-[10px] sm:text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors flex items-center gap-1 shrink-0" title="Reset View">
-                                    <span>重置</span>
+                                    <span>{t('reset')}</span>
                                 </button>
                             </div>
 
@@ -1254,15 +1262,17 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 {/* Map Name Settings */}
                                 <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10 sticky top-0">
                                     <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">圖面名稱</label>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{t('mapNameLabel')}</label>
                                         <div className="relative group">
+
                                             <input
                                                 type="text"
                                                 value={mapName}
                                                 onChange={(e) => setMapName(e.target.value)}
                                                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 font-bold text-slate-800 transition-all placeholder:text-slate-300 text-sm"
-                                                placeholder="輸入圖面名稱..."
+                                                placeholder={t('enterMapName')}
                                             />
+
                                         </div>
                                     </div>
                                 </div>
@@ -1277,29 +1287,33 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 <div className="p-4 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                            標記列表
+                                            {t('markerList')}
                                             <span className="bg-slate-200 text-slate-600 px-1.5 rounded-md text-[10px]">{markers.length}</span>
+
                                         </h3>
                                         {/* Legend Info Icon */}
                                         <button
                                             onClick={() => setIsLegendModalOpen(true)}
                                             className="p-1.5 hover:bg-blue-50 rounded-full text-blue-500 transition-colors group relative"
-                                            title="燈號說明"
+                                            title={t('legendTitle')}
                                         >
+
                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
                                             <span className="absolute -top-8 right-0 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                                燈號說明
+                                                {t('legendTitle')}
                                             </span>
+
                                         </button>
                                     </div>
 
                                     {markers.length === 0 ? (
                                         <div className="text-center py-10 text-slate-400 text-sm">
                                             <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                            點擊地圖新增標記
+                                            {t('clickToAddMarker')}
                                         </div>
+
                                     ) : (
                                         <div className="space-y-2">
                                             {markers.map((marker, idx) => {
@@ -1329,8 +1343,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                                     type="text"
                                                                     value={marker.equipmentId}
                                                                     onChange={(e) => updateMarker(marker.id, { equipmentId: e.target.value.toUpperCase() })}
-                                                                    placeholder="輸入編號..."
+                                                                    placeholder={t('enterId')}
                                                                     className={`w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none p-0 text-sm font-bold transition-colors ${isSelected ? 'text-slate-800' : 'text-slate-600'}`}
+
                                                                 />
                                                             </div>
 
@@ -1338,10 +1353,11 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        if (confirm('確定刪除此標記?')) deleteMarker(e, marker.id);
+                                                                        if (confirm(t('confirmDeleteMarker'))) deleteMarker(e, marker.id);
                                                                     }}
                                                                     className={`p-1.5 rounded-lg transition-all ${isSelected ? 'text-red-500 hover:bg-red-50' : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100'}`}
-                                                                    title="刪除"
+                                                                    title={t('delete')}
+
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
                                                                 </button>
@@ -1379,8 +1395,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     className="w-full py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                                 >
                                     <Download className="w-4 h-4" />
-                                    匯出圖片
+                                    {t('exportImage')}
                                 </button>
+
                                 <button
                                     onClick={handleSave}
                                     disabled={isSaving}
@@ -1391,8 +1408,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     ) : (
                                         <>
                                             <Save className="w-4 h-4" />
-                                            儲存位置圖
+                                            {t('savePositionMap')}
                                         </>
+
                                     )}
                                 </button>
                             </div>
@@ -1410,8 +1428,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                                     <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                    燈號說明
+                                    {t('legendTitle')}
                                 </h3>
+
                                 <button
                                     onClick={() => setIsLegendModalOpen(false)}
                                     className="p-1 hover:bg-slate-100 rounded-full transition-colors"
@@ -1506,8 +1525,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     onClick={() => setIsLegendModalOpen(false)}
                                     className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors"
                                 >
-                                    知道了
+                                    {t('gotIt')}
                                 </button>
+
                             </div>
                         </div>
                     </div>
@@ -1528,17 +1548,19 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
-                            <h3 className="font-bold text-lg text-slate-800">新增設備標記</h3>
-                            <p className="text-xs text-slate-500">請輸入設備編號以確認新增</p>
+                            <h3 className="font-bold text-lg text-slate-800">{t('addMarkerTitle')}</h3>
+                            <p className="text-xs text-slate-500">{t('addMarkerDesc')}</p>
                         </div>
                         <div className="p-6">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">設備編號</label>
+                            <label className="block text-sm font-bold text-slate-700 mb-2">{t('equipmentIdLabel')}</label>
                             <input
                                 type="text"
+
                                 value={pendingEquipmentId}
                                 onChange={(e) => setPendingEquipmentId(e.target.value.toUpperCase())}
-                                placeholder="例如: 001"
+                                placeholder={t('exampleId')}
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg"
+
                                 autoFocus
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') confirmAddMarker();
@@ -1551,14 +1573,15 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 onClick={cancelAddMarker}
                                 className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors"
                             >
-                                取消
+                                {t('cancel')}
                             </button>
                             <button
                                 onClick={confirmAddMarker}
                                 className="flex-1 py-2.5 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200"
                             >
-                                確定新增
+                                {t('confirmAdd')}
                             </button>
+
                         </div>
                     </div>
                 </div>
