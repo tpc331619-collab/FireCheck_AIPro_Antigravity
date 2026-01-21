@@ -2458,7 +2458,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         ].map((lang) => (
                                                             <button
                                                                 key={lang.code}
-                                                                onClick={() => setLanguage(lang.code as LanguageCode)}
+                                                                onClick={() => {
+                                                                    setLanguage(lang.code as LanguageCode);
+                                                                    addNotification('profile', t('languageChanged'), t('languageChangedDesc', { lang: lang.name }));
+                                                                }}
                                                                 className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
                                                             >
                                                                 <span className="font-bold text-base">{lang.name}</span>
@@ -2489,7 +2492,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         ].map((item) => (
                                                             <button
                                                                 key={item.id}
-                                                                onClick={() => setTheme(item.id as ThemeType)}
+                                                                onClick={() => {
+                                                                    setTheme(item.id as ThemeType);
+                                                                    addNotification('profile', t('themeChanged'), t('themeChangedDesc', { theme: item.label }));
+                                                                }}
                                                                 className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
                                                                 title={item.label}
                                                             >
@@ -2638,7 +2644,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         </div>
 
                                                         <button
-                                                            onClick={handleSaveLightSettings}
+                                                            onClick={async () => {
+                                                                if (!user?.uid || !lightSettings) return;
+                                                                setSavingLights(true);
+                                                                try {
+                                                                    await StorageService.saveLightSettings(user.uid, lightSettings);
+                                                                    addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
+                                                                    alert(t('settingsSaved'));
+                                                                } catch (error) {
+                                                                    console.error('Failed to save light settings:', error);
+                                                                    alert(t('saveFailed'));
+                                                                } finally {
+                                                                    setSavingLights(false);
+                                                                }
+                                                            }}
                                                             disabled={savingLights}
                                                             className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
                                                         >

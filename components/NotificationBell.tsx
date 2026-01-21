@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, Calendar, User, Heart, AlertTriangle, Check } from 'lucide-react';
+import { Bell, X, Calendar, User, Heart, AlertTriangle, Check, Zap } from 'lucide-react';
 import { Notification, NotificationType } from '../types';
 import { StorageService } from '../services/storageService';
 
@@ -87,6 +87,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
                 return <Calendar className="w-4 h-4 text-orange-500" />;
             case 'abnormal':
                 return <AlertTriangle className="w-4 h-4 text-red-500" />;
+            case 'lights':
+                return <Zap className="w-4 h-4 text-amber-500" />;
             default:
                 return <Bell className="w-4 h-4 text-slate-500" />;
         }

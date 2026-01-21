@@ -196,7 +196,7 @@ export interface HealthHistoryRecord {
   updatedAt: number;
 }
 
-export type NotificationType = 'profile' | 'health' | 'declaration' | 'abnormal';
+export type NotificationType = 'profile' | 'health' | 'declaration' | 'abnormal' | 'lights';
 
 export interface Notification {
   id: string;

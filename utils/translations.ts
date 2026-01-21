@@ -363,6 +363,15 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     saveNotificationSettings: '儲存通知設定',
     notificationSettingsSaved: '通知設定已儲存',
 
+    // System Notifications
+    languageChanged: '語言已變更',
+    languageChangedDesc: '系統語言已切換為 {lang}',
+    themeChanged: '主題已變更',
+    themeChangedDesc: '背景主題已切換為 {theme}',
+    lightsUpdated: '燈號設定已更新',
+    lightsUpdatedDesc: '檢查燈號規則已儲存',
+
+
     uploadGenericError: '上傳失敗',
     fileSizeLimit: '說明: 上傳檔案不得超過 1MB',
 
@@ -753,7 +762,16 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     recipientEmails: 'Recipients (comma separated)',
     emailNote: '* Daily summaries will be sent to these addresses.',
     saveNotificationSettings: 'Save Notification Settings',
-    notificationSettingsSaved: 'Settings Saved',
+    notificationSettingsSaved: 'Notification settings saved',
+
+    // System Notifications
+    languageChanged: 'Language Changed',
+    languageChangedDesc: 'System language switched to {lang}',
+    themeChanged: 'Theme Changed',
+    themeChangedDesc: 'Background theme switched to {theme}',
+    lightsUpdated: 'Light Settings Updated',
+    lightsUpdatedDesc: 'Inspection light rules saved',
+
 
     uploadGenericError: 'Upload Failed',
     fileSizeLimit: 'Note: Max file size 1MB',
@@ -1103,7 +1121,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     // comprehensiveCheck: '종합 검사',
     // addItem: '항목 추가',
     // itemName: '항목 이름',
-    // itemPlaceholder: '예: 녹이 슬었나요?',
+    // itemPlaceholder: '예: 압력',
     // enterCustomFrequency: '사용자 지정 빈도를 입력하세요',
     // fillRequired: '필수 항목을 입력하세요',
     // typeBoolean: '부울 (합격/불합격)',
@@ -1161,7 +1179,16 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     recipientEmails: '수신자 (쉼표로 구분)',
     emailNote: '* 일일 요약이 이 주소로 전송됩니다.',
     saveNotificationSettings: '알림 설정 저장',
-    notificationSettingsSaved: '설정 저장됨',
+    notificationSettingsSaved: '알림 설정이 저장되었습니다',
+
+    // System Notifications
+    languageChanged: '언어 변경됨',
+    languageChangedDesc: '시스템 언어가 {lang}로 변경되었습니다',
+    themeChanged: '테마 변경됨',
+    themeChangedDesc: '배경 테마가 {theme}로 변경되었습니다',
+    lightsUpdated: '표시등 설정 업데이트됨',
+    lightsUpdatedDesc: '검사 표시등 규칙이 저장되었습니다',
+
 
     uploadGenericError: '업로드 실패',
     fileSizeLimit: '참고: 파일 크기 제한 1MB',
@@ -1554,7 +1581,16 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     recipientEmails: '受信者 (カンマ区切り)',
     emailNote: '* 日次サマリーがこれらのアドレスに送信されます。',
     saveNotificationSettings: '通知設定を保存',
-    notificationSettingsSaved: '設定を保存しました',
+    notificationSettingsSaved: '通知設定が保存されました',
+
+    // System Notifications
+    languageChanged: '言語が変更されました',
+    languageChangedDesc: 'システム言語が {lang} に切り替わりました',
+    themeChanged: 'テーマが変更されました',
+    themeChangedDesc: '背景テーマが {theme} に切り替わりました',
+    lightsUpdated: 'ライト設定が更新されました',
+    lightsUpdatedDesc: '検査ライトのルールが保存されました',
+
 
     uploadGenericError: 'アップロード失敗',
     fileSizeLimit: '注: ファイルサイズ制限 1MB',
