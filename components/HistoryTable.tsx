@@ -12,7 +12,8 @@ interface HistoryItem {
     notes?: string;
     inspectorName?: string;
     checkResults?: any[];
-    repairDate?: string;
+    repairDate?: number; // Changed from string to number to match InspectionItem
+    repairNotes?: string;
 }
 
 interface HistoryTableProps {
@@ -102,17 +103,25 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     const endItem = Math.min(currentPage * itemsPerPage, sortedData.length);
 
     // Helper to render status badge
-    const renderStatusBadge = (status: string) => {
-        if (status === 'Abnormal' || status === '異常') {
-            return (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
-                    <AlertTriangle className="w-3.5 h-3.5" /> 異常
-                </span>
-            );
-        } else if (status === 'Fixed' || status === '已改善') {
+    const renderStatusBadge = (item: HistoryItem) => {
+        const { status, repairDate } = item;
+        const isFixed = repairDate || status === 'Fixed' || status === '已改善';
+
+        // Debug logging for abnormal/fixed items
+        if (status === 'Abnormal' || status === '異常' || status === 'Fixed' || status === '已改善' || repairDate) {
+            console.log(`[HistoryTable] Item: ${item.name}, Status: ${status}, RepairDate: ${repairDate}, IsFixed: ${isFixed}`);
+        }
+
+        if (isFixed) {
             return (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
                     <CheckCircle className="w-3.5 h-3.5" /> 已改善
+                </span>
+            );
+        } else if (status === 'Abnormal' || status === '異常') {
+            return (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
+                    <AlertTriangle className="w-3.5 h-3.5" /> 異常
                 </span>
             );
         } else {
@@ -172,7 +181,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             case 'building': return <td key={key} className="px-4 py-3 text-slate-900">{row.buildingName || '-'}</td>;
             case 'equipment': return <td key={key} className="px-4 py-3 text-slate-900 font-bold">{row.name || '未命名項目'}</td>;
             case 'barcode': return <td key={key} className="px-4 py-3 font-mono text-xs text-slate-600">{row.barcode || '-'}</td>;
-            case 'result': return <td key={key} className="px-4 py-3">{renderStatusBadge(row.status)}</td>;
+            case 'result': return <td key={key} className="px-4 py-3">{renderStatusBadge(row)}</td>;
             case 'notes': return <td key={key} className="px-4 py-3 text-xs text-slate-700 font-medium">{(row.notes || '').replace('[異常複檢 - 已修復]', '').trim() || '-'}</td>;
             case 'inspector': return <td key={key} className="px-4 py-3 text-slate-900">{row.inspectorName || '未知'}</td>;
             case 'actions': return (
@@ -188,7 +197,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                 內容
                             </button>
                         )}
-                        {(row.repairDate || row.status === 'Fixed' || row.status === '已改善') && (
+                        {(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常') && (
                             <button
                                 onClick={() => onViewRecheck(row)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm border border-red-100"
@@ -326,8 +335,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
                                 <button
                                     onClick={() => onViewRecheck(row)}
-                                    disabled={!(row.repairDate || row.status === 'Fixed' || row.status === '已改善')}
-                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${!(row.repairDate || row.status === 'Fixed' || row.status === '已改善')
+                                    disabled={!(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常')}
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${!(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常')
                                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                         : 'bg-white text-red-600 border border-red-200 shadow-sm hover:bg-red-50 active:scale-95'
                                         }`}

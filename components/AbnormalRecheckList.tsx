@@ -164,7 +164,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                 // Note: getReports default does NOT fetch items for Firestore. We need items to find the equipment.
                 // Improvement: Fetch with items = true, OR filtering by date to minimize reads.
                 // For robustness, let's try matching by date first (since inspectionDate is recorded).
-                let allReports = await StorageService.getReports(user.uid, true);
+                let allReports = await StorageService.getReports(user.uid, undefined, true);
 
                 // Fallback: If no items loaded (legacy/error), we might need to load items for reports near the date.
                 // For now, getReports(uid, true) should handle it for Firestore.
@@ -192,6 +192,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                 lastUpdated: fixedDateTime,
                                 repairDate: fixedDateTime,
                                 repairNotes: fixedNotes.trim(),
+                                abnormalItems: selectedRecord.abnormalItems, // Preserve original abnormal items
+                                inspectionDate: selectedRecord.inspectionDate, // Preserve original inspection date
                                 checkResults: item.checkResults ? item.checkResults.map((result: any) => {
                                     if (selectedRecord.abnormalItems.includes(result.name)) {
                                         return {

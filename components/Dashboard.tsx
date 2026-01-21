@@ -133,6 +133,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
+
     // Light Settings State
     const [lightSettings, setLightSettings] = useState<any>(null);
     const [savingLights, setSavingLights] = useState(false);
@@ -563,6 +564,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         }
     };
 
+
+
     const handleSaveSettings = async (settings: DeclarationSettings) => {
         if (user?.uid) {
             try {
@@ -627,6 +630,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         }
     };
 
+
+
     // Calculate Declaration Deadline & Auto-Rollover
     const [declarationDeadline, setDeclarationDeadline] = useState<string>('');
     useEffect(() => {
@@ -645,7 +650,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         // Add cycle to base date
         if (declarationSettings.cycle === '6_MONTHS') {
             nextDeadline.setMonth(nextDeadline.getMonth() + 6);
-        } else if (declarationSettings.cycle === '1_YEAR' || declarationSettings.cycle === 'CUSTOM') {
+        } else if (declarationSettings.cycle === '1_YEAR') {
             nextDeadline.setFullYear(nextDeadline.getFullYear() + 1);
         }
 
@@ -658,7 +663,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 // Move base forward by cycle
                 if (declarationSettings.cycle === '6_MONTHS') {
                     newBase.setMonth(newBase.getMonth() + 6);
-                } else if (declarationSettings.cycle === '1_YEAR' || declarationSettings.cycle === 'CUSTOM') {
+                } else if (declarationSettings.cycle === '1_YEAR') {
                     newBase.setFullYear(newBase.getFullYear() + 1);
                 }
 
@@ -666,7 +671,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 nextDeadline = new Date(newBase);
                 if (declarationSettings.cycle === '6_MONTHS') {
                     nextDeadline.setMonth(nextDeadline.getMonth() + 6);
-                } else if (declarationSettings.cycle === '1_YEAR' || declarationSettings.cycle === 'CUSTOM') {
+                } else if (declarationSettings.cycle === '1_YEAR') {
                     nextDeadline.setFullYear(nextDeadline.getFullYear() + 1);
                 }
             }
@@ -706,6 +711,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
+
+
+
+
+
     const calculateCountdown = () => {
         // Use the calculated deadline from state (which handles cycle logic)
         if (!declarationDeadline) return null;
@@ -723,9 +733,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     };
 
     const countdownDays = calculateCountdown();
-
-
-
 
     const fetchReports = async () => {
         setLoading(true);
@@ -762,7 +769,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             if (user?.uid) {
                 try {
                     const records = await StorageService.getAbnormalRecords(user.uid);
-                    const pendingCount = records.filter(r => r.status === 'pending').length;
+                    const pendingCount = records.filter(r => r.status === 'pending' && !r.fixedDate).length;
                     setAbnormalCount(pendingCount);
                 } catch (error) {
                     console.error('Failed to fetch abnormal count:', error);
@@ -836,20 +843,50 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     (filterStatus === 'Fail' && (item.status === 'Abnormal' || item.status === '異常'));
 
                 if (matchesHeaderSearch && matchesNameFilter && matchesKeyword && matchesStatus) {
-                    flattened.push({
+                    const flattenedItem = {
                         ...item,
                         reportId: report.id,
                         date: report.date,
                         buildingName: report.buildingName,
                         inspectorName: report.inspectorName,
                         overallStatus: report.overallStatus
-                    });
+                    };
+
+                    // Debug logging for abnormal/fixed items
+                    if (item.status === 'Abnormal' || item.status === '異常' || item.status === 'Fixed' || item.status === '已改善') {
+                        console.log(`[Dashboard flattenedHistory] Item: ${item.name}, Status: ${item.status}, RepairDate: ${item.repairDate}, RepairNotes: ${item.repairNotes ? 'Yes' : 'No'}`);
+                    }
+
+                    flattened.push(flattenedItem);
                 }
             });
         });
 
-        // 2. Return flattened array (sorting handled by DataTables)
-        return flattened;
+        // 2. Deduplicate by equipmentId - keep only the latest/most complete record
+        const deduplicatedMap: Record<string, any> = {};
+        flattened.forEach(item => {
+            const key = item.equipmentId || `${item.name}_${item.barcode}`;
+            const existing = deduplicatedMap[key];
+
+            if (!existing) {
+                deduplicatedMap[key] = item;
+            } else {
+                // Keep the record with repairDate (fixed), or the latest one
+                const shouldReplace =
+                    (item.repairDate && !existing.repairDate) || // Prefer fixed over unfixed
+                    (item.date > existing.date); // Or prefer newer
+
+                if (shouldReplace) {
+                    deduplicatedMap[key] = item;
+                }
+            }
+        });
+
+        const deduplicated = Object.values(deduplicatedMap);
+        console.log(`[Dashboard] Flattened: ${flattened.length}, Deduplicated: ${deduplicated.length}`);
+
+        // 3. Return deduplicated array (sorting handled by DataTables)
+        return deduplicated;
 
     }, [filteredReports, searchTerm, locationFilter, keywordSearch, filterStatus]);
 
@@ -1479,7 +1516,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </div>
                                 <span className="font-bold text-white text-lg drop-shadow-sm">{t('history')}</span>
                                 <span className="text-xs font-bold text-orange-700 bg-white/90 px-2.5 py-0.5 rounded-full shadow-sm">
-                                    {reports.reduce((total, report) => total + (report.stats?.total || report.items?.length || 0), 0)} 筆
+                                    {flattenedHistory.length} 筆
                                 </span>
                             </div>
                         </button>
@@ -1773,74 +1810,145 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-slate-100">
-                                                        {activeModal.item.checkResults?.map((res: any, idx: number) => {
-                                                            let displayValue = '';
-                                                            if (res.value === 'true' || res.value === true) displayValue = '正常';
-                                                            else if (res.value === 'false' || res.value === false) displayValue = '異常';
-                                                            else if (res.threshold) displayValue = `${res.value}${res.unit || ''}`;
-                                                            else displayValue = res.value === 'true' ? '正常' : res.value === 'false' ? '異常' : res.value;
+                                                        {activeModal.item.checkResults
+                                                            ?.filter((res: any) => res.name && res.name.trim()) // Only show items with valid names
+                                                            .map((res: any, idx: number) => {
+                                                                let displayValue = '';
+                                                                if (res.value === 'true' || res.value === true) displayValue = '正常';
+                                                                else if (res.value === 'false' || res.value === false) displayValue = '異常';
+                                                                else if (res.threshold) displayValue = `${res.value}${res.unit || ''}`;
+                                                                else displayValue = res.value === 'true' ? '正常' : res.value === 'false' ? '異常' : res.value;
 
-                                                            if (displayValue === 'true') displayValue = '正常';
-                                                            if (displayValue === 'false') displayValue = '異常';
-                                                            if (!isNaN(Number(res.value)) && res.unit && !displayValue.includes(res.unit)) displayValue += res.unit;
-                                                            if (res.status === 'Normal') {
-                                                                displayValue = res.value ? '正常' : '異常';
-                                                                if (res.value && !isNaN(Number(res.value))) displayValue = `${res.value}${res.unit || ''}`;
-                                                            }
+                                                                if (displayValue === 'true') displayValue = '正常';
+                                                                if (displayValue === 'false') displayValue = '異常';
+                                                                if (!isNaN(Number(res.value)) && res.unit && !displayValue.includes(res.unit)) displayValue += res.unit;
+                                                                if (res.status === 'Normal') {
+                                                                    displayValue = res.value ? '正常' : '異常';
+                                                                    if (res.value && !isNaN(Number(res.value))) displayValue = `${res.value}${res.unit || ''}`;
+                                                                }
 
-                                                            const isRed = res.value === false || res.status === 'Abnormal' || res.status === '異常';
+                                                                const isRed = res.value === false || res.status === 'Abnormal' || res.status === '異常';
 
-                                                            return (
-                                                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                                                    <td className="px-4 py-3 text-slate-800 font-medium">{res.name}</td>
-                                                                    <td className="px-4 py-3 text-center text-slate-600 font-mono text-xs bg-slate-50/50 align-middle">
-                                                                        {res.threshold || '-'}
-                                                                    </td>
-                                                                    <td className={`px-4 py-3 text-center font-bold align-middle ${isRed ? 'text-red-700' : 'text-emerald-700'}`}>
-                                                                        <div className="flex justify-center items-center gap-2">
-                                                                            {isRed && <AlertTriangle className="w-4 h-4" />}
-                                                                            {displayValue}
-                                                                            {!isRed && <CheckCircle className="w-4 h-4 opacity-50" />}
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
+                                                                return (
+                                                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                                        <td className="px-4 py-3 text-slate-800 font-medium">{res.name}</td>
+                                                                        <td className="px-4 py-3 text-center text-slate-600 font-mono text-xs bg-slate-50/50 align-middle">
+                                                                            {(() => {
+                                                                                if (!res.threshold || res.threshold === '-') return '-';
+                                                                                // Convert text operators to symbols
+                                                                                let formatted = res.threshold
+                                                                                    .replace(/\blt\b/gi, '<')
+                                                                                    .replace(/\blte\b/gi, '≤')
+                                                                                    .replace(/\bgt\b/gi, '>')
+                                                                                    .replace(/\bgte\b/gi, '≥')
+                                                                                    .replace(/&lt;/g, '<')
+                                                                                    .replace(/&gt;/g, '>')
+                                                                                    .replace(/&le;/g, '≤')
+                                                                                    .replace(/&ge;/g, '≥');
+                                                                                return formatted;
+                                                                            })()}
+                                                                        </td>
+                                                                        <td className={`px-4 py-3 text-center font-bold align-middle ${isRed ? 'text-red-700' : 'text-emerald-700'}`}>
+                                                                            <div className="flex justify-center items-center gap-2">
+                                                                                {isRed && <AlertTriangle className="w-4 h-4" />}
+                                                                                {displayValue}
+                                                                                {!isRed && <CheckCircle className="w-4 h-4 opacity-50" />}
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                     </tbody>
                                                 </table>
                                             </div>
                                         ) : (
                                             <div className="p-6 space-y-4">
                                                 {/* Recheck Info View */}
-                                                <div className="bg-red-50 p-4 rounded-xl border border-red-100 flex items-start gap-3">
-                                                    <Info className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                                                    <div>
-                                                        <p className="font-bold text-red-800 mb-1">異常處理狀態</p>
-                                                        <p className="text-sm text-red-700">
-                                                            {activeModal.item.status === 'Fixed' || activeModal.item.status === '已改善' ? '已完成改善' : '待處理'}
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                {/* Recheck Info View */}
+                                                {/* Recheck Info View */}
+                                                {(() => {
+                                                    const isFixed = activeModal.item.status === 'Fixed' || activeModal.item.status === '已改善' || !!activeModal.item.repairDate;
 
-                                                <div className="space-y-4">
-                                                    {activeModal.item.repairDate && (
-                                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">修復日期</label>
-                                                            <div className="font-mono text-lg font-bold text-slate-700 flex items-center gap-2">
-                                                                <Calendar className="w-5 h-5 text-slate-400" />
-                                                                {new Date(activeModal.item.repairDate).toLocaleDateString(language)}
+                                                    // Use preserved abnormalItems if available, otherwise try to detect from checkResults
+                                                    const abnormalItems = activeModal.item.abnormalItems?.join('、') ||
+                                                        activeModal.item.checkResults
+                                                            ?.filter((res: any) => res.value === false || res.value === 'false' || res.status === 'Abnormal' || res.status === '異常')
+                                                            .map((res: any) => res.name)
+                                                            .join('、') || '未指定異常項目';
+
+                                                    return (
+                                                        <div className="space-y-4">
+                                                            {/* Status Banner */}
+                                                            <div className={`${isFixed ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'} p-4 rounded-xl border flex items-start gap-3`}>
+                                                                <Info className={`w-5 h-5 ${isFixed ? 'text-emerald-500' : 'text-red-500'} shrink-0 mt-0.5`} />
+                                                                <div>
+                                                                    <p className={`font-bold ${isFixed ? 'text-emerald-800' : 'text-red-800'} mb-1`}>異常處理狀態</p>
+                                                                    <p className={`text-sm ${isFixed ? 'text-emerald-700' : 'text-red-700'}`}>
+                                                                        {isFixed ? '已完成改善' : '待處理'}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Single Unified Card */}
+                                                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                                                                {/* Discovery Date */}
+                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                    <Calendar className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+                                                                    <div className="flex-1">
+                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">發現日期</label>
+                                                                        <div className="font-mono text-sm font-bold text-slate-700">
+                                                                            {activeModal.item.inspectionDate
+                                                                                ? new Date(activeModal.item.inspectionDate).toLocaleDateString(language)
+                                                                                : new Date(activeModal.item.date).toLocaleDateString(language)
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Abnormal Items */}
+                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                    <AlertTriangle className="w-4 h-4 text-red-500 mt-1 shrink-0" />
+                                                                    <div className="flex-1">
+                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">異常項目歸類</label>
+                                                                        <div className="text-sm font-bold text-slate-700">{abnormalItems}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Abnormal Description */}
+                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                    <FileText className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+                                                                    <div className="flex-1">
+                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">異常情況描述</label>
+                                                                        <div className="text-sm text-slate-700 leading-relaxed">{activeModal.item.notes || '-'}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Repair Date */}
+                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                    <Calendar className={`w-4 h-4 mt-1 shrink-0 ${activeModal.item.repairDate ? 'text-emerald-500' : 'text-slate-400'}`} />
+                                                                    <div className="flex-1">
+                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">修復完成日期</label>
+                                                                        <div className={`font-mono text-sm font-bold ${activeModal.item.repairDate ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                            {activeModal.item.repairDate
+                                                                                ? new Date(activeModal.item.repairDate).toLocaleDateString(language)
+                                                                                : '尚未修復'
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Repair Notes */}
+                                                                <div className="flex items-start gap-3">
+                                                                    <FileText className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+                                                                    <div className="flex-1">
+                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">修復處置說明</label>
+                                                                        <div className="text-sm text-slate-700 leading-relaxed">{activeModal.item.repairNotes || '-'}</div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    )}
-                                                    {activeModal.item.repairNotes && (
-                                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">處置說明</label>
-                                                            <div className="text-slate-700 leading-relaxed font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                                                {activeModal.item.repairNotes}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                    );
+                                                })()}
                                             </div>
                                         )}
                                     </div>
@@ -2116,6 +2224,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         >
                                             <Calendar className="w-4 h-4 mr-2" /> 申報
                                         </button>
+
 
 
                                     </div>
@@ -2481,6 +2590,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         )}
 
+
+
                                         {/* DECLARATION TAB */}
                                         {settingsTab === 'DECLARATION' && (
                                             <div className="space-y-6 animate-in fade-in duration-300">
@@ -2491,8 +2602,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         <p className="text-xs text-red-700 leading-relaxed">
                                                             請設定下次申報日期，系統將自動倒數並提醒您。
                                                         </p>
-
-
                                                     </div>
                                                 </div>
 
@@ -2503,7 +2612,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 <RefreshCw className="w-4 h-4 text-slate-400" />
                                                                 {t('declarationCycle')}
                                                             </label>
-                                                            <div className="grid grid-cols-3 gap-3">
+                                                            <div className="grid grid-cols-2 gap-3">
                                                                 <button
                                                                     onClick={() => {
                                                                         const newSettings: DeclarationSettings = {
@@ -2537,23 +2646,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 >
                                                                     <span className="font-bold">{t('oneYear')}</span>
                                                                     {declarationSettings?.cycle === '1_YEAR' && <Check className="w-4 h-4" />}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const newSettings: DeclarationSettings = {
-                                                                            ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
-                                                                            cycle: 'CUSTOM',
-                                                                            lastModified: Date.now()
-                                                                        };
-                                                                        handleSaveSettings(newSettings);
-                                                                    }}
-                                                                    className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${declarationSettings?.cycle === 'CUSTOM'
-                                                                        ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-100 ring-offset-1'
-                                                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                                                                        }`}
-                                                                >
-                                                                    <span className="font-bold text-sm text-center">{t('customDate')}</span>
-                                                                    {declarationSettings?.cycle === 'CUSTOM' && <Check className="w-4 h-4" />}
                                                                 </button>
                                                             </div>
                                                         </div>

@@ -39,6 +39,8 @@ export interface InspectionItem {
   lastUpdated: number;
   repairDate?: number;
   repairNotes?: string;
+  abnormalItems?: string[]; // List of original abnormal items (preserved even after repair)
+  inspectionDate?: number; // Original inspection/discovery date
 }
 
 export interface InspectionStats {
@@ -112,10 +114,10 @@ export type EquipmentHierarchy = Record<string, Record<string, string[]>>;
 // 消防申報設定
 export interface DeclarationSettings {
   nextDate: string;
+  cycle?: '6_MONTHS' | '1_YEAR'; // Removed 'CUSTOM'
   lastModified: number;
   emailNotificationsEnabled: boolean;
   emailRecipients: string[];
-  cycle?: '6_MONTHS' | '1_YEAR' | 'CUSTOM'; // New: Declaration cycle
 }
 
 export interface NotificationSettings {

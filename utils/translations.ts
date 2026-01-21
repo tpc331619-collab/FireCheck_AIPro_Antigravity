@@ -177,13 +177,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     result: '結果',
     notes: '備註',
     inspector: '檢查人員',
-    checkItems: '檢查項目',
     // Declaration Settings
     declarationCycle: '申報週期',
     halfYear: '每半年 (6個月)',
     oneYear: '每年 (1年)',
     declarationBaseDate: '申報基準日',
-    customDate: '自定義 (每年)',
   },
   'en': {
     welcome: 'Welcome Back',
@@ -361,13 +359,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     result: 'Result',
     notes: 'Notes',
     inspector: 'Inspector',
-    checkItems: 'Items',
     // Declaration Settings
     declarationCycle: 'Declaration Cycle',
     halfYear: 'Every 6 Months',
     oneYear: 'Every Year',
     declarationBaseDate: 'Base Declaration Date',
-    customDate: 'Custom (Yearly)',
   },
   'ko': {
     welcome: '환영합니다',
@@ -545,13 +541,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     result: '결과',
     notes: '메모',
     inspector: '검사자',
-    checkItems: '항목',
     // Declaration Settings
     declarationCycle: '신고 주기',
     halfYear: '6개월마다',
     oneYear: '매년',
     declarationBaseDate: '신고 기준일',
-    customDate: '사용자 지정 (매년)',
   },
   'ja': {
     welcome: 'お帰りなさい',
@@ -735,6 +729,5 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     halfYear: '半年ごと',
     oneYear: '毎年',
     declarationBaseDate: '申告基準日',
-    customDate: 'カスタム (毎年)',
   }
 };
