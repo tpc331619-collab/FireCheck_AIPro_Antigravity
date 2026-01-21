@@ -213,6 +213,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectTypeFirst: '請先選擇種類',
     selectLeftCategory: '請先選擇左側分類',
     selectMiddleType: '請先選擇中間種類',
+    selectCategory: '選擇設備分類',
+    selectType: '選擇設備種類',
+    selectDetail: '選擇詳細規格',
+    equipmentPhoto: '設備照片',
+
 
     // --- Common ---
     totalEquipment: '設備總數',
@@ -249,8 +254,17 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     exampleId: '例如: 001',
     confirmAdd: '確定新增',
     confirmDeleteMarker: '確定刪除此標記?',
-    deleteFailed: '刪除失敗',
     unnamed: '未命名',
+    mapName: '圖面名稱',
+    total: '共',
+    maps: '張地圖',
+    markers: '個標記',
+    marker: '標記',
+    reset: '重設',
+    editMap: '編輯地圖',
+
+
+
 
 
     // --- Abnormal Recheck ---
@@ -297,6 +311,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     expiryDate: '到期日期',
     checkItems: '檢查項目',
     checkItemsDesc: '設定檢查細項',
+    setLifespan: '設定使用年限',
+    notifyOnExpiry: '到期時通知',
     // visualCheck: '外觀檢查', // Duplicate
     // performanceCheck: '性能檢查', // Duplicate
     // comprehensiveCheck: '綜合檢查', // Duplicate
@@ -355,6 +371,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     systemJudgedGt: '系統判定 >',
     saveSettings: '儲存設定',
     saving: '儲存中...',
+    settingsSaved: '設定已儲存',
+
 
     enableEmailNotifications: '啟用郵件通知',
     emailNotificationsDesc: '定時發送檢查報告與異常警報',

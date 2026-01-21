@@ -22,6 +22,18 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
         }
     }, [userId]);
 
+    // Listen for new notifications
+    useEffect(() => {
+        const handleNewNotification = () => {
+            loadNotifications();
+        };
+
+        window.addEventListener('notification-added', handleNewNotification);
+        return () => {
+            window.removeEventListener('notification-added', handleNewNotification);
+        };
+    }, [userId]);
+
     const loadNotifications = async () => {
         try {
             const data = await StorageService.getNotifications(userId);

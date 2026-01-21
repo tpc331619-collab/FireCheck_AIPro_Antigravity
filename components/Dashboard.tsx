@@ -250,7 +250,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [healthIndicators]);
 
     // Notification Helper Function
-    const addNotification = async (type: 'profile' | 'health' | 'declaration' | 'abnormal', title: string, message: string) => {
+    const addNotification = async (type: 'profile' | 'health' | 'declaration' | 'abnormal' | 'lights', title: string, message: string) => {
         if (!user?.uid) return;
 
         try {
@@ -261,6 +261,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 timestamp: Date.now(),
                 read: false
             }, user.uid);
+
+            // Trigger a custom event to notify the NotificationBell to reload
+            window.dispatchEvent(new CustomEvent('notification-added'));
         } catch (error) {
             console.error('Failed to add notification:', error);
         }
@@ -2459,8 +2462,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <button
                                                                 key={lang.code}
                                                                 onClick={() => {
-                                                                    setLanguage(lang.code as LanguageCode);
-                                                                    addNotification('profile', t('languageChanged'), t('languageChangedDesc', { lang: lang.name }));
+                                                                    const newLang = lang.code as LanguageCode;
+                                                                    setLanguage(newLang);
+                                                                    // Use the new language's translations for notification
+                                                                    const langNames = {
+                                                                        'zh-TW': '繁體中文',
+                                                                        'en': 'English',
+                                                                        'ko': '한국어',
+                                                                        'ja': '日本語'
+                                                                    };
+                                                                    const titles = {
+                                                                        'zh-TW': '語言已變更',
+                                                                        'en': 'Language Changed',
+                                                                        'ko': '언어가 변경되었습니다',
+                                                                        'ja': '言語が変更されました'
+                                                                    };
+                                                                    const descs = {
+                                                                        'zh-TW': `系統語言已切換為 ${langNames[newLang]}`,
+                                                                        'en': `System language switched to ${langNames[newLang]}`,
+                                                                        'ko': `시스템 언어가 ${langNames[newLang]}(으)로 전환되었습니다`,
+                                                                        'ja': `システム言語が${langNames[newLang]}に切り替わりました`
+                                                                    };
+                                                                    addNotification('profile', titles[newLang], descs[newLang]);
                                                                 }}
                                                                 className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
                                                             >
@@ -2554,92 +2577,93 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                                                     </div>
                                                 ) : (
-                                                    <div className="space-y-4">
-                                                        {/* Abnormal Recheck */}
-                                                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-orange-700 flex items-center gap-2">
-                                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
-                                                                    {t('abnormalLight')}
-                                                                </span>
-                                                                <input
-                                                                    type="color"
-                                                                    value={lightSettings.abnormal?.color || '#f97316'}
-                                                                    onChange={e => setLightSettings({ ...lightSettings, abnormal: { color: e.target.value } })}
-                                                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
-                                                                />
+                                                    <div className="space-y-3">
+                                                        {/* Grid Layout for Light Settings */}
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                            {/* Abnormal Recheck */}
+                                                            <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-sm font-bold text-orange-700 flex items-center gap-1.5">
+                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
+                                                                        {t('abnormalLight')}
+                                                                    </span>
+                                                                    <input
+                                                                        type="color"
+                                                                        value={lightSettings.abnormal?.color || '#f97316'}
+                                                                        onChange={e => setLightSettings({ ...lightSettings, abnormal: { color: e.target.value } })}
+                                                                        className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                                                    />
+                                                                </div>
+                                                                <div className="text-xs text-slate-500">
+                                                                    {t('abnormalColorDesc')}
+                                                                </div>
                                                             </div>
-                                                            <div className="text-xs text-slate-500">
-                                                                {t('abnormalColorDesc')}
-                                                            </div>
-                                                        </div>
 
-                                                        {/* Red */}
-                                                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-red-700 flex items-center gap-2">
-                                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.red.color }}></div>
-                                                                    {t('needCheck')}
-                                                                </span>
-                                                                <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                            {/* Red */}
+                                                            <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-sm font-bold text-red-700 flex items-center gap-1.5">
+                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.red.color }}></div>
+                                                                        {t('needCheck')}
+                                                                    </span>
+                                                                    <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
+                                                                    <input type="number" value={lightSettings.red.days} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-red-200 rounded text-center font-bold text-red-700 focus:outline-none focus:border-red-500" />
+                                                                    <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-slate-600 font-bold">{t('remainingDaysLe')}</span>
-                                                                <input type="number" value={lightSettings.red.days} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-red-200 rounded-lg text-center font-bold text-red-700 focus:outline-none focus:border-red-500" />
-                                                                <span className="text-sm text-slate-600 font-bold">{t('days')}</span>
-                                                            </div>
-                                                        </div>
 
-                                                        {/* Yellow */}
-                                                        <div className="bg-amber-50 p-4 rounded-xl border border-amber-100 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-amber-700 flex items-center gap-2">
-                                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.yellow.color }}></div>
-                                                                    {t('canCheck')}
-                                                                </span>
-                                                                <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                            {/* Yellow */}
+                                                            <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-sm font-bold text-amber-700 flex items-center gap-1.5">
+                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.yellow.color }}></div>
+                                                                        {t('canCheck')}
+                                                                    </span>
+                                                                    <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                                </div>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
+                                                                    <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-amber-200 rounded text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
+                                                                    <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
+                                                                    <span className="text-xs text-slate-400">({t('andGt')} {lightSettings.red.days})</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-slate-600 font-bold">{t('remainingDaysLe')}</span>
-                                                                <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-amber-200 rounded-lg text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
-                                                                <span className="text-sm text-slate-600 font-bold">{t('days')}</span>
-                                                                <span className="text-xs text-slate-400 ml-2">({t('andGt')} {lightSettings.red.days} {t('days')})</span>
-                                                            </div>
-                                                        </div>
 
-                                                        {/* Green */}
-                                                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-emerald-700 flex items-center gap-2">
-                                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.green.color }}></div>
-                                                                    {t('noNeedCheck')}
-                                                                </span>
-                                                                <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                            {/* Green */}
+                                                            <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <span className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
+                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.green.color }}></div>
+                                                                        {t('noNeedCheck')}
+                                                                    </span>
+                                                                    <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                                </div>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="text-xs text-slate-600 font-medium">{t('remainingDaysGe')}</span>
+                                                                    <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-emerald-200 rounded text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
+                                                                    <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
+                                                                    <span className="text-xs text-slate-400">({t('systemJudgedGt')} {lightSettings.yellow.days})</span>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-sm text-slate-600 font-bold">{t('remainingDaysGe')}</span>
-                                                                <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-20 p-2 bg-white border border-emerald-200 rounded-lg text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
-                                                                <span className="text-sm text-slate-600 font-bold">{t('days')}</span>
-                                                                <span className="text-xs text-slate-400 ml-2">({t('systemJudgedGt')} {lightSettings.yellow.days} {t('days')})</span>
-                                                            </div>
-                                                        </div>
 
-                                                        {/* Completed (Normal) */}
-                                                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3">
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="font-bold text-blue-700 flex items-center gap-2">
-                                                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
-                                                                    {t('completedCheck')}
-                                                                </span>
-                                                                <input
-                                                                    type="color"
-                                                                    value={lightSettings.completed?.color || '#10b981'}
-                                                                    onChange={e => setLightSettings({ ...lightSettings, completed: { color: e.target.value } })}
-                                                                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
-                                                                />
-                                                            </div>
-                                                            <div className="text-xs text-slate-500">
-                                                                {t('completedCheckDesc')}
+                                                            {/* Completed (Normal) */}
+                                                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 md:col-span-2">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
+                                                                        <span className="text-sm font-bold text-blue-700">{t('completedCheck')}</span>
+                                                                        <span className="text-xs text-slate-500">{t('completedCheckDesc')}</span>
+                                                                    </div>
+                                                                    <input
+                                                                        type="color"
+                                                                        value={lightSettings.completed?.color || '#10b981'}
+                                                                        onChange={e => setLightSettings({ ...lightSettings, completed: { color: e.target.value } })}
+                                                                        className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         </div>
 
@@ -2648,7 +2672,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 if (!user?.uid || !lightSettings) return;
                                                                 setSavingLights(true);
                                                                 try {
-                                                                    await StorageService.saveLightSettings(user.uid, lightSettings);
+                                                                    await StorageService.saveLightSettings(lightSettings, user.uid);
                                                                     addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
                                                                     alert(t('settingsSaved'));
                                                                 } catch (error) {

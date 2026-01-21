@@ -835,7 +835,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     }}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 transition-colors"
                   >
-                    <option value="">{t('selectCategory') || 'Select Category...'}</option>
+                    <option value="">{t('selectCategory')}</option>
                     {Object.keys(hierarchy).map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
 
@@ -849,7 +849,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     disabled={!eqCategory}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
                   >
-                    <option value="">{t('selectType') || 'Select Type...'}</option>
+                    <option value="">{t('selectType')}</option>
                     {eqCategory && hierarchy[eqCategory] &&
                       Object.keys(hierarchy[eqCategory]).map(t => (
                         <option key={t} value={t}>{t}</option>
@@ -869,7 +869,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     disabled={!eqType}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
                   >
-                    <option value="">{t('selectDetail') || 'Select Detail...'}</option>
+                    <option value="">{t('selectDetail')}</option>
                     {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
                       hierarchy[eqCategory][eqType].map((d) => (
                         <option key={d} value={d}>{d}</option>
@@ -930,7 +930,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4" />
-                    {t('equipmentPhoto') || 'Equipment Photo'} <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
+                    {t('equipmentPhoto')} <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
                   </label>
                   <div className="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
                     <div className="w-14 h-14 bg-white border-2 border-slate-200 rounded-lg overflow-hidden flex-shrink-0 relative group">
@@ -1050,8 +1050,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
               {/* Lifespan Settings */}
               <div className="space-y-2 pt-4 border-t-2 border-slate-100">
                 <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  {t('setLifespan') || 'Lifespan'}
-                  <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">{t('notifyOnExpiry') || 'Notify on Expiry'}</span>
+                  {t('setLifespan')}
+                  <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">{t('notifyOnExpiry')}</span>
                 </label>
                 <div className="flex gap-2 items-center flex-wrap">
                   <select

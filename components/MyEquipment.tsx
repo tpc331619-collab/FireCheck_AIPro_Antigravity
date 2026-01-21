@@ -339,12 +339,15 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {filteredEquipment.map(item => (
+                      {filteredEquipment.map((item, index) => (
                         <div key={item.id} className="p-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 border-l-transparent hover:border-l-red-500">
 
                           {/* Main Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
+                              <span className="flex-shrink-0 text-slate-400 font-bold text-sm mr-1">
+                                {index + 1}.
+                              </span>
                               <h3 className="font-bold text-slate-800 text-lg group-hover:text-red-600 transition-colors truncate">
                                 {item.name}
                               </h3>
