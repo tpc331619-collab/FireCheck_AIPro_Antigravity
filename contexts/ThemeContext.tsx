@@ -143,6 +143,19 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     }, [theme]);
 
+    // 3. Toggle 'dark' class on html element for Tailwind dark mode support
+    useEffect(() => {
+        const root = document.documentElement;
+        // List of themes that should trigger dark mode
+        const darkThemes: ThemeType[] = ['dark', 'monokai', 'solarized', 'dracula', 'nord', 'onedark'];
+
+        if (darkThemes.includes(resolvedTheme)) {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+    }, [resolvedTheme]);
+
     // 3. Get currently active styles based on resolved theme (handling system fallback)
     // Note: If theme is 'system' and resolved is 'dark', we use 'dark' styles.
     const activeStyles = THEME_STYLES[resolvedTheme === 'system' ? 'light' : resolvedTheme];

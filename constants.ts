@@ -1,15 +1,35 @@
 import { EquipmentType } from './types';
 
 export const THEME_COLORS = {
-  primary: '#14B8A6', // Teal 500
-  secondary: '#0D9488', // Teal 600
-  accent: '#FB7185', // Rose 400 (for hero cards)
-  headerBg: '#0F766E', // Teal 700 (darker for header)
+  // 主要漸層色系
+  primary: '#8B5CF6', // Violet 500
+  secondary: '#A855F7', // Purple 500
+  accent: '#D946EF', // Fuchsia 500
+  headerBg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', // Purple gradient
+  
+  // 基礎色
   dark: '#1e293b', // Slate 800
   light: '#f8fafc',
   success: '#10b981',
   warning: '#f59e0b',
-  danger: '#ef4444'
+  danger: '#ef4444',
+  
+  // 設備專屬漸層
+  gradients: {
+    hero: 'from-violet-500 via-purple-500 to-fuchsia-500',
+    extinguisher: 'from-red-500 to-rose-600',
+    hydrant: 'from-blue-500 to-cyan-600',
+    alarm: 'from-orange-500 to-amber-600',
+    light: 'from-yellow-400 to-amber-500',
+    exit: 'from-green-500 to-emerald-600',
+    sprinkler: 'from-cyan-500 to-blue-600',
+    action1: 'from-violet-500 to-purple-600',
+    action2: 'from-blue-500 to-indigo-600',
+    action3: 'from-rose-500 to-pink-600',
+    action4: 'from-amber-500 to-orange-600',
+    action5: 'from-teal-500 to-cyan-600',
+    action6: 'from-slate-600 to-slate-700',
+  }
 };
 
 export const CHECKLIST_TEMPLATES: Record<EquipmentType, string[]> = {

@@ -115,6 +115,7 @@ export interface DeclarationSettings {
   lastModified: number;
   emailNotificationsEnabled: boolean;
   emailRecipients: string[];
+  cycle?: '6_MONTHS' | '1_YEAR' | 'CUSTOM'; // New: Declaration cycle
 }
 
 export interface NotificationSettings {
