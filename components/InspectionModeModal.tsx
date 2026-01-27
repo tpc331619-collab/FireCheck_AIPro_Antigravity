@@ -25,8 +25,8 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
             title: t('mapViewTitle'),
             description: t('mapViewDesc'),
             icon: <Map className="w-8 h-8 text-purple-500" />,
-            color: 'bg-purple-50 border-purple-100 hover:border-purple-300',
-            bgIcon: 'bg-purple-100'
+            color: 'bg-slate-50 border-slate-100 hover:border-slate-300',
+            bgIcon: 'bg-slate-100'
         }
     ] as const;
 

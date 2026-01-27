@@ -95,7 +95,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <button
                             onClick={() => setInputMode('SCAN')}
                             className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'SCAN'
-                                ? 'bg-purple-600 text-white shadow-md'
+                                ? 'bg-slate-700 text-white shadow-md'
                                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                                 }`}
                         >
@@ -105,7 +105,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                         <button
                             onClick={() => setInputMode('MANUAL')}
                             className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${inputMode === 'MANUAL'
-                                ? 'bg-purple-600 text-white shadow-md'
+                                ? 'bg-slate-700 text-white shadow-md'
                                 : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                                 }`}
                         >
@@ -150,7 +150,7 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                             <button
                                 onClick={handleManualSubmit}
                                 disabled={isValidating}
-                                className="w-full py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                className="w-full py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isValidating ? (
                                     <>

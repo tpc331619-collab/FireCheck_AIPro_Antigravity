@@ -61,7 +61,7 @@ const NewsCard: React.FC<{ item: NewsItem; isExpanded: boolean; onToggle: () => 
 
     const getBadgeStyle = () => {
         switch (item.category) {
-            case 'Law': return 'bg-purple-50 text-purple-700 border-purple-100';
+            case 'Law': return 'bg-slate-50 text-slate-700 border-slate-100';
             case 'Standard': return 'bg-blue-50 text-blue-700 border-blue-100';
             case 'Announcement': return 'bg-orange-50 text-orange-700 border-orange-100';
         }

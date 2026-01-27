@@ -1194,7 +1194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     return (
         <div className={`flex flex-col h-full ${styles.bg} ${styles.text} transition-colors duration-300`}>
             {/* Modern Gradient Header */}
-            <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white py-4 px-4 shadow-xl flex-shrink-0">
+            <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white py-4 px-4 shadow-xl flex-shrink-0">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
@@ -1223,327 +1223,120 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto pb-24 custom-scrollbar bg-gradient-to-br from-slate-50 via-purple-50/30 to-fuchsia-50/30">
+            <div className="flex-1 overflow-y-auto pb-24 custom-scrollbar bg-gradient-to-br from-slate-50 via-slate-100/50 to-slate-200/30">
                 <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
 
-                    {/* Hero Action Card - Start Inspection */}
-                    <div className="bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 rounded-3xl shadow-2xl p-6 sm:p-8 text-white relative overflow-hidden">
-                        {/* Decorative Elements */}
-                        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-fuchsia-400/20 rounded-full blur-2xl -ml-24 -mb-24"></div>
-                        <div className="relative z-10">
-                            <div className="flex items-center justify-between mb-4">
-                                <div>
-                                    <p className="text-white/90 text-sm font-medium">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
-                                    <p className="text-xs text-white/70 mt-1">{formatDateTime(currentDateTime)}</p>
-                                </div>
-                                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 bg-white/10">
-                                    <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
-                                </div>
-                            </div>
-
-
-                            {/* Primary Action - Start Inspection */}
-                            <button
-                                onClick={() => setIsInspectionModeOpen(true)}
-                                className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl p-4 mb-3 transition-all active:scale-95"
-                            >
-                                <div className="flex items-center justify-center gap-3 mb-2">
-                                    <PlayCircle className="w-10 h-10 text-white" />
-                                    <span className="text-2xl font-bold text-white">{t('startInspectionTitle')}</span>
-                                </div>
-                                <p className="text-sm text-white/80">{t('startInspectionDesc')}</p>
-                            </button>
-
-
-                            {/* Integrated Quick Search */}
-                            <div className="relative mb-3">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search className="h-5 w-5 text-white/60" />
-                                </div>
-                                <input
-                                    type="text"
-                                    className="block w-full pl-10 pr-12 py-3 border-0 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl text-white placeholder-white/60 focus:ring-2 focus:ring-white/50 focus:bg-white/25 sm:text-sm font-bold transition-all"
-                                    placeholder="快速查詢 (關鍵字/條碼)..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                <button
-                                    onClick={() => setIsQuickScanOpen(true)}
-                                    className="absolute inset-y-0 right-0 pr-2 flex items-center"
-                                >
-                                    <div className="p-1.5 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
-                                        <ScanLine className="h-5 w-5 text-white" />
-                                    </div>
-                                </button>
-                            </div>
-
-                            {/* Secondary Info */}
-                            <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
-                                    <Database className="w-4 h-4" />
-                                    <span className="text-white/90">設備總數: <span className="font-bold">{nameCount}</span></span>
-                                </div>
-                                {countdownDays !== null && (
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        <span className="text-white/90">申報倒數: <span className="font-bold">{countdownDays}</span> 天</span>
-                                    </div>
-                                )}
-                            </div>
+                    {/* User Info Header - Outside buttons */}
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <p className="text-slate-700 text-sm font-bold">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
                         </div>
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-300 bg-slate-100 shadow-md">
+                            <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+                        </div>
+                    </div>
+
+                    {/* Hero Action Cards - Left/Right Split Design */}
+                    <div className="grid grid-cols-2 gap-3 h-40">
+                        {/* Left Side - Start Inspection */}
+                        <button
+                            onClick={() => setIsInspectionModeOpen(true)}
+                            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 transition-all hover:brightness-110 hover:shadow-2xl active:brightness-95 group"
+                        >
+                            {/* Decorative Elements */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-600/20 rounded-full blur-2xl -ml-24 -mb-24"></div>
+
+                            {/* Inner glow effect */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50"></div>
+
+                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                                <PlayCircle className="w-16 h-16 text-white mb-3 group-hover:scale-110 transition-transform filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" />
+                                <span className="text-3xl font-black text-white tracking-tight" style={{
+                                    textShadow: '0 4px 8px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4)',
+                                    WebkitTextStroke: '0.5px rgba(0,0,0,0.3)'
+                                }}>
+                                    開始檢查
+                                </span>
+                                <p className="text-sm text-white font-bold mt-2" style={{ textShadow: '0 3px 6px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.5)' }}>
+                                    點擊開始設備檢查流程
+                                </p>
+                            </div>
+                        </button>
+
+                        {/* Right Side - Abnormal Recheck */}
+                        <button
+                            onClick={() => setShowAbnormalRecheck(true)}
+                            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-rose-600 to-red-700 transition-all hover:brightness-110 hover:shadow-2xl active:brightness-95 group"
+                        >
+                            {/* Decorative Elements */}
+                            <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -ml-32 -mt-32"></div>
+                            <div className="absolute bottom-0 right-0 w-48 h-48 bg-red-400/20 rounded-full blur-2xl -mr-24 -mb-24"></div>
+
+                            {/* Inner glow effect */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50"></div>
+
+                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                                <div className="relative mb-3">
+                                    <AlertTriangle className="w-16 h-16 text-white group-hover:scale-110 transition-transform filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" />
+                                    {abnormalCount > 0 && (
+                                        <span className="absolute -top-2 -right-2 bg-white text-red-600 text-sm font-black px-3 py-1.5 rounded-full shadow-xl animate-pulse ring-2 ring-red-300">
+                                            {abnormalCount}
+                                        </span>
+                                    )}
+                                </div>
+                                <span className="text-3xl font-black text-white tracking-tight" style={{
+                                    textShadow: '0 4px 8px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4)',
+                                    WebkitTextStroke: '0.5px rgba(0,0,0,0.3)'
+                                }}>
+                                    異常複檢
+                                </span>
+                                <p className="text-sm text-white font-bold mt-2" style={{ textShadow: '0 3px 6px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.5)' }}>
+                                    {abnormalCount > 0 ? `${abnormalCount} 筆待處理` : '無異常項目'}
+                                </p>
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Quick Search Bar */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-5 w-5 text-slate-400" />
+                        </div>
+                        <input
+                            type="text"
+                            className="block w-full pl-10 pr-12 py-3 border border-slate-200 bg-white rounded-xl text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 sm:text-sm font-medium transition-all shadow-sm"
+                            placeholder="快速查詢 (關鍵字/條碼)..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        <button
+                            onClick={() => setIsQuickScanOpen(true)}
+                            className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                        >
+                            <div className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                                <ScanLine className="h-5 w-5 text-slate-600" />
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Secondary Info */}
+                    <div className="flex items-center justify-between text-sm bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <Database className="w-4 h-4 text-slate-600" />
+                            <span className="text-slate-600">設備總數: <span className="font-bold text-slate-900">{nameCount}</span></span>
+                        </div>
+                        {countdownDays !== null && (
+                            <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-slate-600" />
+                                <span className="text-slate-600">申報倒數: <span className="font-bold text-slate-900">{countdownDays}</span> 天</span>
+                            </div>
+                        )}
                     </div>
 
 
 
-
-
-                    {/* Split Layout Container */}
-                    <div className="flex flex-col lg:flex-row gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-
-                        {/* Left Card: Equipment Overview */}
-                        <div className="flex-1 bg-gradient-to-br from-white to-indigo-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 min-w-0 overflow-hidden transition-all relative">
-                            <div
-                                className="flex items-center justify-between mb-0 shrink-0 cursor-pointer select-none group"
-                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                            >
-                                <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                    <div className="p-2 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg shadow-md shadow-indigo-200">
-                                        <ClipboardList className="w-5 h-5 text-white" />
-                                    </div>
-                                    <span className="text-lg">{t('equipmentOverview')}</span>
-                                </h3>
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 transition-opacity ${isEquipmentExpanded ? 'opacity-100' : 'opacity-100'}`}>
-                                        {isEquipmentExpanded ? t('collapse') : t('expand')}
-                                    </span>
-                                    <div className="bg-slate-100 dark:bg-slate-700 p-1.5 rounded-full">
-                                        <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-300 ${isEquipmentExpanded ? 'rotate-180' : ''}`} />
-                                    </div>
-                                </div>
-                            </div>
-                            {isEquipmentExpanded && (
-                                <div className="grid grid-cols-2 gap-3 max-h-[280px] overflow-y-auto custom-scrollbar pr-1 mt-4 animate-in slide-in-from-top-2 fade-in duration-300">
-                                    {equipmentStats.length === 0 ? (
-                                        <div className="col-span-full py-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
-                                            {t('noEquipmentData')}
-                                        </div>
-                                    ) : (
-                                        equipmentStats.map((stat, index) => {
-                                            const Icon = stat.icon;
-                                            // Dynamic color based on stat type/name (simplified mapping)
-                                            let gradientClass = "from-blue-500 to-cyan-400";
-                                            let shadowClass = "shadow-blue-200";
-
-                                            if (stat.name.includes('滅火器')) { gradientClass = "from-red-500 to-rose-400"; shadowClass = "shadow-red-200"; }
-                                            else if (stat.name.includes('照明')) { gradientClass = "from-amber-400 to-orange-400"; shadowClass = "shadow-orange-200"; }
-                                            else if (stat.name.includes('警報')) { gradientClass = "from-rose-500 to-pink-500"; shadowClass = "shadow-pink-200"; }
-                                            else if (stat.name.includes('泵浦')) { gradientClass = "from-cyan-500 to-blue-500"; shadowClass = "shadow-cyan-200"; }
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="relative group bg-white dark:bg-slate-700 p-3 rounded-2xl border border-slate-100 dark:border-slate-600 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-between overflow-hidden cursor-pointer"
-                                                    onClick={() => {
-                                                        // Optional: Navigate or filter
-                                                    }}
-                                                >
-                                                    {/* Background Gradient Opacity */}
-                                                    <div className={`absolute inset-0 bg-gradient-to-r ${gradientClass} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
-
-                                                    <div className="flex items-center gap-3 z-10 flex-1 min-w-0">
-                                                        {/* Icon Box */}
-                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${gradientClass} shadow-md ${shadowClass} group-hover:scale-110 transition-transform duration-300`}>
-                                                            <Icon className="w-5 h-5 text-white" />
-                                                        </div>
-
-                                                        {/* Name & Percentage bar */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate leading-tight mb-1">
-                                                                {stat.name}
-                                                            </div>
-                                                            <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-600 rounded-full overflow-hidden">
-                                                                <div
-                                                                    className={`h-full rounded-full bg-gradient-to-r ${gradientClass}`}
-                                                                    style={{ width: `${stat.percentage}%` }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Stats */}
-                                                    <div className="flex flex-col items-end z-10 ml-2">
-                                                        <span className="text-lg font-black text-slate-700 dark:text-white leading-none">{stat.total}</span>
-                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 mt-0.5">{stat.percentage}%</span>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Right Card: Health Indicators */}
-                        <div className="flex-1 bg-gradient-to-br from-white to-rose-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 min-w-0 flex flex-col transition-all relative">
-                            <div
-                                className="flex items-center justify-between mb-0 shrink-0 cursor-pointer select-none group"
-                                onClick={() => setIsHealthExpanded(!isHealthExpanded)}
-                            >
-                                <h3 className="font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                    <div className="p-2 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg shadow-md shadow-rose-200">
-                                        <Heart className="w-5 h-5 text-white fill-white" />
-                                    </div>
-                                    <span className="text-lg">{t('healthIndicators')}</span>
-                                </h3>
-                                <div className="flex items-center gap-2">
-                                    <span className={`text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 transition-opacity ${isHealthExpanded ? 'opacity-100' : 'opacity-100'}`}>
-                                        {isHealthExpanded ? t('collapse') : t('expand')}
-                                    </span>
-                                    <div className="bg-slate-100 dark:bg-slate-700 p-1.5 rounded-full">
-                                        <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-300 ${isHealthExpanded ? 'rotate-180' : ''}`} />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {isHealthExpanded && (
-                                <div className="grid grid-cols-2 gap-3 overflow-y-auto custom-scrollbar pr-1 max-h-[280px] mt-4 animate-in slide-in-from-top-2 fade-in duration-300">
-                                    {healthIndicators.length === 0 ? (
-                                        <div className="col-span-full py-8 text-center bg-slate-50 rounded-2xl border border-slate-100 border-dashed flex flex-col items-center gap-2">
-                                            <div className="p-3 bg-white rounded-full shadow-sm">
-                                                <Heart className="w-6 h-6 text-slate-300" />
-                                            </div>
-                                            <span className="text-sm text-slate-400 font-bold">{t('noHealthIndicators')}</span>
-                                        </div>
-                                    ) : (
-                                        healthIndicators
-                                            .slice()
-                                            .sort((a, b) => {
-                                                const remA = new Date(a.endDate).getTime() - new Date().getTime();
-                                                const remB = new Date(b.endDate).getTime() - new Date().getTime();
-                                                return remA - remB;
-                                            })
-                                            .map(indicator => {
-                                                const today = new Date();
-                                                const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-
-                                                // Parse YYYY-MM-DD safely as local time
-                                                const parseLocal = (dateStr: string) => {
-                                                    if (!dateStr) return todayMidnight;
-                                                    const parts = dateStr.split('-');
-                                                    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])).getTime();
-                                                };
-
-                                                const start = parseLocal(indicator.startDate);
-                                                const end = parseLocal(indicator.endDate);
-
-                                                const totalLife = Math.max(1, (end - start) / (1000 * 60 * 60 * 24));
-                                                const remainingDays = Math.ceil((end - todayMidnight) / (1000 * 60 * 60 * 24));
-
-                                                // Calculate progress percentage (inverse: lower implies used up)
-                                                // Actually we want "Health" so full bar = full life
-                                                // If remaining = totalLife, 100%. If remaining = 0, 0%.
-                                                const healthPercent = Math.max(0, Math.min(100, (remainingDays / totalLife) * 100));
-
-                                                const isExpired = remainingDays < 0;
-                                                const isUrgent = remainingDays <= 30 && !isExpired;
-
-                                                let statusColor = "text-emerald-500";
-                                                let progressColor = "text-emerald-500";
-                                                let bgColor = "bg-emerald-50";
-
-                                                if (isExpired) {
-                                                    statusColor = "text-slate-400";
-                                                    progressColor = "text-slate-300";
-                                                    bgColor = "bg-slate-50";
-                                                } else if (isUrgent) {
-                                                    statusColor = "text-amber-500";
-                                                    progressColor = "text-amber-500";
-                                                    bgColor = "bg-amber-50";
-                                                }
-
-                                                // Circular Progress SVG params
-                                                const radius = 18;
-                                                const circumference = 2 * Math.PI * radius;
-                                                const strokeDashoffset = circumference - (healthPercent / 100) * circumference;
-
-                                                return (
-                                                    <div key={indicator.id} className={`bg-white dark:bg-slate-700 rounded-2xl border border-slate-200 dark:border-slate-600 shadow-sm p-3 relative overflow-hidden group hover:border-${isUrgent ? 'amber' : 'indigo'}-300 transition-all hover:shadow-md flex flex-col gap-2`}>
-                                                        <div className="flex items-center gap-3">
-                                                            {/* Circular Progress Visual */}
-                                                            <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
-                                                                <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
-                                                                    {/* Background Circle */}
-                                                                    <circle
-                                                                        cx="22" cy="22" r={radius}
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        strokeWidth="4"
-                                                                        className="text-slate-100 dark:text-slate-600"
-                                                                    />
-                                                                    {/* Progress Circle */}
-                                                                    <circle
-                                                                        cx="22" cy="22" r={radius}
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        strokeWidth="4"
-                                                                        strokeDasharray={circumference}
-                                                                        strokeDashoffset={strokeDashoffset}
-                                                                        strokeLinecap="round"
-                                                                        className={`${isExpired ? 'text-red-500' : progressColor} transition-all duration-1000 ease-out`}
-                                                                    />
-                                                                </svg>
-                                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                                    {isExpired ? (
-                                                                        <AlertTriangle className="w-4 h-4 text-red-500" />
-                                                                    ) : (
-                                                                        <span className={`text-[10px] font-bold ${statusColor}`}>{Math.round(healthPercent)}%</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Content */}
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="font-bold text-slate-700 dark:text-slate-200 text-sm truncate leading-tight mb-0.5" title={indicator.equipmentName}>
-                                                                    {indicator.equipmentName}
-                                                                </div>
-                                                                <div className={`text-[10px] font-bold truncate ${isExpired ? 'text-red-500' : isUrgent ? 'text-amber-500' : 'text-slate-400 dark:text-slate-400'}`}>
-                                                                    {isExpired ? t('expired') : `${t('daysRemaining').replace('天', '')} ${remainingDays} ${t('days')}`}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Footer Actions */}
-                                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-50 dark:border-slate-600 mt-1">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleViewHistory(indicator);
-                                                                }}
-                                                                className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-600 text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500 hover:text-slate-700 dark:hover:text-white transition-colors text-xs font-bold active:scale-95"
-                                                            >
-                                                                <History className="w-3.5 h-3.5" />
-                                                                <span>{t('viewHistory')}</span>
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setRenewalTarget(indicator);
-                                                                }}
-                                                                className="flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 hover:text-emerald-700 transition-colors text-xs font-bold active:scale-95"
-                                                            >
-                                                                <RefreshCw className="w-3.5 h-3.5" />
-                                                                <span>{t('renew')}</span>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
                     {/* Action Grid - Colorful Gradient Design */}
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-3 duration-700 delay-100">
@@ -1611,25 +1404,42 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         </button>
 
-                        {/* 5. Map Editor */}
+                        {/* 5. Equipment Overview */}
+                        <button
+                            onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-400 to-purple-600 p-1 shadow-lg shadow-violet-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                        >
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <ClipboardList className="w-8 h-8 drop-shadow-md" />
+                                </div>
+                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('equipmentOverview')}</span>
+                            </div>
+                        </button>
+
+                        {/* 6. Health Indicators */}
+                        <button
+                            onClick={() => setIsHealthModalOpen(true)}
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-400 to-rose-600 p-1 shadow-lg shadow-pink-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                        >
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <Heart className="w-8 h-8 drop-shadow-md fill-white" />
+                                </div>
+                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('healthIndicators')}</span>
+                            </div>
+                        </button>
+
+                        {/* 7. Map Editor */}
                         <button
                             onClick={onOpenMapEditor}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-600 p-1 shadow-lg shadow-cyan-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95 col-span-2 lg:col-span-2"
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-600 p-1 shadow-lg shadow-cyan-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
                         >
-                            {/* Decorative Map Pattern Background */}
-                            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
-
-                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-row items-center justify-center gap-4 border border-white/20">
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
                                 <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
                                     <Map className="w-8 h-8 drop-shadow-md" />
                                 </div>
-                                <div className="flex flex-col text-left">
-                                    <span className="font-bold text-white text-xl drop-shadow-sm">{t('mapEditor')}</span>
-                                    <span className="text-sm text-white/80 font-medium">{t('mapEditorDesc')}</span>
-                                </div>
-                                <div className="ml-auto bg-white/20 p-2 rounded-full">
-                                    <ChevronRight className="w-5 h-5 text-white" />
-                                </div>
+                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('mapEditor')}</span>
                             </div>
                         </button>
                     </div>
