@@ -146,12 +146,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     expired: '已過期',
     abnormalRecheck: '異常複檢',
     pending: '待處理',
-    mapEditor: '設備分佈地圖',
+    mapEditor: '我的地圖',
     mapEditorDesc: '查看並編輯設備位置',
     startInspectionTitle: '開始檢查',
     startInspectionDesc: '點擊開始設備檢查流程',
     viewHistory: '歷史',
     renew: '更新',
+    noAbnormalItems: '無異常項目',
     // History Table
     searchResults: '搜尋結果',
     historyRecords: '歷史紀錄',
@@ -186,7 +187,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectAddType: '請選擇新增類型',
     addInstance: '新增設備',
     addInstanceDesc: '(場所、編號、頻率等)',
-    addNameList: '新增設備清單',
+    addNameList: '新增清單',
     addNameListDesc: '(滅火器、消防栓等)',
     selectInspectionMode: '選擇檢查方式',
     selectInspectionModeDesc: '請選擇最適合的作業模式',
@@ -227,6 +228,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     declaration: '申報',
     themeColor: '背景顏色',
     followSystemTheme: '跟隨系統',
+    equipmentStats: '設備統計',
 
     // --- Map Editor ---
     mapManager: '消防設備位置圖管理',
@@ -596,6 +598,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     startInspectionDesc: 'Click to start inspection process',
     viewHistory: 'History',
     renew: 'Renew',
+    noAbnormalItems: 'No Abnormal Items',
     // History Table
     searchResults: 'Search Results',
     historyRecords: 'History Records',
@@ -658,6 +661,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectLeftCategory: 'Please select a category on the left',
     selectMiddleType: 'Please select a type in the middle',
 
+
+    equipmentStats: 'Equipment Statistics',
     // --- Map Editor ---
     mapManager: 'Fire Equipment Map Manager',
     uploadedMaps: 'Uploaded Map List',

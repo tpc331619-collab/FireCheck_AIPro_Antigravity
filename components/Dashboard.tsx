@@ -79,7 +79,16 @@ import {
     Box,
     Filter,
     Heart,
-    ScanLine
+    ScanLine,
+    ClipboardCheck,
+    AlertOctagon,
+    Building,
+    MapPinned,
+    PlusCircle,
+    ListPlus,
+    PieChart,
+    ScrollText,
+    HeartPulse
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
@@ -1226,1595 +1235,1627 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             <div className="flex-1 overflow-y-auto pb-24 custom-scrollbar bg-gradient-to-br from-slate-50 via-slate-100/50 to-slate-200/30">
                 <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
 
-                    {/* User Info Header - Outside buttons */}
-                    <div className="flex items-center justify-between mb-3">
-                        <div>
-                            <p className="text-slate-700 text-sm font-bold">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
+                    {/* User Info & Quick Search Row */}
+                    <div className="flex items-center justify-between gap-4 mb-3">
+                        <div className="flex items-center gap-4">
+                            <div>
+                                <p className="text-slate-700 text-sm font-bold">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
+                            </div>
+                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-300 bg-slate-100 shadow-md">
+                                <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-300 bg-slate-100 shadow-md">
-                            <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+
+                        {/* Compact Quick Search */}
+                        <div className="relative flex-1 max-w-md">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Search className="h-4 w-4 text-slate-400" />
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-9 pr-10 py-2 border border-slate-200 bg-white rounded-lg text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 text-sm font-medium transition-all shadow-sm uppercase"
+                                placeholder="快速查詢 (關鍵字/條碼)..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+                            />
+                            <button
+                                onClick={() => setIsQuickScanOpen(true)}
+                                className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                            >
+                                <div className="p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
+                                    <ScanLine className="h-4 w-4 text-slate-600" />
+                                </div>
+                            </button>
                         </div>
                     </div>
 
+                    {/* Info Cards Row */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-3 border border-blue-100 shadow-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="p-1.5 bg-blue-500 rounded-lg">
+                                    <Database className="w-3.5 h-3.5 text-white" />
+                                </div>
+                                <span className="text-xs font-medium text-slate-600">{t('totalEquipment')}</span>
+                            </div>
+                            <div className="text-2xl font-black text-blue-600">{nameCount}</div>
+                        </div>
+
+                        {countdownDays !== null && (
+                            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-3 border border-amber-100 shadow-sm">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="p-1.5 bg-amber-500 rounded-lg">
+                                        <Calendar className="w-3.5 h-3.5 text-white" />
+                                    </div>
+                                    <span className="text-xs font-medium text-slate-600">{t('declarationCountdown')}</span>
+                                </div>
+                                <div className="flex items-baseline gap-1">
+                                    <span className="text-2xl font-black text-amber-600">{countdownDays}</span>
+                                    <span className="text-sm font-bold text-amber-500">{t('days')}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+
                     {/* Hero Action Cards - Left/Right Split Design */}
-                    <div className="grid grid-cols-2 gap-3 h-40">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
                         {/* Left Side - Start Inspection */}
                         <button
                             onClick={() => setIsInspectionModeOpen(true)}
-                            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 transition-all hover:brightness-110 hover:shadow-2xl active:brightness-95 group"
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-900 to-indigo-950 p-1 shadow-lg shadow-blue-900/40 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
                         >
-                            {/* Decorative Elements */}
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-600/20 rounded-full blur-2xl -ml-24 -mb-24"></div>
-
-                            {/* Inner glow effect */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50"></div>
-
-                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                                <PlayCircle className="w-16 h-16 text-white mb-3 group-hover:scale-110 transition-transform filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" />
-                                <span className="text-3xl font-black text-white tracking-tight" style={{
-                                    textShadow: '0 4px 8px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4)',
-                                    WebkitTextStroke: '0.5px rgba(0,0,0,0.3)'
-                                }}>
-                                    開始檢查
-                                </span>
-                                <p className="text-sm text-white font-bold mt-2" style={{ textShadow: '0 3px 6px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.5)' }}>
-                                    點擊開始設備檢查流程
-                                </p>
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/5 p-4 backdrop-blur-sm transition-all group-hover:bg-white/10 flex flex-col items-center justify-center gap-2 border border-white/10">
+                                <div className="rounded-2xl bg-white/10 p-3 text-white shadow-inner ring-1 ring-white/20 group-hover:scale-110 transition-transform duration-300">
+                                    <ClipboardCheck className="w-6 h-6 drop-shadow-md" />
+                                </div>
+                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('startInspectionTitle')}</span>
+                                <span className="text-xs text-white/80 font-medium bg-white/10 px-2 py-0.5 rounded-full">{t('startInspectionDesc')}</span>
                             </div>
                         </button>
 
                         {/* Right Side - Abnormal Recheck */}
                         <button
                             onClick={() => setShowAbnormalRecheck(true)}
-                            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-red-500 via-rose-600 to-red-700 transition-all hover:brightness-110 hover:shadow-2xl active:brightness-95 group"
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-400 to-amber-500 p-1 shadow-lg shadow-amber-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
                         >
-                            {/* Decorative Elements */}
-                            <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -ml-32 -mt-32"></div>
-                            <div className="absolute bottom-0 right-0 w-48 h-48 bg-red-400/20 rounded-full blur-2xl -mr-24 -mb-24"></div>
-
-                            {/* Inner glow effect */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50"></div>
-
-                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                                <div className="relative mb-3">
-                                    <AlertTriangle className="w-16 h-16 text-white group-hover:scale-110 transition-transform filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]" />
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/20 p-4 backdrop-blur-sm transition-all group-hover:bg-white/30 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/30 p-3 text-amber-900 shadow-inner ring-1 ring-white/40 group-hover:scale-110 transition-transform duration-300 relative">
+                                    <AlertOctagon className="w-6 h-6 drop-shadow-sm" />
                                     {abnormalCount > 0 && (
-                                        <span className="absolute -top-2 -right-2 bg-white text-red-600 text-sm font-black px-3 py-1.5 rounded-full shadow-xl animate-pulse ring-2 ring-red-300">
-                                            {abnormalCount}
+                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-600"></span>
                                         </span>
                                     )}
                                 </div>
-                                <span className="text-3xl font-black text-white tracking-tight" style={{
-                                    textShadow: '0 4px 8px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.4)',
-                                    WebkitTextStroke: '0.5px rgba(0,0,0,0.3)'
-                                }}>
-                                    異常複檢
+                                <span className="font-bold text-amber-950 text-lg drop-shadow-sm">{t('abnormalRecheck')}</span>
+                                <span className="text-xs text-amber-900 font-bold bg-white/40 px-2 py-0.5 rounded-full border border-white/20">
+                                    {abnormalCount > 0 ? `${abnormalCount} ${t('pending')}` : t('noAbnormalItems')}
                                 </span>
-                                <p className="text-sm text-white font-bold mt-2" style={{ textShadow: '0 3px 6px rgba(0,0,0,0.7), 0 1px 3px rgba(0,0,0,0.5)' }}>
-                                    {abnormalCount > 0 ? `${abnormalCount} 筆待處理` : '無異常項目'}
-                                </p>
                             </div>
                         </button>
                     </div>
-
-                    {/* Quick Search Bar */}
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search className="h-5 w-5 text-slate-400" />
-                        </div>
-                        <input
-                            type="text"
-                            className="block w-full pl-10 pr-12 py-3 border border-slate-200 bg-white rounded-xl text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 sm:text-sm font-medium transition-all shadow-sm"
-                            placeholder="快速查詢 (關鍵字/條碼)..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <button
-                            onClick={() => setIsQuickScanOpen(true)}
-                            className="absolute inset-y-0 right-0 pr-2 flex items-center"
-                        >
-                            <div className="p-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-                                <ScanLine className="h-5 w-5 text-slate-600" />
-                            </div>
-                        </button>
-                    </div>
-
-                    {/* Secondary Info */}
-                    <div className="flex items-center justify-between text-sm bg-white rounded-xl p-4 shadow-sm border border-slate-200">
-                        <div className="flex items-center gap-2">
-                            <Database className="w-4 h-4 text-slate-600" />
-                            <span className="text-slate-600">設備總數: <span className="font-bold text-slate-900">{nameCount}</span></span>
-                        </div>
-                        {countdownDays !== null && (
-                            <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-slate-600" />
-                                <span className="text-slate-600">申報倒數: <span className="font-bold text-slate-900">{countdownDays}</span> 天</span>
-                            </div>
-                        )}
-                    </div>
+                </div>
 
 
 
-
-                    {/* Action Grid - Colorful Gradient Design */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in slide-in-from-bottom-3 duration-700 delay-100">
-
-                        {/* 1. Add Equipment */}
-                        <button
-                            onClick={() => setIsAddEquipmentModeOpen(true)}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 p-1 shadow-lg shadow-teal-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
-                        >
-                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
-                                    <Database className="w-8 h-8 drop-shadow-md" />
-                                </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('addEquipment')}</span>
-                            </div>
-                        </button>
-
-                        {/* 2. My Equipment */}
+                {/* Section 1: 設備管理 */}
+                <div className="bg-white/50 rounded-2xl p-4 border border-slate-200/60 shadow-sm">
+                    <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                        {/* My Equipment */}
                         <button
                             onClick={onMyEquipment}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-400 to-indigo-600 p-1 shadow-lg shadow-blue-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-500 p-1 shadow-lg shadow-cyan-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
                         >
                             <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-1 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 mb-1 group-hover:scale-110 transition-transform duration-300">
-                                    <LayoutGrid className="w-8 h-8 drop-shadow-md" />
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 mb-1 group-hover:scale-110 transition-transform duration-300">
+                                    <Building className="w-6 h-6 drop-shadow-md" />
                                 </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('myEquipment')}</span>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('myEquipment')}</span>
                                 <span className="text-xs font-bold text-blue-700 bg-white/90 px-2.5 py-0.5 rounded-full shadow-sm">
                                     {nameCount} 筆
                                 </span>
                             </div>
                         </button>
 
-                        {/* 3. History */}
+                        {/* Map Editor */}
+                        <button
+                            onClick={onOpenMapEditor}
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-500 to-fuchsia-600 p-1 shadow-lg shadow-purple-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                        >
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <MapPinned className="w-6 h-6 drop-shadow-md" />
+                                </div>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('mapEditor')}</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Section 2: 設備維護 */}
+                <div className="bg-white/50 rounded-2xl p-4 border border-slate-200/60 shadow-sm">
+                    <div className="grid grid-cols-3 gap-4 sm:gap-6">
+                        {/* Add Equipment */}
+                        <button
+                            onClick={() => setIsAddEquipmentModeOpen(true)}
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 p-1 shadow-lg shadow-emerald-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                        >
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <PlusCircle className="w-6 h-6 drop-shadow-md" />
+                                </div>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('addEquipment')}</span>
+                            </div>
+                        </button>
+
+                        {/* Add Equipment List */}
+                        <button
+                            onClick={onManageHierarchy}
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 to-red-500 p-1 shadow-lg shadow-orange-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                        >
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <ListPlus className="w-6 h-6 drop-shadow-md" />
+                                </div>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('addNameList')}</span>
+                            </div>
+                        </button>
+
+                        {/* Equipment Overview */}
+                        <button
+                            onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-400 to-pink-600 p-1 shadow-lg shadow-rose-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                        >
+                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <PieChart className="w-6 h-6 drop-shadow-md" />
+                                </div>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('equipmentOverview')}</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Equipment Overview Expanded Content */}
+                {isEquipmentExpanded && (
+                    <div className="bg-white/50 rounded-2xl p-4 border border-slate-200/60 shadow-sm">
+                        <h3 className="text-sm font-bold text-slate-700 mb-3">{t('equipmentStats')}</h3>
+                        <div className="space-y-3">
+                            {equipmentStats.length > 0 ? (
+                                equipmentStats.map((stat: any, idx: number) => (
+                                    <div key={idx} className="bg-white rounded-xl p-3 shadow-sm border border-slate-100">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                {getEquipmentIcon(stat.name)}
+                                                <div>
+                                                    <h4 className="font-bold text-slate-800 text-sm">{stat.name}</h4>
+                                                    <p className="text-xs text-slate-500">{stat.count} 個設備</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs text-slate-500">下次檢查</div>
+                                                <div className="text-sm font-bold text-slate-700">{stat.nextCheck || '未設定'}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-center py-8 text-slate-400">
+                                    <Database className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">{t('noEquipmentData')}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Section 3: 數據分析 */}
+                <div className="bg-white/50 rounded-2xl p-4 border border-slate-200/60 shadow-sm">
+                    <div className="grid grid-cols-2 gap-4 sm:gap-6">
+                        {/* History */}
                         <button
                             onClick={scrollToHistory}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 to-orange-600 p-1 shadow-lg shadow-orange-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-400 to-violet-600 p-1 shadow-lg shadow-indigo-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
                         >
                             <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-1 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 mb-1 group-hover:scale-110 transition-transform duration-300">
-                                    <History className="w-8 h-8 drop-shadow-md" />
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 mb-1 group-hover:scale-110 transition-transform duration-300">
+                                    <ScrollText className="w-6 h-6 drop-shadow-md" />
                                 </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('history')}</span>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('history')}</span>
                                 <span className="text-xs font-bold text-orange-700 bg-white/90 px-2.5 py-0.5 rounded-full shadow-sm">
                                     {flattenedHistory.length} 筆
                                 </span>
                             </div>
                         </button>
 
-                        {/* 4. Abnormal Recheck */}
-                        <button
-                            onClick={() => setShowAbnormalRecheck(true)}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-400 to-rose-600 p-1 shadow-lg shadow-red-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
-                        >
-                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-1 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 mb-1 group-hover:scale-110 transition-transform duration-300">
-                                    <AlertTriangle className="w-8 h-8 drop-shadow-md" />
-                                </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('abnormalRecheck')}</span>
-                                {abnormalCount > 0 && (
-                                    <span className="text-xs font-bold text-red-600 bg-white px-2.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                                        {abnormalCount} {t('pending')}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
-
-                        {/* 5. Equipment Overview */}
-                        <button
-                            onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-400 to-purple-600 p-1 shadow-lg shadow-violet-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
-                        >
-                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
-                                    <ClipboardList className="w-8 h-8 drop-shadow-md" />
-                                </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('equipmentOverview')}</span>
-                            </div>
-                        </button>
-
-                        {/* 6. Health Indicators */}
+                        {/* Health Indicators */}
                         <button
                             onClick={() => setIsHealthModalOpen(true)}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-400 to-rose-600 p-1 shadow-lg shadow-pink-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
+                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-red-500 to-rose-600 p-1 shadow-lg shadow-red-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
                         >
                             <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
-                                    <Heart className="w-8 h-8 drop-shadow-md fill-white" />
+                                <div className="rounded-2xl bg-white/20 p-3 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
+                                    <HeartPulse className="w-6 h-6 drop-shadow-md fill-white" />
                                 </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('healthIndicators')}</span>
-                            </div>
-                        </button>
-
-                        {/* 7. Map Editor */}
-                        <button
-                            onClick={onOpenMapEditor}
-                            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400 to-blue-600 p-1 shadow-lg shadow-cyan-200/50 transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95"
-                        >
-                            <div className="relative h-full w-full rounded-[1.3rem] bg-white/10 p-4 backdrop-blur-sm transition-all group-hover:bg-white/20 flex flex-col items-center justify-center gap-2 border border-white/20">
-                                <div className="rounded-2xl bg-white/20 p-3.5 text-white shadow-inner ring-1 ring-white/30 group-hover:scale-110 transition-transform duration-300">
-                                    <Map className="w-8 h-8 drop-shadow-md" />
-                                </div>
-                                <span className="font-bold text-white text-lg drop-shadow-sm">{t('mapEditor')}</span>
+                                <span className="font-bold text-white text-base drop-shadow-sm">{t('healthIndicators')}</span>
                             </div>
                         </button>
                     </div>
+                </div>
 
-                    {/* Full Page Search Results / History Table */}
-                    {/* Full Page Search Results / History Table */}
-                    {(showArchived || searchTerm.trim()) && (
-                        <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
-                            <div className="max-w-7xl mx-auto p-6 space-y-6">
-                                {/* Header */}
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-l-4 border-blue-500 sticky top-4 z-30 gap-4 sm:gap-0">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-xl">
-                                            {searchTerm ? <Search className="w-6 h-6 text-blue-600 dark:text-blue-400" /> : <History className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
-                                        </div>
-                                        <div>
-                                            <h1 className="text-xl font-bold text-slate-800 dark:text-white">{searchTerm ? t('searchResults') : t('historyRecords')}</h1>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{searchTerm ? `${t('keywordPrefix')}: "${searchTerm}"` : t('allRecords')}</p>
-                                        </div>
+                {/* Full Page Search Results / History Table */}
+                {/* Full Page Search Results / History Table */}
+                {(showArchived || searchTerm.trim()) && (
+                    <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
+                        <div className="max-w-7xl mx-auto p-6 space-y-6">
+                            {/* Header */}
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-l-4 border-blue-500 sticky top-4 z-30 gap-4 sm:gap-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-xl">
+                                        {searchTerm ? <Search className="w-6 h-6 text-blue-600 dark:text-blue-400" /> : <History className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
                                     </div>
-
-                                    <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-                                        {/* Year Selector */}
-                                        <select
-                                            value={selectedYear}
-                                            onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mr-2"
-                                        >
-                                            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                                                <option key={year} value={year}>{year}年</option>
-                                            ))}
-                                        </select>
-
-
-
-                                        {/* Filter Toggle */}
-                                        <button
-                                            onClick={() => {
-                                                setShowFilters(!showFilters);
-                                                if (showColumns) setShowColumns(false); // Close columns if opening filters
-                                            }}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showFilters ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
-                                        >
-                                            <Filter className="w-4 h-4" />
-                                            {showFilters ? t('hideFilters') : t('showFilters')}
-                                        </button>
-
-                                        {/* Column Toggle */}
-                                        <button
-                                            onClick={() => {
-                                                setShowColumns(!showColumns);
-                                                if (showFilters) setShowFilters(false); // Close filters if opening columns
-                                            }}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showColumns ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
-                                        >
-                                            <LayoutGrid className="w-4 h-4" />
-                                            {showColumns ? t('hideColumns') : t('showColumns')}
-                                        </button>
-
-                                        <div className="w-px h-8 bg-slate-200 mx-1"></div>
-
-                                        <button
-                                            onClick={() => {
-                                                setShowArchived(false);
-                                                setSearchTerm('');
-                                            }}
-                                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-slate-200"
-                                        >
-                                            <ChevronRight className="w-4 h-4 rotate-180" />
-                                            {t('backToDashboard')}
-                                        </button>
+                                    <div>
+                                        <h1 className="text-xl font-bold text-slate-800 dark:text-white">{searchTerm ? t('searchResults') : t('historyRecords')}</h1>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{searchTerm ? `${t('keywordPrefix')}: "${searchTerm}"` : t('allRecords')}</p>
                                     </div>
                                 </div>
 
-                                {/* Filter Controls */}
-                                {showFilters && (
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                            <Filter className="w-4 h-4" />
-                                            {t('filterCriteria')}
-                                        </h3>
+                                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+                                    {/* Year Selector */}
+                                    <select
+                                        value={selectedYear}
+                                        onChange={(e) => setSelectedYear(Number(e.target.value))}
+                                        className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mr-2"
+                                    >
+                                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                                            <option key={year} value={year}>{year}年</option>
+                                        ))}
+                                    </select>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            {/* Date Range */}
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('startDate')}</label>
-                                                <input
-                                                    type="date"
-                                                    value={dateRange.start}
-                                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('endDate')}</label>
-                                                <input
-                                                    type="date"
-                                                    value={dateRange.end}
-                                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                />
-                                            </div>
 
-                                            {/* Equipment Name Filter */}
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('equipmentName')}</label>
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder={t('searchEquipmentName')}
-                                                        value={locationFilter}
-                                                        onChange={(e) => setLocationFilter(e.target.value)}
-                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                    />
-                                                </div>
-                                            </div>
+
+                                    {/* Filter Toggle */}
+                                    <button
+                                        onClick={() => {
+                                            setShowFilters(!showFilters);
+                                            if (showColumns) setShowColumns(false); // Close columns if opening filters
+                                        }}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showFilters ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
+                                    >
+                                        <Filter className="w-4 h-4" />
+                                        {showFilters ? t('hideFilters') : t('showFilters')}
+                                    </button>
+
+                                    {/* Column Toggle */}
+                                    <button
+                                        onClick={() => {
+                                            setShowColumns(!showColumns);
+                                            if (showFilters) setShowFilters(false); // Close filters if opening columns
+                                        }}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showColumns ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                        {showColumns ? t('hideColumns') : t('showColumns')}
+                                    </button>
+
+                                    <div className="w-px h-8 bg-slate-200 mx-1"></div>
+
+                                    <button
+                                        onClick={() => {
+                                            setShowArchived(false);
+                                            setSearchTerm('');
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-slate-200"
+                                    >
+                                        <ChevronRight className="w-4 h-4 rotate-180" />
+                                        {t('backToDashboard')}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Filter Controls */}
+                            {showFilters && (
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                                        <Filter className="w-4 h-4" />
+                                        {t('filterCriteria')}
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {/* Date Range */}
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('startDate')}</label>
+                                            <input
+                                                type="date"
+                                                value={dateRange.start}
+                                                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('endDate')}</label>
+                                            <input
+                                                type="date"
+                                                value={dateRange.end}
+                                                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
                                         </div>
 
-                                        {/* Keyword Search */}
-                                        <div className="mt-4">
-                                            <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('keywordSearch')}</label>
+                                        {/* Equipment Name Filter */}
+                                        <div>
+                                            <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('equipmentName')}</label>
                                             <div className="relative">
                                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                                 <input
                                                     type="text"
-                                                    placeholder={t('searchBarcodeNotes')}
-                                                    value={keywordSearch}
-                                                    onChange={(e) => setKeywordSearch(e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder={t('searchEquipmentName')}
+                                                    value={locationFilter}
+                                                    onChange={(e) => setLocationFilter(e.target.value)}
+                                                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                 />
                                             </div>
                                         </div>
-
-                                        {/* Clear Filters Button */}
-                                        {(dateRange.start || dateRange.end || locationFilter || keywordSearch) && (
-                                            <div className="mt-4 flex justify-end">
-                                                <button
-                                                    onClick={() => {
-                                                        setDateRange({ start: '', end: '' });
-                                                        setLocationFilter('');
-                                                        setKeywordSearch('');
-                                                    }}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                    {t('clearFilters')}
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
-                                )}
 
-                                {/* Column Visibility Panel */}
-                                {showColumns && (
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-                                            <LayoutGrid className="w-4 h-4" />
-                                            {t('adjustColumns')}
-                                        </h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                            {columnOrder.map((key, index) => {
-                                                const label = columnLabels[key as keyof typeof visibleColumns];
-                                                const isVisible = visibleColumns[key as keyof typeof visibleColumns];
-
-                                                return (
-                                                    <div key={key} className={`flex items-center justify-between px-2 py-2 rounded-xl border transition-all text-sm font-bold ${isVisible
-                                                        ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                                                        }`}>
-
-                                                        {/* Reorder Left */}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); moveColumn(index, 'left'); }}
-                                                            disabled={index === 0}
-                                                            className="p-1 hover:bg-black/10 rounded disabled:opacity-30 disabled:hover:bg-transparent"
-                                                        >
-                                                            <ChevronRight className="w-3 h-3 rotate-180" />
-                                                        </button>
-
-                                                        {/* Toggle Visibility */}
-                                                        <button
-                                                            onClick={() => toggleColumn(key as keyof typeof visibleColumns)}
-                                                            className="flex-1 flex items-center justify-center gap-2 text-center truncate px-2"
-                                                        >
-                                                            <span>{label}</span>
-                                                            {isVisible && <Check className="w-3 h-3" />}
-                                                        </button>
-
-                                                        {/* Reorder Right */}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); moveColumn(index, 'right'); }}
-                                                            disabled={index === columnOrder.length - 1}
-                                                            className="p-1 hover:bg-black/10 rounded disabled:opacity-30 disabled:hover:bg-transparent"
-                                                        >
-                                                            <ChevronRight className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
+                                    {/* Keyword Search */}
+                                    <div className="mt-4">
+                                        <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('keywordSearch')}</label>
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                placeholder={t('searchBarcodeNotes')}
+                                                value={keywordSearch}
+                                                onChange={(e) => setKeywordSearch(e.target.value)}
+                                                className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
                                         </div>
                                     </div>
-                                )}
 
-                                {/* Table */}
-                                <div className="mt-4">
-                                    <HistoryTable
-                                        data={flattenedHistory}
-                                        onViewDetails={(item) => setActiveModal({ type: 'INSPECTION', item })}
-                                        onViewRecheck={(item) => setActiveModal({ type: 'RECHECK', item })}
-                                        visibleColumns={visibleColumns}
-                                        columnOrder={columnOrder}
-                                    />
+                                    {/* Clear Filters Button */}
+                                    {(dateRange.start || dateRange.end || locationFilter || keywordSearch) && (
+                                        <div className="mt-4 flex justify-end">
+                                            <button
+                                                onClick={() => {
+                                                    setDateRange({ start: '', end: '' });
+                                                    setLocationFilter('');
+                                                    setKeywordSearch('');
+                                                }}
+                                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+                                            >
+                                                <X className="w-4 h-4" />
+                                                {t('clearFilters')}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Column Visibility Panel */}
+                            {showColumns && (
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
+                                        <LayoutGrid className="w-4 h-4" />
+                                        {t('adjustColumns')}
+                                    </h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                        {columnOrder.map((key, index) => {
+                                            const label = columnLabels[key as keyof typeof visibleColumns];
+                                            const isVisible = visibleColumns[key as keyof typeof visibleColumns];
+
+                                            return (
+                                                <div key={key} className={`flex items-center justify-between px-2 py-2 rounded-xl border transition-all text-sm font-bold ${isVisible
+                                                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                                    }`}>
+
+                                                    {/* Reorder Left */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); moveColumn(index, 'left'); }}
+                                                        disabled={index === 0}
+                                                        className="p-1 hover:bg-black/10 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                                                    >
+                                                        <ChevronRight className="w-3 h-3 rotate-180" />
+                                                    </button>
+
+                                                    {/* Toggle Visibility */}
+                                                    <button
+                                                        onClick={() => toggleColumn(key as keyof typeof visibleColumns)}
+                                                        className="flex-1 flex items-center justify-center gap-2 text-center truncate px-2"
+                                                    >
+                                                        <span>{label}</span>
+                                                        {isVisible && <Check className="w-3 h-3" />}
+                                                    </button>
+
+                                                    {/* Reorder Right */}
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); moveColumn(index, 'right'); }}
+                                                        disabled={index === columnOrder.length - 1}
+                                                        className="p-1 hover:bg-black/10 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                                                    >
+                                                        <ChevronRight className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Table */}
+                            <div className="mt-4">
+                                <HistoryTable
+                                    data={flattenedHistory}
+                                    onViewDetails={(item) => setActiveModal({ type: 'INSPECTION', item })}
+                                    onViewRecheck={(item) => setActiveModal({ type: 'RECHECK', item })}
+                                    visibleColumns={visibleColumns}
+                                    columnOrder={columnOrder}
+                                />
+                            </div>
+
+                        </div >
+                    </div >
+                )}
+
+                {/* Active Details Modal */}
+                {
+                    activeModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                                {/* Modal Header */}
+                                <div className={`p-6 border-b flex justify-between items-center shrink-0 ${activeModal.type === 'INSPECTION' ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'}`}>
+                                    <h3 className={`font-bold text-lg flex items-center gap-2 ${activeModal.type === 'INSPECTION' ? 'text-blue-800' : 'text-red-800'}`}>
+                                        {activeModal.type === 'INSPECTION' ? <ClipboardList className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                                        {activeModal.type === 'INSPECTION' ? '詳細查檢紀錄' : '異常複檢資訊'}
+                                    </h3>
+                                    <button
+                                        onClick={() => setActiveModal(null)}
+                                        className={`p-2 rounded-full transition-colors ${activeModal.type === 'INSPECTION' ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-red-100 text-red-500'}`}
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
                                 </div>
 
-                            </div >
-                        </div >
-                    )}
+                                {/* Modal Content */}
+                                <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                                    {activeModal.type === 'INSPECTION' ? (
+                                        <div className="p-0">
+                                            {/* Inspection Table View */}
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-slate-50 text-slate-700 font-bold sticky top-0 z-10 shadow-sm">
+                                                    <tr>
+                                                        <th className="px-4 py-3 text-left border-b border-slate-200 whitespace-nowrap bg-slate-50">查檢項目</th>
+                                                        <th className="px-4 py-3 text-center border-b border-slate-200 whitespace-nowrap bg-slate-50">標準</th>
+                                                        <th className="px-4 py-3 text-center border-b border-slate-200 whitespace-nowrap bg-slate-50">結果</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {activeModal.item.checkResults
+                                                        ?.filter((res: any) => res.name && res.name.trim()) // Only show items with valid names
+                                                        .map((res: any, idx: number) => {
+                                                            let displayValue = '';
+                                                            if (res.value === 'true' || res.value === true) displayValue = '正常';
+                                                            else if (res.value === 'false' || res.value === false) displayValue = '異常';
+                                                            else if (res.threshold) displayValue = `${res.value}${res.unit || ''}`;
+                                                            else displayValue = res.value === 'true' ? '正常' : res.value === 'false' ? '異常' : res.value;
 
-                    {/* Active Details Modal */}
-                    {
-                        activeModal && (
-                            <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
-                                    {/* Modal Header */}
-                                    <div className={`p-6 border-b flex justify-between items-center shrink-0 ${activeModal.type === 'INSPECTION' ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'}`}>
-                                        <h3 className={`font-bold text-lg flex items-center gap-2 ${activeModal.type === 'INSPECTION' ? 'text-blue-800' : 'text-red-800'}`}>
-                                            {activeModal.type === 'INSPECTION' ? <ClipboardList className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-                                            {activeModal.type === 'INSPECTION' ? '詳細查檢紀錄' : '異常複檢資訊'}
-                                        </h3>
-                                        <button
-                                            onClick={() => setActiveModal(null)}
-                                            className={`p-2 rounded-full transition-colors ${activeModal.type === 'INSPECTION' ? 'hover:bg-blue-100 text-blue-500' : 'hover:bg-red-100 text-red-500'}`}
-                                        >
-                                            <X className="w-6 h-6" />
-                                        </button>
-                                    </div>
+                                                            if (displayValue === 'true') displayValue = '正常';
+                                                            if (displayValue === 'false') displayValue = '異常';
+                                                            if (!isNaN(Number(res.value)) && res.unit && !displayValue.includes(res.unit)) displayValue += res.unit;
+                                                            if (res.status === 'Normal') {
+                                                                displayValue = res.value ? '正常' : '異常';
+                                                                if (res.value && !isNaN(Number(res.value))) displayValue = `${res.value}${res.unit || ''}`;
+                                                            }
 
-                                    {/* Modal Content */}
-                                    <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
-                                        {activeModal.type === 'INSPECTION' ? (
-                                            <div className="p-0">
-                                                {/* Inspection Table View */}
-                                                <table className="w-full text-sm">
-                                                    <thead className="bg-slate-50 text-slate-700 font-bold sticky top-0 z-10 shadow-sm">
-                                                        <tr>
-                                                            <th className="px-4 py-3 text-left border-b border-slate-200 whitespace-nowrap bg-slate-50">查檢項目</th>
-                                                            <th className="px-4 py-3 text-center border-b border-slate-200 whitespace-nowrap bg-slate-50">標準</th>
-                                                            <th className="px-4 py-3 text-center border-b border-slate-200 whitespace-nowrap bg-slate-50">結果</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100">
-                                                        {activeModal.item.checkResults
-                                                            ?.filter((res: any) => res.name && res.name.trim()) // Only show items with valid names
-                                                            .map((res: any, idx: number) => {
-                                                                let displayValue = '';
-                                                                if (res.value === 'true' || res.value === true) displayValue = '正常';
-                                                                else if (res.value === 'false' || res.value === false) displayValue = '異常';
-                                                                else if (res.threshold) displayValue = `${res.value}${res.unit || ''}`;
-                                                                else displayValue = res.value === 'true' ? '正常' : res.value === 'false' ? '異常' : res.value;
+                                                            const isRed = res.value === false || res.status === 'Abnormal' || res.status === '異常';
 
-                                                                if (displayValue === 'true') displayValue = '正常';
-                                                                if (displayValue === 'false') displayValue = '異常';
-                                                                if (!isNaN(Number(res.value)) && res.unit && !displayValue.includes(res.unit)) displayValue += res.unit;
-                                                                if (res.status === 'Normal') {
-                                                                    displayValue = res.value ? '正常' : '異常';
-                                                                    if (res.value && !isNaN(Number(res.value))) displayValue = `${res.value}${res.unit || ''}`;
-                                                                }
+                                                            return (
+                                                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                                    <td className="px-4 py-3 text-slate-800 font-medium">{res.name}</td>
+                                                                    <td className="px-4 py-3 text-center text-slate-600 font-mono text-xs bg-slate-50/50 align-middle">
+                                                                        {(() => {
+                                                                            if (!res.threshold || res.threshold === '-') return '-';
+                                                                            // Convert text operators to symbols
+                                                                            let formatted = res.threshold
+                                                                                .replace(/\blt\b/gi, '<')
+                                                                                .replace(/\blte\b/gi, '≤')
+                                                                                .replace(/\bgt\b/gi, '>')
+                                                                                .replace(/\bgte\b/gi, '≥')
+                                                                                .replace(/&lt;/g, '<')
+                                                                                .replace(/&gt;/g, '>')
+                                                                                .replace(/&le;/g, '≤')
+                                                                                .replace(/&ge;/g, '≥');
+                                                                            return formatted;
+                                                                        })()}
+                                                                    </td>
+                                                                    <td className={`px-4 py-3 text-center font-bold align-middle ${isRed ? 'text-red-700' : 'text-emerald-700'}`}>
+                                                                        <div className="flex justify-center items-center gap-2">
+                                                                            {isRed && <AlertTriangle className="w-4 h-4" />}
+                                                                            {displayValue}
+                                                                            {!isRed && <CheckCircle className="w-4 h-4 opacity-50" />}
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 space-y-4">
+                                            {/* Recheck Info View */}
+                                            {/* Recheck Info View */}
+                                            {/* Recheck Info View */}
+                                            {(() => {
+                                                const isFixed = activeModal.item.status === 'Fixed' || activeModal.item.status === '已改善' || !!activeModal.item.repairDate;
 
-                                                                const isRed = res.value === false || res.status === 'Abnormal' || res.status === '異常';
+                                                // Use preserved abnormalItems if available, otherwise try to detect from checkResults
+                                                const abnormalItems = activeModal.item.abnormalItems?.join('、') ||
+                                                    activeModal.item.checkResults
+                                                        ?.filter((res: any) => res.value === false || res.value === 'false' || res.status === 'Abnormal' || res.status === '異常')
+                                                        .map((res: any) => res.name)
+                                                        .join('、') || '未指定異常項目';
 
-                                                                return (
-                                                                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                                                                        <td className="px-4 py-3 text-slate-800 font-medium">{res.name}</td>
-                                                                        <td className="px-4 py-3 text-center text-slate-600 font-mono text-xs bg-slate-50/50 align-middle">
-                                                                            {(() => {
-                                                                                if (!res.threshold || res.threshold === '-') return '-';
-                                                                                // Convert text operators to symbols
-                                                                                let formatted = res.threshold
-                                                                                    .replace(/\blt\b/gi, '<')
-                                                                                    .replace(/\blte\b/gi, '≤')
-                                                                                    .replace(/\bgt\b/gi, '>')
-                                                                                    .replace(/\bgte\b/gi, '≥')
-                                                                                    .replace(/&lt;/g, '<')
-                                                                                    .replace(/&gt;/g, '>')
-                                                                                    .replace(/&le;/g, '≤')
-                                                                                    .replace(/&ge;/g, '≥');
-                                                                                return formatted;
-                                                                            })()}
-                                                                        </td>
-                                                                        <td className={`px-4 py-3 text-center font-bold align-middle ${isRed ? 'text-red-700' : 'text-emerald-700'}`}>
-                                                                            <div className="flex justify-center items-center gap-2">
-                                                                                {isRed && <AlertTriangle className="w-4 h-4" />}
-                                                                                {displayValue}
-                                                                                {!isRed && <CheckCircle className="w-4 h-4 opacity-50" />}
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        ) : (
-                                            <div className="p-6 space-y-4">
-                                                {/* Recheck Info View */}
-                                                {/* Recheck Info View */}
-                                                {/* Recheck Info View */}
-                                                {(() => {
-                                                    const isFixed = activeModal.item.status === 'Fixed' || activeModal.item.status === '已改善' || !!activeModal.item.repairDate;
+                                                return (
+                                                    <div className="space-y-4">
+                                                        {/* Status Banner */}
+                                                        <div className={`${isFixed ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'} p-4 rounded-xl border flex items-start gap-3`}>
+                                                            <Info className={`w-5 h-5 ${isFixed ? 'text-emerald-500' : 'text-red-500'} shrink-0 mt-0.5`} />
+                                                            <div>
+                                                                <p className={`font-bold ${isFixed ? 'text-emerald-800' : 'text-red-800'} mb-1`}>異常處理狀態</p>
+                                                                <p className={`text-sm ${isFixed ? 'text-emerald-700' : 'text-red-700'}`}>
+                                                                    {isFixed ? '已完成改善' : '待處理'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
 
-                                                    // Use preserved abnormalItems if available, otherwise try to detect from checkResults
-                                                    const abnormalItems = activeModal.item.abnormalItems?.join('、') ||
-                                                        activeModal.item.checkResults
-                                                            ?.filter((res: any) => res.value === false || res.value === 'false' || res.status === 'Abnormal' || res.status === '異常')
-                                                            .map((res: any) => res.name)
-                                                            .join('、') || '未指定異常項目';
-
-                                                    return (
-                                                        <div className="space-y-4">
-                                                            {/* Status Banner */}
-                                                            <div className={`${isFixed ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'} p-4 rounded-xl border flex items-start gap-3`}>
-                                                                <Info className={`w-5 h-5 ${isFixed ? 'text-emerald-500' : 'text-red-500'} shrink-0 mt-0.5`} />
-                                                                <div>
-                                                                    <p className={`font-bold ${isFixed ? 'text-emerald-800' : 'text-red-800'} mb-1`}>異常處理狀態</p>
-                                                                    <p className={`text-sm ${isFixed ? 'text-emerald-700' : 'text-red-700'}`}>
-                                                                        {isFixed ? '已完成改善' : '待處理'}
-                                                                    </p>
+                                                        {/* Single Unified Card */}
+                                                        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                                                            {/* Discovery Date */}
+                                                            <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                <Calendar className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+                                                                <div className="flex-1">
+                                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">發現日期</label>
+                                                                    <div className="font-mono text-sm font-bold text-slate-700">
+                                                                        {activeModal.item.inspectionDate
+                                                                            ? new Date(activeModal.item.inspectionDate).toLocaleDateString(language)
+                                                                            : new Date(activeModal.item.date).toLocaleDateString(language)
+                                                                        }
+                                                                    </div>
                                                                 </div>
                                                             </div>
 
-                                                            {/* Single Unified Card */}
-                                                            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                                                                {/* Discovery Date */}
-                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                                                                    <Calendar className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
-                                                                    <div className="flex-1">
-                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">發現日期</label>
-                                                                        <div className="font-mono text-sm font-bold text-slate-700">
-                                                                            {activeModal.item.inspectionDate
-                                                                                ? new Date(activeModal.item.inspectionDate).toLocaleDateString(language)
-                                                                                : new Date(activeModal.item.date).toLocaleDateString(language)
-                                                                            }
-                                                                        </div>
+                                                            {/* Abnormal Items */}
+                                                            <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                <AlertTriangle className="w-4 h-4 text-red-500 mt-1 shrink-0" />
+                                                                <div className="flex-1">
+                                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">異常項目歸類</label>
+                                                                    <div className="text-sm font-bold text-slate-700">{abnormalItems}</div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Abnormal Description */}
+                                                            <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                <FileText className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+                                                                <div className="flex-1">
+                                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">異常情況描述</label>
+                                                                    <div className="text-sm text-slate-700 leading-relaxed">{activeModal.item.notes || '-'}</div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Repair Date */}
+                                                            <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
+                                                                <Calendar className={`w-4 h-4 mt-1 shrink-0 ${activeModal.item.repairDate ? 'text-emerald-500' : 'text-slate-400'}`} />
+                                                                <div className="flex-1">
+                                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">修復完成日期</label>
+                                                                    <div className={`font-mono text-sm font-bold ${activeModal.item.repairDate ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                        {activeModal.item.repairDate
+                                                                            ? new Date(activeModal.item.repairDate).toLocaleDateString(language)
+                                                                            : '尚未修復'
+                                                                        }
                                                                     </div>
                                                                 </div>
+                                                            </div>
 
-                                                                {/* Abnormal Items */}
-                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                                                                    <AlertTriangle className="w-4 h-4 text-red-500 mt-1 shrink-0" />
-                                                                    <div className="flex-1">
-                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">異常項目歸類</label>
-                                                                        <div className="text-sm font-bold text-slate-700">{abnormalItems}</div>
-                                                                    </div>
+                                                            {/* Repair Notes */}
+                                                            <div className="flex items-start gap-3">
+                                                                <FileText className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
+                                                                <div className="flex-1">
+                                                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">修復處置說明</label>
+                                                                    <div className="text-sm text-slate-700 leading-relaxed">{activeModal.item.repairNotes || '-'}</div>
                                                                 </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
 
-                                                                {/* Abnormal Description */}
-                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                                                                    <FileText className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
-                                                                    <div className="flex-1">
-                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">異常情況描述</label>
-                                                                        <div className="text-sm text-slate-700 leading-relaxed">{activeModal.item.notes || '-'}</div>
-                                                                    </div>
+                                {/* Modal Footer */}
+                                <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                                    <button
+                                        onClick={() => setActiveModal(null)}
+                                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all shadow-lg shadow-slate-200"
+                                    >
+                                        關閉視窗
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* FAB (Maintained for quick access) */}
+                <button
+                    onClick={onCreateNew}
+                    className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
+                    style={{ backgroundColor: THEME_COLORS.primary }}
+                    aria-label="新增檢查"
+                >
+                    <Plus className="w-7 h-7" />
+                </button>
+
+                {/* Health Modal */}
+                {
+                    isHealthModalOpen && (
+                        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                                {/* Header */}
+                                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                    <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                        <Activity className="w-5 h-5 mr-2 text-red-500" />
+                                        {t('healthIndicatorSettings')}
+                                    </h3>
+                                    <button onClick={() => setIsHealthModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                        <X className="w-5 h-5 text-slate-500" />
+                                    </button>
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                                    <div className="space-y-6">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h4 className="font-bold text-slate-700">{t('indicatorList')}</h4>
+                                            <button
+                                                onClick={() => setEditingHealthIndicator({} as HealthIndicator)}
+                                                className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm shadow-red-200"
+                                            >
+                                                <Plus className="w-4 h-4" /> {t('addIndicator')}
+                                            </button>
+                                        </div>
+
+                                        {editingHealthIndicator && (
+                                            <div className="bg-white p-6 rounded-2xl border-l-4 border-l-indigo-500 shadow-lg shadow-indigo-100/50 mb-8 animate-in fade-in slide-in-from-top-2 relative">
+                                                <h5 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                                    <Edit2 className="w-4 h-4" />
+                                                    {editingHealthIndicator.id ? t('editIndicator') : t('addIndicator')}
+                                                </h5>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-slate-500">{t('buildingName')}</label>
+                                                        <input
+                                                            type="text"
+                                                            value={editingHealthIndicator.buildingName || ''}
+                                                            onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, buildingName: e.target.value }))}
+                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                            placeholder={t('enterBuildingName')}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-slate-500">{t('equipmentName')}</label>
+                                                        <input
+                                                            type="text"
+                                                            value={editingHealthIndicator.equipmentName || ''}
+                                                            onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, equipmentName: e.target.value }))}
+                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                            placeholder={t('enterEquipmentName')}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-slate-500">{t('validityStartDate')}</label>
+                                                        <input
+                                                            type="date"
+                                                            value={editingHealthIndicator.startDate || ''}
+                                                            onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, startDate: e.target.value }))}
+                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-xs font-bold text-slate-500">{t('validityEndDate')}</label>
+                                                        <input
+                                                            type="date"
+                                                            value={editingHealthIndicator.endDate || ''}
+                                                            onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, endDate: e.target.value }))}
+                                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Calculation Preview */}
+                                                {editingHealthIndicator.startDate && editingHealthIndicator.endDate && (
+                                                    <div className="mb-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between group hover:bg-indigo-50 transition-colors">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center border border-indigo-200">
+                                                                <Clock className="w-5 h-5" />
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs font-bold text-indigo-400 block mb-0.5">{t('remainingDays')} ({t('totalDays')})</span>
+                                                                <div className="flex items-baseline gap-1">
+                                                                    <span className="text-2xl font-black text-indigo-900 tracking-tight">
+                                                                        {Math.max(1, Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date(editingHealthIndicator.startDate).getTime()) / (1000 * 60 * 60 * 24)))}
+                                                                    </span>
+                                                                    <span className="text-sm font-bold text-indigo-600">{t('days')}</span>
                                                                 </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
 
-                                                                {/* Repair Date */}
-                                                                <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-                                                                    <Calendar className={`w-4 h-4 mt-1 shrink-0 ${activeModal.item.repairDate ? 'text-emerald-500' : 'text-slate-400'}`} />
-                                                                    <div className="flex-1">
-                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">修復完成日期</label>
-                                                                        <div className={`font-mono text-sm font-bold ${activeModal.item.repairDate ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                                                            {activeModal.item.repairDate
-                                                                                ? new Date(activeModal.item.repairDate).toLocaleDateString(language)
-                                                                                : '尚未修復'
-                                                                            }
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => setEditingHealthIndicator(null)}
+                                                        className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors"
+                                                    >
+                                                        {t('cancel')}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (!editingHealthIndicator.buildingName || !editingHealthIndicator.equipmentName || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
+                                                                alert(t('fillAllFields'));
+                                                                return;
+                                                            }
+                                                            handleSaveHealthIndicator();
+                                                        }}
+                                                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
+                                                    >
+                                                        {t('saveSettings')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
 
-                                                                {/* Repair Notes */}
+                                        {/* List View */}
+                                        <div className="space-y-3">
+                                            {healthIndicators.length === 0 ? (
+                                                <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
+                                                    {t('noHealthIndicators')}
+                                                </div>
+                                            ) : (
+                                                healthIndicators.map(indicator => {
+                                                    const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
+                                                    const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                                    const isExpired = remainingDays < 0;
+
+                                                    return (
+                                                        <div key={indicator.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-indigo-200 hover:shadow-md transition-all">
+                                                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
                                                                 <div className="flex items-start gap-3">
-                                                                    <FileText className="w-4 h-4 text-slate-400 mt-1 shrink-0" />
-                                                                    <div className="flex-1">
-                                                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">修復處置說明</label>
-                                                                        <div className="text-sm text-slate-700 leading-relaxed">{activeModal.item.repairNotes || '-'}</div>
+                                                                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                                                                        <Database className="w-5 h-5" />
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('equipmentDetails')}</div>
+                                                                        <div className="font-bold text-slate-700 truncate text-sm">
+                                                                            {indicator.buildingName}
+                                                                            <span className="text-slate-300 mx-2">|</span>
+                                                                            {indicator.equipmentName}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
+
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-500 transition-colors">
+                                                                        <Clock className="w-5 h-5" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('remainingDays')}</div>
+                                                                        <div className="flex items-baseline gap-1">
+                                                                            <span className="font-black text-slate-700 text-base">{totalDays}</span>
+                                                                            <span className="text-xs font-bold text-slate-500">{t('days')}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-50 justify-end md:justify-start">
+                                                                <button
+                                                                    onClick={() => setEditingHealthIndicator(indicator)}
+                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                                    title="編輯"
+                                                                >
+                                                                    <Edit2 className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                                    title={t('delete')}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     );
-                                                })()}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Modal Footer */}
-                                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
-                                        <button
-                                            onClick={() => setActiveModal(null)}
-                                            className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all shadow-lg shadow-slate-200"
-                                        >
-                                            關閉視窗
-                                        </button>
+                                                })
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Modal Footer */}
+                                <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                                    <button
+                                        onClick={() => setIsHealthModalOpen(false)}
+                                        className="px-6 py-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl font-bold hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                                    >
+                                        {t('close')}
+                                    </button>
+                                </div>
                             </div>
-                        )
-                    }
+                        </div>
+                    )
+                }
+                {
+                    isSettingsOpen && (
+                        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                                {/* Header */}
+                                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                    <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                        <Settings className="w-5 h-5 mr-2" />
+                                        {t('systemSettings')}
+                                    </h3>
+                                    <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                        <X className="w-5 h-5 text-slate-500" />
+                                    </button>
+                                </div>
 
-                    {/* FAB (Maintained for quick access) */}
-                    <button
-                        onClick={onCreateNew}
-                        className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
-                        style={{ backgroundColor: THEME_COLORS.primary }}
-                        aria-label="新增檢查"
-                    >
-                        <Plus className="w-7 h-7" />
-                    </button>
+                                {/* Tabs */}
+                                <div className="flex border-b border-slate-100 shrink-0">
+                                    <button
+                                        onClick={() => setSettingsTab('PROFILE')}
+                                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                    >
+                                        <User className="w-4 h-4 mr-2" /> {t('profile')}
+                                    </button>
 
-                    {/* Health Modal */}
-                    {
-                        isHealthModalOpen && (
-                            <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
-                                    {/* Header */}
-                                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                                        <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                            <Activity className="w-5 h-5 mr-2 text-red-500" />
-                                            {t('healthIndicatorSettings')}
-                                        </h3>
-                                        <button onClick={() => setIsHealthModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
-                                            <X className="w-5 h-5 text-slate-500" />
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={() => setSettingsTab('LANGUAGE')}
+                                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                    >
+                                        <Globe className="w-4 h-4 mr-2" /> {t('language')}
+                                    </button>
+                                    <button
+                                        onClick={() => setSettingsTab('GENERAL')}
+                                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                    >
+                                        <Palette className="w-4 h-4 mr-2" /> {t('background')}
+                                    </button>
+                                    <button
+                                        onClick={() => setSettingsTab('LIGHTS')}
+                                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                    >
+                                        <Zap className="w-4 h-4 mr-2" /> {t('lights')}
+                                    </button>
+                                    <button
+                                        onClick={() => setSettingsTab('DECLARATION')}
+                                        className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                    >
+                                        <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
+                                    </button>
 
-                                    {/* Content */}
-                                    <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+
+
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+
+                                    {/* PROFILE TAB */}
+                                    {settingsTab === 'PROFILE' && (
                                         <div className="space-y-6">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h4 className="font-bold text-slate-700">{t('indicatorList')}</h4>
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('changeAvatar')}</label>
+                                                <div className="flex items-center justify-center mb-4">
+                                                    <div className="w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-md relative group">
+                                                        <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                                                        {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs text-center z-10 px-1">{t('uploading')}</div>}
+
+                                                        {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
+                                                            <button
+                                                                onClick={handleDeleteAvatar}
+                                                                className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <Trash2 className="w-6 h-6 text-white" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-5 gap-2">
+                                                    {CARTOON_AVATARS.map((url, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            onClick={() => setSelectedAvatar(url)}
+                                                            className={`rounded-full overflow-hidden border-2 transition-all hover: scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'} `}
+                                                        >
+                                                            <img src={url} alt={`Avatar ${idx} `} className="w-full h-full" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {!user.isGuest && (
+                                                    <div className="mt-2">
+                                                        <input
+                                                            type="file"
+                                                            ref={fileInputRef}
+                                                            onChange={handleFileUpload}
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                        />
+                                                        <button
+                                                            onClick={() => fileInputRef.current?.click()}
+                                                            disabled={isUpdating}
+                                                            className="w-full py-2 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center"
+                                                        >
+                                                            <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
+                                                        </button>
+                                                        <div className="mt-1 text-center">
+                                                            <span className="text-xs text-red-500 font-bold">{t('fileSizeLimit')}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('displayName')}</label>
+                                                <input
+                                                    type="text"
+                                                    value={displayName}
+                                                    onChange={(e) => setDisplayName(e.target.value)}
+                                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
+                                                    disabled={user.isGuest}
+                                                />
+                                            </div>
+
+                                            {!user.isGuest && (
                                                 <button
-                                                    onClick={() => setEditingHealthIndicator({} as HealthIndicator)}
-                                                    className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm shadow-red-200"
+                                                    onClick={handleUpdateProfile}
+                                                    disabled={isUpdating}
+                                                    className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
                                                 >
-                                                    <Plus className="w-4 h-4" /> {t('addIndicator')}
+                                                    {isUpdating ? 'Updating...' : t('saveChanges')}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                    )}
+
+                                    {/* NOTIFICATIONS TAB */}
+                                    {settingsTab === 'NOTIFICATIONS' && (
+                                        <div className="space-y-6">
+                                            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
+                                                <div className="flex items-start">
+                                                    <Info className="w-5 h-5 text-blue-600 mr-2 shrink-0 mt-0.5" />
+                                                    <p className="text-sm text-blue-700">
+                                                        設定接收檢查報告和異常通知的電子郵件地址。
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                                    <div>
+                                                        <h4 className="font-bold text-slate-800">{t('enableEmailNotifications')}</h4>
+                                                        <p className="text-xs text-slate-500 mt-1">{t('emailNotificationsDesc')}</p>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={declarationSettings.emailNotificationsEnabled}
+                                                            onChange={(e) => setDeclarationSettings(prev => ({
+                                                                ...prev,
+                                                                emailNotificationsEnabled: e.target.checked
+                                                            }))}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                                    </label>
+                                                </div>
+
+                                                {declarationSettings.emailNotificationsEnabled && (
+                                                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('recipientEmails')}</label>
+                                                        <textarea
+                                                            value={declarationSettings.emailRecipients.join(', ')}
+                                                            onChange={(e) => setDeclarationSettings(prev => ({
+                                                                ...prev,
+                                                                emailRecipients: e.target.value.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)
+                                                            }))}
+                                                            placeholder="example@company.com, manager@company.com"
+                                                            rows={3}
+                                                            className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                                                        />
+                                                        <p className="text-xs text-slate-400">
+                                                            {t('emailNote')}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        // Trigger existing save logic
+                                                        handleSaveSettings(declarationSettings);
+                                                        alert(t('notificationSettingsSaved'));
+                                                    }}
+                                                    className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+                                                >
+                                                    <Save className="w-4 h-4" />
+                                                    {t('saveNotificationSettings')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {settingsTab === 'LANGUAGE' && (
+                                        <div className="space-y-6">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    {[
+                                                        { code: 'zh-TW', name: '繁體中文' },
+                                                        { code: 'en', name: 'English' },
+                                                        { code: 'ko', name: '\uD55C\uAD6D\uC5B4' },
+                                                        { code: 'ja', name: '\u65E5\u672C\u8A9E' }
+                                                    ].map((lang) => (
+                                                        <button
+                                                            key={lang.code}
+                                                            onClick={() => {
+                                                                const newLang = lang.code as LanguageCode;
+                                                                setLanguage(newLang);
+                                                                // Use the new language's translations for notification
+                                                                const langNames = {
+                                                                    'zh-TW': '繁體中文',
+                                                                    'en': 'English',
+                                                                    'ko': '한국어',
+                                                                    'ja': '日本語'
+                                                                };
+                                                                const titles = {
+                                                                    'zh-TW': '語言已變更',
+                                                                    'en': 'Language Changed',
+                                                                    'ko': '언어가 변경되었습니다',
+                                                                    'ja': '言語が変更されました'
+                                                                };
+                                                                const descs = {
+                                                                    'zh-TW': `系統語言已切換為 ${langNames[newLang]}`,
+                                                                    'en': `System language switched to ${langNames[newLang]}`,
+                                                                    'ko': `시스템 언어가 ${langNames[newLang]}(으)로 전환되었습니다`,
+                                                                    'ja': `システム言語が${langNames[newLang]}に切り替わりました`
+                                                                };
+                                                                addNotification('profile', titles[newLang], descs[newLang]);
+                                                            }}
+                                                            className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
+                                                        >
+                                                            <span className="font-bold text-base">{lang.name}</span>
+                                                            {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* GENERAL TAB */}
+                                    {settingsTab === 'GENERAL' && (
+                                        <div className="space-y-6">
+                                            {/* Theme Settings */}
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-slate-500 uppercase">{t('themeColor')}</label>
+                                                <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                                                    {[
+                                                        { id: 'light', icon: <Sun className="w-4 h-4" />, label: 'Light+', color: 'bg-[#f3f3f3]' },
+                                                        { id: 'dark', icon: <Moon className="w-4 h-4" />, label: 'Dark+', color: 'bg-[#1e1e1e]' },
+                                                        { id: 'monokai', icon: <Palette className="w-4 h-4" />, label: 'Monokai', color: 'bg-[#272822]' },
+                                                        { id: 'solarized', icon: <Droplets className="w-4 h-4" />, label: 'Solarized', color: 'bg-[#002b36]' },
+                                                        { id: 'dracula', icon: <Sparkles className="w-4 h-4" />, label: 'Dracula', color: 'bg-[#282a36]' },
+                                                        { id: 'nord', icon: <Leaf className="w-4 h-4" />, label: 'Nord', color: 'bg-[#2e3440]' },
+                                                        { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: 'One Dark', color: 'bg-[#282c34]' },
+                                                        { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('followSystemTheme'), color: 'bg-gradient-to-br from-white to-slate-900' }
+                                                    ].map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            onClick={() => {
+                                                                setTheme(item.id as ThemeType);
+                                                                addNotification('profile', t('themeChanged'), t('themeChangedDesc', { theme: item.label }));
+                                                            }}
+                                                            className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
+                                                            title={item.label}
+                                                        >
+                                                            <div className={`w-8 h-8 rounded-xl shadow-sm border border-black/5 flex items-center justify-center ${item.color} ${theme === item.id ? '' : ''} `}>
+                                                                {React.cloneElement(item.icon as React.ReactElement, {
+                                                                    className: `w-4 h-4 ${['light', 'system'].includes(item.id) && theme !== item.id ? 'text-slate-600' : 'text-white'}`
+                                                                })}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-500 line-clamp-1 px-1">{item.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+
+                                            <div className="pt-4 border-t border-slate-100 space-y-3">
+                                                <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left text-sm font-medium text-slate-700">
+                                                    <span>{t('appVersion')}</span>
+                                                    <span className="text-slate-400">v1.1.0 (Pro)</span>
+                                                </button>
+                                                <button
+                                                    onClick={handleClearCache}
+                                                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 transition-colors text-left text-sm font-medium text-red-600"
+                                                >
+                                                    <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {t('clearCache')}</span>
                                                 </button>
                                             </div>
 
-                                            {editingHealthIndicator && (
-                                                <div className="bg-white p-6 rounded-2xl border-l-4 border-l-indigo-500 shadow-lg shadow-indigo-100/50 mb-8 animate-in fade-in slide-in-from-top-2 relative">
-                                                    <h5 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                                        <Edit2 className="w-4 h-4" />
-                                                        {editingHealthIndicator.id ? t('editIndicator') : t('addIndicator')}
-                                                    </h5>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('buildingName')}</label>
-                                                            <input
-                                                                type="text"
-                                                                value={editingHealthIndicator.buildingName || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, buildingName: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                                placeholder={t('enterBuildingName')}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('equipmentName')}</label>
-                                                            <input
-                                                                type="text"
-                                                                value={editingHealthIndicator.equipmentName || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, equipmentName: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                                placeholder={t('enterEquipmentName')}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('validityStartDate')}</label>
-                                                            <input
-                                                                type="date"
-                                                                value={editingHealthIndicator.startDate || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, startDate: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('validityEndDate')}</label>
-                                                            <input
-                                                                type="date"
-                                                                value={editingHealthIndicator.endDate || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, endDate: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                            />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Calculation Preview */}
-                                                    {editingHealthIndicator.startDate && editingHealthIndicator.endDate && (
-                                                        <div className="mb-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between group hover:bg-indigo-50 transition-colors">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center border border-indigo-200">
-                                                                    <Clock className="w-5 h-5" />
-                                                                </div>
-                                                                <div>
-                                                                    <span className="text-xs font-bold text-indigo-400 block mb-0.5">{t('remainingDays')} ({t('totalDays')})</span>
-                                                                    <div className="flex items-baseline gap-1">
-                                                                        <span className="text-2xl font-black text-indigo-900 tracking-tight">
-                                                                            {Math.max(1, Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date(editingHealthIndicator.startDate).getTime()) / (1000 * 60 * 60 * 24)))}
-                                                                        </span>
-                                                                        <span className="text-sm font-bold text-indigo-600">{t('days')}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={() => setEditingHealthIndicator(null)}
-                                                            className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors"
-                                                        >
-                                                            {t('cancel')}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                if (!editingHealthIndicator.buildingName || !editingHealthIndicator.equipmentName || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
-                                                                    alert(t('fillAllFields'));
-                                                                    return;
-                                                                }
-                                                                handleSaveHealthIndicator();
-                                                            }}
-                                                            className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
-                                                        >
-                                                            {t('saveSettings')}
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* List View */}
-                                            <div className="space-y-3">
-                                                {healthIndicators.length === 0 ? (
-                                                    <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-slate-200 border-dashed">
-                                                        {t('noHealthIndicators')}
-                                                    </div>
-                                                ) : (
-                                                    healthIndicators.map(indicator => {
-                                                        const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
-                                                        const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                                        const isExpired = remainingDays < 0;
-
-                                                        return (
-                                                            <div key={indicator.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-indigo-200 hover:shadow-md transition-all">
-                                                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                                                            <Database className="w-5 h-5" />
-                                                                        </div>
-                                                                        <div className="min-w-0">
-                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('equipmentDetails')}</div>
-                                                                            <div className="font-bold text-slate-700 truncate text-sm">
-                                                                                {indicator.buildingName}
-                                                                                <span className="text-slate-300 mx-2">|</span>
-                                                                                {indicator.equipmentName}
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-500 transition-colors">
-                                                                            <Clock className="w-5 h-5" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('remainingDays')}</div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <span className="font-black text-slate-700 text-base">{totalDays}</span>
-                                                                                <span className="text-xs font-bold text-slate-500">{t('days')}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-50 justify-end md:justify-start">
-                                                                    <button
-                                                                        onClick={() => setEditingHealthIndicator(indicator)}
-                                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                        title="編輯"
-                                                                    >
-                                                                        <Edit2 className="w-4 h-4" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                                        title={t('delete')}
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })
-                                                )}
+                                            <div className="pt-2">
+                                                <button
+                                                    onClick={onLogout}
+                                                    className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-300 transition-colors flex items-center justify-center"
+                                                >
+                                                    <LogOut className="w-4 h-4 mr-2" />
+                                                    {user.isGuest ? t('leaveGuest') : t('logout')}
+                                                </button>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
 
-                                    {/* Modal Footer */}
-                                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
-                                        <button
-                                            onClick={() => setIsHealthModalOpen(false)}
-                                            className="px-6 py-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl font-bold hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
-                                        >
-                                            {t('close')}
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-                    {
-                        isSettingsOpen && (
-                            <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
-                                    {/* Header */}
-                                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                                        <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                            <Settings className="w-5 h-5 mr-2" />
-                                            {t('systemSettings')}
-                                        </h3>
-                                        <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
-                                            <X className="w-5 h-5 text-slate-500" />
-                                        </button>
-                                    </div>
+                                    {/* LIGHTS TAB */}
+                                    {settingsTab === 'LIGHTS' && (
+                                        <div className="space-y-6">
+                                            <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex gap-3">
+                                                <Zap className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-bold text-blue-900">{t('lightSettings')}</p>
+                                                    <p className="text-xs text-blue-700 leading-relaxed">
+                                                        {t('lightSettingsDesc')}
+                                                    </p>
+                                                </div>
+                                            </div>
 
-                                    {/* Tabs */}
-                                    <div className="flex border-b border-slate-100 shrink-0">
-                                        <button
-                                            onClick={() => setSettingsTab('PROFILE')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                                        >
-                                            <User className="w-4 h-4 mr-2" /> {t('profile')}
-                                        </button>
-
-                                        <button
-                                            onClick={() => setSettingsTab('LANGUAGE')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Globe className="w-4 h-4 mr-2" /> {t('language')}
-                                        </button>
-                                        <button
-                                            onClick={() => setSettingsTab('GENERAL')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Palette className="w-4 h-4 mr-2" /> {t('background')}
-                                        </button>
-                                        <button
-                                            onClick={() => setSettingsTab('LIGHTS')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Zap className="w-4 h-4 mr-2" /> {t('lights')}
-                                        </button>
-                                        <button
-                                            onClick={() => setSettingsTab('DECLARATION')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
-                                        </button>
-
-
-
-                                    </div>
-
-                                    {/* Content */}
-                                    <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-
-                                        {/* PROFILE TAB */}
-                                        {settingsTab === 'PROFILE' && (
-                                            <div className="space-y-6">
+                                            {!lightSettings ? (
+                                                <div className="py-10 text-center flex justify-center">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                                </div>
+                                            ) : (
                                                 <div className="space-y-3">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('changeAvatar')}</label>
-                                                    <div className="flex items-center justify-center mb-4">
-                                                        <div className="w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-md relative group">
-                                                            <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                                                            {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs text-center z-10 px-1">{t('uploading')}</div>}
-
-                                                            {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
-                                                                <button
-                                                                    onClick={handleDeleteAvatar}
-                                                                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                >
-                                                                    <Trash2 className="w-6 h-6 text-white" />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-5 gap-2">
-                                                        {CARTOON_AVATARS.map((url, idx) => (
-                                                            <button
-                                                                key={idx}
-                                                                onClick={() => setSelectedAvatar(url)}
-                                                                className={`rounded-full overflow-hidden border-2 transition-all hover: scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'} `}
-                                                            >
-                                                                <img src={url} alt={`Avatar ${idx} `} className="w-full h-full" />
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                    {!user.isGuest && (
-                                                        <div className="mt-2">
-                                                            <input
-                                                                type="file"
-                                                                ref={fileInputRef}
-                                                                onChange={handleFileUpload}
-                                                                accept="image/*"
-                                                                className="hidden"
-                                                            />
-                                                            <button
-                                                                onClick={() => fileInputRef.current?.click()}
-                                                                disabled={isUpdating}
-                                                                className="w-full py-2 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center"
-                                                            >
-                                                                <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
-                                                            </button>
-                                                            <div className="mt-1 text-center">
-                                                                <span className="text-xs text-red-500 font-bold">{t('fileSizeLimit')}</span>
+                                                    {/* Grid Layout for Light Settings */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        {/* Abnormal Recheck */}
+                                                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-sm font-bold text-orange-700 flex items-center gap-1.5">
+                                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
+                                                                    {t('abnormalLight')}
+                                                                </span>
+                                                                <input
+                                                                    type="color"
+                                                                    value={lightSettings.abnormal?.color || '#f97316'}
+                                                                    onChange={e => setLightSettings({ ...lightSettings, abnormal: { color: e.target.value } })}
+                                                                    className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                                                />
+                                                            </div>
+                                                            <div className="text-xs text-slate-500">
+                                                                {t('abnormalColorDesc')}
                                                             </div>
                                                         </div>
-                                                    )}
-                                                </div>
 
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('displayName')}</label>
-                                                    <input
-                                                        type="text"
-                                                        value={displayName}
-                                                        onChange={(e) => setDisplayName(e.target.value)}
-                                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
-                                                        disabled={user.isGuest}
-                                                    />
-                                                </div>
-
-                                                {!user.isGuest && (
-                                                    <button
-                                                        onClick={handleUpdateProfile}
-                                                        disabled={isUpdating}
-                                                        className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
-                                                    >
-                                                        {isUpdating ? 'Updating...' : t('saveChanges')}
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                        )}
-
-                                        {/* NOTIFICATIONS TAB */}
-                                        {settingsTab === 'NOTIFICATIONS' && (
-                                            <div className="space-y-6">
-                                                <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg">
-                                                    <div className="flex items-start">
-                                                        <Info className="w-5 h-5 text-blue-600 mr-2 shrink-0 mt-0.5" />
-                                                        <p className="text-sm text-blue-700">
-                                                            設定接收檢查報告和異常通知的電子郵件地址。
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-4">
-                                                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                                        <div>
-                                                            <h4 className="font-bold text-slate-800">{t('enableEmailNotifications')}</h4>
-                                                            <p className="text-xs text-slate-500 mt-1">{t('emailNotificationsDesc')}</p>
+                                                        {/* Red */}
+                                                        <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-sm font-bold text-red-700 flex items-center gap-1.5">
+                                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.red.color }}></div>
+                                                                    {t('needCheck')}
+                                                                </span>
+                                                                <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
+                                                                <input type="number" value={lightSettings.red.days} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-red-200 rounded text-center font-bold text-red-700 focus:outline-none focus:border-red-500" />
+                                                                <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
+                                                            </div>
                                                         </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={declarationSettings.emailNotificationsEnabled}
-                                                                onChange={(e) => setDeclarationSettings(prev => ({
-                                                                    ...prev,
-                                                                    emailNotificationsEnabled: e.target.checked
-                                                                }))}
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
-                                                        </label>
-                                                    </div>
 
-                                                    {declarationSettings.emailNotificationsEnabled && (
-                                                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                            <label className="text-xs font-bold text-slate-500 uppercase">{t('recipientEmails')}</label>
-                                                            <textarea
-                                                                value={declarationSettings.emailRecipients.join(', ')}
-                                                                onChange={(e) => setDeclarationSettings(prev => ({
-                                                                    ...prev,
-                                                                    emailRecipients: e.target.value.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean)
-                                                                }))}
-                                                                placeholder="example@company.com, manager@company.com"
-                                                                rows={3}
-                                                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
-                                                            />
-                                                            <p className="text-xs text-slate-400">
-                                                                {t('emailNote')}
-                                                            </p>
+                                                        {/* Yellow */}
+                                                        <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-sm font-bold text-amber-700 flex items-center gap-1.5">
+                                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.yellow.color }}></div>
+                                                                    {t('canCheck')}
+                                                                </span>
+                                                                <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                            </div>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
+                                                                <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-amber-200 rounded text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
+                                                                <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
+                                                                <span className="text-xs text-slate-400">({t('andGt')} {lightSettings.red.days})</span>
+                                                            </div>
                                                         </div>
-                                                    )}
+
+                                                        {/* Green */}
+                                                        <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
+                                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.green.color }}></div>
+                                                                    {t('noNeedCheck')}
+                                                                </span>
+                                                                <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
+                                                            </div>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-xs text-slate-600 font-medium">{t('remainingDaysGe')}</span>
+                                                                <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-emerald-200 rounded text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
+                                                                <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
+                                                                <span className="text-xs text-slate-400">({t('systemJudgedGt')} {lightSettings.yellow.days})</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Completed (Normal) */}
+                                                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 md:col-span-2">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
+                                                                    <span className="text-sm font-bold text-blue-700">{t('completedCheck')}</span>
+                                                                    <span className="text-xs text-slate-500">{t('completedCheckDesc')}</span>
+                                                                </div>
+                                                                <input
+                                                                    type="color"
+                                                                    value={lightSettings.completed?.color || '#10b981'}
+                                                                    onChange={e => setLightSettings({ ...lightSettings, completed: { color: e.target.value } })}
+                                                                    className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
                                                     <button
-                                                        onClick={() => {
-                                                            // Trigger existing save logic
-                                                            handleSaveSettings(declarationSettings);
-                                                            alert(t('notificationSettingsSaved'));
+                                                        onClick={async () => {
+                                                            if (!user?.uid || !lightSettings) return;
+                                                            setSavingLights(true);
+                                                            try {
+                                                                await StorageService.saveLightSettings(lightSettings, user.uid);
+                                                                addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
+                                                                alert(t('settingsSaved'));
+                                                            } catch (error) {
+                                                                console.error('Failed to save light settings:', error);
+                                                                alert(t('saveFailed'));
+                                                            } finally {
+                                                                setSavingLights(false);
+                                                            }
                                                         }}
-                                                        className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 flex items-center justify-center gap-2"
+                                                        disabled={savingLights}
+                                                        className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
                                                     >
-                                                        <Save className="w-4 h-4" />
-                                                        {t('saveNotificationSettings')}
+                                                        {savingLights ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                                                {t('saving')}
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <Save className="w-4 h-4" />
+                                                                {t('saveSettings')}
+                                                            </>
+                                                        )}
                                                     </button>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
+                                    )}
 
-                                        {settingsTab === 'LANGUAGE' && (
-                                            <div className="space-y-6">
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('language')}</label>
-                                                    <div className="grid grid-cols-1 gap-3">
-                                                        {[
-                                                            { code: 'zh-TW', name: '繁體中文' },
-                                                            { code: 'en', name: 'English' },
-                                                            { code: 'ko', name: '\uD55C\uAD6D\uC5B4' },
-                                                            { code: 'ja', name: '\u65E5\u672C\u8A9E' }
-                                                        ].map((lang) => (
-                                                            <button
-                                                                key={lang.code}
-                                                                onClick={() => {
-                                                                    const newLang = lang.code as LanguageCode;
-                                                                    setLanguage(newLang);
-                                                                    // Use the new language's translations for notification
-                                                                    const langNames = {
-                                                                        'zh-TW': '繁體中文',
-                                                                        'en': 'English',
-                                                                        'ko': '한국어',
-                                                                        'ja': '日本語'
-                                                                    };
-                                                                    const titles = {
-                                                                        'zh-TW': '語言已變更',
-                                                                        'en': 'Language Changed',
-                                                                        'ko': '언어가 변경되었습니다',
-                                                                        'ja': '言語が変更されました'
-                                                                    };
-                                                                    const descs = {
-                                                                        'zh-TW': `系統語言已切換為 ${langNames[newLang]}`,
-                                                                        'en': `System language switched to ${langNames[newLang]}`,
-                                                                        'ko': `시스템 언어가 ${langNames[newLang]}(으)로 전환되었습니다`,
-                                                                        'ja': `システム言語が${langNames[newLang]}に切り替わりました`
-                                                                    };
-                                                                    addNotification('profile', titles[newLang], descs[newLang]);
-                                                                }}
-                                                                className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
-                                                            >
-                                                                <span className="font-bold text-base">{lang.name}</span>
-                                                                {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
-                                                            </button>
-                                                        ))}
-                                                    </div>
+
+
+                                    {/* DECLARATION TAB */}
+                                    {settingsTab === 'DECLARATION' && (
+                                        <div className="space-y-6 animate-in fade-in duration-300">
+                                            <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex gap-3">
+                                                <Calendar className="w-12 h-12 text-red-500 shrink-0 p-2 bg-white rounded-xl shadow-sm" />
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-bold text-red-900">{t('declarationTitle')}</p>
+                                                    <p className="text-xs text-red-700 leading-relaxed">
+                                                        {t('declarationDesc')}
+                                                    </p>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* GENERAL TAB */}
-                                        {settingsTab === 'GENERAL' && (
-                                            <div className="space-y-6">
-                                                {/* Theme Settings */}
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('themeColor')}</label>
-                                                    <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
-                                                        {[
-                                                            { id: 'light', icon: <Sun className="w-4 h-4" />, label: 'Light+', color: 'bg-[#f3f3f3]' },
-                                                            { id: 'dark', icon: <Moon className="w-4 h-4" />, label: 'Dark+', color: 'bg-[#1e1e1e]' },
-                                                            { id: 'monokai', icon: <Palette className="w-4 h-4" />, label: 'Monokai', color: 'bg-[#272822]' },
-                                                            { id: 'solarized', icon: <Droplets className="w-4 h-4" />, label: 'Solarized', color: 'bg-[#002b36]' },
-                                                            { id: 'dracula', icon: <Sparkles className="w-4 h-4" />, label: 'Dracula', color: 'bg-[#282a36]' },
-                                                            { id: 'nord', icon: <Leaf className="w-4 h-4" />, label: 'Nord', color: 'bg-[#2e3440]' },
-                                                            { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: 'One Dark', color: 'bg-[#282c34]' },
-                                                            { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('followSystemTheme'), color: 'bg-gradient-to-br from-white to-slate-900' }
-                                                        ].map((item) => (
-                                                            <button
-                                                                key={item.id}
-                                                                onClick={() => {
-                                                                    setTheme(item.id as ThemeType);
-                                                                    addNotification('profile', t('themeChanged'), t('themeChangedDesc', { theme: item.label }));
-                                                                }}
-                                                                className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
-                                                                title={item.label}
-                                                            >
-                                                                <div className={`w-8 h-8 rounded-xl shadow-sm border border-black/5 flex items-center justify-center ${item.color} ${theme === item.id ? '' : ''} `}>
-                                                                    {React.cloneElement(item.icon as React.ReactElement, {
-                                                                        className: `w-4 h-4 ${['light', 'system'].includes(item.id) && theme !== item.id ? 'text-slate-600' : 'text-white'}`
-                                                                    })}
-                                                                </div>
-                                                                <span className="text-[10px] font-bold text-slate-500 line-clamp-1 px-1">{item.label}</span>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-
-                                                <div className="pt-4 border-t border-slate-100 space-y-3">
-                                                    <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left text-sm font-medium text-slate-700">
-                                                        <span>{t('appVersion')}</span>
-                                                        <span className="text-slate-400">v1.1.0 (Pro)</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={handleClearCache}
-                                                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 transition-colors text-left text-sm font-medium text-red-600"
-                                                    >
-                                                        <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {t('clearCache')}</span>
-                                                    </button>
-                                                </div>
-
-                                                <div className="pt-2">
-                                                    <button
-                                                        onClick={onLogout}
-                                                        className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-300 transition-colors flex items-center justify-center"
-                                                    >
-                                                        <LogOut className="w-4 h-4 mr-2" />
-                                                        {user.isGuest ? t('leaveGuest') : t('logout')}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* LIGHTS TAB */}
-                                        {settingsTab === 'LIGHTS' && (
-                                            <div className="space-y-6">
-                                                <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex gap-3">
-                                                    <Zap className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                                                    <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-blue-900">{t('lightSettings')}</p>
-                                                        <p className="text-xs text-blue-700 leading-relaxed">
-                                                            {t('lightSettingsDesc')}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {!lightSettings ? (
-                                                    <div className="py-10 text-center flex justify-center">
-                                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-3">
-                                                        {/* Grid Layout for Light Settings */}
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                            {/* Abnormal Recheck */}
-                                                            <div className="bg-orange-50 p-3 rounded-lg border border-orange-100">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <span className="text-sm font-bold text-orange-700 flex items-center gap-1.5">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.abnormal?.color || '#f97316' }}></div>
-                                                                        {t('abnormalLight')}
-                                                                    </span>
-                                                                    <input
-                                                                        type="color"
-                                                                        value={lightSettings.abnormal?.color || '#f97316'}
-                                                                        onChange={e => setLightSettings({ ...lightSettings, abnormal: { color: e.target.value } })}
-                                                                        className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden"
-                                                                    />
-                                                                </div>
-                                                                <div className="text-xs text-slate-500">
-                                                                    {t('abnormalColorDesc')}
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Red */}
-                                                            <div className="bg-red-50 p-3 rounded-lg border border-red-100">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <span className="text-sm font-bold text-red-700 flex items-center gap-1.5">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.red.color }}></div>
-                                                                        {t('needCheck')}
-                                                                    </span>
-                                                                    <input type="color" value={lightSettings.red.color} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
-                                                                    <input type="number" value={lightSettings.red.days} onChange={e => setLightSettings({ ...lightSettings, red: { ...lightSettings.red, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-red-200 rounded text-center font-bold text-red-700 focus:outline-none focus:border-red-500" />
-                                                                    <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Yellow */}
-                                                            <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <span className="text-sm font-bold text-amber-700 flex items-center gap-1.5">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.yellow.color }}></div>
-                                                                        {t('canCheck')}
-                                                                    </span>
-                                                                    <input type="color" value={lightSettings.yellow.color} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
-                                                                </div>
-                                                                <div className="flex items-center gap-2 flex-wrap">
-                                                                    <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
-                                                                    <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-amber-200 rounded text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
-                                                                    <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
-                                                                    <span className="text-xs text-slate-400">({t('andGt')} {lightSettings.red.days})</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Green */}
-                                                            <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <span className="text-sm font-bold text-emerald-700 flex items-center gap-1.5">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.green.color }}></div>
-                                                                        {t('noNeedCheck')}
-                                                                    </span>
-                                                                    <input type="color" value={lightSettings.green.color} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, color: e.target.value } })} className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden" />
-                                                                </div>
-                                                                <div className="flex items-center gap-2 flex-wrap">
-                                                                    <span className="text-xs text-slate-600 font-medium">{t('remainingDaysGe')}</span>
-                                                                    <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-emerald-200 rounded text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
-                                                                    <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
-                                                                    <span className="text-xs text-slate-400">({t('systemJudgedGt')} {lightSettings.yellow.days})</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Completed (Normal) */}
-                                                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 md:col-span-2">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: lightSettings.completed?.color || '#10b981' }}></div>
-                                                                        <span className="text-sm font-bold text-blue-700">{t('completedCheck')}</span>
-                                                                        <span className="text-xs text-slate-500">{t('completedCheckDesc')}</span>
-                                                                    </div>
-                                                                    <input
-                                                                        type="color"
-                                                                        value={lightSettings.completed?.color || '#10b981'}
-                                                                        onChange={e => setLightSettings({ ...lightSettings, completed: { color: e.target.value } })}
-                                                                        className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (!user?.uid || !lightSettings) return;
-                                                                setSavingLights(true);
-                                                                try {
-                                                                    await StorageService.saveLightSettings(lightSettings, user.uid);
-                                                                    addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
-                                                                    alert(t('settingsSaved'));
-                                                                } catch (error) {
-                                                                    console.error('Failed to save light settings:', error);
-                                                                    alert(t('saveFailed'));
-                                                                } finally {
-                                                                    setSavingLights(false);
-                                                                }
-                                                            }}
-                                                            disabled={savingLights}
-                                                            className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
-                                                        >
-                                                            {savingLights ? (
-                                                                <div className="flex items-center gap-2">
-                                                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                                                    {t('saving')}
-                                                                </div>
-                                                            ) : (
-                                                                <>
-                                                                    <Save className="w-4 h-4" />
-                                                                    {t('saveSettings')}
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-
-
-                                        {/* DECLARATION TAB */}
-                                        {settingsTab === 'DECLARATION' && (
-                                            <div className="space-y-6 animate-in fade-in duration-300">
-                                                <div className="bg-red-50 rounded-2xl p-4 border border-red-100 flex gap-3">
-                                                    <Calendar className="w-12 h-12 text-red-500 shrink-0 p-2 bg-white rounded-xl shadow-sm" />
-                                                    <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-red-900">{t('declarationTitle')}</p>
-                                                        <p className="text-xs text-red-700 leading-relaxed">
-                                                            {t('declarationDesc')}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
+                                            <div className="space-y-4">
                                                 <div className="space-y-4">
-                                                    <div className="space-y-4">
-                                                        <div>
-                                                            <label className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-2">
-                                                                <RefreshCw className="w-4 h-4 text-slate-400" />
-                                                                {t('declarationCycle')}
-                                                            </label>
-                                                            <div className="grid grid-cols-2 gap-3">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const newSettings: DeclarationSettings = {
-                                                                            ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
-                                                                            cycle: '6_MONTHS',
-                                                                            lastModified: Date.now()
-                                                                        };
-                                                                        handleSaveSettings(newSettings);
-                                                                    }}
-                                                                    className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${declarationSettings?.cycle === '6_MONTHS'
-                                                                        ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-100 ring-offset-1'
-                                                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                                                                        }`}
-                                                                >
-                                                                    <span className="font-bold">{t('halfYear')}</span>
-                                                                    {declarationSettings?.cycle === '6_MONTHS' && <Check className="w-4 h-4" />}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const newSettings: DeclarationSettings = {
-                                                                            ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
-                                                                            cycle: '1_YEAR',
-                                                                            lastModified: Date.now()
-                                                                        };
-                                                                        handleSaveSettings(newSettings);
-                                                                    }}
-                                                                    className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${declarationSettings?.cycle === '1_YEAR'
-                                                                        ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-100 ring-offset-1'
-                                                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                                                                        }`}
-                                                                >
-                                                                    <span className="font-bold">{t('oneYear')}</span>
-                                                                    {declarationSettings?.cycle === '1_YEAR' && <Check className="w-4 h-4" />}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-2">
-                                                                <Calendar className="w-4 h-4 text-slate-400" />
-                                                                {t('declarationBaseDate')}
-                                                            </label>
-                                                            <input
-                                                                type="date"
-                                                                value={declarationSettings?.nextDate || ''}
-                                                                onChange={(e) => {
+                                                    <div>
+                                                        <label className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-2">
+                                                            <RefreshCw className="w-4 h-4 text-slate-400" />
+                                                            {t('declarationCycle')}
+                                                        </label>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <button
+                                                                onClick={() => {
                                                                     const newSettings: DeclarationSettings = {
-                                                                        ...declarationSettings || { lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
-                                                                        nextDate: e.target.value,
+                                                                        ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+                                                                        cycle: '6_MONTHS',
                                                                         lastModified: Date.now()
                                                                     };
                                                                     handleSaveSettings(newSettings);
                                                                 }}
-                                                                className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all outline-none font-medium text-slate-700 shadow-sm"
-                                                            />
-                                                            <p className="text-xs text-slate-400 mt-2 pl-1">
-                                                                {t('declarationAutoCalc')}
-                                                            </p>
+                                                                className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${declarationSettings?.cycle === '6_MONTHS'
+                                                                    ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-100 ring-offset-1'
+                                                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                <span className="font-bold">{t('halfYear')}</span>
+                                                                {declarationSettings?.cycle === '6_MONTHS' && <Check className="w-4 h-4" />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newSettings: DeclarationSettings = {
+                                                                        ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+                                                                        cycle: '1_YEAR',
+                                                                        lastModified: Date.now()
+                                                                    };
+                                                                    handleSaveSettings(newSettings);
+                                                                }}
+                                                                className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${declarationSettings?.cycle === '1_YEAR'
+                                                                    ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-100 ring-offset-1'
+                                                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                                                    }`}
+                                                            >
+                                                                <span className="font-bold">{t('oneYear')}</span>
+                                                                {declarationSettings?.cycle === '1_YEAR' && <Check className="w-4 h-4" />}
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                                    <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-100">
-                                                        <History className="w-5 h-5 text-slate-400" />
-                                                    </div>
                                                     <div>
-                                                        <div className="text-xs font-bold text-slate-400">
-                                                            {t('lastUpdated')}
-                                                        </div>
-                                                        <div className="text-sm font-bold text-slate-700">
-                                                            {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : t('notSet')}
-                                                        </div>
+                                                        <label className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-2">
+                                                            <Calendar className="w-4 h-4 text-slate-400" />
+                                                            {t('declarationBaseDate')}
+                                                        </label>
+                                                        <input
+                                                            type="date"
+                                                            value={declarationSettings?.nextDate || ''}
+                                                            onChange={(e) => {
+                                                                const newSettings: DeclarationSettings = {
+                                                                    ...declarationSettings || { lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+                                                                    nextDate: e.target.value,
+                                                                    lastModified: Date.now()
+                                                                };
+                                                                handleSaveSettings(newSettings);
+                                                            }}
+                                                            className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all outline-none font-medium text-slate-700 shadow-sm"
+                                                        />
+                                                        <p className="text-xs text-slate-400 mt-2 pl-1">
+                                                            {t('declarationAutoCalc')}
+                                                        </p>
                                                     </div>
                                                 </div>
+                                            </div>
 
-                                                <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
-                                                    <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
-                                                        <Info className="w-4 h-4" />
-                                                        {t('regulationReminder')}
-                                                    </h5>
-                                                    <ul className="text-xs text-yellow-800/80 space-y-1 list-disc list-inside font-medium">
-                                                        <li>{t('regulationItem1')}</li>
-                                                        <li>{t('regulationItem2')}</li>
-                                                        <li>{t('regulationNote')}</li>
-                                                    </ul>
+                                            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                                                    <History className="w-5 h-5 text-slate-400" />
+                                                </div>
+                                                <div>
+                                                    <div className="text-xs font-bold text-slate-400">
+                                                        {t('lastUpdated')}
+                                                    </div>
+                                                    <div className="text-sm font-bold text-slate-700">
+                                                        {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : t('notSet')}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        )}
 
-                                        {/* HEALTH TAB */}
-
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    }
-
-
-                    <InspectionModeModal
-                        isOpen={isInspectionModeOpen}
-                        onClose={() => setIsInspectionModeOpen(false)}
-                        onSelectMode={handleInspectionModeSelect}
-                        t={t}
-                    />
-
-                    <AddEquipmentModeModal
-                        isOpen={isAddEquipmentModeOpen}
-                        onClose={() => setIsAddEquipmentModeOpen(false)}
-                        onSelectMode={handleAddEquipmentModeSelect}
-                        t={t}
-                    />
-
-                    {/* Quick Search QR Scanner */}
-                    <BarcodeInputModal
-                        isOpen={isQuickScanOpen}
-                        onScan={(code) => {
-                            setSearchTerm(code);
-                            setIsQuickScanOpen(false);
-                        }}
-                        onCancel={() => setIsQuickScanOpen(false)}
-                    // No expectedBarcode provided implies Search Mode
-                    />
-
-
-
-                    <MapViewInspection
-                        user={user}
-                        isOpen={isMapViewInspectionOpen}
-                        onClose={() => {
-                            setIsMapViewInspectionOpen(false);
-                            fetchReports(); // Refresh data when map view closes
-                        }}
-                    />
-
-                    {/* Forced Renewal Modal */}
-                    {
-                        renewalTarget && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200 border-t-4 border-red-500">
-                                    <div className="flex items-start gap-4 mb-6">
-                                        <div className="p-3 bg-red-100 rounded-full shrink-0">
-                                            <AlertTriangle className="w-8 h-8 text-red-600" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-slate-800">{t('equipmentExpiredTitle')}</h3>
-                                            <p className="text-sm text-slate-500 mt-1 font-bold">
-                                                {t('equipmentPrefix')} <span className="text-slate-900 bg-slate-100 px-1 rounded">{renewalTarget.equipmentName || renewalTarget.name || 'Unknown'}</span> {t('needsReplacement')}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <form onSubmit={(e) => {
-                                        e.preventDefault();
-                                        const formData = new FormData(e.currentTarget);
-                                        const replacementDate = formData.get('replacementDate') as string;
-                                        const newEndDate = formData.get('newEndDate') as string;
-                                        handleRenewalSubmit(replacementDate, newEndDate);
-                                    }} className="space-y-5">
-                                        <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-2">
-                                                    <Calendar className="w-4 h-4 text-emerald-500" />
-                                                    {t('replacementDate')}
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    name="replacementDate"
-                                                    required
-                                                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold text-slate-700"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-2">
-                                                    <Calendar className="w-4 h-4 text-rose-500" />
-                                                    {t('newExpiryDate')}
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    name="newEndDate"
-                                                    required
-                                                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none font-bold text-slate-700"
-                                                />
+                                            <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                                                <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">
+                                                    <Info className="w-4 h-4" />
+                                                    {t('regulationReminder')}
+                                                </h5>
+                                                <ul className="text-xs text-yellow-800/80 space-y-1 list-disc list-inside font-medium">
+                                                    <li>{t('regulationItem1')}</li>
+                                                    <li>{t('regulationItem2')}</li>
+                                                    <li>{t('regulationNote')}</li>
+                                                </ul>
                                             </div>
                                         </div>
+                                    )}
 
-                                        <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
-                                            <button
-                                                type="button"
-                                                onClick={handleRenewalCancel}
-                                                className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl font-bold transition-colors"
-                                            >
-                                                {t('remindLater')}
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                className="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95"
-                                            >
-                                                {t('confirmUpdate')}
-                                            </button>
-                                        </div>
-                                    </form>
+                                    {/* HEALTH TAB */}
+
                                 </div>
                             </div>
-                        )
-                    }
+                        </div>
+                    )
+                }
 
-                    {/* History Modal */}
-                    {
-                        viewingHistory && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-in zoom-in-95 duration-200">
-                                    <div className="flex justify-between items-start mb-6">
+
+                <InspectionModeModal
+                    isOpen={isInspectionModeOpen}
+                    onClose={() => setIsInspectionModeOpen(false)}
+                    onSelectMode={handleInspectionModeSelect}
+                    t={t}
+                />
+
+                <AddEquipmentModeModal
+                    isOpen={isAddEquipmentModeOpen}
+                    onClose={() => setIsAddEquipmentModeOpen(false)}
+                    onSelectMode={handleAddEquipmentModeSelect}
+                    t={t}
+                />
+
+                {/* Quick Search QR Scanner */}
+                <BarcodeInputModal
+                    isOpen={isQuickScanOpen}
+                    onScan={(code) => {
+                        setSearchTerm(code);
+                        setIsQuickScanOpen(false);
+                    }}
+                    onCancel={() => setIsQuickScanOpen(false)}
+                // No expectedBarcode provided implies Search Mode
+                />
+
+
+
+                <MapViewInspection
+                    user={user}
+                    isOpen={isMapViewInspectionOpen}
+                    onClose={() => {
+                        setIsMapViewInspectionOpen(false);
+                        fetchReports(); // Refresh data when map view closes
+                    }}
+                />
+
+                {/* Forced Renewal Modal */}
+                {
+                    renewalTarget && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200 border-t-4 border-red-500">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="p-3 bg-red-100 rounded-full shrink-0">
+                                        <AlertTriangle className="w-8 h-8 text-red-600" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800">{t('equipmentExpiredTitle')}</h3>
+                                        <p className="text-sm text-slate-500 mt-1 font-bold">
+                                            {t('equipmentPrefix')} <span className="text-slate-900 bg-slate-100 px-1 rounded">{renewalTarget.equipmentName || renewalTarget.name || 'Unknown'}</span> {t('needsReplacement')}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const formData = new FormData(e.currentTarget);
+                                    const replacementDate = formData.get('replacementDate') as string;
+                                    const newEndDate = formData.get('newEndDate') as string;
+                                    handleRenewalSubmit(replacementDate, newEndDate);
+                                }} className="space-y-5">
+                                    <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
                                         <div>
-                                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
-                                                <Clock className="w-6 h-6 text-slate-400" />
-                                                {t('replacementHistory')}
-                                            </h3>
-                                            <p className="text-sm text-slate-500 mt-1 font-bold">
-                                                {viewingHistory.equipmentName || viewingHistory.name}
-                                            </p>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-emerald-500" />
+                                                {t('replacementDate')}
+                                            </label>
+                                            <input
+                                                type="date"
+                                                name="replacementDate"
+                                                required
+                                                className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold text-slate-700"
+                                            />
                                         </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1.5 flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-rose-500" />
+                                                {t('newExpiryDate')}
+                                            </label>
+                                            <input
+                                                type="date"
+                                                name="newEndDate"
+                                                required
+                                                className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none font-bold text-slate-700"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
                                         <button
-                                            onClick={() => setViewingHistory(null)}
-                                            className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                                            type="button"
+                                            onClick={handleRenewalCancel}
+                                            className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl font-bold transition-colors"
                                         >
-                                            <X className="w-6 h-6 text-slate-400" />
+                                            {t('remindLater')}
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            className="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95"
+                                        >
+                                            {t('confirmUpdate')}
                                         </button>
                                     </div>
+                                </form>
+                            </div>
+                        </div>
+                    )
+                }
 
-                                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-4">
-                                        {isHistoryLoading ? (
-                                            <div className="py-12 flex justify-center items-center">
-                                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
-                                            </div>
-                                        ) : historyData.length === 0 ? (
-                                            <div className="text-center py-12 text-slate-400 font-bold">
-                                                {t('noReplacementRecords')}
-                                            </div>
-                                        ) : (
-                                            <div className="relative border-l-2 border-slate-100 ml-4 space-y-8 py-2">
-                                                {historyData.map((record, index) => (
-                                                    <div key={record.id} className="relative pl-6">
-                                                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-emerald-500" />
-                                                        <div className="space-y-2">
-                                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                                                <span className="font-bold text-slate-900">
-                                                                    {record.newStartDate.replace(/-/g, '/')}
-                                                                </span>
-                                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold">
-                                                                    {t('replacementOperation')}
-                                                                </span>
-                                                            </div>
-                                                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-sm space-y-2">
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <div>
-                                                                        <div className="text-xs text-slate-400 mb-1">{t('newStartEndDate')}</div>
-                                                                        <div className="font-bold text-slate-700">
-                                                                            {record.newStartDate} ~ {record.newEndDate}
-                                                                        </div>
+                {/* History Modal */}
+                {
+                    viewingHistory && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 animate-in zoom-in-95 duration-200">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                            <Clock className="w-6 h-6 text-slate-400" />
+                                            {t('replacementHistory')}
+                                        </h3>
+                                        <p className="text-sm text-slate-500 mt-1 font-bold">
+                                            {viewingHistory.equipmentName || viewingHistory.name}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setViewingHistory(null)}
+                                        className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                                    >
+                                        <X className="w-6 h-6 text-slate-400" />
+                                    </button>
+                                </div>
+
+                                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-4">
+                                    {isHistoryLoading ? (
+                                        <div className="py-12 flex justify-center items-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-400"></div>
+                                        </div>
+                                    ) : historyData.length === 0 ? (
+                                        <div className="text-center py-12 text-slate-400 font-bold">
+                                            {t('noReplacementRecords')}
+                                        </div>
+                                    ) : (
+                                        <div className="relative border-l-2 border-slate-100 ml-4 space-y-8 py-2">
+                                            {historyData.map((record, index) => (
+                                                <div key={record.id} className="relative pl-6">
+                                                    <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-emerald-500" />
+                                                    <div className="space-y-2">
+                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                                            <span className="font-bold text-slate-900">
+                                                                {record.newStartDate.replace(/-/g, '/')}
+                                                            </span>
+                                                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold">
+                                                                {t('replacementOperation')}
+                                                            </span>
+                                                        </div>
+                                                        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-sm space-y-2">
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div>
+                                                                    <div className="text-xs text-slate-400 mb-1">{t('newStartEndDate')}</div>
+                                                                    <div className="font-bold text-slate-700">
+                                                                        {record.newStartDate} ~ {record.newEndDate}
                                                                     </div>
-                                                                    <div>
-                                                                        <div className="text-xs text-slate-400 mb-1">{t('oldStartEndDate')}</div>
-                                                                        <div className="font-medium text-slate-500 line-through">
-                                                                            {record.previousStartDate} ~ {record.previousEndDate}
-                                                                        </div>
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-xs text-slate-400 mb-1">{t('oldStartEndDate')}</div>
+                                                                    <div className="font-medium text-slate-500 line-through">
+                                                                        {record.previousStartDate} ~ {record.previousEndDate}
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        )
-                    }
-                </div>
+                        </div>
+                    )
+                }
             </div>
         </div>
     );
