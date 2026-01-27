@@ -8,6 +8,7 @@ interface AbnormalRecheckListProps {
     user: UserProfile;
     onBack: () => void;
     lightSettings?: LightSettings;
+    onRecordsUpdated?: () => void;
 }
 
 // 常用修復說明 (快選)
@@ -25,7 +26,7 @@ const QUICK_FIX_TEMPLATES = [
     '環境因素導致（如潮濕/灰塵），已排除環境問題'
 ];
 
-const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack, lightSettings }) => {
+const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack, lightSettings, onRecordsUpdated }) => {
     const { t, language } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<AbnormalRecord[]>([]);
@@ -273,6 +274,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
             alert(t('saveSuccess'));
             setSelectedRecord(null);
             fetchRecords();
+            onRecordsUpdated?.(); // Notify parent to refresh count
         } catch (e) {
             console.error('Submit error:', e);
             alert(t('saveFailed') + ': ' + (e instanceof Error ? e.message : '未知錯誤'));

@@ -511,18 +511,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         };
         fetchEquipment();
 
-        const fetchAbnormalCount = async () => {
-            if (user?.uid) {
-                try {
-                    const records = await StorageService.getAbnormalRecords(user.uid);
-                    const pendingCount = records.filter(r => r.status === 'pending').length;
-                    setAbnormalCount(pendingCount);
-                } catch (error) {
-                    console.error("Failed to fetch abnormal records:", error);
-                }
-            }
-        };
-        fetchAbnormalCount();
+
     }, [user?.uid]);
 
     const handleInspectionModeSelect = (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => {
@@ -824,35 +813,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [showAbnormalRecheck]);
 
     // Fetch and update abnormal count
-    useEffect(() => {
-        const fetchAbnormalCount = async () => {
-            if (user?.uid) {
-                try {
-                    const records = await StorageService.getAbnormalRecords(user.uid);
-                    const pendingRecords = records.filter(r => r.status === 'pending' && !r.fixedDate);
-                    const pendingCount = pendingRecords.length;
+    const fetchAbnormalCount = React.useCallback(async () => {
+        if (user?.uid) {
+            try {
+                const records = await StorageService.getAbnormalRecords(user.uid);
+                const pendingRecords = records.filter(r => r.status === 'pending' && !r.fixedDate);
+                const pendingCount = pendingRecords.length;
 
-                    // Check for new abnormal records
-                    const previousCount = parseInt(localStorage.getItem(`abnormal_count_${user.uid}`) || '0');
+                // Check for new abnormal records
+                const previousCount = parseInt(localStorage.getItem(`abnormal_count_${user.uid}`) || '0');
 
-                    if (pendingCount > previousCount) {
-                        const newCount = pendingCount - previousCount;
-                        await addNotification(
-                            'abnormal',
-                            '新的異常複檢',
-                            `有 ${newCount} 筆新的異常項目需要處理`
-                        );
-                    }
+                // Update storage immediately to prevent race conditions
+                localStorage.setItem(`abnormal_count_${user.uid}`, pendingCount.toString());
 
-                    localStorage.setItem(`abnormal_count_${user.uid}`, pendingCount.toString());
-                    setAbnormalCount(pendingCount);
-                } catch (error) {
-                    console.error('Failed to fetch abnormal count:', error);
+                if (pendingCount > previousCount) {
+                    const newCount = pendingCount - previousCount;
+                    await addNotification(
+                        'abnormal',
+                        '新的異常複檢',
+                        `有 ${newCount} 筆新的異常項目需要處理`
+                    );
                 }
+                setAbnormalCount(pendingCount);
+            } catch (error) {
+                console.error('Failed to fetch abnormal count:', error);
             }
-        };
+        }
+    }, [user?.uid]);
+
+    useEffect(() => {
         fetchAbnormalCount();
-    }, [user?.uid, showAbnormalRecheck]); // Re-fetch when returning from recheck view
+    }, [fetchAbnormalCount, showAbnormalRecheck]);
 
     // Update avatar state if user changes (e.g. after update)
     useEffect(() => {
@@ -1195,7 +1186,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     console.log('[Dashboard] showAbnormalRecheck:', showAbnormalRecheck);
     if (showAbnormalRecheck) {
         console.log('[Dashboard] Rendering AbnormalRecheckList');
-        return <AbnormalRecheckList user={user} onBack={() => setShowAbnormalRecheck(false)} lightSettings={lightSettings} />;
+        return <AbnormalRecheckList user={user} onBack={() => setShowAbnormalRecheck(false)} lightSettings={lightSettings} onRecordsUpdated={fetchAbnormalCount} />;
     }
 
 

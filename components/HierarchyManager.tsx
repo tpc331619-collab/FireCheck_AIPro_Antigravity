@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Save, FolderTree, ChevronRight, AlertCircle, CheckCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, FolderTree, ChevronRight, AlertCircle, CheckCircle, Pencil, RefreshCw } from 'lucide-react';
 import { EquipmentHierarchy, UserProfile } from '../types';
 import { StorageService } from '../services/storageService';
 import { EQUIPMENT_HIERARCHY } from '../constants';
@@ -44,19 +44,10 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     const seed: EquipmentHierarchy = {};
                     Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
                         if (cat === '自定義') return;
-                        seed[cat] = {};
-
-                        // types is Record<string, string[]> from constants (Wait, constants structure is Record<string, string[]> ?? No, check constants)
-                        // In constants.ts: '滅火設備': { '滅火器': [...], '消防砂': [...] }
-                        // So it matches EquipmentHierarchy type Record<string, Record<string, string[]>>
-
-                        Object.entries(types).forEach(([type, details]) => {
-                            if (type === '自定義') return;
-
-                            // Filter '自定義' from details array
-                            const validDetails = Array.isArray(details) ? details.filter(d => d !== '自定義') : [];
-                            seed[cat][type] = validDetails;
-                        });
+                        // types is string[] (list of types)
+                        // Filter '自定義' from types array
+                        const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
+                        seed[cat] = validTypes;
                     });
                     setHierarchy(seed);
                 }
@@ -90,7 +81,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
             showToast(t('categoryExists'), 'error');
             return;
         }
-        setHierarchy(prev => ({ ...prev, [newCategory.trim()]: {} }));
+        setHierarchy(prev => ({ ...prev, [newCategory.trim()]: [] }));
         setNewCategory('');
         showToast(t('saveSuccess'), 'success');
     };
@@ -131,16 +122,13 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
     // --- Type Actions ---
     const addType = () => {
         if (!selectedCategory || !newType.trim()) return;
-        if (hierarchy[selectedCategory][newType.trim()]) {
+        if (hierarchy[selectedCategory].includes(newType.trim())) {
             showToast('設備種類已存在', 'error');
             return;
         }
         setHierarchy(prev => ({
             ...prev,
-            [selectedCategory]: {
-                ...prev[selectedCategory],
-                [newType.trim()]: []
-            }
+            [selectedCategory]: [...prev[selectedCategory], newType.trim()]
         }));
         setNewType('');
         showToast('新增種類成功', 'success');
@@ -150,21 +138,14 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
         if (!selectedCategory) return;
         const newType = prompt('請輸入新的種類名稱', oldType);
         if (!newType || newType === oldType) return;
-        if (hierarchy[selectedCategory][newType.trim()]) {
+        if (hierarchy[selectedCategory].includes(newType.trim())) {
             showToast('種類名稱已存在', 'error');
             return;
         }
         setHierarchy(prev => {
-            const catData = prev[selectedCategory];
-            const newCatData: Record<string, string[]> = {};
-            Object.keys(catData).forEach(key => {
-                if (key === oldType) {
-                    newCatData[newType.trim()] = catData[oldType];
-                } else {
-                    newCatData[key] = catData[key];
-                }
-            });
-            return { ...prev, [selectedCategory]: newCatData };
+            const currentTypes = prev[selectedCategory];
+            const newTypes = currentTypes.map(t => t === oldType ? newType.trim() : t);
+            return { ...prev, [selectedCategory]: newTypes };
         });
         if (selectedType === oldType) setSelectedType(newType.trim());
         showToast('修改種類成功', 'success');
@@ -173,11 +154,10 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
     const deleteType = (type: string) => {
         if (!selectedCategory) return;
         if (confirm(`確定要刪除「${type}」嗎？`)) {
-            setHierarchy(prev => {
-                const newCat = { ...prev[selectedCategory] };
-                delete newCat[type];
-                return { ...prev, [selectedCategory]: newCat };
-            });
+            setHierarchy(prev => ({
+                ...prev,
+                [selectedCategory]: prev[selectedCategory].filter(t => t !== type)
+            }));
             showToast('刪除種類成功', 'success');
             if (selectedType === type) setSelectedType(null);
         }
@@ -258,7 +238,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
             </div>
 
             <div className="flex-1 overflow-y-auto md:overflow-hidden p-4 sm:p-6">
-                <div className="max-w-7xl mx-auto h-auto md:h-full grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="max-w-7xl mx-auto h-auto md:h-full grid grid-cols-1 md:grid-cols-2 gap-6">
 
                     {/* Column 1: Category */}
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden">
@@ -276,6 +256,30 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                            {/* Reset Button */}
+                            <div className="px-2 pt-2 pb-1">
+                                <button
+                                    onClick={() => {
+                                        if (confirm('確定要回復成預設清單嗎？\n\n警告：目前所有自訂的分類與種類都將被清除，並還原為系統預設值。')) {
+                                            const seed: EquipmentHierarchy = {};
+                                            Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
+                                                if (cat === '自定義') return;
+                                                const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
+                                                seed[cat] = validTypes;
+                                            });
+                                            setHierarchy(seed);
+                                            StorageService.saveEquipmentHierarchy(seed, user.uid)
+                                                .then(() => showToast('已回復預設清單', 'success'))
+                                                .catch(() => showToast('重置失敗', 'error'));
+                                        }
+                                    }}
+                                    className="w-full py-2 text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 border border-dashed border-slate-300 rounded-lg transition-colors flex items-center justify-center gap-1"
+                                >
+                                    <RefreshCw className="w-3 h-3" />
+                                    {t('resetDefaults') || '重置為預設值'}
+                                </button>
+                            </div>
+
                             {loading ? <div className="p-4 text-center text-slate-400 text-sm">載入中...</div> :
                                 Object.keys(hierarchy).map(cat => (
                                     <div
@@ -311,54 +315,19 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {selectedCategory && hierarchy[selectedCategory] && Object.keys(hierarchy[selectedCategory]).map(type => (
+                            {selectedCategory && hierarchy[selectedCategory] && hierarchy[selectedCategory].map(type => (
                                 <div
                                     key={type}
-                                    onClick={() => setSelectedType(type)}
-                                    className={`flex items-center justify-between p-4 mb-2 rounded-xl cursor-pointer transition-colors border ${selectedType === type ? 'bg-red-50 text-red-700 border-red-200 shadow-sm' : 'bg-white border-transparent hover:bg-slate-50 text-slate-700'}`}
+                                    className={`flex items-center justify-between p-4 mb-2 rounded-xl border bg-white border-transparent hover:bg-slate-50 text-slate-700`}
                                 >
                                     <span className="font-bold text-base">{type}</span>
                                     <div className="flex items-center gap-2">
-                                        {selectedType === type && <ChevronRight className="w-5 h-5 text-red-400" />}
-                                        <button onClick={(e) => { e.stopPropagation(); editType(type); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); deleteType(type); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        <button onClick={() => editType(type)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
+                                        <button onClick={() => deleteType(type)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                                     </div>
                                 </div>
                             ))}
                             {!selectedCategory && <div className="p-10 text-center text-slate-300">{t('selectLeftCategory')}</div>}
-                        </div>
-                    </div>
-
-                    {/* Column 3: Detail */}
-                    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedType ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                            <h3 className="font-bold text-slate-700 mb-2">3. {t('detail')}</h3>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={newDetail}
-                                    onChange={e => setNewDetail(e.target.value)}
-                                    placeholder={selectedType ? `${t('addDetail')}...` : t('selectTypeFirst')}
-                                    className="flex-1 p-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-red-500"
-                                />
-                                <button onClick={addDetail} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Plus className="w-4 h-4" /></button>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {selectedCategory && selectedType && hierarchy[selectedCategory] && hierarchy[selectedCategory][selectedType] &&
-                                hierarchy[selectedCategory][selectedType].map(detail => (
-                                    <div
-                                        key={detail}
-                                        className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 text-slate-600 group"
-                                    >
-                                        <span>{detail}</span>
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => editDetail(detail)} className="p-1.5 text-slate-300 group-hover:text-blue-500 rounded-lg transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
-                                            <button onClick={() => deleteDetail(detail)} className="p-1.5 text-slate-300 group-hover:text-red-500 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                                        </div>
-                                    </div>
-                                ))}
-                            {!selectedType && <div className="p-10 text-center text-slate-300">{t('selectMiddleType')}</div>}
                         </div>
                     </div>
 

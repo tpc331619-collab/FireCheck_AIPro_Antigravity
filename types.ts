@@ -109,7 +109,8 @@ export interface EquipmentDefinition {
 }
 
 // 設備階層結構
-export type EquipmentHierarchy = Record<string, Record<string, string[]>>;
+// 設備階層結構: Category -> Type[] (2 levels)
+export type EquipmentHierarchy = Record<string, string[]>;
 
 // 消防申報設定
 export interface DeclarationSettings {

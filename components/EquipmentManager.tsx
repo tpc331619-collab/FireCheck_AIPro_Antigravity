@@ -6,7 +6,7 @@ import { EquipmentDefinition, CheckCategory, CheckInputType, CustomCheckItem, Us
 
 const COMMON_UNITS = ['MPa', 'kgf/cm²', 'psi', 'bar', 'V', 'A', 'mA', 'kW', 'Hz', '°C', 'sec', 'min', 'm', 'cm', 'mm', 'kg', '%', 'ppm'];
 import { StorageService } from '../services/storageService';
-import { calculateNextInspectionDate, calculateExpiryDate } from '../utils/dateUtils';
+import { calculateNextInspectionDate } from '../utils/dateUtils';
 import QRCode from 'qrcode';
 
 interface EquipmentManagerProps {
@@ -25,8 +25,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [frequency, setFrequency] = useState(initialData?.checkFrequency || '');
   const [customFrequency, setCustomFrequency] = useState(initialData?.customFrequency || '');
   const [startDate, setStartDate] = useState(initialData?.checkStartDate ? new Date(initialData.checkStartDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
-  const [lifespan, setLifespan] = useState(initialData?.lifespan || '');
-  const [customLifespan, setCustomLifespan] = useState(initialData?.customLifespan || '');
+
   const [checkItems, setCheckItems] = useState<CustomCheckItem[]>(initialData?.checkItems || []);
   const [photoUrl, setPhotoUrl] = useState(initialData?.photoUrl || '');
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -34,7 +33,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [eqCategory, setEqCategory] = useState(initialData?.equipmentCategory || '');
   const [eqType, setEqType] = useState(initialData?.equipmentType || '');
-  const [eqDetail, setEqDetail] = useState(initialData?.equipmentDetail || '');
+  // const [eqDetail, setEqDetail] = useState(initialData?.equipmentDetail || ''); // REMOVED 3rd Level
   const [hierarchy, setHierarchy] = useState<EquipmentHierarchy>({});
   const [collapsedCategories, setCollapsedCategories] = useState<Set<CheckCategory>>(new Set(['visual', 'performance', 'comprehensive']));
 
@@ -66,12 +65,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
           const seed: EquipmentHierarchy = {};
           Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
             if (cat === '自定義') return;
-            seed[cat] = {};
-            Object.entries(types).forEach(([type, details]) => {
-              if (type === '自定義') return;
-              const validDetails = Array.isArray(details) ? details.filter(d => d !== '自定義') : [];
-              seed[cat][type] = validDetails;
-            });
+            const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
+            seed[cat] = validTypes;
           });
           setHierarchy(seed);
         }
@@ -114,17 +109,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
         setStartDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
       }
 
-      if (initialData.lifespan) {
-        setLifespan(initialData.lifespan);
-        if (initialData.lifespan === 'custom') {
-          setCustomLifespan(initialData.customLifespan || '');
-        }
-      }
+
 
       setEqCategory(initialData.equipmentCategory || '');
       setEqType(initialData.equipmentType || '');
 
-      setEqDetail(initialData.equipmentDetail || '');
       setPhotoUrl(initialData.photoUrl || '');
       setCheckItems(initialData.checkItems || []);
     } else {
@@ -138,11 +127,10 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setCustomFrequency('');
       const d = new Date();
       setStartDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-      setLifespan('');
-      setCustomLifespan('');
+
       setEqCategory('');
       setEqType('');
-      setEqDetail('');
+      // setEqDetail(''); // REMOVED
       setPhotoUrl('');
       setCheckItems([]);
     }
@@ -395,11 +383,10 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       barcode,
       checkFrequency: finalFrequency,
       checkStartDate: new Date(startDate).getTime(),
-      lifespan,
-      customLifespan: lifespan === 'custom' ? customLifespan : null,
+
       equipmentCategory: eqCategory,
       equipmentType: eqType,
-      equipmentDetail: eqDetail,
+      // equipmentDetail: eqDetail, // REMOVED
 
       lastInspectedDate: initialData?.lastInspectedDate || null, // Preserve or null
       photoUrl,
@@ -531,13 +518,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     return nextDate ? nextDate.toLocaleDateString() : '-';
   };
 
-  const getExpiryDatePreview = () => {
-    const startTs = new Date(startDate).getTime();
-    if (isNaN(startTs)) return '-';
 
-    const expiry = calculateExpiryDate(startTs, lifespan, customLifespan);
-    return expiry ? expiry.toLocaleDateString() : '-';
-  };
 
   const renderCategorySection = (category: CheckCategory, icon: React.ReactNode, title: string) => {
     const items = checkItems.filter(i => i.category === category);
@@ -823,15 +804,15 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   {t('equipmentName')} <span className="text-red-500">*</span>
                 </label>
 
-                {/* Hierarchy Selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                {/* Hierarchy Selection - 2 Levels */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                   <select
                     value={eqCategory}
                     onChange={(e) => {
                       const val = e.target.value;
                       setEqCategory(val);
                       setEqType('');
-                      setEqDetail('');
+                      // setEqDetail(''); // REMOVED
                     }}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 transition-colors"
                   >
@@ -844,36 +825,18 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                     onChange={(e) => {
                       const val = e.target.value;
                       setEqType(val);
-                      setEqDetail('');
+                      // setEqDetail(''); // REMOVED
+                      if (val) {
+                        setName(val); // Auto-set name to Type
+                      }
                     }}
                     disabled={!eqCategory}
                     className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
                   >
                     <option value="">{t('selectType')}</option>
-                    {eqCategory && hierarchy[eqCategory] &&
-                      Object.keys(hierarchy[eqCategory]).map(t => (
-                        <option key={t} value={t}>{t}</option>
-                      ))
-                    }
-                  </select>
-
-                  <select
-                    value={eqDetail}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEqDetail(val);
-                      if (val) {
-                        setName(`${eqType} - ${val}`);
-                      }
-                    }}
-                    disabled={!eqType}
-                    className="w-full p-2.5 text-sm bg-slate-50 border-2 border-slate-200 rounded-lg outline-none focus:border-teal-500 disabled:opacity-50 transition-colors"
-                  >
-                    <option value="">{t('selectDetail')}</option>
-                    {eqCategory && eqType && hierarchy[eqCategory] && hierarchy[eqCategory][eqType] &&
-                      hierarchy[eqCategory][eqType].map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))
+                    {eqCategory && hierarchy[eqCategory] && hierarchy[eqCategory].map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))
                     }
                   </select>
                 </div>
@@ -1047,45 +1010,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                 )}
               </div>
 
-              {/* Lifespan Settings */}
-              <div className="space-y-2 pt-4 border-t-2 border-slate-100">
-                <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                  {t('setLifespan')}
-                  <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded">{t('notifyOnExpiry')}</span>
-                </label>
-                <div className="flex gap-2 items-center flex-wrap">
-                  <select
-                    value={lifespan}
-                    onChange={(e) => setLifespan(e.target.value)}
-                    className="p-3 bg-slate-50 border-2 border-slate-200 rounded-lg text-sm text-slate-700 outline-none focus:border-blue-500 transition-colors min-w-[140px]"
-                  >
-                    <option value="">{t('notSet') || 'Not Set'}</option>
-                    <option value="1m">1 {t('month') || 'Month'}</option>
-                    <option value="3m">1 {t('season') || 'Season'} (3 {t('months')})</option>
-                    <option value="12m">1 {t('year') || 'Year'} (12 {t('months')})</option>
-                    <option value="24m">2 {t('years') || 'Years'} (24 {t('months')})</option>
-                    <option value="36m">3 {t('years') || 'Years'} (36 {t('months')})</option>
-                    <option value="120m">10 {t('years') || 'Years'} (120 {t('months')})</option>
-                    <option value="custom">{t('customDate') || 'Custom Date'}</option>
-                  </select>
 
-                  {lifespan === 'custom' && (
-                    <input
-                      type="date"
-                      value={customLifespan}
-                      onChange={(e) => setCustomLifespan(e.target.value)}
-                      className="w-40 p-3 bg-white border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 animate-in fade-in slide-in-from-left-2"
-                    />
-                  )}
-
-                  {lifespan && (
-                    <div className="ml-auto text-sm font-medium bg-orange-50 px-4 py-2.5 rounded-lg border-2 border-orange-200 flex items-center gap-2">
-                      <span className="text-orange-600 font-bold">{t('expiryDate')}:</span>
-                      <span className="text-slate-800 font-bold">{getExpiryDatePreview()}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 
