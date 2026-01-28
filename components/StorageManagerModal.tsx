@@ -270,19 +270,19 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                         </div>
 
                                         {/* Action Buttons */}
-                                        <div className="flex items-center gap-2 pl-2">
+                                        <div className="flex items-center gap-2 shrink-0">
                                             {/* Delete Button */}
                                             {allowDelete && (
                                                 <button
                                                     onClick={(e) => handleDelete(file, e)}
-                                                    className="p-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
+                                                    className="p-2 sm:p-2.5 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
                                                     disabled={isDeleting || isSelecting}
                                                     title={t('delete')}
                                                 >
                                                     {isDeleting ? (
-                                                        <RefreshCcw className="w-5 h-5 animate-spin" />
+                                                        <RefreshCcw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                                                     ) : (
-                                                        <Trash2 className="w-5 h-5" />
+                                                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                                                     )}
                                                 </button>
                                             )}
@@ -291,7 +291,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                                             {onSelect && (
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleSelect(file); }}
-                                                    className={`px-4 py-2 h-10 flex items-center gap-2 rounded-xl font-bold text-sm shadow-sm transition-all
+                                                    className={`px-3 sm:px-4 py-2 h-9 sm:h-10 flex items-center gap-2 rounded-xl font-bold text-sm shadow-sm transition-all
                                                         ${isSelecting
                                                             ? 'bg-blue-600 text-white shadow-blue-200'
                                                             : 'bg-white border border-slate-200 text-slate-600 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50'}
