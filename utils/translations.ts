@@ -47,7 +47,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     takePhoto: '拍攝照片',
     aiAnalysis: 'AI 分析',
     close: '關閉',
-    appName: '儲運中心消防資訊平台',
+    appName: '消防資訊平台',
     morning: '早安',
     afternoon: '午安',
     evening: '晚安',
