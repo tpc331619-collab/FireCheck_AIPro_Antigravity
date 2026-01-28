@@ -1200,7 +1200,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
                             <Shield className="w-6 h-6" />
                         </div>
-                        <span className="font-bold text-xl">無盡維護</span>
+                        <span className="font-bold text-xl">{t('appName')}</span>
                     </div>
                     <div className="flex items-center gap-2">
 
@@ -1279,7 +1279,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {/* Abnormal Pending */}
                         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
                             <div>
-                                <p className="text-xs font-bold text-slate-500 mb-1">待處理異常</p>
+                                <p className="text-xs font-bold text-slate-500 mb-1">{t('pendingAbnormal')}</p>
                                 <p className={`text-2xl font-black ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
                             </div>
                             <div className={`p-3 rounded-xl ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
@@ -1356,7 +1356,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <Building className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="font-bold text-slate-800 text-lg mb-1">{t('myEquipment')}</h3>
-                            <p className="text-xs text-slate-500">查看所有設備清單</p>
+                            <p className="text-xs text-slate-500">{t('myEquipmentDesc')}</p>
                         </button>
 
                         {/* Map Editor */}
@@ -1371,7 +1371,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <MapPinned className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="font-bold text-slate-800 text-lg mb-1">{t('mapEditor')}</h3>
-                            <p className="text-xs text-slate-500">編輯圖面與點位</p>
+                            <p className="text-xs text-slate-500">{t('mapEditorDesc')}</p>
                         </button>
 
                         {/* History */}
@@ -1386,7 +1386,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <ScrollText className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="font-bold text-slate-800 text-lg mb-1">{t('history')}</h3>
-                            <p className="text-xs text-slate-500">{flattenedHistory.length} 筆檢查紀錄</p>
+                            <p className="text-xs text-slate-500">{flattenedHistory.length} {t('historyRecordsCount')}</p>
                         </button>
 
                         {/* Health Indicators */}
@@ -1401,7 +1401,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <HeartPulse className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="font-bold text-slate-800 text-lg mb-1">{t('healthIndicators')}</h3>
-                            <p className="text-xs text-slate-500">健康度與更換提醒</p>
+                            <p className="text-xs text-slate-500">{t('healthIndicatorsDesc')}</p>
                         </button>
 
                         {/* Add Equipment */}
@@ -1416,7 +1416,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <PlusCircle className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="font-bold text-slate-800 text-lg mb-1">{t('addEquipment')}</h3>
-                            <p className="text-xs text-slate-500">新增設備至系統</p>
+                            <p className="text-xs text-slate-500">{t('addEquipmentDesc')}</p>
                         </button>
 
                         {/* Add Name List (Hierarchy) */}
@@ -1431,7 +1431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <ListPlus className="w-6 h-6 text-white" />
                             </div>
                             <h3 className="font-bold text-slate-800 text-lg mb-1">{t('addNameList')}</h3>
-                            <p className="text-xs text-slate-500">管理設備名稱清單</p>
+                            <p className="text-xs text-slate-500">{t('addNameListDescShort')}</p>
                         </button>
                     </div>
 
@@ -1447,7 +1447,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </div>
                                 <div className="text-left">
                                     <h3 className="font-bold text-slate-800">{t('equipmentOverview')}</h3>
-                                    <p className="text-xs text-slate-500">查看設備統計與分布</p>
+                                    <p className="text-xs text-slate-500">{t('equipmentOverviewDesc')}</p>
                                 </div>
                             </div>
                             {isEquipmentExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}

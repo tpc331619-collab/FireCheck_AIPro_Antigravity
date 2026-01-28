@@ -232,7 +232,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                         disabled={saving}
                         className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-black transition-colors disabled:opacity-50"
                     >
-                        {saving ? '儲存中...' : <><Save className="w-4 h-4" /> 儲存變更</>}
+                        {saving ? t('saving') : <><Save className="w-4 h-4" /> {t('saveChanges')}</>}
                     </button>
                 </div>
             </div>

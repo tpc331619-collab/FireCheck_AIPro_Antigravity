@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ClipboardList, AlertTriangle, CheckCircle, Calendar, MapPin, Box, Hash, User, FileText, ChevronsUpDown, ChevronUp, ChevronDown, Wrench } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface HistoryItem {
     reportId: string;
@@ -41,6 +42,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     visibleColumns,
     columnOrder = ['index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions']
 }) => {
+    const { t } = useLanguage();
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -141,15 +143,15 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
     const renderHeader = (key: string) => {
         const labels: Record<string, string> = {
-            index: '序號',
-            date: '檢查日期',
-            building: '建築物',
-            equipment: '設備名稱',
-            barcode: '編號',
-            result: '結果',
-            notes: '備註',
-            inspector: '檢查人員',
-            actions: '檢查項目'
+            index: t('index'),
+            date: t('checkDate'),
+            building: t('building'),
+            equipment: t('equipmentName'),
+            barcode: t('barcode'),
+            result: t('result'),
+            notes: t('notes'),
+            inspector: t('inspector'),
+            actions: t('checkItems')
         };
 
         const label = labels[key];

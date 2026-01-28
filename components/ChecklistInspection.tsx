@@ -478,7 +478,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h1 className="font-bold text-lg text-slate-800">開始查檢</h1>
+                    <h1 className="font-bold text-lg text-slate-800">{t('startInspection')}</h1>
                 </div>
             </div>
 
@@ -489,20 +489,20 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                                <MapPin className="w-3.5 h-3.5 mr-1.5" /> 請選擇場所
+                                <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectLocation')}
                             </label>
                             <select
                                 value={selectedSite}
                                 onChange={(e) => setSelectedSite(e.target.value)}
                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none transition-colors"
                             >
-                                <option value="">-- 請選擇 --</option>
+                                <option value="">{t('pleaseSelect')}</option>
                                 {sites.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                                <Building2 className="w-3.5 h-3.5 mr-1.5" /> 請選擇建築物名稱
+                                <Building2 className="w-3.5 h-3.5 mr-1.5" /> {t('selectBuilding')}
                             </label>
                             <select
                                 value={selectedBuilding}
@@ -510,7 +510,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 disabled={!selectedSite}
                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
                             >
-                                <option value="">-- 請選擇 --</option>
+                                <option value="">{t('pleaseSelect')}</option>
                                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
                             </select>
                         </div>
@@ -777,7 +777,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         !loading && (
                             <div className="text-center py-12 text-slate-400 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200">
                                 <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                                <p>請先選擇場所與查檢場所</p>
+                                <p>{t('selectLocationAndBuilding')}</p>
                             </div>
                         )
                     )}

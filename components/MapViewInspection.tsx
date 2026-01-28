@@ -4,6 +4,7 @@ import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, Inspec
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface MapViewInspectionProps {
     user: UserProfile;
@@ -12,6 +13,7 @@ interface MapViewInspectionProps {
 }
 
 const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onClose }) => {
+    const { t } = useLanguage();
     // Map Selection State
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
@@ -501,7 +503,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h2 className="text-lg font-bold text-slate-900">選擇地圖</h2>
+                    <h2 className="text-lg font-bold text-slate-900">{t('selectMap')}</h2>
                     <div className="w-10" /> {/* Spacer */}
                 </div>
 
@@ -533,7 +535,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     <div className="p-4">
                                         <h3 className="font-bold text-slate-800">{map.name}</h3>
                                         <p className="text-sm text-slate-500 mt-1">
-                                            更新: {new Date(map.updatedAt).toLocaleDateString()}
+                                            {t('updated')}: {new Date(map.updatedAt).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </button>
