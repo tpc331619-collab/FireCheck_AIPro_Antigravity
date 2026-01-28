@@ -32,13 +32,17 @@ try {
   } else {
     app = getApps()[0];
   }
-  
+
   // Initialize services using modular functions to avoid "no exported member" errors
   if (app) {
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
     googleProvider = new GoogleAuthProvider();
+    // Force account selection on every login
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
   }
 } catch (error) {
   console.warn("Firebase initialization failed. App will fallback to Guest/LocalStorage mode.", error);
