@@ -19,14 +19,6 @@ const AddEquipmentModeModal: React.FC<AddEquipmentModeModalProps> = ({ isOpen, o
             icon: <Database className="w-8 h-8 text-orange-500" />,
             color: 'bg-orange-50 border-orange-100 hover:border-orange-300',
             bgIcon: 'bg-orange-100'
-        },
-        {
-            id: 'ADD_NAME',
-            title: t('addNameList'),
-            description: t('addNameListDesc'),
-            icon: <ListPlus className="w-8 h-8 text-teal-500" />,
-            color: 'bg-teal-50 border-teal-100 hover:border-teal-300',
-            bgIcon: 'bg-teal-100'
         }
     ] as const;
 
