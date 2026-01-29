@@ -14,6 +14,7 @@ interface MyEquipmentProps {
   onFilterChange: (site: string | null, building: string | null) => void;
   onBack: () => void;
   onEdit: (item: EquipmentDefinition) => void;
+  initialQuery?: string;
 }
 
 const MyEquipment: React.FC<MyEquipmentProps> = ({
@@ -22,7 +23,8 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   selectedBuilding,
   onFilterChange,
   onBack,
-  onEdit
+  onEdit,
+  initialQuery
 }) => {
   const { t, language } = useLanguage();
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
 
   // Search State
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery || '');
 
   // 基礎清單數據
   const [sites, setSites] = useState<string[]>([]);

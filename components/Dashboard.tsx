@@ -99,7 +99,7 @@ interface DashboardProps {
     user: UserProfile;
     onCreateNew: () => void;
     onAddEquipment: () => void;
-    onMyEquipment: () => void;
+    onMyEquipment: (filter?: string) => void;
     onSelectReport: (report: InspectionReport) => void;
     onLogout: () => void;
     onUserUpdate: () => void;
@@ -1477,13 +1477,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                     {equipmentStats.map((stat: any, index: number) => (
-                                        <div key={index} className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group">
+                                        <button
+                                            key={index}
+                                            onClick={() => {
+                                                onMyEquipment(stat.name);
+                                            }}
+                                            className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+                                        >
                                             <div className="mb-2 p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
                                                 {getEquipmentIcon(stat.name)}
                                             </div>
                                             <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
-                                            <span className="text-lg font-black text-slate-800">{stat.count}</span>
-                                        </div>
+                                            <span className="text-lg font-black text-slate-800">{stat.total}</span>
+                                        </button>
                                     ))}
                                     {equipmentStats.length === 0 && (
                                         <div className="col-span-full text-center py-4 text-slate-400 text-sm">
@@ -1512,12 +1518,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+                                    <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                                         {/* Year Selector */}
                                         <select
                                             value={selectedYear}
                                             onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mr-2"
+                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         >
                                             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
                                                 <option key={year} value={year}>{year}年</option>
@@ -1550,7 +1556,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             {showColumns ? t('hideColumns') : t('showColumns')}
                                         </button>
 
-                                        <div className="w-px h-8 bg-slate-200 mx-1"></div>
+                                        <div className="hidden sm:block w-px h-8 bg-slate-200 mx-1"></div>
 
                                         <button
                                             onClick={() => {
@@ -2325,26 +2331,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 onClick={() => {
                                                                     const newLang = lang.code as LanguageCode;
                                                                     setLanguage(newLang);
-                                                                    // Use the new language's translations for notification
-                                                                    const langNames = {
-                                                                        'zh-TW': '繁體中文',
-                                                                        'en': 'English',
-                                                                        'ko': '한국어',
-                                                                        'ja': '日本語'
-                                                                    };
-                                                                    const titles = {
-                                                                        'zh-TW': '語言已變更',
-                                                                        'en': 'Language Changed',
-                                                                        'ko': '언어가 변경되었습니다',
-                                                                        'ja': '言語が変更されました'
-                                                                    };
-                                                                    const descs = {
-                                                                        'zh-TW': `系統語言已切換為 ${langNames[newLang]}`,
-                                                                        'en': `System language switched to ${langNames[newLang]}`,
-                                                                        'ko': `시스템 언어가 ${langNames[newLang]}(으)로 전환되었습니다`,
-                                                                        'ja': `システム言語が${langNames[newLang]}に切り替わりました`
-                                                                    };
-                                                                    addNotification('profile', titles[newLang], descs[newLang]);
                                                                 }}
                                                                 className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
                                                             >

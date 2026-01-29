@@ -24,6 +24,7 @@ const App: React.FC = () => {
   // 保持篩選狀態的變數
   const [filterSite, setFilterSite] = useState<string | null>(null);
   const [filterBuilding, setFilterBuilding] = useState<string | null>(null);
+  const [equipmentFilter, setEquipmentFilter] = useState('');
 
   useEffect(() => {
     if (auth) {
@@ -127,7 +128,10 @@ const App: React.FC = () => {
             setEditingEquipment(null);
             setCurrentView('EQUIPMENT_MANAGER');
           }}
-          onMyEquipment={() => setCurrentView('MY_EQUIPMENT')}
+          onMyEquipment={(filter) => {
+            setEquipmentFilter(filter || '');
+            setCurrentView('MY_EQUIPMENT');
+          }}
           onSelectReport={(report) => {
             setSelectedReport(report);
             setCurrentView('INSPECTION');
@@ -177,9 +181,9 @@ const App: React.FC = () => {
           }}
           onBack={() => setCurrentView('DASHBOARD')}
           onEdit={(item) => {
-            setEditingEquipment(item);
             setCurrentView('EQUIPMENT_MANAGER');
           }}
+          initialQuery={equipmentFilter}
         />
       ) : currentView === 'CHECKLIST_INSPECTION' ? (
         <ChecklistInspection

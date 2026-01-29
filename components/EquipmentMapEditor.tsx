@@ -521,8 +521,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     // Auto-fit when image loads
     useEffect(() => {
         if (image) {
-            // Default to 100% scale (User request)
-            setZoom(1);
+            // Default to Fit Screen (User request for cleaner view)
+            setTimeout(() => fitImageToScreen(), 100);
         }
     }, [image]);
 
@@ -1100,7 +1100,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
 
                         {/* Middle Canvas */}
-                        <div className="h-[45vh] lg:h-auto lg:flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner shrink-0">
+                        <div className="h-[60vh] lg:h-auto lg:flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner shrink-0">
 
                             {/* Floating Toolbar */}
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 rounded-full px-1.5 py-1 sm:px-4 sm:py-2 flex items-center gap-0.5 sm:gap-2 z-30 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
@@ -1259,23 +1259,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                         {/* Tools Sidebar */}
                         <div className="flex-1 lg:flex-none w-full lg:w-80 bg-white border-t lg:border-t-0 lg:border-r border-slate-200 flex flex-col z-20 shadow-2xl shadow-slate-200/50 shrink-0 overflow-hidden">
                             <div className="flex-1 overflow-y-auto bg-slate-50/50">
-                                {/* Map Name Settings */}
-                                <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10 sticky top-0">
-                                    <div className="space-y-1.5">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{t('mapNameLabel')}</label>
-                                        <div className="relative group">
 
-                                            <input
-                                                type="text"
-                                                value={mapName}
-                                                onChange={(e) => setMapName(e.target.value)}
-                                                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 font-bold text-slate-800 transition-all placeholder:text-slate-300 text-sm"
-                                                placeholder={t('enterMapName')}
-                                            />
-
-                                        </div>
-                                    </div>
-                                </div>
 
                                 {/* Global Marker Size */}
                                 <div className="p-4 border-b border-slate-200 bg-white">
@@ -1390,13 +1374,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             </div>
 
                             <div className="p-4 border-t border-slate-200 bg-white space-y-2 shrink-0 z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                                <button
-                                    onClick={handleExport}
-                                    className="w-full py-3 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    {t('exportImage')}
-                                </button>
+
 
                                 <button
                                     onClick={handleSave}
