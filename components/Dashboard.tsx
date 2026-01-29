@@ -744,6 +744,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
+
+
     const calculateCountdown = () => {
         // Use the calculated deadline from state (which handles cycle logic)
         if (!declarationDeadline) return null;
@@ -1007,7 +1009,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         const hh = String(date.getHours()).padStart(2, '0');
         const min = String(date.getMinutes()).padStart(2, '0');
         const ss = String(date.getSeconds()).padStart(2, '0');
-        return `${yyyy}/${mm}/${dd} ${hh}:${min}:${ss}`;
+        return `${yyyy}/${mm}/${dd}`;
     };
 
     // --- Setting Handlers ---
@@ -1289,20 +1291,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
 
                         {/* Declaration Countdown */}
-                        {countdownDays !== null && (
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-2">
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className={`text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
-                                        <span className="text-sm font-bold text-slate-400">{t('days')}</span>
-                                    </div>
-                                </div>
-                                <div className={`p-3 rounded-xl ${countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                                    <Calendar className={`w-5 h-5 ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
+                        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-2">
+                            <div>
+                                <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
+                                <div className="flex items-baseline gap-1">
+                                    {countdownDays !== null ? (
+                                        <>
+                                            <span className={`text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
+                                            <span className="text-sm font-bold text-slate-400">{t('days')}</span>
+                                        </>
+                                    ) : (
+                                        <span className="text-2xl font-black text-slate-300">--</span>
+                                    )}
                                 </div>
                             </div>
-                        )}
+                            <div className={`p-3 rounded-xl ${countdownDays !== null && countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
+                                <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
+                            </div>
+                        </div>
                     </div>
 
                     {/* Main Actions Grid */}

@@ -1,13 +1,14 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
-import InspectionForm from './components/InspectionForm';
-import EquipmentManager from './components/EquipmentManager';
-import MyEquipment from './components/MyEquipment';
-import ChecklistInspection from './components/ChecklistInspection';
-import HierarchyManager from './components/HierarchyManager';
-import EquipmentMapEditor from './components/EquipmentMapEditor'; // Import added
+// Lazy load non-critical components
+const InspectionForm = lazy(() => import('./components/InspectionForm'));
+const EquipmentManager = lazy(() => import('./components/EquipmentManager'));
+const MyEquipment = lazy(() => import('./components/MyEquipment'));
+const ChecklistInspection = lazy(() => import('./components/ChecklistInspection'));
+const HierarchyManager = lazy(() => import('./components/HierarchyManager'));
+const EquipmentMapEditor = lazy(() => import('./components/EquipmentMapEditor'));
 import { UserProfile, InspectionReport, EquipmentDefinition } from './types';
 import { StorageService } from './services/storageService';
 import { auth } from './services/firebase';
@@ -105,99 +106,110 @@ const App: React.FC = () => {
     const initialMapId = urlParams.get('mapId') || undefined;
     return (
       <div className="h-screen w-full bg-slate-50">
-        <EquipmentMapEditor
-          user={user}
-          isOpen={true}
-          onClose={() => window.close()}
-          initialMapId={initialMapId}
-        />
+        <Suspense fallback={<div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div></div>}>
+          <EquipmentMapEditor
+            user={user}
+            isOpen={true}
+            onClose={() => window.close()}
+            initialMapId={initialMapId}
+          />
+        </Suspense>
       </div>
     );
   }
 
+  const LoadingFallback = () => (
+    <div className="h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-600 mb-4"></div>
+      <p className="text-slate-600 font-medium">載入中...</p>
+    </div>
+  );
+
   return (
     <div className="h-screen w-full bg-slate-50 relative overflow-hidden flex flex-col font-sans">
-      {currentView === 'DASHBOARD' ? (
-        <Dashboard
-          user={user}
-          onCreateNew={() => {
-            setSelectedReport(undefined);
-            setCurrentView('CHECKLIST_INSPECTION');
-          }}
-          onAddEquipment={() => {
-            setEditingEquipment(null);
-            setCurrentView('EQUIPMENT_MANAGER');
-          }}
-          onMyEquipment={(filter) => {
-            setEquipmentFilter(filter || '');
-            setCurrentView('MY_EQUIPMENT');
-          }}
-          onSelectReport={(report) => {
-            setSelectedReport(report);
-            setCurrentView('INSPECTION');
-          }}
-          onLogout={handleLogout}
-          onUserUpdate={handleUserUpdate}
-          onManageHierarchy={() => setCurrentView('HIERARCHY_MANAGER')}
-          onOpenMapEditor={() => setCurrentView('MAP_EDITOR')}
-        />
-      ) : currentView === 'MAP_EDITOR' ? (
-        <EquipmentMapEditor
-          user={user}
-          isOpen={true}
-          onClose={() => setCurrentView('DASHBOARD')}
-        />
-      ) : currentView === 'HIERARCHY_MANAGER' ? (
-        <HierarchyManager
-          user={user}
-          onBack={() => setCurrentView('DASHBOARD')}
-        />
-      ) : currentView === 'EQUIPMENT_MANAGER' ? (
-        <EquipmentManager
-          key={editingEquipment?.id || 'new'}
-          user={user}
-          initialData={editingEquipment}
-          onBack={() => {
-            setEditingEquipment(null);
-            if (editingEquipment) {
+      <Suspense fallback={<LoadingFallback />}>
+        {currentView === 'DASHBOARD' ? (
+          <Dashboard
+            user={user}
+            onCreateNew={() => {
+              setSelectedReport(undefined);
+              setCurrentView('CHECKLIST_INSPECTION');
+            }}
+            onAddEquipment={() => {
+              setEditingEquipment(null);
+              setCurrentView('EQUIPMENT_MANAGER');
+            }}
+            onMyEquipment={(filter) => {
+              setEquipmentFilter(filter || '');
               setCurrentView('MY_EQUIPMENT');
-            } else {
-              setCurrentView('DASHBOARD');
-            }
-          }}
-          onSaved={() => {
-            setEditingEquipment(null);
-            setCurrentView('MY_EQUIPMENT');
-          }}
-        />
-      ) : currentView === 'MY_EQUIPMENT' ? (
-        <MyEquipment
-          user={user}
-          selectedSite={filterSite}
-          selectedBuilding={filterBuilding}
-          onFilterChange={(site, bld) => {
-            setFilterSite(site);
-            setFilterBuilding(bld);
-          }}
-          onBack={() => setCurrentView('DASHBOARD')}
-          onEdit={(item) => {
-            setCurrentView('EQUIPMENT_MANAGER');
-          }}
-          initialQuery={equipmentFilter}
-        />
-      ) : currentView === 'CHECKLIST_INSPECTION' ? (
-        <ChecklistInspection
-          user={user}
-          onBack={() => setCurrentView('DASHBOARD')}
-        />
-      ) : (
-        <InspectionForm
-          user={user}
-          report={selectedReport}
-          onBack={() => setCurrentView('DASHBOARD')}
-          onSaved={() => setCurrentView('DASHBOARD')}
-        />
-      )}
+            }}
+            onSelectReport={(report) => {
+              setSelectedReport(report);
+              setCurrentView('INSPECTION');
+            }}
+            onLogout={handleLogout}
+            onUserUpdate={handleUserUpdate}
+            onManageHierarchy={() => setCurrentView('HIERARCHY_MANAGER')}
+            onOpenMapEditor={() => setCurrentView('MAP_EDITOR')}
+          />
+        ) : currentView === 'MAP_EDITOR' ? (
+          <EquipmentMapEditor
+            user={user}
+            isOpen={true}
+            onClose={() => setCurrentView('DASHBOARD')}
+          />
+        ) : currentView === 'HIERARCHY_MANAGER' ? (
+          <HierarchyManager
+            user={user}
+            onBack={() => setCurrentView('DASHBOARD')}
+          />
+        ) : currentView === 'EQUIPMENT_MANAGER' ? (
+          <EquipmentManager
+            key={editingEquipment?.id || 'new'}
+            user={user}
+            initialData={editingEquipment}
+            onBack={() => {
+              setEditingEquipment(null);
+              if (editingEquipment) {
+                setCurrentView('MY_EQUIPMENT');
+              } else {
+                setCurrentView('DASHBOARD');
+              }
+            }}
+            onSaved={() => {
+              setEditingEquipment(null);
+              setCurrentView('MY_EQUIPMENT');
+            }}
+          />
+        ) : currentView === 'MY_EQUIPMENT' ? (
+          <MyEquipment
+            user={user}
+            selectedSite={filterSite}
+            selectedBuilding={filterBuilding}
+            onFilterChange={(site, bld) => {
+              setFilterSite(site);
+              setFilterBuilding(bld);
+            }}
+            onBack={() => setCurrentView('DASHBOARD')}
+            onEdit={(item) => {
+              setCurrentView('EQUIPMENT_MANAGER');
+            }}
+            initialQuery={equipmentFilter}
+          />
+        ) : currentView === 'CHECKLIST_INSPECTION' ? (
+          <ChecklistInspection
+            user={user}
+            onBack={() => setCurrentView('DASHBOARD')}
+          />
+        ) : (
+          <InspectionForm
+            user={user}
+            report={selectedReport}
+            onBack={() => setCurrentView('DASHBOARD')}
+            onSaved={() => setCurrentView('DASHBOARD')}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };

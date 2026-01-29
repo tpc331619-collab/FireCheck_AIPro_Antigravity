@@ -43,6 +43,15 @@ try {
     googleProvider.setCustomParameters({
       prompt: 'select_account'
     });
+
+    // Enable persistence for faster subsequent loads
+    if (auth && typeof window !== 'undefined') {
+      import('firebase/auth').then(({ setPersistence, browserLocalPersistence }) => {
+        setPersistence(auth!, browserLocalPersistence).catch((error) => {
+          console.warn('Failed to set auth persistence:', error);
+        });
+      });
+    }
   }
 } catch (error) {
   console.warn("Firebase initialization failed. App will fallback to Guest/LocalStorage mode.", error);

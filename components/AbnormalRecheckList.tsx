@@ -352,7 +352,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
                     <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 flex justify-center custom-scrollbar bg-slate-100">
                         {/* A4 模擬容器 */}
-                        <div ref={printRef} className="print-area w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-[15mm] text-slate-900 border border-slate-200">
+                        <div ref={printRef} className="print-area w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-[15mm] text-slate-900 border border-slate-200">
 
                             {/* 表頭 */}
                             <div className="text-center mb-6 pb-2 border-b-2 border-black">
