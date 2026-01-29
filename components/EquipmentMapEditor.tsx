@@ -511,6 +511,11 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         // "Contain" logic: Fit entirely within
         let optimalZoom = Math.min(scaleW, scaleH);
 
+        // Mobile Optimization: Ensure readable size (min 35%)
+        if (window.innerWidth < 768 && optimalZoom < 0.35) {
+            optimalZoom = 0.35;
+        }
+
         // Safety clamps
         if (optimalZoom < 0.1) optimalZoom = 0.1;
         if (optimalZoom > 5) optimalZoom = 5;
@@ -1153,7 +1158,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             </div>
 
                             {/* Canvas Scroll Area */}
-                            <div className="w-full h-full overflow-auto flex items-center justify-center p-4 sm:p-20 cursor-move">
+                            <div className="w-full h-full overflow-auto flex items-center justify-center p-0 sm:p-20 cursor-move">
                                 <div
                                     className="transition-transform duration-200 ease-out origin-center select-none relative shadow-2xl ring-4 ring-white/50"
                                     style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
