@@ -475,7 +475,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             {/* Header */}
             <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-                    <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                    <button onClick={onBack} className="relative z-50 p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
                     <h1 className="font-bold text-lg text-slate-800">{t('startInspection')}</h1>
