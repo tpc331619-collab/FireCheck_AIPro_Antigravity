@@ -23,7 +23,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
 
                 const config = {
                     fps: 10,
-                    qrbox: { width: 300, height: 300 },
+                    qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                        // Increase to ~70% of the screen width for better visibility (Square for mixed usage)
+                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                        return {
+                            width: Math.floor(minEdge * 0.7),
+                            height: Math.floor(minEdge * 0.7)
+                        };
+                    },
                     aspectRatio: 1.0
                 };
 

@@ -344,139 +344,151 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
-                      {filteredEquipment.map((item, index) => (
-                        <div key={item.id} className="p-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 border-l-transparent hover:border-l-red-500">
+                      {filteredEquipment.map((item, index) => {
+                        // Logic to determine status color shared with the indicator logic below
+                        const status = getFrequencyStatus(item, lightSettings);
+                        let borderColorClass = 'border-l-slate-200'; // Fallback
 
-                          {/* Main Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="flex-shrink-0 text-slate-400 font-bold text-sm mr-1">
-                                {index + 1}.
-                              </span>
-                              <h3 className="font-bold text-slate-800 text-lg group-hover:text-red-600 transition-colors truncate">
-                                {item.name}
-                              </h3>
-                              <span className="px-2 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-500">
-                                {item.barcode}
-                              </span>
-                            </div>
+                        if (status === 'COMPLETED') borderColorClass = 'border-l-green-500';
+                        else if (status === 'CAN_INSPECT') borderColorClass = 'border-l-blue-500';
+                        else if (status === 'PENDING') borderColorClass = 'border-l-red-500';
+                        else if (status === 'UNNECESSARY') borderColorClass = 'border-l-slate-300';
 
-                            <div className="flex flex-wrap items-center gap-4 text-xs">
-                              <div className="flex items-center text-slate-500" title="新建日期">
-                                <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                                <span>新建: {new Date(item.createdAt || 0).toLocaleDateString(language)}</span>
+                        // Check for custom colors from lightSettings if needed, but standard classes are safer for now unless we do inline styles.
+                        // For simplicity and performance, mapping to Tailwind classes is preferred here.
+
+                        return (
+                          <div key={item.id} className={`p-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 ${borderColorClass} shadow-sm mb-2 rounded-r-xl`}>
+
+                            {/* Main Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="flex-shrink-0 text-slate-400 font-bold text-sm mr-1">
+                                  {index + 1}.
+                                </span>
+                                <h3 className="font-bold text-slate-800 text-lg group-hover:text-red-600 transition-colors truncate">
+                                  {item.name}
+                                </h3>
+                                <span className="px-2 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-500">
+                                  {item.barcode}
+                                </span>
                               </div>
-                              <div className="flex items-center">
-                                {(() => {
-                                  // Use shared logic
-                                  const nextTs = getNextInspectionDate(item);
-                                  const status = getFrequencyStatus(item, lightSettings);
 
-                                  let label = '';
-                                  let colorClass = '';
-                                  // Default base colors
-                                  let defaultDotColor = '';
+                              <div className="flex flex-wrap items-center gap-4 text-xs">
+                                <div className="flex items-center text-slate-500" title="新建日期">
+                                  <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                  <span>新建: {new Date(item.createdAt || 0).toLocaleDateString(language)}</span>
+                                </div>
+                                <div className="flex items-center">
+                                  {(() => {
+                                    // Use shared logic
+                                    const nextTs = getNextInspectionDate(item);
+                                    // status is already calculated above for the border
 
-                                  // Determine Lable and Default Colors
-                                  if (status === 'COMPLETED') {
-                                    label = '已檢查';
-                                    colorClass = 'bg-green-50 text-green-600 border-green-200';
-                                    defaultDotColor = '#22c55e'; // green-500
-                                  } else if (status === 'CAN_INSPECT') {
-                                    label = '可以檢查';
-                                    colorClass = 'bg-blue-50 text-blue-600 border-blue-200';
-                                    defaultDotColor = '#3b82f6'; // blue-500
-                                  } else if (status === 'PENDING') {
-                                    label = '需檢查';
-                                    colorClass = 'bg-red-50 text-red-600 border-red-200';
-                                    defaultDotColor = '#ef4444'; // red-500
-                                  } else if (status === 'UNNECESSARY') {
-                                    label = '不須檢查';
-                                    colorClass = 'bg-slate-50 text-slate-500 border-slate-200';
-                                    defaultDotColor = '#94a3b8'; // slate-400
-                                  }
+                                    let label = '';
+                                    let colorClass = '';
+                                    let defaultDotColor = '';
 
-                                  // Check for Custom Colors from Settings
-                                  let customColor = '';
-                                  if (status === 'COMPLETED' && lightSettings?.completed?.color) customColor = lightSettings.completed.color;
-                                  if (status === 'CAN_INSPECT' && lightSettings?.yellow?.color) customColor = lightSettings.yellow.color;
-                                  if (status === 'PENDING' && lightSettings?.red?.color) customColor = lightSettings.red.color;
-                                  if (status === 'UNNECESSARY' && lightSettings?.green?.color) customColor = lightSettings.green.color;
+                                    // Determine Lable and Default Colors
+                                    if (status === 'COMPLETED') {
+                                      label = '已檢查';
+                                      colorClass = 'bg-green-50 text-green-600 border-green-200';
+                                      defaultDotColor = '#22c55e'; // green-500
+                                    } else if (status === 'CAN_INSPECT') {
+                                      label = '可以檢查';
+                                      colorClass = 'bg-blue-50 text-blue-600 border-blue-200';
+                                      defaultDotColor = '#3b82f6'; // blue-500
+                                    } else if (status === 'PENDING') {
+                                      label = '需檢查';
+                                      colorClass = 'bg-red-50 text-red-600 border-red-200';
+                                      defaultDotColor = '#ef4444'; // red-500
+                                    } else if (status === 'UNNECESSARY') {
+                                      label = '不須檢查';
+                                      colorClass = 'bg-slate-50 text-slate-500 border-slate-200';
+                                      defaultDotColor = '#94a3b8'; // slate-400
+                                    }
 
-                                  // Styles
-                                  const dotStyle: React.CSSProperties = { backgroundColor: customColor || defaultDotColor };
-                                  const textStyle: React.CSSProperties = customColor ? { color: customColor } : {};
-                                  const containerStyle: React.CSSProperties = customColor ? {
-                                    borderColor: customColor + '40', // 25% opacity
-                                    backgroundColor: customColor + '10' // ~6% opacity
-                                  } : {};
+                                    // Check for Custom Colors from Settings
+                                    let customColor = '';
+                                    if (status === 'COMPLETED' && lightSettings?.completed?.color) customColor = lightSettings.completed.color;
+                                    if (status === 'CAN_INSPECT' && lightSettings?.yellow?.color) customColor = lightSettings.yellow.color;
+                                    if (status === 'PENDING' && lightSettings?.red?.color) customColor = lightSettings.red.color;
+                                    if (status === 'UNNECESSARY' && lightSettings?.green?.color) customColor = lightSettings.green.color;
 
-                                  // Classes
-                                  // If custom color is used, we strip the default color classes but keep layout classes
-                                  const containerClass = `flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${customColor ? '' : colorClass}`;
-                                  // Pulse for pending
-                                  const dotClass = `w-2 h-2 rounded-full`;
+                                    // Styles
+                                    const dotStyle: React.CSSProperties = { backgroundColor: customColor || defaultDotColor };
+                                    const textStyle: React.CSSProperties = customColor ? { color: customColor } : {};
+                                    const containerStyle: React.CSSProperties = customColor ? {
+                                      borderColor: customColor + '40', // 25% opacity
+                                      backgroundColor: customColor + '10' // ~6% opacity
+                                    } : {};
 
-                                  return (
-                                    <div className="flex items-center gap-2">
-                                      <div className={containerClass} style={containerStyle}>
-                                        <div className={dotClass} style={dotStyle}></div>
-                                        <span style={textStyle}>{label}</span>
+                                    // Classes
+                                    // If custom color is used, we strip the default color classes but keep layout classes
+                                    const containerClass = `flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${customColor ? '' : colorClass}`;
+                                    // Pulse for pending
+                                    const dotClass = `w-2 h-2 rounded-full`;
+
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <div className={containerClass} style={containerStyle}>
+                                          <div className={dotClass} style={dotStyle}></div>
+                                          <span style={textStyle}>{label}</span>
+                                        </div>
+                                        <span className="text-slate-400">下一次檢查:</span>
+                                        <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
                                       </div>
-                                      <span className="text-slate-400">下一次檢查:</span>
-                                      <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
-                                    </div>
-                                  );
-                                })()}
+                                    );
+                                  })()}
+                                </div>
                               </div>
                             </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 transition-all">
+                              <button
+                                onClick={(e) => handleShowPhoto(e, item)}
+                                className={`p-1.5 rounded-lg border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
+                                title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
+                                disabled={!(item.photoUrl || (item as any).photoURL)}
+                              >
+                                <Image className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => handleShowQr(e, item)}
+                                className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                                title={t('viewQr')}
+                              >
+                                <QrCode className="w-4 h-4" />
+                              </button>
+                              <div className="w-px h-5 bg-slate-100 mx-1 hidden sm:block"></div>
+                              <button
+                                onClick={(e) => handleEdit(e, item)}
+                                className="p-1.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition-all active:scale-95"
+                                title={t('edit')}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => handleCopy(e, item)}
+                                className="p-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-100 transition-all active:scale-95"
+                                title={t('copy')}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => handleDeleteClick(e, item)}
+                                className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg shadow-sm hover:bg-red-100 transition-all active:scale-95"
+                                title={t('delete')}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+
+
                           </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-2 transition-all">
-                            <button
-                              onClick={(e) => handleShowPhoto(e, item)}
-                              className={`p-1.5 rounded-lg border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
-                              title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
-                              disabled={!(item.photoUrl || (item as any).photoURL)}
-                            >
-                              <Image className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => handleShowQr(e, item)}
-                              className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
-                              title={t('viewQr')}
-                            >
-                              <QrCode className="w-4 h-4" />
-                            </button>
-                            <div className="w-px h-5 bg-slate-100 mx-1 hidden sm:block"></div>
-                            <button
-                              onClick={(e) => handleEdit(e, item)}
-                              className="p-1.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition-all active:scale-95"
-                              title={t('edit')}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => handleCopy(e, item)}
-                              className="p-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-100 transition-all active:scale-95"
-                              title={t('copy')}
-                            >
-                              <Copy className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => handleDeleteClick(e, item)}
-                              className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg shadow-sm hover:bg-red-100 transition-all active:scale-95"
-                              title={t('delete')}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-
-
-
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -490,54 +502,58 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
             </>
           )}
         </div>
-      </div>
+      </div >
 
       {/* Toast Notification (提示視窗) */}
-      {toastMsg && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
-          <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
-            {toastMsg.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-green-400" />}
-            <span className="font-bold text-sm tracking-wide">{toastMsg.text}</span>
+      {
+        toastMsg && (
+          <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+            <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
+              {toastMsg.type === 'error' ? <AlertCircle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-green-400" />}
+              <span className="font-bold text-sm tracking-wide">{toastMsg.text}</span>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* QR Code 彈出視窗 */}
-      {viewQr && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setViewQr(null)}
-              className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5 text-slate-400" />
-            </button>
+      {
+        viewQr && (
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center relative animate-in zoom-in-95 duration-200">
+              <button
+                onClick={() => setViewQr(null)}
+                className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
 
-            <div className="text-center mb-6">
-              <h3 className="font-bold text-xl text-slate-800">{viewQr.name}</h3>
-              <p className="text-sm text-slate-400 font-mono mt-1 tracking-widest">{viewQr.barcode}</p>
+              <div className="text-center mb-6">
+                <h3 className="font-bold text-xl text-slate-800">{viewQr.name}</h3>
+                <p className="text-sm text-slate-400 font-mono mt-1 tracking-widest">{viewQr.barcode}</p>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border-8 border-slate-50 shadow-inner mb-8">
+                <img src={viewQr.url} alt="QR Code" className="w-48 h-48" />
+              </div>
+
+              <button
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = viewQr.url;
+                  link.download = `QR_${viewQr.barcode}.png`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-95"
+              >
+                <Download className="w-5 h-5" /> {t('downloadQrCode')}
+              </button>
             </div>
-
-            <div className="bg-white p-5 rounded-3xl border-8 border-slate-50 shadow-inner mb-8">
-              <img src={viewQr.url} alt="QR Code" className="w-48 h-48" />
-            </div>
-
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = viewQr.url;
-                link.download = `QR_${viewQr.barcode}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-95"
-            >
-              <Download className="w-5 h-5" /> {t('downloadQrCode')}
-            </button>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Delete Confirmation Modal */}
       {
@@ -572,74 +588,76 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
         )
       }
       {/* Photo View Modal */}
-      {viewPhoto && (
-        <div className="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="relative max-w-2xl w-full flex flex-col items-center animate-in zoom-in-95 duration-300">
-            <button
-              onClick={() => setViewPhoto(null)}
-              className="absolute -top-12 right-0 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
-            >
-              <X className="w-8 h-8" />
-            </button>
+      {
+        viewPhoto && (
+          <div className="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="relative max-w-2xl w-full flex flex-col items-center animate-in zoom-in-95 duration-300">
+              <button
+                onClick={() => setViewPhoto(null)}
+                className="absolute -top-12 right-0 p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-8 h-8" />
+              </button>
 
-            <div className="bg-white p-2 rounded-3xl shadow-2xl overflow-hidden mb-6 w-full aspect-square sm:aspect-auto sm:min-h-[400px] sm:max-h-[70vh] flex items-center justify-center relative bg-slate-50">
-              {/* Fallback & Loading Indicator */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 gap-2">
-                <Image className="w-12 h-12" />
-                <span className="text-xs font-bold text-slate-400">正在努力讀取照片...</span>
+              <div className="bg-white p-2 rounded-3xl shadow-2xl overflow-hidden mb-6 w-full aspect-square sm:aspect-auto sm:min-h-[400px] sm:max-h-[70vh] flex items-center justify-center relative bg-slate-50">
+                {/* Fallback & Loading Indicator */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 gap-2">
+                  <Image className="w-12 h-12" />
+                  <span className="text-xs font-bold text-slate-400">正在努力讀取照片...</span>
+                </div>
+
+                <img
+                  src={viewPhoto.url}
+                  alt={viewPhoto.name}
+                  className="relative z-10 max-w-full max-h-full object-contain rounded-2xl shadow-sm"
+                  onLoad={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.previousElementSibling) {
+                      (target.previousElementSibling as HTMLElement).style.display = 'none';
+                    }
+                  }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    if (target.previousElementSibling) {
+                      const fallback = target.previousElementSibling as HTMLElement;
+                      fallback.innerHTML = `<div class="text-center p-8"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-300"><path d="m21 21-18-18"/><path d="M10.45 4.45 12 3l12 12-1.45 1.45"/><path d="M14.91 14.91 21 21"/><path d="M16.5 16.5 12 21 0 9l1.45-1.45"/></svg><p class="text-red-400 font-bold">照片讀取失敗</p><p class="text-slate-400 text-xs mt-1">請確認圖片連結是否有效</p></div>`;
+                    }
+                  }}
+                />
               </div>
 
-              <img
-                src={viewPhoto.url}
-                alt={viewPhoto.name}
-                className="relative z-10 max-w-full max-h-full object-contain rounded-2xl shadow-sm"
-                onLoad={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  if (target.previousElementSibling) {
-                    (target.previousElementSibling as HTMLElement).style.display = 'none';
-                  }
-                }}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  if (target.previousElementSibling) {
-                    const fallback = target.previousElementSibling as HTMLElement;
-                    fallback.innerHTML = `<div class="text-center p-8"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-300"><path d="m21 21-18-18"/><path d="M10.45 4.45 12 3l12 12-1.45 1.45"/><path d="M14.91 14.91 21 21"/><path d="M16.5 16.5 12 21 0 9l1.45-1.45"/></svg><p class="text-red-400 font-bold">照片讀取失敗</p><p class="text-slate-400 text-xs mt-1">請確認圖片連結是否有效</p></div>`;
-                  }
-                }}
-              />
-            </div>
+              <div className="text-center px-4 mb-6">
+                <h3 className="font-bold text-xl text-white mb-1">{viewPhoto.name}</h3>
+              </div>
 
-            <div className="text-center px-4 mb-6">
-              <h3 className="font-bold text-xl text-white mb-1">{viewPhoto.name}</h3>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 w-full">
-              <button
-                onClick={() => {
-                  window.open(viewPhoto.url, '_blank');
-                }}
-                className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-2 border border-slate-700 hover:bg-slate-700 transition-all active:scale-95"
-              >
-                <Globe className="w-5 h-5" /> 在瀏覽器開啟連結
-              </button>
-              <button
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = viewPhoto.url;
-                  link.download = `Photo_${viewPhoto.name}.jpg`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                className="flex-1 py-4 bg-white text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all shadow-xl active:scale-95 border border-transparent"
-              >
-                <Download className="w-5 h-5" /> 下載照片
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <button
+                  onClick={() => {
+                    window.open(viewPhoto.url, '_blank');
+                  }}
+                  className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-2 border border-slate-700 hover:bg-slate-700 transition-all active:scale-95"
+                >
+                  <Globe className="w-5 h-5" /> 在瀏覽器開啟連結
+                </button>
+                <button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = viewPhoto.url;
+                    link.download = `Photo_${viewPhoto.name}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="flex-1 py-4 bg-white text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all shadow-xl active:scale-95 border border-transparent"
+                >
+                  <Download className="w-5 h-5" /> 下載照片
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div >
   );
 };

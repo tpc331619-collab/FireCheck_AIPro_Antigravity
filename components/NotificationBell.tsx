@@ -130,7 +130,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
             >
                 <Bell className={`w-6 h-6 ${iconClassName || 'text-slate-600 dark:text-slate-300'}`} />
                 {unreadCount > 0 && (
-                    <span className="absolute top-0 right-0 flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-800">
+                    <span className="absolute top-1.5 right-1.5 flex items-center justify-center min-w-[15px] h-[15px] px-0.5 text-[9px] font-bold text-white bg-red-600 rounded-full border border-white dark:border-slate-900 shadow-sm leading-none z-10">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}

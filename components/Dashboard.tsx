@@ -1205,9 +1205,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     <div className="flex items-center gap-2">
                         {!user.isGuest && (
                             <>
-                                <button onClick={() => setIsHealthModalOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title="健康指標">
-                                    <Activity className="w-5 h-5" />
-                                </button>
+
                                 <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title="設置">
                                     <Settings className="w-5 h-5" />
                                 </button>
@@ -1416,7 +1414,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <HeartPulse className="w-6 h-6 text-white" />
                                 </div>
                                 <h3 className="font-bold text-slate-800 text-lg mb-1">{t('healthIndicators')}</h3>
-                                <p className="text-xs text-slate-500">{t('healthIndicatorsDesc')}</p>
+                                <p className="text-xs text-slate-500">{healthIndicators.length} 筆指標</p>
                             </button>
                         )}
 

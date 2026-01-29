@@ -580,7 +580,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             <img
                                 src={currentMap.imageUrl}
                                 alt={currentMap.name}
-                                className="max-w-full max-h-full pointer-events-auto"
+                                className="max-w-[95vw] max-h-[80vh] w-auto h-auto object-contain pointer-events-auto"
                                 draggable={false}
                                 onDragStart={(e) => e.preventDefault()}
                             />

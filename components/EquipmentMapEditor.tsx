@@ -1173,7 +1173,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                 src={image.src}
                                                 alt="Map"
                                                 crossOrigin={isCorsAllowed ? "anonymous" : undefined}
-                                                className="block w-auto h-auto pointer-events-none select-none"
+                                                className="block min-w-[50vw] min-h-[50vh] max-w-[90vw] max-h-[70vh] w-auto h-auto object-contain pointer-events-none select-none"
                                                 style={{ touchAction: 'none' }}
                                             />
 
