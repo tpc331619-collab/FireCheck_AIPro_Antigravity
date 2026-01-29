@@ -100,8 +100,11 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
   // 當篩選條件或總表改變時，計算過濾後的列表
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+    // Safety check: ensure searchQuery is a string
+    const queryStr = typeof searchQuery === 'string' ? searchQuery : '';
+
+    if (queryStr.trim()) {
+      const query = queryStr.toLowerCase().trim();
       const filtered = allEquipment.filter(e =>
         e.barcode.toLowerCase().includes(query) ||
         e.name.toLowerCase().includes(query)
@@ -117,7 +120,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     }
 
     // Sort by createdAt descending (newest first)
-    if (searchQuery.trim() || (selectedSite && selectedBuilding)) {
+    if (queryStr.trim() || (selectedSite && selectedBuilding)) {
       setFilteredEquipment(prev => [...prev].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
     }
   }, [selectedSite, selectedBuilding, allEquipment, searchQuery]);

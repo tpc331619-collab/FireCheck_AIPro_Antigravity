@@ -1357,7 +1357,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {/* My Equipment */}
                         {!user.isGuest && (
                             <button
-                                onClick={onMyEquipment}
+                                onClick={() => onMyEquipment()}
                                 className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-cyan-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
