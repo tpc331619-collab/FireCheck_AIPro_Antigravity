@@ -511,9 +511,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         // "Contain" logic: Fit entirely within
         let optimalZoom = Math.min(scaleW, scaleH);
 
-        // Mobile Optimization: Ensure readable size (min 35%)
-        if (window.innerWidth < 768 && optimalZoom < 0.35) {
-            optimalZoom = 0.35;
+        // Mobile Optimization: Ensure readable size (min 95%)
+        if (window.innerWidth < 768 && optimalZoom < 0.95) {
+            optimalZoom = 0.95;
         }
 
         // Safety clamps
@@ -1105,7 +1105,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-slate-100">
 
                         {/* Middle Canvas */}
-                        <div className="h-[60vh] lg:h-auto lg:flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner shrink-0">
+                        <div className="h-[45vh] lg:h-auto lg:flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner shrink-0">
 
                             {/* Floating Toolbar */}
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 rounded-full px-1.5 py-1 sm:px-4 sm:py-2 flex items-center gap-0.5 sm:gap-2 z-30 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
