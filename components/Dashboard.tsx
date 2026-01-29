@@ -1312,23 +1312,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     </div>
 
                     {/* Main Actions Grid */}
-                    <div className={`grid gap-4 ${user.isGuest
-                        ? 'grid-cols-1'
-                        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                    <div className={`grid gap-3 ${user.isGuest
+                        ? 'grid-cols-2'
+                        : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                         }`}>
                         {/* Start Inspection */}
                         {!user.isGuest && (
                             <button
                                 onClick={() => setIsInspectionModeOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-blue-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-blue-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <ClipboardCheck className="w-24 h-24 text-blue-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="p-3 bg-blue-500 rounded-xl w-fit mb-3 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                                    <ClipboardCheck className="w-6 h-6 text-white" />
+                                <div className="p-2 bg-blue-500 rounded-xl w-fit mb-2 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                                    <ClipboardCheck className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('startInspectionTitle')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('startInspectionTitle')}</h3>
                                 <p className="text-xs text-slate-500">{t('startInspectionDesc')}</p>
                             </button>
                         )}
@@ -1337,13 +1337,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={() => setShowAbnormalRecheck(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <AlertOctagon className="w-24 h-24 text-amber-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="relative p-3 bg-amber-500 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                                    <AlertOctagon className="w-6 h-6 text-white" />
+                                <div className="relative p-2 bg-amber-500 rounded-xl w-fit mb-2 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
+                                    <AlertOctagon className="w-5 h-5 text-white" />
                                     {abnormalCount > 0 && (
                                         <span className="absolute -top-1 -right-1 flex h-3 w-3">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -1351,7 +1351,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         </span>
                                     )}
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('abnormalRecheck')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('abnormalRecheck')}</h3>
                                 <p className="text-xs text-slate-500">
                                     {abnormalCount > 0 ? `${abnormalCount} 筆待處理` : t('noAbnormalItems')}
                                 </p>
@@ -1362,15 +1362,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={() => onMyEquipment()}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-cyan-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-cyan-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <Building className="w-24 h-24 text-cyan-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="p-3 bg-cyan-500 rounded-xl w-fit mb-3 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
-                                    <Building className="w-6 h-6 text-white" />
+                                <div className="p-2 bg-cyan-500 rounded-xl w-fit mb-2 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
+                                    <Building className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('myEquipment')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('myEquipment')}</h3>
                                 <p className="text-xs text-slate-500">{t('myEquipmentDesc')}</p>
                             </button>
                         )}
@@ -1379,15 +1379,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={onOpenMapEditor}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-purple-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-purple-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <MapPinned className="w-24 h-24 text-purple-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="p-3 bg-purple-500 rounded-xl w-fit mb-3 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
-                                    <MapPinned className="w-6 h-6 text-white" />
+                                <div className="p-2 bg-purple-500 rounded-xl w-fit mb-2 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
+                                    <MapPinned className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('mapEditor')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('mapEditor')}</h3>
                                 <p className="text-xs text-slate-500">{t('mapEditorDesc')}</p>
                             </button>
                         )}
@@ -1395,15 +1395,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {/* History */}
                         <button
                             onClick={scrollToHistory}
-                            className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-indigo-500 hover:shadow-md active:scale-[0.98]"
+                            className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-indigo-500 hover:shadow-md active:scale-[0.98]"
                         >
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <ScrollText className="w-24 h-24 text-indigo-500 -mr-8 -mt-8" />
                             </div>
-                            <div className="p-3 bg-indigo-500 rounded-xl w-fit mb-3 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                                <ScrollText className="w-6 h-6 text-white" />
+                            <div className="p-2 bg-indigo-500 rounded-xl w-fit mb-2 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                                <ScrollText className="w-5 h-5 text-white" />
                             </div>
-                            <h3 className="font-bold text-slate-800 text-lg mb-1">{t('history')}</h3>
+                            <h3 className="font-bold text-slate-800 text-base mb-1">{t('history')}</h3>
                             <p className="text-xs text-slate-500">{flattenedHistory.length} {t('historyRecordsCount')}</p>
                         </button>
 
@@ -1411,15 +1411,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={() => setIsHealthModalOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-rose-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-rose-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <HeartPulse className="w-24 h-24 text-rose-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="p-3 bg-rose-500 rounded-xl w-fit mb-3 shadow-lg shadow-rose-200 group-hover:scale-110 transition-transform">
-                                    <HeartPulse className="w-6 h-6 text-white" />
+                                <div className="p-2 bg-rose-500 rounded-xl w-fit mb-2 shadow-lg shadow-rose-200 group-hover:scale-110 transition-transform">
+                                    <HeartPulse className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('healthIndicators')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('healthIndicators')}</h3>
                                 <p className="text-xs text-slate-500">{healthIndicators.length} 筆指標</p>
                             </button>
                         )}
@@ -1428,15 +1428,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={onAddEquipment}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-emerald-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-emerald-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <PlusCircle className="w-24 h-24 text-emerald-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="p-3 bg-emerald-500 rounded-xl w-fit mb-3 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                                    <PlusCircle className="w-6 h-6 text-white" />
+                                <div className="p-2 bg-emerald-500 rounded-xl w-fit mb-2 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                                    <PlusCircle className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('addEquipment')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('addEquipment')}</h3>
                                 <p className="text-xs text-slate-500">{t('addEquipmentDesc')}</p>
                             </button>
                         )}
@@ -1445,15 +1445,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={onManageHierarchy}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-4 text-left border border-slate-200 transition-all hover:border-orange-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-orange-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                                     <ListPlus className="w-24 h-24 text-orange-500 -mr-8 -mt-8" />
                                 </div>
-                                <div className="p-3 bg-orange-500 rounded-xl w-fit mb-3 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
-                                    <ListPlus className="w-6 h-6 text-white" />
+                                <div className="p-2 bg-orange-500 rounded-xl w-fit mb-2 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
+                                    <ListPlus className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg mb-1">{t('addNameList')}</h3>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('addNameList')}</h3>
                                 <p className="text-xs text-slate-500">{t('addNameListDescShort')}</p>
                             </button>
                         )}
@@ -2857,7 +2857,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     }
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
