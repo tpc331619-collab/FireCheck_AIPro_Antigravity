@@ -290,7 +290,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                    placeholder="輸入設備編號或名稱搜尋..."
+                    placeholder={t('searchEquipmentPlaceholder')}
                     className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all"
                   />
                   {searchQuery && (
@@ -495,8 +495,8 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
               ) : (
                 <div className="text-center py-24 text-slate-400 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
                   <Search className="w-16 h-16 mx-auto mb-4 opacity-10" />
-                  <p className="font-bold text-lg text-slate-400">請先選擇場所與建築物</p>
-                  <p className="text-sm mt-1">系統將根據篩選條件為您列出對應設備清單</p>
+                  <p className="font-bold text-lg text-slate-400">{t('selectSiteAndBuildingHint')}</p>
+                  <p className="text-sm mt-1">{t('selectSiteAndBuildingDesc')}</p>
                 </div>
               )}
             </>

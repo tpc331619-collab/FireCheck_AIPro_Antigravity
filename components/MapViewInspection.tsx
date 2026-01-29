@@ -529,7 +529,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                             className="w-full h-full object-contain"
                                         />
                                         <div className="absolute top-2 right-2 bg-slate-700 text-white px-2 py-1 rounded-full text-xs font-bold">
-                                            {map.markers.length} 個標註點
+                                            {map.markers.length}{t('markersCountSuffix')}
                                         </div>
                                     </div>
                                     <div className="p-4">

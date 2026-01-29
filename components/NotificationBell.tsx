@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, X, Calendar, User, Heart, AlertTriangle, Check, Zap } from 'lucide-react';
 import { Notification, NotificationType } from '../types';
 import { StorageService } from '../services/storageService';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface NotificationBellProps {
     userId: string;
@@ -10,6 +11,7 @@ interface NotificationBellProps {
 }
 
 export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, className, iconClassName }) => {
+    const { t } = useLanguage();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -143,7 +145,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
                     <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                         <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
                             <Bell className="w-5 h-5" />
-                            通知
+                            {t('notifications')}
                             {unreadCount > 0 && (
                                 <span className="text-xs font-bold text-red-500">({unreadCount})</span>
                             )}
@@ -161,7 +163,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
                         {notifications.length === 0 ? (
                             <div className="p-8 text-center text-slate-400 dark:text-slate-500">
                                 <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                <p className="text-sm">目前沒有通知</p>
+                                <p className="text-sm">{t('noNotifications')}</p>
                             </div>
                         ) : (
                             notifications.map((notification) => (

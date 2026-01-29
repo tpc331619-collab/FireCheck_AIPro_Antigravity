@@ -163,13 +163,13 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
     // Format Validation
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      alert('格式錯誤：僅支援 JPG 或 PNG 圖片');
+      alert(t('photoFormatError'));
       return;
     }
 
     // Size Validation (1MB)
     if (file.size > 1024 * 1024) {
-      alert('檔案過大：圖片大小限制為 1MB 以下');
+      alert(t('photoSizeError'));
       return;
     }
 
@@ -196,9 +196,9 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     } catch (err) {
       console.error("Photo upload failed", err);
       if (err instanceof Error && err.message.includes('1MB')) {
-        alert('上傳失敗：圖片大小超過 1MB 限制');
+        alert(`${t('uploadGenericError')}：${t('fileSizeExceeded')}`);
       } else {
-        alert('照片上傳失敗，請稍後再試');
+        alert(t('uploadPhotoFailed'));
       }
     } finally {
       setIsUploadingPhoto(false);
@@ -210,7 +210,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   const handleDeletePhoto = async () => {
     if (!photoUrl) return;
 
-    if (!confirm('確定要刪除這張照片嗎？')) return;
+    if (!confirm(t('confirmDeletePhoto'))) return;
 
     try {
       setIsUploadingPhoto(true);
@@ -230,7 +230,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       setPhotoUrl('');
     } catch (err) {
       console.error("Delete photo failed", err);
-      alert('刪除照片失敗，請稍後再試');
+      alert(t('deletePhotoFailed'));
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -298,7 +298,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     // If there are missing fields, show error and return
     if (missingFields.length > 0) {
       setValidationErrors(errors);
-      alert(`請填寫以下必填欄位：\n\n${missingFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}`);
+      alert(`${t('mandatoryFieldsTitle')}\n\n${missingFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}`);
 
       // Scroll to first error
       setTimeout(() => {
@@ -360,15 +360,15 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     if (invalidNumericItems.length > 0) {
       const itemDetails = invalidNumericItems.map(item => {
         const issues = [];
-        if (!item.thresholdMode) issues.push('缺少判定模式');
-        if (item.val1 === undefined || item.val1 === null || isNaN(item.val1)) issues.push('缺少或無效的數值1');
-        if (item.thresholdMode === 'range' && (item.val2 === undefined || item.val2 === null || isNaN(item.val2))) issues.push('缺少或無效的數值2 (Max)');
-        if (!item.unit || item.unit.trim() === '') issues.push('缺少單位');
+        if (!item.thresholdMode) issues.push(t('thresholdMissingMode'));
+        if (item.val1 === undefined || item.val1 === null || isNaN(item.val1)) issues.push(t('thresholdInvalidVal1'));
+        if (item.thresholdMode === 'range' && (item.val2 === undefined || item.val2 === null || isNaN(item.val2))) issues.push(t('thresholdInvalidVal2'));
+        if (!item.unit || item.unit.trim() === '') issues.push(t('thresholdMissingUnit'));
         return `「${item.name}」: ${issues.join('、')}`;
       }).join('\n');
 
       console.error('[EquipmentManager] Validation failed details:\n', itemDetails);
-      alert(`以下數值檢查項目缺少完整的閾值設定：\n\n${itemDetails}\n\n請完整填寫後再儲存。`);
+      alert(`${t('thresholdValidationTitle')}\n\n${itemDetails}\n\n${t('pleaseCompleteThresholds')}`);
       return;
     }
 
@@ -449,7 +449,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
             }
           } catch (syncErr) {
             console.error("Sync Rename Failed:", syncErr);
-            alert("設備資料已更新，但同步至地圖或異常清單時發生錯誤，請手動檢查。");
+            alert(t('syncError'));
           }
         }
         // -------------------------
@@ -549,7 +549,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
             <div className="flex flex-col">
               <span className="text-sm">{title}</span>
               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
-                {items.length} 個項目
+                {items.length}{t('itemsCountSuffix')}
               </span>
             </div>
           </div>
@@ -576,7 +576,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
             {items.length === 0 ? (
               <div className="text-center py-8 bg-slate-50/50 rounded-xl border border-dashed border-slate-200 text-slate-400 text-sm">
                 <LayoutList className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                尚未新增項目
+                {t('noItemsYet')}
               </div>
             ) : (
               items.map(item => (
@@ -679,7 +679,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                               type="text"
                               value={item.unit || ''}
                               onChange={(e) => updateCheckItem(item.id, { unit: e.target.value })}
-                              placeholder="自訂"
+                              placeholder={t('custom')}
                               className="w-16 p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-900 outline-none focus:border-blue-500 transition-colors"
                             />
                           )}

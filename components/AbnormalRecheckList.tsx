@@ -593,7 +593,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                 ? 'bg-orange-100 text-orange-700'
                                 : 'bg-green-100 text-green-700'
                                 }`}>
-                                {filteredRecords.length} 筆
+                                {filteredRecords.length}{t('recordsCountSuffix')}
                             </span>
                         </div>
                     </div>
@@ -608,7 +608,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                                    placeholder="搜尋設備名稱、編號、場所..."
+                                    placeholder={t('searchAbnormalPlaceholder')}
                                     className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm"
                                 />
                             </div>

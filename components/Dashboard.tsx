@@ -1249,7 +1249,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <input
                                 type="text"
                                 className="block w-full pl-9 pr-10 py-2 border border-slate-200 bg-white rounded-lg text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 text-sm font-medium transition-all shadow-sm uppercase"
-                                placeholder="快速查詢 (關鍵字/條碼)..."
+                                placeholder={t('quickSearchPlaceholder')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
                             />
@@ -1353,7 +1353,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </div>
                                 <h3 className="font-bold text-slate-800 text-base mb-1">{t('abnormalRecheck')}</h3>
                                 <p className="text-xs text-slate-500">
-                                    {abnormalCount > 0 ? `${abnormalCount} 筆待處理` : t('noAbnormalItems')}
+                                    {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
                                 </p>
                             </button>
                         )}
@@ -1420,7 +1420,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <HeartPulse className="w-5 h-5 text-white" />
                                 </div>
                                 <h3 className="font-bold text-slate-800 text-base mb-1">{t('healthIndicators')}</h3>
-                                <p className="text-xs text-slate-500">{healthIndicators.length} 筆指標</p>
+                                <p className="text-xs text-slate-500">{healthIndicators.length}{t('indicatorCountSuffix')}</p>
                             </button>
                         )}
 
@@ -2386,10 +2386,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
                                                 <div className="pt-4 border-t border-slate-100 space-y-3">
-                                                    <button className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left text-sm font-medium text-slate-700">
-                                                        <span>{t('appVersion')}</span>
-                                                        <span className="text-slate-400">v1.1.0 (Pro)</span>
-                                                    </button>
+
                                                     <button
                                                         onClick={handleClearCache}
                                                         className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 transition-colors text-left text-sm font-medium text-red-600"
@@ -2398,15 +2395,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     </button>
                                                 </div>
 
-                                                <div className="pt-2">
-                                                    <button
-                                                        onClick={onLogout}
-                                                        className="w-full py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-sm hover:bg-slate-300 transition-colors flex items-center justify-center"
-                                                    >
-                                                        <LogOut className="w-4 h-4 mr-2" />
-                                                        {user.isGuest ? t('leaveGuest') : t('logout')}
-                                                    </button>
-                                                </div>
                                             </div>
                                         )}
 
