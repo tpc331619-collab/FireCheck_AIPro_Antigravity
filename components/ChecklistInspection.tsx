@@ -119,34 +119,93 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 setLoading(true);
                 try {
                     // 1. Filter Equipment List
-                    const targetEquipment = allEquipment.filter(
-                        e => e.siteName === selectedSite && e.buildingName === selectedBuilding
-                    );
+                    let targetEquipment: EquipmentDefinition[] = [];
+                    if (selectedBuilding === 'ALL_BUILDINGS') {
+                        targetEquipment = allEquipment.filter(e => e.siteName === selectedSite);
+                    } else {
+                        targetEquipment = allEquipment.filter(
+                            e => e.siteName === selectedSite && e.buildingName === selectedBuilding
+                        );
+                    }
                     setFilteredEquipment(targetEquipment);
 
-                    // 2. Find existing report for today (Simple Logic: Look for report with same building name and today's date?)
-                    // Note: Real logic might need more robust "Session" tracking. 
-                    // For now, let's fetch ALL reports and find the most recent one for this building that is "Today".
-                    const reports = await StorageService.getReports(user.uid);
+                    // 2. Find existing report for today
+                    // Note: If ALL_BUILDINGS is selected, we might need to handle multiple reports or a "Site Wide" report?
+                    // For now, let's keep report logic simple: If specific building, find its report.
+                    // If ALL_BUILDINGS, maybe we don't load a specific single report but we can still inspect items?
+                    // However, the current logic relies on `currentReport` for `getInspectionStatus`.
+                    // If we are in "Show All", `currentReport` might be ambiguous if reports are per-building.
+                    // Let's assume for this request that we want to see stats.
+                    // If the user inspects an item in "Show All" mode, we need to know which report it belongs to.
+                    // This is complex.
+                    // A simpler approach requested by user: "Show stats based on screen".
+                    // The checking logic might be per-item.
+                    // Let's first enable the view.
 
-                    const today = new Date();
-                    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+                    // Allow inspecting items even without a single "currentReport" object bound to the view?
+                    // The `handleSaveInspection` uses `currentReport` to save.
+                    // If we are in ALL_BUILDINGS, we might need to find/create the report DYNAMICALLY for the item's building.
+                    // For now, let's allow finding the report if building is specific.
 
-                    const existingReport = reports.find(r => {
-                        return r.buildingName === selectedBuilding && r.date >= startOfDay;
-                    });
+                    if (selectedBuilding !== 'ALL_BUILDINGS') {
+                        const reports = await StorageService.getReports(user.uid);
+                        const today = new Date();
+                        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
-                    if (existingReport) {
-                        setCurrentReport(existingReport);
+                        const existingReport = reports.find(r => {
+                            return r.buildingName === selectedBuilding && r.date >= startOfDay;
+                        });
+
+                        if (existingReport) {
+                            setCurrentReport(existingReport);
+                        } else {
+                            // Create draft for specific building
+                            setCurrentReport({
+                                id: 'draft_' + Date.now(),
+                                userId: user.uid,
+                                buildingName: selectedBuilding,
+                                inspectorName: user.displayName || 'Guest',
+                                date: Date.now(),
+                                items: [],
+                                overallStatus: 'In Progress'
+                            });
+                        }
                     } else {
-                        // Create a draft report object in memory (not saved yet)
+                        // In ALL_BUILDINGS mode, we might clear currentReport or set a dummy?
+                        // If we clear it, `getInspectionStatus` returns 'UseFrequency', which is fine for list.
+                        // But `handleSaveInspection` needs a report.
+                        // We will need to adjust `handleSaveInspection` to find/create report based on ITEM's building.
+                        setCurrentReport(null);
+                        // Note: This effectively effectively means we can't "Resume" a draft report easily in this view for *new* items
+                        // unless we change save logic.
+                        // But user asked for "View and Stats". Let's get that working first.
+                        // Actually, let's try to fetch ALL relevant reports for the site so we can show "Completed" status correctly?
+                        // It's getting complicated. 
+                        // Let's try to load ALL reports for the site to map the status correctly?
+                        // Let's start with just the View & Stats update as requested.
+
+                        // To show "Checked" status in ALL mode, we need to see if there are reports.
+                        // Let's fetch all reports for this site today.
+                        const reports = await StorageService.getReports(user.uid);
+                        const today = new Date();
+                        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+                        // Create a "Virtual" Combined Report for visualization
+                        const siteReports = reports.filter(r =>
+                            r.items && r.items.length > 0 && r.date >= startOfDay
+                            // && allEquipment.some(e => e.siteName === selectedSite && e.buildingName === r.buildingName) // Rough check
+                        );
+
+                        // Merge items for display status
+                        const combinedItems = siteReports.flatMap(r => r.items || []);
+
                         setCurrentReport({
-                            id: 'draft_' + Date.now(),
+                            id: 'virtual_site_report',
                             userId: user.uid,
-                            buildingName: selectedBuilding,
+                            buildingName: 'ALL_BUILDINGS',
                             inspectorName: user.displayName || 'Guest',
                             date: Date.now(),
-                            items: [],
+                            items: combinedItems,
                             overallStatus: 'In Progress'
                         });
                     }
@@ -297,22 +356,46 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             });
 
             // Update Report (Create or Update Draft)
-            let report = currentReport;
-            if (!report) {
-                // Initialize new report if not exists
-                const newReport: InspectionReport = {
-                    id: `report_${now}`,
-                    buildingName: selectedBuilding || 'Unknown',
-                    inspectorName: user?.displayName || 'Guest',
-                    date: now,
-                    items: [],
-                    overallStatus: 'In Progress'
-                };
-                report = newReport;
+            // CRITICAL CHANGE FOR ALL_BUILDINGS:
+            // If we are in "ALL_BUILDINGS" mode (virtual report), we need to find/create the REAL report for this item's building.
+            let reportTarget: InspectionReport | null = null;
+
+            if (selectedBuilding === 'ALL_BUILDINGS') {
+                // Find report for this item's specific building
+                const itemBuilding = inspectingItem.buildingName;
+                const reports = await StorageService.getReports(user.uid);
+                const today = new Date();
+                const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+                let foundReport = reports.find(r => r.buildingName === itemBuilding && r.date >= startOfDay);
+
+                if (!foundReport) {
+                    foundReport = {
+                        id: 'report_' + Date.now(), // Directly create a "Saved" report ID (not draft_) to simplify? Or draft_?
+                        // Let's use draft_ logic but we need to create it.
+                        // Actually, StorageService.saveReport handles creation.
+                        // But we need to maintain state.
+                        // This is tricky. simpler to just reload everything after save?
+                        id: `draft_${itemBuilding}_${now}`,
+                        buildingName: itemBuilding,
+                        inspectorName: user?.displayName || 'Guest',
+                        items: [],
+                        date: now,
+                        overallStatus: 'In Progress'
+                    };
+                }
+                reportTarget = foundReport;
+            } else {
+                reportTarget = currentReport!;
             }
 
-            // Upsert Item
-            const newItems = [...(report.items || [])];
+            // Safety check
+            if (!reportTarget) {
+                throw new Error("Could not determine target report.");
+            }
+
+            // Upsert Item in reportTarget
+            const newItems = [...(reportTarget.items || [])];
             const idx = newItems.findIndex((i: any) => i.equipmentId === inspectingItem.id);
             if (idx >= 0) {
                 newItems[idx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
@@ -320,11 +403,11 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 newItems.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
             }
 
-            report.items = newItems;
+            reportTarget.items = newItems;
 
             // Auto-archive if all items are normal
             const shouldArchive = updatedItem.status === InspectionStatus.Normal;
-            report.archived = shouldArchive;
+            reportTarget.archived = shouldArchive;
 
             // 清理函數:遞迴移除所有 undefined 值，但保留必要的空數組
             const removeUndefined = (obj: any): any => {
@@ -350,18 +433,18 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             };
 
             // 清理 report
-            const cleanedReport = removeUndefined(report);
+            const cleanedReport = removeUndefined(reportTarget);
 
             // Save to Firestore
             // Check if this is a draft (never saved to Firestore)
-            const isDraft = report.id.startsWith('draft_');
+            const isDraft = reportTarget.id.startsWith('draft_');
 
             if (isDraft) {
                 // Create new report in Firestore
                 if (user?.uid) {
                     const newId = await StorageService.saveReport(cleanedReport, user.uid);
                     // Update local state with real Firestore ID
-                    report.id = newId;
+                    reportTarget.id = newId;
                 } else {
                     console.error("User ID missing, cannot create new report");
                     alert('儲存失敗：找不到使用者 ID，請重新登入');
@@ -424,10 +507,32 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             }
 
             // 更新本地狀態,確保統計數字和燈號即時更新
-            const updatedReport = {
-                ...cleanedReport,
-                updatedAt: Date.now()
-            };
+
+            // IF in ALL_BUILDINGS mode, we updated `reportTarget` (a specific building report).
+            // But `currentReport` is a "Virtual" combined report.
+            // We need to update `currentReport` to include this item so the UI updates (lamp color etc).
+            if (selectedBuilding === 'ALL_BUILDINGS' && currentReport) {
+                const combinedItems = [...currentReport.items];
+                const existIdx = combinedItems.findIndex((i: any) => i.equipmentId === inspectingItem.id);
+                if (existIdx >= 0) {
+                    combinedItems[existIdx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
+                } else {
+                    combinedItems.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
+                }
+                setCurrentReport({
+                    ...currentReport,
+                    items: combinedItems,
+                    updatedAt: Date.now()
+                }); // Force re-render
+            } else {
+                // Normal mode
+                const updatedReport = {
+                    ...cleanedReport,
+                    updatedAt: Date.now()
+                };
+                setCurrentReport(updatedReport);
+            }
+
 
             // Update Equipment Definition's lastInspectedDate to reflect current status
             await StorageService.updateEquipmentDefinition({
@@ -448,9 +553,6 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
             // Close Modal first
             setInspectingItem(null);
-
-            // Then update report to trigger re-render
-            setCurrentReport(updatedReport);
 
             // Show success notification
             const statusText = updatedItem.status === InspectionStatus.Normal ? '正常' : '異常';
@@ -511,17 +613,19 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
                             >
                                 <option value="">{t('pleaseSelect')}</option>
+                                <option value="ALL_BUILDINGS">顯示全部</option>
                                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
                             </select>
                         </div>
                     </div>
 
                     {/* Stats Section - Site Scope */}
-                    {selectedSite && (
+                    {selectedSite && selectedBuilding && (
                         <div className="space-y-6">
                             {(() => {
-                                // Calculate Site-wide Stats based on Frequency
-                                const siteEquipment = allEquipment.filter(e => e.siteName === selectedSite);
+                                // Calculate Stats based on currently FILTERED equipment (matches view)
+                                // Use filteredEquipment instead of allEquipment
+                                const targetEquipment = filteredEquipment;
 
                                 // 新的統計邏輯 - 區分正常和異常
                                 let needInspectionCount = 0;  // 紅色燈號 (PENDING)
@@ -529,7 +633,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 let abnormalCount = 0;        // 已檢查但異常 (COMPLETED + Abnormal)
                                 let notNeededCount = 0;       // 綠色 + 橙色 (UNNECESSARY + CAN_INSPECT)
 
-                                siteEquipment.forEach(e => {
+                                targetEquipment.forEach(e => {
                                     const status = getFrequencyStatus(e);
                                     if (status === 'PENDING') {
                                         needInspectionCount++;  // 紅色: 需檢查

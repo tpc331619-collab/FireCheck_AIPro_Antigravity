@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -110,9 +110,9 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
         e.name.toLowerCase().includes(query)
       );
       setFilteredEquipment(filtered);
-    } else if (selectedSite && selectedBuilding) {
+    } else if (selectedSite) {
       const filtered = allEquipment.filter(
-        e => e.siteName === selectedSite && e.buildingName === selectedBuilding
+        e => e.siteName === selectedSite && (!selectedBuilding || e.buildingName === selectedBuilding)
       );
       setFilteredEquipment(filtered);
     } else {
@@ -120,7 +120,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     }
 
     // Sort by createdAt descending (newest first)
-    if (queryStr.trim() || (selectedSite && selectedBuilding)) {
+    if (queryStr.trim() || selectedSite) {
       setFilteredEquipment(prev => [...prev].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
     }
   }, [selectedSite, selectedBuilding, allEquipment, searchQuery]);
@@ -336,7 +336,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
               </div>
 
               {/* 設備清單 (條列式) */}
-              {(selectedSite && selectedBuilding) || searchQuery ? (
+              {selectedSite || searchQuery ? (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   {filteredEquipment.length === 0 ? (
                     <div className="text-center py-20 bg-slate-50/50">
@@ -369,7 +369,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                 <h3 className="font-bold text-slate-800 text-lg group-hover:text-red-600 transition-colors truncate">
                                   {item.name}
                                 </h3>
-                                <span className="px-2 py-0.5 rounded text-xs font-mono bg-slate-100 text-slate-500">
+                                <span className="px-3 py-1 rounded-full text-sm font-bold font-mono bg-slate-100 text-slate-600">
                                   {item.barcode}
                                 </span>
                               </div>
@@ -378,6 +378,10 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                 <div className="flex items-center text-slate-500" title="新建日期">
                                   <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
                                   <span>新建: {new Date(item.createdAt || 0).toLocaleDateString(language)}</span>
+                                </div>
+                                <div className="flex items-center text-slate-500" title="最新檢查日期">
+                                  <CalendarClock className="w-3.5 h-3.5 mr-1 text-teal-500" />
+                                  <span>最新檢查: {item.lastInspectedDate ? new Date(item.lastInspectedDate).toLocaleDateString(language) : '尚未檢查'}</span>
                                 </div>
                                 <div className="flex items-center">
                                   {(() => {

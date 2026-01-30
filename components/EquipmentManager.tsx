@@ -289,10 +289,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       missingFields.push('檢查頻率');
     }
 
-    // Validate at least one check item
-    if (checkItems.length === 0) {
+    // Validate at least one check item (must have content)
+    const validItems = checkItems.filter(i => i.name.trim() !== '');
+    if (validItems.length === 0) {
       errors.checkItems = true;
-      missingFields.push('檢查項目 (至少需要一項)');
+      missingFields.push('檢查項目 (至少需要一項有效內容)');
     }
 
     // If there are missing fields, show error and return

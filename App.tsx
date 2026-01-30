@@ -9,11 +9,12 @@ const MyEquipment = lazy(() => import('./components/MyEquipment'));
 const ChecklistInspection = lazy(() => import('./components/ChecklistInspection'));
 const HierarchyManager = lazy(() => import('./components/HierarchyManager'));
 const EquipmentMapEditor = lazy(() => import('./components/EquipmentMapEditor'));
-import { UserProfile, InspectionReport, EquipmentDefinition } from './types';
+import { UserProfile, InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings } from '../types';
+
 import { StorageService } from './services/storageService';
 import { auth } from './services/firebase';
-// Fix: Import onAuthStateChanged from firebase/auth explicitly
 import { onAuthStateChanged } from 'firebase/auth';
+
 
 const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -32,14 +33,23 @@ const App: React.FC = () => {
       // Use standard modular onAuthStateChanged function
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         if (firebaseUser) {
+          const isGuest = firebaseUser.isAnonymous;
           const localAvatar = localStorage.getItem(`avatar_${firebaseUser.uid}`);
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+            displayName: firebaseUser.displayName || (isGuest ? '訪客' : (firebaseUser.email?.split('@')[0] || 'User')),
             photoURL: localAvatar || firebaseUser.photoURL,
-            isGuest: false
+            isGuest: isGuest
           });
+          StorageService.setGuestMode(isGuest);
+        } else {
+          // Verify if we should clear user? Usually onAuthStateChanged(null) means logged out.
+          // But our handleLogout handles state clearing.
+          // If we receive null here, maybe we should sync state?
+          // For now, respect the existing flow which might rely on handleLogout.
+          // But strictly speaking, if firebaseUser is null, user should be null.
+          setUser(null);
           StorageService.setGuestMode(false);
         }
         setInitializing(false);
@@ -63,7 +73,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    if (auth && !user?.isGuest) {
+    if (auth) {
       auth.signOut();
     }
     setUser(null);
@@ -192,6 +202,7 @@ const App: React.FC = () => {
             }}
             onBack={() => setCurrentView('DASHBOARD')}
             onEdit={(item) => {
+              setEditingEquipment(item);
               setCurrentView('EQUIPMENT_MANAGER');
             }}
             initialQuery={equipmentFilter}

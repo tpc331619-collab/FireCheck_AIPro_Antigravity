@@ -207,3 +207,9 @@ export interface Notification {
   timestamp: number;
   read: boolean;
 }
+
+export interface SystemSettings {
+  allowGuestView: boolean;
+  allowGuestRecheck?: boolean;
+  publicDataUserId?: string; // ID of the user whose public data is public
+}

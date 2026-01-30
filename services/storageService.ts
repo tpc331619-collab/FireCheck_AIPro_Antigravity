@@ -1,4 +1,4 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings } from '../types';
 import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
@@ -17,34 +17,62 @@ export const StorageService = {
   },
 
   async getReports(userId: string, year?: number, withItems: boolean = false): Promise<InspectionReport[]> {
-    if (this.isGuest || !db) {
+    if (this.isGuest) {
+      // First check if Guest View is allowed globally
+      if (db) {
+        try {
+          const settingsRef = doc(db, 'settings', 'global_config');
+          const settingsSnap = await getDoc(settingsRef);
+          if (settingsSnap.exists()) {
+            const settings = settingsSnap.data() as SystemSettings;
+            if (settings.allowGuestView && settings.publicDataUserId) {
+              console.log("[StorageService] Guest Mode: Fetching public data for user", settings.publicDataUserId);
+              // Recursively call getting data using the PUBLIC USER ID, but bypassing the isGuest check
+              // We can temporarily set isGuest false locally or just copy logic?
+              // Safer to just call logic directly
+              return this._fetchFirestoreReports(settings.publicDataUserId, year, withItems);
+            }
+          }
+        } catch (e) {
+          console.warn("[StorageService] Failed to check guest settings", e);
+        }
+      }
+
+      // Default Guest behavior (Local Storage)
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (!data) return [];
       const reports: InspectionReport[] = JSON.parse(data);
       const targetYear = year || new Date().getFullYear();
       return reports.filter(r => new Date(r.date).getFullYear() === targetYear)
         .sort((a, b) => b.date - a.date);
+
     } else {
-      try {
-        const targetYear = year || new Date().getFullYear();
-        const collectionName = `reports_${targetYear}`;
+      return this._fetchFirestoreReports(userId, year, withItems);
+    }
+  },
 
-        const q = query(collection(db, collectionName), where('userId', '==', userId));
-        const snapshot = await getDocs(q);
-        const reports = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as InspectionReport));
+  // Private helper for Firestore fetching
+  async _fetchFirestoreReports(userId: string, year?: number, withItems: boolean = false): Promise<InspectionReport[]> {
+    if (!db) return [];
+    try {
+      const targetYear = year || new Date().getFullYear();
+      const collectionName = `reports_${targetYear}`;
 
-        if (withItems) {
-          await Promise.all(reports.map(async (report) => {
-            const itemsSnap = await getDocs(collection(db, collectionName, report.id, 'items'));
-            report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
-          }));
-        }
+      const q = query(collection(db, collectionName), where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      const reports = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as InspectionReport));
 
-        return reports.sort((a, b) => b.date - a.date);
-      } catch (e) {
-        console.error("Firebase fetch error", e);
-        return [];
+      if (withItems) {
+        await Promise.all(reports.map(async (report) => {
+          const itemsSnap = await getDocs(collection(db, collectionName, report.id, 'items'));
+          report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
+        }));
       }
+
+      return reports.sort((a, b) => b.date - a.date);
+    } catch (e) {
+      console.error("Firebase fetch error", e);
+      return [];
     }
   },
 
@@ -342,7 +370,19 @@ export const StorageService = {
   },
 
   async getEquipmentDefinitions(userId: string): Promise<EquipmentDefinition[]> {
-    if (this.isGuest || !db) {
+    let targetUserId = userId;
+    let useCloud = !this.isGuest && !!db;
+
+    // Check for Public Guest Access
+    if (this.isGuest && db) {
+      const settings = await this.getSystemSettings();
+      if (settings?.allowGuestView && settings?.publicDataUserId) {
+        targetUserId = settings.publicDataUserId;
+        useCloud = true;
+      }
+    }
+
+    if (!useCloud) {
       const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
       if (!dataStr) return [];
       const defs: EquipmentDefinition[] = JSON.parse(dataStr);
@@ -350,7 +390,7 @@ export const StorageService = {
     } else {
       try {
         // 主要從 'equipments' 讀取
-        const q = query(collection(db, DB_COLLECTION), where('userId', '==', userId));
+        const q = query(collection(db, DB_COLLECTION), where('userId', '==', targetUserId));
         const snapshot = await getDocs(q);
 
         const results = snapshot.docs.map(snapshotDoc => {
@@ -363,10 +403,19 @@ export const StorageService = {
           } as EquipmentDefinition;
         });
 
-        return results.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+        const sortedResults = results.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+        // Sync to local storage for Guest Access (if viewing as Admin)
+        if (!this.isGuest) {
+          localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(sortedResults));
+        }
+
+        return sortedResults;
       } catch (e) {
         console.error("Firebase fetch equipment error", e);
-        return [];
+        // Fallback to local
+        const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
+        return dataStr ? JSON.parse(dataStr) : [];
       }
     }
   },
@@ -922,7 +971,7 @@ export const StorageService = {
     const KEY = `health_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
-      let indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
+      let indicators: HealthIndicator[] = data ? JSON.PARSE(data) : [];
       const index = indicators.findIndex(i => i.id === id);
       if (index !== -1) {
         indicators[index] = { ...indicators[index], ...updates, updatedAt: Date.now() };
@@ -1112,22 +1161,44 @@ export const StorageService = {
   },
 
   async getAbnormalRecords(userId: string): Promise<AbnormalRecord[]> {
-    const ABNORMAL_STORAGE_KEY = 'firecheck_abnormal_records';
+    let targetUserId = userId;
+    let useCloud = !this.isGuest && !!db;
 
-    if (this.isGuest || !db) {
-      const data = localStorage.getItem(ABNORMAL_STORAGE_KEY);
-      if (!data) return [];
-      const records: AbnormalRecord[] = JSON.parse(data);
+    // Check for Public Guest Access
+    if (this.isGuest && db) {
+      const settings = await this.getSystemSettings();
+      if (settings?.allowGuestView && settings?.publicDataUserId) {
+        // Also check for Abnormal Recheck Permission?
+        // The UI (Dashboard.tsx) handles the button visibility based on allowGuestRecheck.
+        // Here we just facilitate the data access if allowed.
+        targetUserId = settings.publicDataUserId;
+        useCloud = true;
+      }
+    }
+
+    if (!useCloud) {
+      const dataStr = localStorage.getItem('firecheck_abnormal_records');
+      if (!dataStr) return [];
+      const records: AbnormalRecord[] = JSON.parse(dataStr);
       return records.sort((a, b) => b.createdAt - a.createdAt);
     } else {
       try {
-        const q = query(collection(db, 'abnormalRecords'), where('userId', '==', userId));
+        const q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
         const snapshot = await getDocs(q);
         const records = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AbnormalRecord));
-        return records.sort((a, b) => b.createdAt - a.createdAt);
+        const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Sync to local storage for Guest Access (if Admin)
+        if (!this.isGuest) {
+          localStorage.setItem('firecheck_abnormal_records', JSON.stringify(sorted));
+        }
+
+        return sorted;
       } catch (e) {
         console.error("Abnormal records fetch error", e);
-        return [];
+        // Fallback
+        const dataStr = localStorage.getItem('firecheck_abnormal_records');
+        return dataStr ? JSON.parse(dataStr) : [];
       }
     }
   },
@@ -1333,6 +1404,42 @@ export const StorageService = {
         console.error("Clear notifications error", e);
         throw e;
       }
+    }
+  },
+
+  async getSystemSettings(): Promise<SystemSettings | null> {
+    const CACHE_KEY = 'system_settings_cache';
+    // Try Cloud fetch even for guests (Anonymous Auth allows it if rules permit)
+    if (db) {
+      try {
+        const docRef = doc(db, 'settings', 'global_config');
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          const data = snapshot.data() as SystemSettings;
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data)); // Cache it
+          return data;
+        }
+      } catch (e) {
+        // Fallback to cache on error
+      }
+    }
+
+    // Fallback to LocalStorage
+    const cached = localStorage.getItem(CACHE_KEY);
+    return cached ? JSON.parse(cached) : { allowGuestView: false };
+  },
+
+  async saveSystemSettings(settings: SystemSettings): Promise<void> {
+    const CACHE_KEY = 'system_settings_cache';
+    localStorage.setItem(CACHE_KEY, JSON.stringify(settings)); // Always save to cache
+
+    if (this.isGuest || !db) return;
+    try {
+      const docRef = doc(db, 'settings', 'global_config');
+      await setDoc(docRef, settings);
+    } catch (e) {
+      console.error("Save system settings error", e);
+      throw e;
     }
   }
 };

@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
     InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, EquipmentType, HealthIndicator,
-    HealthHistoryRecord, UserProfile, LanguageCode
+    HealthHistoryRecord, UserProfile, LanguageCode, SystemSettings
 } from '../types';
 import { StorageService } from '../services/storageService';
 // Fix: Use modular imports from firebase/auth
@@ -47,6 +47,7 @@ import {
     Shield,
     ShieldCheck,
     Signal,
+    Wifi,
     WifiOff,
     User,
     Lock,
@@ -108,11 +109,11 @@ interface DashboardProps {
 }
 
 const CARTOON_AVATARS = [
-    "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix",
-    "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka",
-    "https://api.dicebear.com/9.x/avataaars/svg?seed=Zoe",
-    "https://api.dicebear.com/9.x/avataaars/svg?seed=Jack",
-    "https://api.dicebear.com/9.x/avataaars/svg?seed=Ginger"
+    "/avatars/avatar_us.png",
+    "/avatars/avatar_uk.png",
+    "/avatars/avatar_jp.png",
+    "/avatars/avatar_de.png",
+    "/avatars/avatar_br.png"
 ];
 
 const getEquipmentIcon = (name: string) => {
@@ -223,7 +224,33 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Health Indicator State
     const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
-    const [editingHealthIndicator, setEditingHealthIndicator] = useState<Partial<HealthIndicator> | null>(null);
+    const [editingHealthIndicator, setEditingHealthIndicator] = useState<HealthIndicator | null>(null);
+    const [systemSettings, setSystemSettings] = useState<SystemSettings>({ allowGuestView: false });
+
+    useEffect(() => {
+        if (user?.uid) {
+            StorageService.getSystemSettings().then(settings => {
+                if (settings) {
+                    setSystemSettings(settings);
+                }
+            });
+        }
+    }, [user?.uid, isSettingsOpen]);
+
+    const handleSaveSystemSettings = async (newSettings: SystemSettings) => {
+        if (!user.uid) return;
+        try {
+            await StorageService.saveSystemSettings({
+                ...newSettings,
+                publicDataUserId: newSettings.allowGuestView ? user.uid : null
+            });
+            setSystemSettings(newSettings);
+            alert(t('settingsSaved') || '設定已儲存');
+        } catch (e) {
+            console.error(e);
+            alert(t('saveFailed'));
+        }
+    };
     const [savingHealth, setSavingHealth] = useState(false);
 
     // Fetch Health Indicators
@@ -1236,8 +1263,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <p className="text-slate-700 text-sm font-bold">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
                                 <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
                             </div>
-                            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-slate-300 bg-slate-100 shadow-md">
-                                <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+                            <div className="relative w-12 h-12 rounded-full overflow-visible border-2 border-slate-300 bg-slate-100 shadow-md">
+                                <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                                {systemSettings?.allowGuestView && (
+                                    <span className="absolute -top-1 -right-1 flex h-3 w-3" title="訪客權限已開啟">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -1267,49 +1300,51 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
                     {/* Stats Row */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {/* Total Equipment */}
-                        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-bold text-slate-500 mb-1">{t('totalEquipment')}</p>
-                                <p className="text-2xl font-black text-slate-800">{nameCount}</p>
-                            </div>
-                            <div className="p-3 bg-blue-50 rounded-xl">
-                                <Database className="w-5 h-5 text-blue-500" />
-                            </div>
-                        </div>
-
-                        {/* Abnormal Pending */}
-                        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-bold text-slate-500 mb-1">{t('pendingAbnormal')}</p>
-                                <p className={`text-2xl font-black ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
-                            </div>
-                            <div className={`p-3 rounded-xl ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
-                                <AlertOctagon className={`w-5 h-5 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-500'}`} />
-                            </div>
-                        </div>
-
-                        {/* Declaration Countdown */}
-                        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-2">
-                            <div>
-                                <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
-                                <div className="flex items-baseline gap-1">
-                                    {countdownDays !== null ? (
-                                        <>
-                                            <span className={`text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
-                                            <span className="text-sm font-bold text-slate-400">{t('days')}</span>
-                                        </>
-                                    ) : (
-                                        <span className="text-2xl font-black text-slate-300">--</span>
-                                    )}
+                    {!user.isGuest && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {/* Total Equipment */}
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('totalEquipment')}</p>
+                                    <p className="text-2xl font-black text-slate-800">{nameCount}</p>
+                                </div>
+                                <div className="p-3 bg-blue-50 rounded-xl">
+                                    <Database className="w-5 h-5 text-blue-500" />
                                 </div>
                             </div>
-                            <div className={`p-3 rounded-xl ${countdownDays !== null && countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                                <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
+
+                            {/* Abnormal Pending */}
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('pendingAbnormal')}</p>
+                                    <p className={`text-2xl font-black ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
+                                </div>
+                                <div className={`p-3 rounded-xl ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
+                                    <AlertOctagon className={`w-5 h-5 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-500'}`} />
+                                </div>
+                            </div>
+
+                            {/* Declaration Countdown */}
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-2">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
+                                    <div className="flex items-baseline gap-1">
+                                        {countdownDays !== null ? (
+                                            <>
+                                                <span className={`text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
+                                                <span className="text-sm font-bold text-slate-400">{t('days')}</span>
+                                            </>
+                                        ) : (
+                                            <span className="text-2xl font-black text-slate-300">--</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className={`p-3 rounded-xl ${countdownDays !== null && countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
+                                    <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Main Actions Grid */}
                     <div className={`grid gap-3 ${user.isGuest
@@ -1334,7 +1369,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Abnormal Recheck */}
-                        {!user.isGuest && (
+                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestRecheck)) && (
                             <button
                                 onClick={() => setShowAbnormalRecheck(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
@@ -1460,50 +1495,52 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     </div>
 
                     {/* Equipment Overview (Collapsible) */}
-                    <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-                        <button
-                            onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                            className="w-full flex items-center justify-between"
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-slate-100 rounded-lg">
-                                    <PieChart className="w-5 h-5 text-slate-600" />
+                    {!user.isGuest && (
+                        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                            <button
+                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
+                                className="w-full flex items-center justify-between"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-slate-100 rounded-lg">
+                                        <PieChart className="w-5 h-5 text-slate-600" />
+                                    </div>
+                                    <div className="text-left">
+                                        <h3 className="font-bold text-slate-800">{t('equipmentOverview')}</h3>
+                                        <p className="text-xs text-slate-500">{t('equipmentOverviewDesc')}</p>
+                                    </div>
                                 </div>
-                                <div className="text-left">
-                                    <h3 className="font-bold text-slate-800">{t('equipmentOverview')}</h3>
-                                    <p className="text-xs text-slate-500">{t('equipmentOverviewDesc')}</p>
-                                </div>
-                            </div>
-                            {isEquipmentExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                        </button>
+                                {isEquipmentExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                            </button>
 
-                        {isEquipmentExpanded && (
-                            <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                    {equipmentStats.map((stat: any, index: number) => (
-                                        <button
-                                            key={index}
-                                            onClick={() => {
-                                                onMyEquipment(stat.name);
-                                            }}
-                                            className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
-                                        >
-                                            <div className="mb-2 p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
-                                                {getEquipmentIcon(stat.name)}
+                            {isEquipmentExpanded && (
+                                <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                        {equipmentStats.map((stat: any, index: number) => (
+                                            <button
+                                                key={index}
+                                                onClick={() => {
+                                                    onMyEquipment(stat.name);
+                                                }}
+                                                className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+                                            >
+                                                <div className="mb-2 p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                                                    {getEquipmentIcon(stat.name)}
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
+                                                <span className="text-lg font-black text-slate-800">{stat.total}</span>
+                                            </button>
+                                        ))}
+                                        {equipmentStats.length === 0 && (
+                                            <div className="col-span-full text-center py-4 text-slate-400 text-sm">
+                                                {t('noEquipmentData')}
                                             </div>
-                                            <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
-                                            <span className="text-lg font-black text-slate-800">{stat.total}</span>
-                                        </button>
-                                    ))}
-                                    {equipmentStats.length === 0 && (
-                                        <div className="col-span-full text-center py-4 text-slate-400 text-sm">
-                                            {t('noEquipmentData')}
-                                        </div>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Full Page Search Results / History Table */}
                     {/* Full Page Search Results / History Table */}
@@ -2249,6 +2286,44 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         {isUpdating ? 'Updating...' : t('saveChanges')}
                                                     </button>
                                                 )}
+
+                                                {!user.isGuest && (
+                                                    <div className="pt-4 border-t border-slate-100 space-y-3">
+                                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('guestPermissions') || '訪客權限'}</label>
+                                                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                                            <div>
+                                                                <div className="font-bold text-slate-700 text-sm">{t('allowGuestView') || '允許訪客瀏覽資料'}</div>
+                                                                <div className="text-xs text-slate-500 mt-1">{t('allowGuestViewDesc') || '開啟後，訪客將能查看您的公開資料'}</div>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={systemSettings?.allowGuestView || false}
+                                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                            </label>
+                                                        </div>
+
+                                                        {/* Allow Guest Recheck */}
+                                                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 mt-2">
+                                                            <div>
+                                                                <div className="font-bold text-slate-700 text-sm">{t('allowGuestRecheck') || '允許訪客查看異常複檢'}</div>
+                                                                <div className="text-xs text-slate-500 mt-1">{t('allowGuestRecheckDesc') || '開啟後，訪客模式登入時可以看到異常複檢清單。'}</div>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={systemSettings?.allowGuestRecheck || false}
+                                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                         )}
@@ -2394,6 +2469,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {t('clearCache')}</span>
                                                     </button>
                                                 </div>
+
+
+
 
                                             </div>
                                         )}
