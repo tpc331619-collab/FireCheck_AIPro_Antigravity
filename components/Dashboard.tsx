@@ -1486,8 +1486,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </button>
                             )}
 
-                            {/* Light Settings Card (Admin Only) */}
-                            {isAdmin && (
+                            {/* Light Settings Card (Admin or Permitted Inspector) */}
+                            {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
                                 <button
                                     onClick={() => {
                                         setSettingsTab('LIGHTS');
@@ -2401,7 +2401,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             )}
 
                                             {/* Lights tab is usually for admins but we show it if they can see it */}
-                                            {(isAdmin) && (
+                                            {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
                                                 <button
                                                     onClick={() => setSettingsTab('LIGHTS')}
                                                     className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
@@ -3203,7 +3203,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionSystemSettings')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
-                                                {['Profile', 'Language', 'Background', 'Declaration', 'Notifications'].map((item) => (
+                                                {['Profile', 'Language', 'Background', 'Declaration', 'Notifications', 'LightSettings'].map((item) => (
                                                     <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-blue-200">
                                                         <div>
                                                             <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>

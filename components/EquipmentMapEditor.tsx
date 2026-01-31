@@ -182,7 +182,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             setMarkers([]);
             setMapName(displayName);
             setRotation(0);
-            setZoom(1);
+            setZoom(window.innerWidth < 768 ? 0.95 : 0.75);
             setSelectedFile(null);
             setViewMode('EDIT');
 
@@ -235,8 +235,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                     setMapName(file.name.split('.')[0]);
                     setSelectedFile(null);
 
-                    // Default to 100% scale
-                    setZoom(1);
+                    // Default scale based on device
+                    setZoom(window.innerWidth < 768 ? 0.95 : 0.75);
 
                     setRotation(0);
                     setMarkerSize('medium');
@@ -880,8 +880,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             setMarkerColor(map.markerColor || 'red');
 
-            // Auto fit to 100%
-            setZoom(1);
+            // Auto fit based on device
+            setZoom(window.innerWidth < 768 ? 0.95 : 0.75);
 
             setSelectedFile(null);
             setViewMode('EDIT');
@@ -910,7 +910,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     const rotateRight = () => setRotation(r => (r + 90));
     const zoomIn = () => setZoom(z => Math.min(z + 0.1, 3));
     const zoomOut = () => setZoom(z => Math.max(z - 0.1, 0.5));
-    const zoomReset = () => { setZoom(1); setRotation(0); };
+    const zoomReset = () => { setZoom(window.innerWidth < 768 ? 0.95 : 0.75); setRotation(0); };
 
     if (!isOpen) return null;
 
@@ -1131,8 +1131,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                             {/* Middle Canvas */}
                             <div className="h-[45vh] lg:h-auto lg:flex-1 relative overflow-hidden flex flex-col items-center justify-center bg-slate-100 pattern-grid-lg shadow-inner shrink-0">
 
-                                {/* Floating Toolbar */}
-                                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-lg border border-slate-200 rounded-full px-1.5 py-1 sm:px-4 sm:py-2 flex items-center gap-0.5 sm:gap-2 z-30 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
+                                {/* Floating Toolbar - Bottom Fixed for All Devices to Prevent Overlap */}
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md shadow-xl border border-slate-200 rounded-full px-1.5 py-1 sm:px-4 sm:py-2 flex items-center gap-0.5 sm:gap-2 z-30 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
                                     <div className="flex items-center gap-0.5 shrink-0">
                                         <button onClick={zoomOut} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 active:bg-slate-200 transition-colors" title="Zoom Out">
                                             <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1184,7 +1184,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 {/* Canvas Scroll Area */}
                                 <div className="w-full h-full overflow-auto flex items-center justify-center p-2 sm:p-4 cursor-move">
                                     <div
-                                        className="transition-transform duration-200 ease-out origin-center select-none relative shadow-2xl ring-4 ring-white/50"
+                                        className="transition-transform duration-200 ease-out origin-center select-none relative"
                                         style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}
                                     >
                                         {/* Inner Image Container */}
@@ -1342,7 +1342,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                         >
                                                             <div className="flex items-center gap-3">
                                                                 <div
-                                                                    className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-colors shadow-sm text-white ${isMarkerAbnormal(marker)
+                                                                    className={`w-6 h-6 sm:w-8 sm:h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm transition-colors shadow-sm text-white ${isMarkerAbnormal(marker)
                                                                         ? 'bg-orange-500'
                                                                         : (isSelected ? colorClass + ' ring-2 ring-offset-1 ring-blue-500' : colorClass + ' opacity-75 group-hover:opacity-100')
                                                                         }`}

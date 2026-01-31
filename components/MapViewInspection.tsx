@@ -653,38 +653,38 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             </div>
 
             {/* Floating Controls Toolbar (RWD Optimized) */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-0.5 sm:gap-2 bg-white/90 backdrop-blur shadow-xl rounded-full px-1.5 py-1 sm:px-4 sm:py-2 border border-slate-200 z-40 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
+            <div className="absolute top-4 sm:top-auto sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-2 bg-white/90 backdrop-blur shadow-2xl rounded-full px-4 py-2 sm:px-4 sm:py-2 border border-slate-200 z-40 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
                 <button
                     onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
-                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
+                    className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
                     title="縮小"
                 >
-                    <ZoomOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <ZoomOut className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
-                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
-                <span className="text-[10px] sm:text-xs font-bold text-slate-500 min-w-[2.5rem] sm:min-w-[3rem] text-center select-none shrink-0">
+                <div className="w-px h-5 sm:h-4 bg-slate-300 mx-1 shrink-0"></div>
+                <span className="text-sm sm:text-xs font-bold text-slate-500 min-w-[3.5rem] sm:min-w-[3rem] text-center select-none shrink-0">
                     {Math.round(zoom * 100)}%
                 </span>
-                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <div className="w-px h-5 sm:h-4 bg-slate-300 mx-1 shrink-0"></div>
                 <button
                     onClick={() => setZoom(z => Math.min(4, z + 0.25))}
-                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
+                    className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
                     title="放大"
                 >
-                    <ZoomIn className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <ZoomIn className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
-                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <div className="w-px h-5 sm:h-4 bg-slate-300 mx-1 shrink-0"></div>
                 <button
                     onClick={() => setRotation(r => (r + 90) % 360)}
-                    className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
+                    className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
                     title="旋轉"
                 >
-                    <RotateCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <RotateCw className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
-                <div className="w-px h-3 sm:h-4 bg-slate-300 mx-0.5 shrink-0"></div>
+                <div className="w-px h-5 sm:h-4 bg-slate-300 mx-1 shrink-0"></div>
                 <button
                     onClick={handleResetView}
-                    className="px-1.5 py-1 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-[10px] sm:text-xs font-bold text-slate-600 transition-colors shrink-0"
+                    className="px-4 py-2 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-sm sm:text-xs font-bold text-slate-600 transition-colors shrink-0"
                 >
                     重置
                 </button>
