@@ -185,6 +185,17 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const handleSubmit = async () => {
         if (!currentEquipment || !selectedMarker || !currentMap) return;
 
+        // Validate numeric items
+        const missingNumeric = currentEquipment.checkItems.find(item =>
+            item.inputType === 'number' &&
+            (checkResults[item.id] === undefined || checkResults[item.id] === '')
+        );
+
+        if (missingNumeric) {
+            alert(`請填寫「${missingNumeric.name}」的數值！`);
+            return;
+        }
+
         const status = determineStatus();
 
         // Validate abnormal notes
@@ -781,7 +792,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                         <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
                             <button
                                 onClick={handleSubmit}
-                                disabled={isSubmitting}
+                                disabled={
+                                    isSubmitting ||
+                                    currentEquipment.checkItems.some(item =>
+                                        item.inputType === 'number' &&
+                                        (checkResults[item.id] === undefined || checkResults[item.id] === '')
+                                    )
+                                }
                                 className="w-full py-3 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 active:scale-[0.98] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (

@@ -559,8 +559,12 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     replacementHistory: '替換記錄',
     noReplacementRecords: '尚無替換記錄',
     replacementOperation: '更換作業',
-    newStartEndDate: '新的起始/到期日',
-    oldStartEndDate: '舊的起始/到期日',
+    newStartEndDate: '起始/結束日期 (新)',
+    oldStartEndDate: '起始/結束日期 (舊)',
+    openInBrowser: '在瀏覽器開啟連結',
+    downloadPhoto: '下載照片',
+    photoLoadFailed: '照片讀取失敗',
+    checkLinkValidity: '請確認圖片連結是否有效',
 
     // Organization Management
     organizationManagement: '組織管理',
@@ -784,9 +788,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     historyRecordsCount: 'inspection records',
     indicatorCountSuffix: ' Indicators',
     pendingCountSuffix: ' Pending',
-    notifications: 'Notifications',
-    cloudGallery: 'Cloud Gallery',
-    permissions: 'Feature Settings',
+    notifications: 'Notif',
+    cloudGallery: 'Gallery',
+    permissions: 'Features',
     permissionsTitle: 'System Permissions',
     permissionsDesc: 'Manage guest access and system security settings.',
     guestPermissions: 'Guest Permissions',
@@ -845,8 +849,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorDeleteHierarchy: 'Delete (Hierarchy)',
     allowInspectorDeleteHierarchyDesc: 'Allow deleting categories and types.',
     cloudGalleryDesc: 'Allow inspectors to access cloud gallery when editing maps',
-    systemManagement: 'Account Management',
-    coreAdmin: 'Audit & Assignment',
+    systemManagement: 'Admin',
+    coreAdmin: 'Audit',
     onOff: 'ON/OFF',
     noNotifications: 'No notifications',
     quickSearchPlaceholder: 'Quick Search (Keyword/Barcode)...',
@@ -900,7 +904,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     notes: 'Notes',
     inspector: 'Inspector',
     // Declaration Settings
-    declarationCycle: 'Declaration Cycle',
+    declarationCountdown: 'Declaration',
     halfYear: 'Every 6 Months',
     oneYear: 'Every Year',
     declarationBaseDate: 'Base Declaration Date',
@@ -1065,7 +1069,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     indicatorSaved: 'Indicator Saved',
     fillAllFields: 'Please fill all fields',
 
-    lightSettings: 'Light Settings',
+    lightSettings: 'Lights',
     lightSettingsDesc: 'Customize criteria for status lights. Status will sync based on your days and colors.',
     abnormalLight: 'Abnormal Recheck',
     abnormalColorDesc: 'Color for "Abnormal" status (Default: Orange)',
@@ -1151,8 +1155,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     replacementOperation: 'Replacement',
     newStartEndDate: 'New Start/End Date',
     oldStartEndDate: 'Old Start/End Date',
-
-
+    openInBrowser: 'Open in Browser',
+    downloadPhoto: 'Download Photo',
+    photoLoadFailed: 'Photo Load Failed',
+    checkLinkValidity: 'Please check link validity',
   },
   'ko': {
     welcome: '환영합니다',
@@ -1575,8 +1581,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     replacementOperation: '교체 작업',
     newStartEndDate: '새 시작/종료일',
     oldStartEndDate: '이전 시작/종료일',
-
-
+    openInBrowser: '브라우저에서 링크 열기',
+    downloadPhoto: '사진 다운로드',
+    photoLoadFailed: '사진 로드 실패',
+    checkLinkValidity: '이미지 링크가 유효한지 확인하세요',
   },
   'ja': {
     welcome: 'お帰りなさい',
@@ -1984,7 +1992,9 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     replacementOperation: '交換作業',
     newStartEndDate: '新しい開始/終了日',
     oldStartEndDate: '古い開始/終了日',
-
-
-  }
+    openInBrowser: 'ブラウザでリンクを開く',
+    downloadPhoto: '写真をダウンロード',
+    photoLoadFailed: '写真の読み込みに失敗しました',
+    checkLinkValidity: '画像リンクが有効か確認してください',
+  },
 };

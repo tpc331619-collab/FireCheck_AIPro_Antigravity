@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [editingEquipment, setEditingEquipment] = useState<EquipmentDefinition | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [guestExpiry, setGuestExpiry] = useState<number | null>(null);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings | undefined>(undefined);
 
   // 保持篩選狀態的變數
   const [filterSite, setFilterSite] = useState<string | null>(null);
@@ -149,6 +150,10 @@ const App: React.FC = () => {
         }
         setInitializing(false);
       });
+
+      // Fetch system settings
+      StorageService.getSystemSettings().then(setSystemSettings);
+
       return () => unsubscribe();
     } else {
       setInitializing(false);
@@ -334,6 +339,7 @@ const App: React.FC = () => {
             onManageHierarchy={() => setCurrentView('HIERARCHY_MANAGER')}
             onOpenMapEditor={() => setCurrentView('MAP_EDITOR')}
             onOrgSwitch={handleOrgSwitch}
+            systemSettings={systemSettings}
           />
         ) : currentView === 'MAP_EDITOR' ? (
           <EquipmentMapEditor
@@ -381,6 +387,7 @@ const App: React.FC = () => {
               setCurrentView('EQUIPMENT_MANAGER');
             }}
             initialQuery={equipmentFilter}
+            systemSettings={systemSettings}
           />
         ) : currentView === 'CHECKLIST_INSPECTION' ? (
           <ChecklistInspection

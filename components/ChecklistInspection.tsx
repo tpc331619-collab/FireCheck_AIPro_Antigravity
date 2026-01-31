@@ -1121,6 +1121,26 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     </p>
                                 )}
                             </div>
+
+                            {/* Numeric Validation Hint */}
+                            {(() => {
+                                const missingNumeric = inspectingItem.checkItems.filter(ci =>
+                                    ci.inputType === 'number' &&
+                                    (activeInspectionItem.checkPoints[ci.name] === '' || activeInspectionItem.checkPoints[ci.name] === undefined)
+                                );
+                                if (missingNumeric.length > 0) {
+                                    return (
+                                        <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2">
+                                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-xs font-bold text-amber-700">請填寫所有數值項目</p>
+                                                <p className="text-[10px] text-amber-600">尚有 {missingNumeric.length} 個數值欄位未填寫</p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
                         </div>
 
                         <div className="p-4 border-t border-slate-100 flex gap-3 bg-slate-50 rounded-b-2xl">
@@ -1132,34 +1152,44 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             </button>
                             <button
                                 onClick={handleSaveInspection}
-                                disabled={activeInspectionItem.status === InspectionStatus.Abnormal && !activeInspectionItem.notes.trim()}
+                                disabled={
+                                    (activeInspectionItem.status === InspectionStatus.Abnormal && !activeInspectionItem.notes.trim()) ||
+                                    inspectingItem.checkItems.some(ci =>
+                                        ci.inputType === 'number' &&
+                                        (activeInspectionItem.checkPoints[ci.name] === '' || activeInspectionItem.checkPoints[ci.name] === undefined)
+                                    )
+                                }
                                 className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-200 active:scale-95"
                             >
                                 {activeInspectionItem.status === InspectionStatus.Abnormal ? '確認異常並送出' : '完成檢查'}
                             </button>
                         </div>
                     </div>
-                </div>
+                </div >
             )}
 
             {/* Barcode Scanner Modal */}
-            {scannerOpen && (
-                <BarcodeScanner
-                    onScanSuccess={handleBarcodeScanned}
-                    onClose={() => setScannerOpen(false)}
-                />
-            )}
+            {
+                scannerOpen && (
+                    <BarcodeScanner
+                        onScanSuccess={handleBarcodeScanned}
+                        onClose={() => setScannerOpen(false)}
+                    />
+                )
+            }
 
             {/* Toast Notification */}
-            {toastMsg && (
-                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-5 duration-300 w-max">
-                    <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
-                        {toastMsg.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
-                        <span className="font-bold text-sm tracking-wide whitespace-pre-line">{toastMsg.text}</span>
+            {
+                toastMsg && (
+                    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-bottom-5 duration-300 w-max">
+                        <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
+                            {toastMsg.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                            <span className="font-bold text-sm tracking-wide whitespace-pre-line">{toastMsg.text}</span>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 

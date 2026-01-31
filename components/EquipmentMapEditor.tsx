@@ -512,26 +512,26 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         const container = imageContainerRef.current;
 
         // Get container dimensions or fallback to window estimation
-        let availWidth = container.clientWidth;
-        let availHeight = container.clientHeight;
+        let availWidth = container.parentElement?.clientWidth || container.clientWidth;
+        let availHeight = container.parentElement?.clientHeight || container.clientHeight;
 
         if (availWidth === 0 || availHeight === 0) {
             // Fallback: Window - Sidebar (80px or 320px) - Padding
-            availWidth = window.innerWidth - (window.innerWidth >= 1024 ? 320 : 0) - 40;
-            availHeight = window.innerHeight - 80 - 40; // Toolbar - Padding
+            availWidth = window.innerWidth - (window.innerWidth >= 1024 ? 320 : 0) - 20;
+            availHeight = window.innerHeight - 80 - 20; // Toolbar - Padding
         }
 
         const scaleW = availWidth / img.naturalWidth;
         const scaleH = availHeight / img.naturalHeight;
 
-        // "Contain" logic: Fit with some padding (90% of container)
-        let optimalZoom = Math.min(scaleW, scaleH) * 0.9;
+        // "Contain" logic: Fit with minimal padding (98% of container)
+        let optimalZoom = Math.min(scaleW, scaleH) * 0.98;
 
         // Safety clamps
-        if (optimalZoom < 0.1) optimalZoom = 0.1;
+        if (optimalZoom < 0.01) optimalZoom = 0.01;
         if (optimalZoom > 5) optimalZoom = 5;
 
-        setZoom(Number(optimalZoom.toFixed(2)));
+        setZoom(Number(optimalZoom.toFixed(3)));
     };
 
     // Auto-fit when image loads
@@ -917,7 +917,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     return (
         <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-2 sm:p-4 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
             <div
-                className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-6xl shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[95vh] sm:max-h-[90vh] relative"
+                className="bg-white rounded-2xl sm:rounded-3xl w-full max-w-[98vw] shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col h-[98vh] sm:h-[95vh] relative"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Global Loading Overlay */}
@@ -1182,7 +1182,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 </div>
 
                                 {/* Canvas Scroll Area */}
-                                <div className="w-full h-full overflow-auto flex items-center justify-center p-0 sm:p-20 cursor-move">
+                                <div className="w-full h-full overflow-auto flex items-center justify-center p-2 sm:p-4 cursor-move">
                                     <div
                                         className="transition-transform duration-200 ease-out origin-center select-none relative shadow-2xl ring-4 ring-white/50"
                                         style={{ transform: `scale(${zoom}) rotate(${rotation}deg)` }}

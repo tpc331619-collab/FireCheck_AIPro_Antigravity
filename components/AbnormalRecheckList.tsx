@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText } from 'lucide-react';
-import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings } from '../types';
+import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText, Clock, CheckCircle2 } from 'lucide-react';
+import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -9,6 +9,7 @@ interface AbnormalRecheckListProps {
     onBack: () => void;
     lightSettings?: LightSettings;
     onRecordsUpdated?: () => void;
+    systemSettings?: SystemSettings;
 }
 
 // 常用修復說明 (快選)
@@ -26,7 +27,13 @@ const QUICK_FIX_TEMPLATES = [
     '環境因素導致（如潮濕/灰塵），已排除環境問題'
 ];
 
-const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack, lightSettings, onRecordsUpdated }) => {
+const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
+    user,
+    onBack,
+    lightSettings,
+    onRecordsUpdated,
+    systemSettings
+}) => {
     const { t, language } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [records, setRecords] = useState<AbnormalRecord[]>([]);
@@ -326,10 +333,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
                     body * { visibility: hidden; }
                     .print-area, .print-area * { visibility: visible; }
-                    .print-area { 
-                        position: absolute; 
-                        left: 0; 
-                        top: 0; 
+                    .print-area {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
                         width: 210mm; /* A4 width */
                         min-height: 297mm; /* A4 height */
                         padding: 15mm;
@@ -338,20 +345,20 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                         font-family: "Times New Roman", "DFKai-SB", sans-serif; /* 標楷體更像正式文件 */
                     }
                     .no-print { display: none !important; }
-                    
+
                     /* 強制表格式邊框 */
                     .form-border { border: 2px solid #000 !important; }
                     .cell-border { border: 1px solid #000 !important; }
                     .bg-print-gray { background-color: #f0f0f0 !important; }
-                    
+
                     /* 調整輸入框列印樣式 - 去除邊框，只留文字 */
-                    input, textarea, select { 
-                        border: none !important; 
-                        background: transparent !important; 
-                        resize: none; 
+                    input, textarea, select {
+                        border: none !important;
+                        background: transparent !important;
+                        resize: none;
                         box-shadow: none !important;
                         font-size: 11pt !important;
-                    } 
+                    }
                     /* 針對 textarea 讓它在列印時可以撐開高度 (雖然 CSS 無法完全做到，但盡量設定) */
                     textarea { min-height: 100px; }
                 }
@@ -596,25 +603,29 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                             <h1 className="font-bold text-lg text-slate-800">{t('abnormalRecheckList')}</h1>
 
                             {/* 切換按鈕 */}
-                            <div className="ml-auto flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                            <div className="ml-auto flex bg-slate-100 p-1 rounded-xl">
                                 <button
                                     onClick={() => setViewMode('pending')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'pending'
-                                        ? 'bg-orange-500 text-white shadow-sm'
-                                        : 'text-slate-600 hover:bg-slate-200'
+                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'pending'
+                                        ? 'bg-white text-red-600 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
                                         }`}
                                 >
-                                    {t('pendingRecheck')}
+                                    <Clock className="w-4 h-4" />
+                                    {t('pending')}
                                 </button>
-                                <button
-                                    onClick={() => setViewMode('fixed')}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${viewMode === 'fixed'
-                                        ? 'bg-green-500 text-white shadow-sm'
-                                        : 'text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                >
-                                    {t('completedRecheck')}
-                                </button>
+                                {(user.role === 'admin' || systemSettings?.allowInspectorViewCompletedRechecks !== false) && (
+                                    <button
+                                        onClick={() => setViewMode('fixed')}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'fixed'
+                                            ? 'bg-white text-emerald-600 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                            }`}
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        {t('completed')}
+                                    </button>
+                                )}
                             </div>
 
                             <span className={`px-3 py-1 rounded-full text-sm font-bold ${viewMode === 'pending'

@@ -111,6 +111,7 @@ interface DashboardProps {
     onOpenMapEditor: () => void;
     onOrgSwitch: (orgId: string) => void;
     guestExpiry?: number | null;
+    systemSettings?: SystemSettings;
 }
 
 const CARTOON_AVATARS = [
@@ -1298,7 +1299,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     console.log('[Dashboard] showAbnormalRecheck:', showAbnormalRecheck);
     if (showAbnormalRecheck) {
         console.log('[Dashboard] Rendering AbnormalRecheckList');
-        return <AbnormalRecheckList user={user} onBack={() => setShowAbnormalRecheck(false)} lightSettings={lightSettings} onRecordsUpdated={fetchAbnormalCount} />;
+        return <AbnormalRecheckList
+            user={user}
+            onBack={() => setShowAbnormalRecheck(false)}
+            lightSettings={lightSettings}
+            onRecordsUpdated={fetchAbnormalCount}
+            systemSettings={systemSettings}
+        />;
     }
 
 
@@ -1414,9 +1421,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
                             <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24">
-                                <div className="flex flex-col justify-between h-full">
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{t('totalEquipment')}</p>
-                                    <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{nameCount}</p>
+                                <div className="flex flex-col justify-between h-full min-w-0 flex-1">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('totalEquipment')}</p>
+                                    <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none truncate">{nameCount}</p>
                                 </div>
                                 <div className="p-3 bg-blue-50 rounded-xl shrink-0">
                                     <Database className="w-5 h-5 text-blue-500" />
@@ -1425,9 +1432,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                             {/* Abnormal Pending */}
                             <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24">
-                                <div className="flex flex-col justify-between h-full">
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{t('pendingAbnormal')}</p>
-                                    <p className={`text-xl sm:text-2xl font-black leading-none ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
+                                <div className="flex flex-col justify-between h-full min-w-0 flex-1">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('pendingAbnormal')}</p>
+                                    <p className={`text-xl sm:text-2xl font-black leading-none truncate ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
                                 </div>
                                 <div className={`p-3 rounded-xl shrink-0 ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
                                     <AlertOctagon className={`w-5 h-5 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-500'}`} />
@@ -1436,13 +1443,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                             {/* Declaration Countdown */}
                             <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
-                                <div className="flex flex-col justify-between h-full">
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{t('declarationCountdown')}</p>
-                                    <div className="flex items-baseline gap-1 leading-none">
+                                <div className="flex flex-col justify-between h-full min-w-0 flex-1">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('declarationCountdown')}</p>
+                                    <div className="flex items-baseline gap-1 leading-none min-w-0">
                                         {countdownDays !== null ? (
                                             <>
-                                                <span className={`text-xl sm:text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
-                                                <span className="text-xs font-bold text-slate-400">{t('days')}</span>
+                                                <span className={`text-xl sm:text-2xl font-black truncate ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
+                                                <span className="text-xs font-bold text-slate-400 shrink-0">{t('days')}</span>
                                             </>
                                         ) : (
                                             <span className="text-xl sm:text-2xl font-black text-slate-300">--</span>
@@ -1460,10 +1467,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     onClick={() => setIsPermissionsModalOpen(true)}
                                     className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-blue-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="flex flex-col justify-between h-full text-left min-w-0">
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('permissions')}</p>
-                                        <div className="flex items-center gap-1.5 sm:gap-2 leading-none">
-                                            <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
+                                        <div className="flex items-center gap-1 sm:gap-1.5 leading-none min-w-0">
+                                            <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors truncate">
                                                 {t('onOff')}
                                             </p>
                                             <div className="flex gap-0.5 sm:gap-1 shrink-0 mt-0.5">
@@ -1487,9 +1494,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     }}
                                     className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="flex flex-col justify-between h-full text-left min-w-0">
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('lightSettings')}</p>
-                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-orange-600 transition-colors whitespace-nowrap leading-none">
+                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-orange-600 transition-colors truncate leading-none">
                                             {t('lights')}
                                         </p>
                                     </div>
@@ -1505,9 +1512,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     onClick={() => setIsAdminDashboardOpen(true)}
                                     className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="flex flex-col justify-between h-full text-left min-w-0">
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('systemManagement')}</p>
-                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-red-600 transition-colors whitespace-nowrap leading-none">
+                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-red-600 transition-colors truncate leading-none">
                                             {t('coreAdmin')}
                                         </p>
                                     </div>

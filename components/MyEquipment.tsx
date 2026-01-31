@@ -658,7 +658,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                     target.style.display = 'none';
                     if (target.previousElementSibling) {
                       const fallback = target.previousElementSibling as HTMLElement;
-                      fallback.innerHTML = `<div class="text-center p-8"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-300"><path d="m21 21-18-18"/><path d="M10.45 4.45 12 3l12 12-1.45 1.45"/><path d="M14.91 14.91 21 21"/><path d="M16.5 16.5 12 21 0 9l1.45-1.45"/></svg><p class="text-red-400 font-bold">照片讀取失敗</p><p class="text-slate-400 text-xs mt-1">請確認圖片連結是否有效</p></div>`;
+                      fallback.innerHTML = `<div class="text-center p-8"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-300"><path d="m21 21-18-18"/><path d="M10.45 4.45 12 3l12 12-1.45 1.45"/><path d="M14.91 14.91 21 21"/><path d="M16.5 16.5 12 21 0 9l1.45-1.45"/></svg><p class="text-red-400 font-bold">${t('photoLoadFailed')}</p><p class="text-slate-400 text-xs mt-1">${t('checkLinkValidity')}</p></div>`;
                     }
                   }}
                 />
@@ -675,7 +675,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   }}
                   className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-bold flex items-center justify-center gap-2 border border-slate-700 hover:bg-slate-700 transition-all active:scale-95"
                 >
-                  <Globe className="w-5 h-5" /> 在瀏覽器開啟連結
+                  <Globe className="w-5 h-5" /> {t('openInBrowser')}
                 </button>
                 <button
                   onClick={() => {
@@ -688,7 +688,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   }}
                   className="flex-1 py-4 bg-white text-slate-900 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-slate-100 transition-all shadow-xl active:scale-95 border border-transparent"
                 >
-                  <Download className="w-5 h-5" /> 下載照片
+                  <Download className="w-5 h-5" /> {t('downloadPhoto')}
                 </button>
               </div>
             </div>
