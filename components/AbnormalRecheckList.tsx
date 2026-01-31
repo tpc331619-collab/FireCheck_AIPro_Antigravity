@@ -45,19 +45,34 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
     const fetchRecords = async () => {
         setLoading(true);
         try {
-            const [recordsData, equipmentData] = await Promise.all([
-                StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId),
-                StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId)
-            ]);
-
-            // 根據 viewMode 篩選記錄
+            // 1. Fetch Records first to determine context (especially for Guest)
+            const recordsData = await StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId);
             setRecords(recordsData.filter(r => r.status === viewMode));
 
+            // 2. Determine correct Organization ID for Equipment Fetch
+            // If Guest and we have records with orgId, verify against those
+            let effectiveOrgId = user.currentOrganizationId;
+            if (!effectiveOrgId && recordsData.length > 0) {
+                // Try to find a frequent orgId or just take the first one
+                const firstOrgId = recordsData.find(r => r.organizationId)?.organizationId;
+                if (firstOrgId) {
+                    console.log("[AbnormalRecheckList] Guest Mode detected Organization ID from records:", firstOrgId);
+                    effectiveOrgId = firstOrgId;
+                }
+            }
+
+            // 3. Fetch Equipment with the derived ID
+            const equipmentData = await StorageService.getEquipmentDefinitions(user.uid, effectiveOrgId);
+
             // Build Photo Map
+            console.log("[AbnormalRecheckList] Equipment Data Fetched:", equipmentData.length);
             const photoMap: Record<string, string> = {};
             equipmentData.forEach(e => {
-                if (e.photoUrl) photoMap[e.id] = e.photoUrl;
+                if (e.photoUrl) {
+                    photoMap[e.id] = e.photoUrl;
+                }
             });
+            console.log("[AbnormalRecheckList] Photo Map Size:", Object.keys(photoMap).length);
             setEquipmentPhotoMap(photoMap);
         } catch (err) {
             console.error(err);
@@ -415,6 +430,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                                 <div className="text-slate-300 text-sm flex flex-col items-center">
                                                     <span className="text-2xl mb-1">📷</span>
                                                     <span className="text-xs">No Photo</span>
+                                                    <div className="text-[9px] text-red-400 mt-1 max-w-full break-all bg-yellow-50 p-1">
+                                                        Wait ID: {selectedRecord.equipmentId}<br />
+                                                        InMap: {equipmentPhotoMap[selectedRecord.equipmentId] ? 'Yes' : 'No'}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

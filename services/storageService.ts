@@ -1,5 +1,5 @@
 import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings, Organization, OrganizationMember, OrganizationRole } from '../types';
-import { db, storage } from './firebase';
+import { db, auth, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
 
@@ -31,6 +31,8 @@ export const StorageService = {
               // We can temporarily set isGuest false locally or just copy logic?
               // Safer to just call logic directly
               return this._fetchFirestoreReports(settings.publicDataUserId, year, withItems);
+            } else {
+              console.log("[StorageService] Guest Mode: Guest View NOT allowed or Public ID missing", settings);
             }
           }
         } catch (e) {
@@ -69,11 +71,18 @@ export const StorageService = {
       const snapshot = await getDocs(q);
       let reports = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as InspectionReport));
 
-      // Client-side filtering to ensure strict separation
-      if (!organizationId || organizationId === '') {
-        reports = reports.filter(r => !r.organizationId);
-      } else {
-        reports = reports.filter(r => r.organizationId === organizationId);
+      // Client-side filtering
+      // Same logic as Abnormal Records: If Guest is viewing Public Data, show everything regardless of Org ID
+      // We detect this by checking if userId (param) is different from current auth user, implying we are fetching someone else's data
+      const currentAuthId = auth?.currentUser?.uid;
+      const isGuestPublicAccess = !organizationId && userId !== currentAuthId;
+
+      if (!isGuestPublicAccess) {
+        if (!organizationId || organizationId === '') {
+          reports = reports.filter(r => !r.organizationId);
+        } else {
+          reports = reports.filter(r => r.organizationId === organizationId);
+        }
       }
 
       if (withItems) {
@@ -392,14 +401,23 @@ export const StorageService = {
   async getEquipmentDefinitions(userId: string, organizationId?: string | null): Promise<EquipmentDefinition[]> {
     let targetUserId = userId;
     let useCloud = !this.isGuest && !!db;
+    let fetchedPublicData = false;
 
     // Check for Public Guest Access
     // If organizationId is present, we skip this guest check logic as we want explicitly org data
+    console.log(`[StorageService] getEquipDefs: orgId=${organizationId}, isGuest=${this.isGuest}`);
+
     if (!organizationId && this.isGuest && db) {
       const settings = await this.getSystemSettings();
-      if (settings?.allowGuestView && settings?.publicDataUserId) {
+      console.log(`[StorageService] getEquipDefs Check: allowView=${settings?.allowGuestView}, allowRecheck=${settings?.allowGuestRecheck}, publicID=${settings?.publicDataUserId}`);
+
+      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.publicDataUserId) {
+        console.log("[StorageService] Guest Access (EquipDefs): Switching to Public User ID", settings.publicDataUserId);
         targetUserId = settings.publicDataUserId;
         useCloud = true;
+        fetchedPublicData = true;
+      } else {
+        console.log("[StorageService] Guest Access (EquipDefs): Conditions NOT met.");
       }
     }
 
@@ -434,13 +452,31 @@ export const StorageService = {
           } as EquipmentDefinition;
         });
 
-        // Client-side filtering to ensure strict separation
-        if (!organizationId || organizationId === '') {
-          results = results.filter(r => !r.organizationId);
+        // Client-side filtering
+        // Allow Guest Public Access
+        const currentAuthId = auth?.currentUser?.uid;
+        // Check if we are viewing data that is NOT our own (either via passed userId or switched targetUserId)
+        const isGuestPublicAccess = !organizationId && this.isGuest && (targetUserId !== currentAuthId || userId !== currentAuthId);
+
+        // Final robustness check: If we explicitly fetched public data, trust it.
+        const shouldBypassFilter = isGuestPublicAccess || fetchedPublicData;
+
+        console.log(`[StorageService] Filtering Check: bypass=${shouldBypassFilter} (public=${fetchedPublicData}, guestPublic=${isGuestPublicAccess})`);
+
+        if (results.some(r => r.id === 'dWWNBUBNm1YW0pgxkX8E')) {
+          console.log("[StorageService] FOUND target dWWNBUBNm1YW0pgxkX8E. Photo:", results.find(r => r.id === 'dWWNBUBNm1YW0pgxkX8E')?.photoUrl);
+          console.log("[StorageService] Target item data:", results.find(r => r.id === 'dWWNBUBNm1YW0pgxkX8E'));
         } else {
-          results = results.filter(r => r.organizationId === organizationId);
+          console.log("[StorageService] Target dWWNBUBNm1YW0pgxkX8E NOT FOUND in result set of size", results.length);
         }
 
+        if (!shouldBypassFilter) {
+          if (!organizationId || organizationId === '') {
+            results = results.filter(e => !e.organizationId);
+          } else {
+            results = results.filter(e => e.organizationId === organizationId);
+          }
+        }
         const sortedResults = results.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
         // Sync to local storage for Guest Access (if viewing as Admin AND NOT in organization mode)
@@ -1330,10 +1366,12 @@ export const StorageService = {
     // Skip if organizationId is present
     if (!organizationId && this.isGuest && db) {
       const settings = await this.getSystemSettings();
-      if (settings?.allowGuestView && settings?.publicDataUserId) {
-        // Also check for Abnormal Recheck Permission?
-        // The UI (Dashboard.tsx) handles the button visibility based on allowGuestRecheck.
-        // Here we just facilitate the data access if allowed.
+      // Allow if either View OR Recheck is enabled
+      // Just like abnormal records, we might want to allow seeing history if they are allowed to recheck?
+      // Or at least, if allowGuestView is missing but allowGuestRecheck is on, maybe we should minimal access?
+      // For now, let's allow it if either is true, to be safe and consistent with user request "Guest Mode Data Visibility".
+      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.publicDataUserId) {
+        console.log('[StorageService] Guest Access (Reports): Using Public Data ID:', settings.publicDataUserId);
         targetUserId = settings.publicDataUserId;
         useCloud = true;
       }
@@ -1361,12 +1399,19 @@ export const StorageService = {
         const snapshot = await getDocs(q);
         let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
 
-        // Client-side filtering to ensure strict separation
-        if (!organizationId || organizationId === '') {
-          records = records.filter(r => !r.organizationId);
-        } else {
-          records = records.filter(r => r.organizationId === organizationId);
+        // Client-side filtering
+        // If we are in Guest Mode using Public Data ID, we should SHOW parsed records even if they have Org ID
+        // because the Guest doesn't belong to an Org, but wants to see the Admin's data.
+        const isGuestPublicAccess = !organizationId && this.isGuest && targetUserId !== userId;
+
+        if (!Boolean(isGuestPublicAccess)) {
+          if (!organizationId || organizationId === '') {
+            records = records.filter(r => !r.organizationId);
+          } else {
+            records = records.filter(r => r.organizationId === organizationId);
+          }
         }
+
         const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
 
         // Sync to local storage for Guest Access (if Admin AND not Org view)
@@ -1680,7 +1725,9 @@ export const StorageService = {
     if (!db) throw new Error('Database not initialized');
     try {
       const docRef = doc(db, 'organizations', orgId);
-      await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+      await updateDoc(docRef, {
+        ...updates, updatedAt: Date.now()
+      });
       console.log('[StorageService] Updated organization:', orgId);
     } catch (e) {
       console.error('Update organization error', e);
@@ -1960,7 +2007,9 @@ export const StorageService = {
     if (!db) return;
     try {
       const docRef = doc(db, 'whitelist', email.toLowerCase());
-      await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+      await updateDoc(docRef, {
+        ...updates, updatedAt: Date.now()
+      });
       console.log('[StorageService] Updated whitelist entry for', email);
     } catch (e) {
       console.error('Update whitelist error', e);
