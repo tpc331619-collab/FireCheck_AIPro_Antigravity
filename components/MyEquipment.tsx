@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock } from 'lucide-react';
-import { EquipmentDefinition, UserProfile, LightSettings } from '../types';
+import { EquipmentDefinition, UserProfile, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 // import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils'; // Deprecated for this view
@@ -15,6 +15,7 @@ interface MyEquipmentProps {
   onBack: () => void;
   onEdit: (item: EquipmentDefinition) => void;
   initialQuery?: string;
+  systemSettings?: SystemSettings; // Avoiding circular dependency or strict type for now, used for permissions
 }
 
 const MyEquipment: React.FC<MyEquipmentProps> = ({
@@ -24,9 +25,26 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   onFilterChange,
   onBack,
   onEdit,
-  initialQuery
+  initialQuery,
+  systemSettings,
 }) => {
   const { t, language } = useLanguage();
+  const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
+
+  const [fetchedSettings, setFetchedSettings] = useState<SystemSettings | null>(null);
+
+  useEffect(() => {
+    if (!systemSettings) {
+      StorageService.getSystemSettings().then(setFetchedSettings);
+    }
+  }, [systemSettings]);
+
+  const activeSettings = systemSettings || fetchedSettings;
+
+  // Permission Checks
+  const canEdit = isAdmin || activeSettings?.allowInspectorEditEquipment;
+  const canCopy = isAdmin || activeSettings?.allowInspectorCopyEquipment;
+  const canDelete = isAdmin || activeSettings?.allowInspectorDeleteEquipment;
   const [loading, setLoading] = useState(true);
   const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
   const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
@@ -469,27 +487,33 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                 <QrCode className="w-4 h-4" />
                               </button>
                               <div className="w-px h-5 bg-slate-100 mx-1 hidden sm:block"></div>
-                              <button
-                                onClick={(e) => handleEdit(e, item)}
-                                className="p-1.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition-all active:scale-95"
-                                title={t('edit')}
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => handleCopy(e, item)}
-                                className="p-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-100 transition-all active:scale-95"
-                                title={t('copy')}
-                              >
-                                <Copy className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => handleDeleteClick(e, item)}
-                                className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg shadow-sm hover:bg-red-100 transition-all active:scale-95"
-                                title={t('delete')}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={(e) => handleEdit(e, item)}
+                                  className="p-1.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition-all active:scale-95"
+                                  title={t('edit')}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              )}
+                              {canCopy && (
+                                <button
+                                  onClick={(e) => handleCopy(e, item)}
+                                  className="p-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-100 transition-all active:scale-95"
+                                  title={t('copy')}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={(e) => handleDeleteClick(e, item)}
+                                  className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg shadow-sm hover:bg-red-100 transition-all active:scale-95"
+                                  title={t('delete')}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
 
 

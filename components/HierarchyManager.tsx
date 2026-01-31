@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Save, FolderTree, ChevronRight, AlertCircle, CheckCircle, Pencil, RefreshCw } from 'lucide-react';
-import { EquipmentHierarchy, UserProfile } from '../types';
+import { EquipmentHierarchy, UserProfile, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { EQUIPMENT_HIERARCHY } from '../constants';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -17,6 +17,18 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+    const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
+
+    const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
+
+    // Permission Checks
+    const canEditCategory = isAdmin || systemSettings?.allowInspectorEditCategory;
+    const canDeleteCategory = isAdmin || systemSettings?.allowInspectorDeleteCategory;
+    const canReset = isAdmin || systemSettings?.allowInspectorResetDefaults;
+
+    // Type/MainClass Permissions
+    const canEditType = isAdmin || systemSettings?.allowInspectorEditType;
+    const canDeleteType = isAdmin || systemSettings?.allowInspectorDeleteType;
 
     // Selection state
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -51,6 +63,10 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     });
                     setHierarchy(seed);
                 }
+
+                // Load Settings
+                const settings = await StorageService.getSystemSettings();
+                setSystemSettings(settings);
             } catch (err) {
                 console.error(err);
                 showToast(t('loadFailed') || 'Load Failed', 'error');
@@ -58,6 +74,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                 setLoading(false);
             }
         };
+
         loadData();
     }, [user.uid, user.currentOrganizationId]);
 
@@ -257,28 +274,30 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                         </div>
                         <div className="flex-1 overflow-y-auto p-2 space-y-1">
                             {/* Reset Button */}
-                            <div className="px-2 pt-2 pb-1">
-                                <button
-                                    onClick={() => {
-                                        if (confirm('確定要回復成預設清單嗎？\n\n警告：目前所有自訂的分類與種類都將被清除，並還原為系統預設值。')) {
-                                            const seed: EquipmentHierarchy = {};
-                                            Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
-                                                if (cat === '自定義') return;
-                                                const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
-                                                seed[cat] = validTypes;
-                                            });
-                                            setHierarchy(seed);
-                                            StorageService.saveEquipmentHierarchy(seed, user.uid, user.currentOrganizationId)
-                                                .then(() => showToast('已回復預設清單', 'success'))
-                                                .catch(() => showToast('重置失敗', 'error'));
-                                        }
-                                    }}
-                                    className="w-full py-2 text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 border border-dashed border-slate-300 rounded-lg transition-colors flex items-center justify-center gap-1"
-                                >
-                                    <RefreshCw className="w-3 h-3" />
-                                    {t('resetDefaults') || '重置為預設值'}
-                                </button>
-                            </div>
+                            {canReset && (
+                                <div className="px-2 pt-2 pb-1">
+                                    <button
+                                        onClick={() => {
+                                            if (confirm('確定要回復成預設清單嗎？\n\n警告：目前所有自訂的分類與種類都將被清除，並還原為系統預設值。')) {
+                                                const seed: EquipmentHierarchy = {};
+                                                Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
+                                                    if (cat === '自定義') return;
+                                                    const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
+                                                    seed[cat] = validTypes;
+                                                });
+                                                setHierarchy(seed);
+                                                StorageService.saveEquipmentHierarchy(seed, user.uid, user.currentOrganizationId)
+                                                    .then(() => showToast('已回復預設清單', 'success'))
+                                                    .catch(() => showToast('重置失敗', 'error'));
+                                            }
+                                        }}
+                                        className="w-full py-2 text-xs text-slate-500 hover:text-red-500 hover:bg-red-50 border border-dashed border-slate-300 rounded-lg transition-colors flex items-center justify-center gap-1"
+                                    >
+                                        <RefreshCw className="w-3 h-3" />
+                                        {t('resetDefaults') || '重置為預設值'}
+                                    </button>
+                                </div>
+                            )}
 
                             {loading ? <div className="p-4 text-center text-slate-400 text-sm">載入中...</div> :
                                 Object.keys(hierarchy).map(cat => (
@@ -290,8 +309,8 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                         <span className="font-bold text-base">{cat}</span>
                                         <div className="flex items-center gap-2">
                                             {selectedCategory === cat && <ChevronRight className="w-5 h-5 text-red-400" />}
-                                            <button onClick={(e) => { e.stopPropagation(); editCategory(cat); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={(e) => { e.stopPropagation(); deleteCategory(cat); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                            {canEditCategory && <button onClick={(e) => { e.stopPropagation(); editCategory(cat); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>}
+                                            {canDeleteCategory && <button onClick={(e) => { e.stopPropagation(); deleteCategory(cat); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>}
                                         </div>
                                     </div>
                                 ))
@@ -322,8 +341,8 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                 >
                                     <span className="font-bold text-base">{type}</span>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => editType(type)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>
-                                        <button onClick={() => deleteType(type)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        {canEditType && <button onClick={() => editType(type)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil className="w-4 h-4" /></button>}
+                                        {canDeleteType && <button onClick={() => deleteType(type)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>}
                                     </div>
                                 </div>
                             ))}

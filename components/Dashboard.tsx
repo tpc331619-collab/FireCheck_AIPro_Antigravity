@@ -1409,7 +1409,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     {/* Stats Row */}
                     {!user.isGuest && (
-                        <div className={`grid grid-cols-2 gap-4 ${isAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                        <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
                             <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
                                 <div>
@@ -1456,22 +1456,43 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between md:col-span-1 hover:border-blue-200 hover:shadow-md transition-all group"
+                                    className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:border-blue-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="text-left">
-                                        <p className="text-xs font-bold text-slate-500 mb-1">{t('permissions')}</p>
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                                    <div className="text-left min-w-0">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mb-0.5 truncate">{t('permissions')}</p>
+                                        <div className="flex items-center gap-1.5 sm:gap-2">
+                                            <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                                                 {t('onOff')}
                                             </p>
-                                            <div className="flex gap-1">
-                                                <span className={`w-2 h-2 rounded-full ${systemSettings?.allowGuestView ? 'bg-green-500' : 'bg-slate-300'}`} title={t('allowGuestView')} />
-                                                <span className={`w-2 h-2 rounded-full ${systemSettings?.allowCloudGallery ? 'bg-blue-500' : 'bg-slate-300'}`} title={t('cloudGallery')} />
+                                            <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${systemSettings?.allowGuestView ? 'bg-green-500' : 'bg-slate-300'}`} title={t('allowGuestView')} />
+                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${systemSettings?.allowCloudGallery ? 'bg-blue-500' : 'bg-slate-300'}`} title={t('cloudGallery')} />
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors">
-                                        <ShieldCheck className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
+                                    <div className="p-2 sm:p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors shrink-0">
+                                        <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
+                                    </div>
+                                </button>
+                            )}
+
+                            {/* Light Settings Card (Admin Only) */}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => {
+                                        setSettingsTab('LIGHTS');
+                                        setIsSettingsOpen(true);
+                                    }}
+                                    className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
+                                >
+                                    <div className="text-left min-w-0">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mb-0.5 truncate">{t('lightSettings')}</p>
+                                        <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-orange-600 transition-colors whitespace-nowrap">
+                                            {t('lights')}
+                                        </p>
+                                    </div>
+                                    <div className="p-2 sm:p-3 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors shrink-0">
+                                        <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 group-hover:scale-110 transition-transform" />
                                     </div>
                                 </button>
                             )}
@@ -1480,16 +1501,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsAdminDashboardOpen(true)}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group"
+                                    className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-sm flex items-center justify-between md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="text-left">
-                                        <p className="text-xs font-bold text-slate-500 mb-1">{t('systemManagement')}</p>
-                                        <p className="text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors">
+                                    <div className="text-left min-w-0">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mb-0.5 truncate">{t('systemManagement')}</p>
+                                        <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors whitespace-nowrap">
                                             {t('coreAdmin')}
                                         </p>
                                     </div>
-                                    <div className="p-3 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors">
-                                        <Settings className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
+                                    <div className="p-2 sm:p-3 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors shrink-0">
+                                        <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 group-hover:scale-110 transition-transform" />
                                     </div>
                                 </button>
                             )}
@@ -2888,6 +2909,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {/* Assuming EquipmentMapEditor is a new component to be added */}
                     {isEquipmentMapOpen && (
                         <EquipmentMapEditor
+                            user={user}
                             isOpen={isEquipmentMapOpen}
                             onClose={() => setIsEquipmentMapOpen(false)}
                             existingMap={selectedMap}
@@ -3155,6 +3177,39 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                         </label>
                                     </div>
+
+                                    {/* Granular Permissions */}
+                                    {/* My Equipment Actions */}
+                                    {['EditEquipment', 'CopyEquipment', 'DeleteEquipment'].map((perm) => (
+                                        <div key={perm} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                            <div className="font-bold text-slate-800 text-sm">{t(`allowInspector${perm}`)}</div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
+                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
+                                        </div>
+                                    ))}
+
+                                    {/* Hierarchy Actions */}
+                                    {['ResetDefaults', 'EditCategory', 'DeleteCategory', 'EditType', 'DeleteType'].map((perm) => (
+                                        <div key={perm} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                            <div className="font-bold text-slate-800 text-sm">{t(`allowInspector${perm}`)}</div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
+                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -3171,6 +3226,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     onOrgSwitch={(orgId) => {
                         onOrgSwitch(orgId);
                     }}
+                    systemSettings={systemSettings}
                 />
             )}
         </div >

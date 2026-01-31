@@ -220,6 +220,16 @@ export interface SystemSettings {
   allowGuestView: boolean;
   allowGuestRecheck?: boolean;
   allowCloudGallery?: boolean; // Enable/Disable cloud gallery in Map Editor
+  // Granular Inspector Permissions
+  allowInspectorEditEquipment?: boolean;
+  allowInspectorCopyEquipment?: boolean;
+  allowInspectorDeleteEquipment?: boolean;
+  allowInspectorResetDefaults?: boolean;
+  allowInspectorEditCategory?: boolean;
+  allowInspectorDeleteCategory?: boolean;
+  allowInspectorEditType?: boolean;
+  allowInspectorDeleteType?: boolean;
+  // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }
 

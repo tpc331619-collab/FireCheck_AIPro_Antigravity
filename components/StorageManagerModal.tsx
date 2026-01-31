@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, FileText, Check, AlertTriangle, RefreshCcw, Image as ImageIcon, Calendar, HardDrive, Search, Filter, Upload } from 'lucide-react';
+import { X, Trash2, FileText, Check, AlertTriangle, RefreshCcw, Image as ImageIcon, Calendar, Search, Filter, Upload } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 import { UserProfile } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -183,7 +183,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
 
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                         <div className="px-3 py-1.5 bg-slate-100 rounded-lg text-xs font-bold text-slate-500 flex items-center gap-2">
-                            <HardDrive className="w-3 h-3" />
+                            <FileText className="w-3 h-3" />
                             {files.length} {t('fileCount')}
                         </div>
                         {allowUpload && (
@@ -259,7 +259,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
 
                                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 font-medium">
                                                 <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-md">
-                                                    <HardDrive className="w-3 h-3" />
+                                                    <FileText className="w-3 h-3" />
                                                     {formatBytes(file.size)}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-md">
