@@ -1369,14 +1369,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <p className="text-slate-700 text-sm font-bold">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
                                 <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
                             </div>
-                            <div className="relative w-12 h-12 rounded-full overflow-visible border-2 border-slate-300 bg-slate-100 shadow-md">
-                                <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
-                                {systemSettings?.allowGuestView && (
-                                    <span className="absolute -top-1 -right-1 flex h-3 w-3" title="訪客權限已開啟">
-                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                                    </span>
-                                )}
+                            <div
+                                className="relative w-12 h-12 rounded-full p-[3px] shadow-md transition-all hover:scale-105 cursor-pointer"
+                                style={{
+                                    background: `conic-gradient(
+                                        ${systemSettings?.allowGuestView ? '#34d399' : '#e2e8f0'} 0% 50%,
+                                        ${systemSettings?.allowGuestRecheck ? '#34d399' : '#e2e8f0'} 50% 100%
+                                    )`
+                                }}
+                                title={`訪客權限狀態:\n查看: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}`}
+                                onClick={() => setIsSettingsOpen(true)}
+                            >
+                                <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
+                                    <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                                </div>
                             </div>
                         </div>
 
@@ -2054,14 +2060,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     }
 
                     {/* FAB (Maintained for quick access) */}
-                    <button
-                        onClick={onCreateNew}
-                        className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
-                        style={{ backgroundColor: THEME_COLORS.primary }}
-                        aria-label="新增檢查"
-                    >
-                        <Plus className="w-7 h-7" />
-                    </button>
+                    {!user.isGuest && (
+                        <button
+                            onClick={onCreateNew}
+                            className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
+                            style={{ backgroundColor: THEME_COLORS.primary }}
+                            aria-label="新增檢查"
+                        >
+                            <Plus className="w-7 h-7" />
+                        </button>
+                    )}
 
                     {/* Health Modal */}
                     {
@@ -2806,19 +2814,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 <Calendar className="w-4 h-4 text-slate-400" />
                                                                 {t('declarationBaseDate')}
                                                             </label>
-                                                            <input
-                                                                type="date"
-                                                                value={declarationSettings?.nextDate || ''}
-                                                                onChange={(e) => {
-                                                                    const newSettings: DeclarationSettings = {
-                                                                        ...declarationSettings || { lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
-                                                                        nextDate: e.target.value,
-                                                                        lastModified: Date.now()
-                                                                    };
-                                                                    handleSaveSettings(newSettings);
-                                                                }}
-                                                                className="w-full p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all outline-none font-medium text-slate-700 shadow-sm"
-                                                            />
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="date"
+                                                                    value={declarationSettings?.nextDate || ''}
+                                                                    onChange={(e) => {
+                                                                        const newSettings: DeclarationSettings = {
+                                                                            ...declarationSettings || { lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+                                                                            nextDate: e.target.value,
+                                                                            lastModified: Date.now()
+                                                                        };
+                                                                        handleSaveSettings(newSettings);
+                                                                    }}
+                                                                    className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-400 transition-all outline-none font-medium text-slate-700 shadow-sm"
+                                                                />
+                                                                {declarationSettings?.nextDate && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const newSettings: DeclarationSettings = {
+                                                                                ...declarationSettings || { lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+                                                                                nextDate: '',
+                                                                                lastModified: Date.now()
+                                                                            };
+                                                                            handleSaveSettings(newSettings);
+                                                                        }}
+                                                                        className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-red-500 rounded-xl transition-colors shrink-0"
+                                                                        title={t('clear')}
+                                                                    >
+                                                                        <X className="w-5 h-5" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                             <p className="text-xs text-slate-400 mt-2 pl-1">
                                                                 {t('declarationAutoCalc')}
                                                             </p>
