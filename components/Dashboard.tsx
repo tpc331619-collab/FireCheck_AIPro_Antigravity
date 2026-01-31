@@ -1335,16 +1335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </span>
                                     <Building className="w-4 h-4" />
                                 </button>
-                                {(user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com') && (
-                                    <button
-                                        onClick={() => setIsAdminDashboardOpen(true)}
-                                        className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 rounded-lg flex items-center gap-2 transition-all mr-2"
-                                        title="核心管理後台"
-                                    >
-                                        <ShieldCheck className="w-4 h-4" />
-                                        <span className="text-sm font-bold hidden sm:inline-block">管理</span>
-                                    </button>
-                                )}
+                                {/* Management Button Removed */}
                                 <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
                                     <Settings className="w-5 h-5" />
                                 </button>
@@ -1418,7 +1409,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     {/* Stats Row */}
                     {!user.isGuest && (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className={`grid grid-cols-2 gap-4 ${isAdmin ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
                             <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
                                 <div>
@@ -1481,6 +1472,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
                                     <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors">
                                         <ShieldCheck className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
+                                    </div>
+                                </button>
+                            )}
+
+                            {/* System Management Card (Admin Only) */}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setIsAdminDashboardOpen(true)}
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group"
+                                >
+                                    <div className="text-left">
+                                        <p className="text-xs font-bold text-slate-500 mb-1">{t('systemManagement')}</p>
+                                        <p className="text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors">
+                                            {t('coreAdmin')}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors">
+                                        <Settings className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
                                     </div>
                                 </button>
                             )}
