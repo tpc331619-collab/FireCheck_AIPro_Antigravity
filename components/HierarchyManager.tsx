@@ -9,22 +9,22 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface HierarchyManagerProps {
     user: UserProfile;
     onBack: () => void;
+    systemSettings?: SystemSettings;
 }
 
-const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => {
+const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack, systemSettings }) => {
     const { t } = useLanguage();
     const [hierarchy, setHierarchy] = useState<EquipmentHierarchy>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-    const [systemSettings, setSystemSettings] = useState<SystemSettings | null>(null);
 
     const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
 
     // Permission Checks
     const canEditCategory = isAdmin || systemSettings?.allowInspectorEditHierarchy !== false;
     const canDeleteCategory = isAdmin || systemSettings?.allowInspectorDeleteHierarchy !== false;
-    const canReset = isAdmin || systemSettings?.allowInspectorResetHierarchy !== false;
+    const canReset = isAdmin || systemSettings?.allowInspectorResetDefaults !== false;
 
     // Type/MainClass Permissions
     const canEditType = isAdmin || systemSettings?.allowInspectorEditHierarchy !== false;
@@ -63,10 +63,6 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                     });
                     setHierarchy(seed);
                 }
-
-                // Load Settings
-                const settings = await StorageService.getSystemSettings();
-                setSystemSettings(settings);
             } catch (err) {
                 console.error(err);
                 showToast(t('loadFailed') || 'Load Failed', 'error');

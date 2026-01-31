@@ -352,6 +352,7 @@ const App: React.FC = () => {
           <HierarchyManager
             user={user}
             onBack={() => setCurrentView('DASHBOARD')}
+            systemSettings={systemSettings}
           />
         ) : currentView === 'EQUIPMENT_MANAGER' ? (
           <EquipmentManager
@@ -371,6 +372,7 @@ const App: React.FC = () => {
               setEditingEquipment(null);
               setCurrentView('MY_EQUIPMENT');
             }}
+            systemSettings={systemSettings}
           />
         ) : currentView === 'MY_EQUIPMENT' ? (
           <MyEquipment

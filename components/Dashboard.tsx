@@ -213,6 +213,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Settings State
     const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS' | 'DECLARATION' | 'ADMIN' | 'PERMISSIONS'>('PROFILE');
+    const [settingsModalMode, setSettingsModalMode] = useState<'full' | 'focused'>('full');
     const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
     const [displayName, setDisplayName] = useState(user.displayName || '');
     const [selectedAvatar, setSelectedAvatar] = useState(() => {
@@ -1490,6 +1491,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <button
                                     onClick={() => {
                                         setSettingsTab('LIGHTS');
+                                        setSettingsModalMode('focused');
                                         setIsSettingsOpen(true);
                                     }}
                                     className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
@@ -2305,26 +2307,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-50 justify-end md:justify-start">
-                                                                    {(isAdmin || systemSettings?.allowInspectorHealthEditRecords !== false) && (
-                                                                        <button
-                                                                            onClick={() => setEditingHealthIndicator(indicator)}
-                                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                            title="編輯"
-                                                                        >
-                                                                            <Edit2 className="w-4 h-4" />
-                                                                        </button>
-                                                                    )}
-                                                                    {(isAdmin || systemSettings?.allowInspectorHealthDeleteRecords !== false) && (
-                                                                        <button
-                                                                            onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                                            title={t('delete')}
-                                                                        >
-                                                                            <Trash2 className="w-4 h-4" />
-                                                                        </button>
-                                                                    )}
-                                                                </div>
+                                                                {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
+                                                                    <button
+                                                                        onClick={() => setEditingHealthIndicator(indicator)}
+                                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                                        title="編輯"
+                                                                    >
+                                                                        <Edit2 className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                                {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                                        title={t('delete')}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         );
                                                     })
@@ -2356,60 +2356,62 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <Settings className="w-5 h-5 mr-2" />
                                             {t('systemSettings')}
                                         </h3>
-                                        <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                        <button onClick={() => { setIsSettingsOpen(false); setSettingsModalMode('full'); }} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
                                             <X className="w-5 h-5 text-slate-500" />
                                         </button>
                                     </div>
 
                                     {/* Tabs */}
-                                    <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto no-scrollbar">
-                                        {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
-                                            <button
-                                                onClick={() => setSettingsTab('PROFILE')}
-                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                                            >
-                                                <User className="w-4 h-4 mr-2" /> {t('profile')}
-                                            </button>
-                                        )}
+                                    {settingsModalMode === 'full' && (
+                                        <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto no-scrollbar">
+                                            {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
+                                                <button
+                                                    onClick={() => setSettingsTab('PROFILE')}
+                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                                >
+                                                    <User className="w-4 h-4 mr-2" /> {t('profile')}
+                                                </button>
+                                            )}
 
-                                        {(isAdmin || systemSettings?.allowInspectorLanguage !== false) && (
-                                            <button
-                                                onClick={() => setSettingsTab('LANGUAGE')}
-                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                            >
-                                                <Globe className="w-4 h-4 mr-2" /> {t('language')}
-                                            </button>
-                                        )}
+                                            {(isAdmin || systemSettings?.allowInspectorLanguage !== false) && (
+                                                <button
+                                                    onClick={() => setSettingsTab('LANGUAGE')}
+                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                                >
+                                                    <Globe className="w-4 h-4 mr-2" /> {t('language')}
+                                                </button>
+                                            )}
 
-                                        {(isAdmin || systemSettings?.allowInspectorBackground !== false) && (
-                                            <button
-                                                onClick={() => setSettingsTab('GENERAL')}
-                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                            >
-                                                <Palette className="w-4 h-4 mr-2" /> {t('background')}
-                                            </button>
-                                        )}
+                                            {(isAdmin || systemSettings?.allowInspectorBackground !== false) && (
+                                                <button
+                                                    onClick={() => setSettingsTab('GENERAL')}
+                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                                >
+                                                    <Palette className="w-4 h-4 mr-2" /> {t('background')}
+                                                </button>
+                                            )}
 
-                                        {(isAdmin || systemSettings?.allowInspectorDeclaration !== false) && (
-                                            <button
-                                                onClick={() => setSettingsTab('DECLARATION')}
-                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                            >
-                                                <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
-                                            </button>
-                                        )}
+                                            {(isAdmin || systemSettings?.allowInspectorDeclaration !== false) && (
+                                                <button
+                                                    onClick={() => setSettingsTab('DECLARATION')}
+                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                                >
+                                                    <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
+                                                </button>
+                                            )}
 
-                                        {/* Lights tab is usually for admins but we show it if they can see it */}
-                                        {(isAdmin) && (
-                                            <button
-                                                onClick={() => setSettingsTab('LIGHTS')}
-                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                            >
-                                                <Zap className="w-4 h-4 mr-2" /> {t('lights')}
-                                            </button>
-                                        )}
+                                            {/* Lights tab is usually for admins but we show it if they can see it */}
+                                            {(isAdmin) && (
+                                                <button
+                                                    onClick={() => setSettingsTab('LIGHTS')}
+                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                                >
+                                                    <Zap className="w-4 h-4 mr-2" /> {t('lights')}
+                                                </button>
+                                            )}
 
-                                    </div>
+                                        </div>
+                                    )}
 
                                     {/* Content */}
                                     <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
@@ -3157,6 +3159,43 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
 
                                     <div className="space-y-6">
+                                        {/* (0) 訪客權限 (Guest Access) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <User className="w-3.5 h-3.5" />
+                                                {t('sectionGuestAccess')}
+                                            </label>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestView')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestViewDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowGuestView ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                                </label>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestRecheck')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestRecheckDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowGuestRecheck ?? false}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                                </label>
+                                            </div>
+                                        </div>
                                         {/* (1) 系統設定 (System Settings) Block */}
                                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
                                             <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2 px-1">
@@ -3368,7 +3407,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionAddList')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
-                                                {['ResetDefaults', 'EditHierarchy', 'CopyHierarchy', 'DeleteHierarchy'].map((perm) => (
+                                                {['ResetDefaults', 'EditHierarchy', 'DeleteHierarchy'].map((perm) => (
                                                     <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-purple-200">
                                                         <div>
                                                             <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
