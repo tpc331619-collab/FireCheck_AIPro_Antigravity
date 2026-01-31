@@ -219,6 +219,7 @@ export interface Notification {
 export interface SystemSettings {
   allowGuestView: boolean;
   allowGuestRecheck?: boolean;
+  allowCloudGallery?: boolean; // Enable/Disable cloud gallery in Map Editor
   publicDataUserId?: string; // ID of the user whose public data is public
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Plus, Trash2, Save, MapPin, ZoomIn, ZoomOut, Move, RotateCw, Grid, MousePointer2, Download, Check, ArrowLeft, RefreshCcw, ChevronRight, HardDrive } from 'lucide-react';
 import { StorageService } from '../services/storageService';
-import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionStatus, LightSettings } from '../types';
+import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionStatus, LightSettings, SystemSettings } from '../types';
 import StorageManagerModal from './StorageManagerModal';
 import { calculateNextInspectionDate } from '../utils/dateUtils';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
@@ -13,9 +13,10 @@ interface EquipmentMapEditorProps {
     onClose: () => void;
     existingMap?: EquipmentMap | null;
     initialMapId?: string;
+    systemSettings?: SystemSettings; // Added prop
 }
 
-const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId }) => {
+const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId, systemSettings }) => {
     const { t } = useLanguage();
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
@@ -951,13 +952,18 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 <div className="flex items-center gap-4">
                                     <p className="text-sm text-slate-500">{t('total') || 'Total'} {maps.length} {t('maps') || 'Maps'}</p>
 
-                                    <button
-                                        onClick={() => setIsStorageManagerOpen(true)}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors"
-                                    >
-                                        <Upload className="w-4 h-4" />
-                                        {t('cloudGallery')}
-                                    </button>
+                                    <p className="text-sm text-slate-500">{t('total') || 'Total'} {maps.length} {t('maps') || 'Maps'}</p>
+
+                                    {/* Cloud Gallery Toggle Check */}
+                                    {(systemSettings?.allowCloudGallery !== false) && (
+                                        <button
+                                            onClick={() => setIsStorageManagerOpen(true)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors"
+                                        >
+                                            <Upload className="w-4 h-4" />
+                                            {t('cloudGallery')}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -978,26 +984,29 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                         </thead>
                                         <tbody className="divide-y divide-slate-200">
                                             {/* Create New Row */}
-                                            <tr
-                                                onClick={() => {
-                                                    setModalMode('SELECT');
-                                                    setIsStorageManagerOpen(true);
-                                                }}
-                                                className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
-                                            >
-                                                <td className="px-6 py-4"></td>
-                                                <td className="px-6 py-4">
-                                                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
-                                                        <Plus className="w-6 h-6" />
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4" colSpan={4}>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">{t('createNewMap')}</span>
-                                                        <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{t('selectFromCloud')}</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                            {/* Conditionally Show Cloud Gallery Option */}
+                                            {(systemSettings?.allowCloudGallery !== false) && (
+                                                <tr
+                                                    onClick={() => {
+                                                        setModalMode('SELECT');
+                                                        setIsStorageManagerOpen(true);
+                                                    }}
+                                                    className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
+                                                >
+                                                    <td className="px-6 py-4"></td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
+                                                            <Plus className="w-6 h-6" />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4" colSpan={4}>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="font-bold text-slate-700 text-lg group-hover:text-blue-600">{t('createNewMap')}</span>
+                                                            <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">{t('selectFromCloud')}</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            )}
 
                                             {/* Existing Maps */}
                                             {maps.map((map, index) => (

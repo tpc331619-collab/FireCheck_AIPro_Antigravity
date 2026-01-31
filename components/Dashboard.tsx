@@ -19,6 +19,7 @@ import HistoryTable from './HistoryTable';
 import BarcodeInputModal from './BarcodeInputModal';
 import { NotificationBell } from './NotificationBell';
 import { OrganizationManager } from './OrganizationManager';
+import EquipmentMapEditor from './EquipmentMapEditor'; // Import EquipmentMapEditor
 
 
 import { RegulationFeed } from './RegulationFeed';
@@ -138,9 +139,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
+    const [isEquipmentMapOpen, setIsEquipmentMapOpen] = useState(false); // Added
+    const [selectedMap, setSelectedMap] = useState<EquipmentMap | null>(null); // Added
+    const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false); // Added for separate permissions modal
 
     // Guest Timer Logic
     const [timeLeft, setTimeLeft] = useState<string>('');
@@ -1437,7 +1442,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Declaration Countdown */}
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-2">
+                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
                                     <div className="flex items-baseline gap-1">
@@ -1455,6 +1460,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
                                 </div>
                             </div>
+
+                            {/* Permissions Card (Admin Only) */}
+                            {isAdmin && (
+                                <button
+                                    onClick={() => setIsPermissionsModalOpen(true)}
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-1 hover:border-blue-200 hover:shadow-md transition-all group"
+                                >
+                                    <div className="text-left">
+                                        <p className="text-xs font-bold text-slate-500 mb-1">{t('permissions')}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                                                {t('actions')}
+                                            </p>
+                                            <div className="flex gap-1">
+                                                <span className={`w-2 h-2 rounded-full ${systemSettings?.allowGuestView ? 'bg-green-500' : 'bg-slate-300'}`} title={t('allowGuestView')} />
+                                                <span className={`w-2 h-2 rounded-full ${systemSettings?.allowCloudGallery ? 'bg-blue-500' : 'bg-slate-300'}`} title={t('cloudGallery')} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors">
+                                        <ShieldCheck className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
+                                    </div>
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -1525,7 +1554,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {/* Map Editor */}
                         {!user.isGuest && (
                             <button
-                                onClick={onOpenMapEditor}
+                                onClick={() => setIsEquipmentMapOpen(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-purple-500 hover:shadow-md active:scale-[0.98]"
                             >
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -2318,14 +2347,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         >
                                             <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
                                         </button>
-                                        {!user.isGuest && (
-                                            <button
-                                                onClick={() => setSettingsTab('PERMISSIONS')}
-                                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PERMISSIONS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                            >
-                                                <ShieldCheck className="w-4 h-4 mr-2" /> {t('permissions')}
-                                            </button>
-                                        )}
+                                        {/* Permissions Tab Removed */}
 
 
                                     </div>
@@ -2407,56 +2429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         )}
 
-                                        {/* PERMISSIONS TAB */}
-                                        {settingsTab === 'PERMISSIONS' && (
-                                            <div className="space-y-4">
-                                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex gap-3 mb-2">
-                                                    <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
-                                                    <div className="space-y-1">
-                                                        <p className="text-sm font-bold text-slate-900">{t('permissionsTitle')}</p>
-                                                        <p className="text-xs text-slate-500 leading-relaxed">
-                                                            {t('permissionsDesc')}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="pt-2 space-y-3">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('guestPermissions')}</label>
-
-                                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                                        <div>
-                                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestView')}</div>
-                                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestViewDesc')}</div>
-                                                        </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={systemSettings?.allowGuestView || false}
-                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                                        </label>
-                                                    </div>
-
-                                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                                        <div>
-                                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestRecheck')}</div>
-                                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestRecheckDesc')}</div>
-                                                        </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={systemSettings?.allowGuestRecheck || false}
-                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                                        </label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                                        {/* Permissions Content Removed */}
 
                                         {/* NOTIFICATIONS TAB */}
                                         {settingsTab === 'NOTIFICATIONS' && (
@@ -2903,6 +2876,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         t={t}
                     />
 
+                    {/* Assuming EquipmentMapEditor is a new component to be added */}
+                    {isEquipmentMapOpen && (
+                        <EquipmentMapEditor
+                            isOpen={isEquipmentMapOpen}
+                            onClose={() => setIsEquipmentMapOpen(false)}
+                            existingMap={selectedMap}
+                            systemSettings={systemSettings}
+                        />
+                    )}
+
                     {/* Admin Dashboard Overlay */}
                     {isAdminDashboardOpen && (user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com') && (
                         <AdminDashboard
@@ -3079,6 +3062,96 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     }
                 </div>
             </div>
+
+
+            {/* Permissions Modal */}
+            {isPermissionsModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                            <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                <ShieldCheck className="w-5 h-5 mr-2" />
+                                {t('permissionsTitle')}
+                            </h3>
+                            <button onClick={() => setIsPermissionsModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                            <div className="space-y-4">
+                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex gap-3 mb-2">
+                                    <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-bold text-slate-900">{t('permissionsTitle')}</p>
+                                        <p className="text-xs text-slate-500 leading-relaxed">
+                                            {t('permissionsDesc')}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 space-y-3">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('guestPermissions')}</label>
+
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                        <div>
+                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestView')}</div>
+                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestViewDesc')}</div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={systemSettings?.allowGuestView || false}
+                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                        <div>
+                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestRecheck')}</div>
+                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestRecheckDesc')}</div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={systemSettings?.allowGuestRecheck || false}
+                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="pt-2 space-y-3 border-t border-slate-100 mt-4">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('inspectorPermissions')}</label>
+
+                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                        <div>
+                                            <div className="font-bold text-slate-800 text-sm">{t('cloudGallery')}</div>
+                                            <div className="text-xs text-slate-500 mt-1">{t('cloudGalleryDesc')}</div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={systemSettings?.allowCloudGallery ?? true}
+                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Organization Manager Modal */}
             {showOrgManager && (
