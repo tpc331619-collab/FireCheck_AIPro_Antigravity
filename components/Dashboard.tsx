@@ -1462,7 +1462,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <p className="text-xs font-bold text-slate-500 mb-1">{t('permissions')}</p>
                                         <div className="flex items-center gap-2">
                                             <p className="text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
-                                                {t('actions')}
+                                                {t('onOff')}
                                             </p>
                                             <div className="flex gap-1">
                                                 <span className={`w-2 h-2 rounded-full ${systemSettings?.allowGuestView ? 'bg-green-500' : 'bg-slate-300'}`} title={t('allowGuestView')} />
