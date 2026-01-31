@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText } from 'lucide-react';
 import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
@@ -35,6 +35,18 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
     const [equipmentPhotoMap, setEquipmentPhotoMap] = useState<Record<string, string>>({});
     const [viewMode, setViewMode] = useState<'pending' | 'fixed'>('pending'); // 切換待複檢/已完成
 
+    const ticketNo = useMemo(() => {
+        if (!selectedRecord) return '00000';
+        // 使用紀錄的 ID 作為種子，確保同一筆紀錄每次打開單號都一樣 (Pseudo-random)
+        let hash = 0;
+        for (let i = 0; i < selectedRecord.id.length; i++) {
+            hash = (hash << 5) - hash + selectedRecord.id.charCodeAt(i);
+            hash |= 0;
+        }
+        const numericHash = Math.abs(hash);
+        const random5 = (numericHash % 90000) + 10000;
+        return random5.toString();
+    }, [selectedRecord]);
     // 修復表單狀態
     const [fixedDate, setFixedDate] = useState('');
     const [fixedNotes, setFixedNotes] = useState('');
@@ -375,7 +387,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                 <h1 className="text-3xl font-extrabold tracking-widest text-black mb-1 font-serif">{t('abnormalRecheckForm')}</h1>
                                 <h2 className="text-sm font-bold tracking-wider text-slate-500 uppercase">Fire Safety Equipment Abnormal Recheck List</h2>
                                 <div className="flex justify-between items-end mt-2 text-sm text-slate-600 font-medium">
-                                    <span>{t('recheckNo')}：{selectedRecord.id.slice(-8).toUpperCase()}</span>
+                                    <span>{t('recheckNo')}：{ticketNo}</span>
                                     <span>{t('printDate')}：{new Date().toLocaleDateString()}</span>
                                 </div>
                             </div>
@@ -430,10 +442,6 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                                                 <div className="text-slate-300 text-sm flex flex-col items-center">
                                                     <span className="text-2xl mb-1">📷</span>
                                                     <span className="text-xs">No Photo</span>
-                                                    <div className="text-[9px] text-red-400 mt-1 max-w-full break-all bg-yellow-50 p-1">
-                                                        Wait ID: {selectedRecord.equipmentId}<br />
-                                                        InMap: {equipmentPhotoMap[selectedRecord.equipmentId] ? 'Yes' : 'No'}
-                                                    </div>
                                                 </div>
                                             )}
                                         </div>
