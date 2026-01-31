@@ -1379,11 +1379,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 className="relative w-12 h-12 rounded-full p-[3px] shadow-md transition-all hover:scale-105 cursor-pointer"
                                 style={{
                                     background: `conic-gradient(
-                                        ${systemSettings?.allowGuestView ? '#34d399' : '#e2e8f0'} 0% 50%,
-                                        ${systemSettings?.allowGuestRecheck ? '#34d399' : '#e2e8f0'} 50% 100%
+                                        ${systemSettings?.allowGuestView ? '#10b981' : '#e5e7eb'} 0deg 120deg,
+                                        ${systemSettings?.allowGuestRecheck ? '#3b82f6' : '#e5e7eb'} 120deg 240deg,
+                                        ${systemSettings?.allowGuestEquipmentOverview ? '#f59e0b' : '#e5e7eb'} 240deg 360deg
                                     )`
                                 }}
-                                title={`訪客權限狀態:\n查看: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}`}
+                                title={`訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}`}
                                 onClick={() => setIsSettingsOpen(true)}
                             >
                                 <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
@@ -1577,7 +1578,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* My Equipment */}
-                        {!user.isGuest && (
+                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestEquipmentOverview)) && (
                             <button
                                 onClick={() => onMyEquipment()}
                                 className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-cyan-500 hover:shadow-md active:scale-[0.98]"
@@ -3191,6 +3192,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         type="checkbox"
                                                         checked={systemSettings?.allowGuestRecheck ?? false}
                                                         onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                                </label>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestEquipmentOverview')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestEquipmentOverviewDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowGuestEquipmentOverview ?? false}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestEquipmentOverview: e.target.checked })}
                                                         className="sr-only peer"
                                                     />
                                                     <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>

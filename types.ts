@@ -219,6 +219,7 @@ export interface Notification {
 export interface SystemSettings {
   allowGuestView: boolean;
   allowGuestRecheck?: boolean;
+  allowGuestEquipmentOverview?: boolean;
   allowCloudGallery?: boolean; // Enable/Disable cloud gallery in Map Editor
   // Granular Inspector Permissions
   allowInspectorProfile?: boolean;
