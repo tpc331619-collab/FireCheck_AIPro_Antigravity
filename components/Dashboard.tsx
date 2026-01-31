@@ -1344,6 +1344,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     organizationId={user.currentOrganizationId}
                                     className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
                                     iconClassName="text-white w-5 h-5"
+                                    systemSettings={systemSettings}
+                                    isAdmin={isAdmin}
                                 />
                             </>
                         )}
@@ -1523,7 +1525,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                         }`}>
                         {/* Start Inspection */}
-                        {!user.isGuest && (
+                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false) && (
                             <button
                                 onClick={() => setIsInspectionModeOpen(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-blue-500 hover:shadow-md active:scale-[0.98]"
@@ -1745,28 +1747,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
                                         {/* Filter Toggle */}
-                                        <button
-                                            onClick={() => {
-                                                setShowFilters(!showFilters);
-                                                if (showColumns) setShowColumns(false); // Close columns if opening filters
-                                            }}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showFilters ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
-                                        >
-                                            <Filter className="w-4 h-4" />
-                                            {showFilters ? t('hideFilters') : t('showFilters')}
-                                        </button>
+                                        {(isAdmin || systemSettings?.allowInspectorHistoryFilter !== false) && (
+                                            <button
+                                                onClick={() => {
+                                                    setShowFilters(!showFilters);
+                                                    if (showColumns) setShowColumns(false); // Close columns if opening filters
+                                                }}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showFilters ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
+                                            >
+                                                <Filter className="w-4 h-4" />
+                                                {showFilters ? t('hideFilters') : t('showFilters')}
+                                            </button>
+                                        )}
 
                                         {/* Column Toggle */}
-                                        <button
-                                            onClick={() => {
-                                                setShowColumns(!showColumns);
-                                                if (showFilters) setShowFilters(false); // Close filters if opening columns
-                                            }}
-                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showColumns ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
-                                        >
-                                            <LayoutGrid className="w-4 h-4" />
-                                            {showColumns ? t('hideColumns') : t('showColumns')}
-                                        </button>
+                                        {(isAdmin || systemSettings?.allowInspectorHistoryShowHideFields !== false) && (
+                                            <button
+                                                onClick={() => {
+                                                    setShowColumns(!showColumns);
+                                                    if (showFilters) setShowFilters(false); // Close filters if opening columns
+                                                }}
+                                                className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold transition-all whitespace-nowrap text-sm border ${showColumns ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-700' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
+                                            >
+                                                <LayoutGrid className="w-4 h-4" />
+                                                {showColumns ? t('hideColumns') : t('showColumns')}
+                                            </button>
+                                        )}
 
                                         <div className="hidden sm:block w-px h-8 bg-slate-200 mx-1"></div>
 
@@ -1914,18 +1920,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 )}
 
                                 {/* Table */}
-                                <div className="mt-4">
+                                <div className="flex-1 overflow-y-auto custom-scrollbar">
                                     <HistoryTable
                                         data={flattenedHistory}
                                         onViewDetails={(item) => setActiveModal({ type: 'INSPECTION', item })}
                                         onViewRecheck={(item) => setActiveModal({ type: 'RECHECK', item })}
                                         visibleColumns={visibleColumns}
-                                        columnOrder={columnOrder}
+                                        systemSettings={systemSettings}
+                                        isAdmin={isAdmin}
                                     />
                                 </div>
-
-                            </div >
-                        </div >
+                            </div>
+                        </div>
                     )}
 
                     {/* Active Details Modal */}
@@ -2293,20 +2299,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 </div>
 
                                                                 <div className="flex items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-slate-50 justify-end md:justify-start">
-                                                                    <button
-                                                                        onClick={() => setEditingHealthIndicator(indicator)}
-                                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                        title="編輯"
-                                                                    >
-                                                                        <Edit2 className="w-4 h-4" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                                        title={t('delete')}
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
+                                                                    {(isAdmin || systemSettings?.allowInspectorHealthEditRecords !== false) && (
+                                                                        <button
+                                                                            onClick={() => setEditingHealthIndicator(indicator)}
+                                                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                                            title="編輯"
+                                                                        >
+                                                                            <Edit2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                    {(isAdmin || systemSettings?.allowInspectorHealthDeleteRecords !== false) && (
+                                                                        <button
+                                                                            onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                                            title={t('delete')}
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         );
@@ -2373,6 +2383,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </button>
                                         )}
 
+                                        {(isAdmin || systemSettings?.allowInspectorDeclaration !== false) && (
+                                            <button
+                                                onClick={() => setSettingsTab('DECLARATION')}
+                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                            >
+                                                <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
+                                            </button>
+                                        )}
+
                                         {/* Lights tab is usually for admins but we show it if they can see it */}
                                         {(isAdmin) && (
                                             <button
@@ -2383,14 +2402,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </button>
                                         )}
 
-                                        {(isAdmin || systemSettings?.allowInspectorDeclaration !== false) && (
-                                            <button
-                                                onClick={() => setSettingsTab('DECLARATION')}
-                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                            >
-                                                <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
-                                            </button>
-                                        )}
                                     </div>
 
                                     {/* Content */}
@@ -2908,6 +2919,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         onClose={() => setIsInspectionModeOpen(false)}
                         onSelectMode={handleInspectionModeSelect}
                         t={t}
+                        systemSettings={systemSettings}
+                        isAdmin={isAdmin}
                     />
 
                     <AddEquipmentModeModal
@@ -2925,6 +2938,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             onClose={() => setIsEquipmentMapOpen(false)}
                             existingMap={selectedMap}
                             systemSettings={systemSettings}
+                            isAdmin={isAdmin}
                         />
                     )}
 
@@ -3107,187 +3121,288 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
             {/* Permissions Modal */}
-            {isPermissionsModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
-                        {/* Header */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                            <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                <ShieldCheck className="w-5 h-5 mr-2" />
-                                {t('permissionsTitle')}
-                            </h3>
-                            <button onClick={() => setIsPermissionsModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-slate-500" />
-                            </button>
-                        </div>
+            {
+                isPermissionsModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                            {/* Header */}
+                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                    <ShieldCheck className="w-5 h-5 mr-2" />
+                                    {t('permissionsTitle')}
+                                </h3>
+                                <button onClick={() => setIsPermissionsModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                    <X className="w-5 h-5 text-slate-500" />
+                                </button>
+                            </div>
 
-                        {/* Content */}
-                        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
-                            <div className="space-y-4">
-                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex gap-3 mb-2">
-                                    <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-bold text-slate-900">{t('permissionsTitle')}</p>
-                                        <p className="text-xs text-slate-500 leading-relaxed">
-                                            {t('permissionsDesc')}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-6">
-                                    {/* 系統設定 (System Settings) Block */}
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                                        <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2 px-1">
-                                            <Settings className="w-3.5 h-3.5" />
-                                            {t('sectionSystemSettings')}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {['Profile', 'Language', 'Background', 'Declaration'].map((item) => (
-                                                <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-blue-200">
-                                                    <div>
-                                                        <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
-                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${item}Desc`)}</div>
-                                                    </div>
-                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={systemSettings?.[`allowInspector${item}` as keyof typeof systemSettings] as boolean ?? true}
-                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${item}`]: e.target.checked })}
-                                                            className="sr-only peer"
-                                                        />
-                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                                                    </label>
-                                                </div>
-                                            ))}
+                            {/* Content */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex gap-3 mb-2">
+                                        <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-bold text-slate-900">{t('permissionsTitle')}</p>
+                                            <p className="text-xs text-slate-500 leading-relaxed">
+                                                {t('permissionsDesc')}
+                                            </p>
                                         </div>
                                     </div>
 
-                                    {/* 我的設備 (My Equipment) Block */}
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                                        <label className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-2 px-1">
-                                            <Database className="w-3.5 h-3.5" />
-                                            {t('sectionMyEquipment')}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {['EditEquipment', 'CopyEquipment', 'DeleteEquipment'].map((perm) => (
-                                                <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-emerald-200">
-                                                    <div>
-                                                        <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
-                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${perm}Desc`)}</div>
-                                                    </div>
-                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
-                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
-                                                            className="sr-only peer"
-                                                        />
-                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* 設備階層管理 (Hierarchy Management) Block */}
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                                        <label className="text-xs font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2 px-1">
-                                            <ShieldCheck className="w-3.5 h-3.5" />
-                                            {t('sectionHierarchy')}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {['ResetDefaults', 'EditCategory', 'DeleteCategory', 'EditType', 'DeleteType'].map((perm) => (
-                                                <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-purple-200">
-                                                    <div>
-                                                        <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
-                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${perm}Desc`)}</div>
-                                                    </div>
-                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
-                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
-                                                            className="sr-only peer"
-                                                        />
-                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* 訪客權限 (Guest Permissions) Block */}
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                                        <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2 px-1">
-                                            <User className="w-3.5 h-3.5" />
-                                            {t('sectionGuest')}
-                                        </label>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {[
-                                                { key: 'allowGuestView', title: t('allowGuestView'), desc: t('allowGuestViewDesc') },
-                                                { key: 'allowGuestRecheck', title: t('allowGuestRecheck'), desc: t('allowGuestRecheckDesc') }
-                                            ].map((item) => (
-                                                <div key={item.key} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
-                                                    <div>
-                                                        <div className="font-bold text-slate-700 text-sm">{item.title}</div>
-                                                        <div className="text-[10px] text-slate-400 mt-0.5">{item.desc}</div>
-                                                    </div>
-                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={systemSettings?.[item.key as keyof typeof systemSettings] as boolean ?? false}
-                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [item.key]: e.target.checked })}
-                                                            className="sr-only peer"
-                                                        />
-                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
-                                                    </label>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* 其他設定 (Others) Block */}
-                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 px-1">
-                                            <Zap className="w-3.5 h-3.5" />
-                                            {t('sectionOthers')}
-                                        </label>
-                                        <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
-                                            <div>
-                                                <div className="font-bold text-slate-700 text-sm">{t('cloudGallery')}</div>
-                                                <div className="text-[10px] text-slate-400 mt-0.5">{t('cloudGalleryDesc')}</div>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={systemSettings?.allowCloudGallery ?? true}
-                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
-                                                    className="sr-only peer"
-                                                />
-                                                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                    <div className="space-y-6">
+                                        {/* (1) 系統設定 (System Settings) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <Settings className="w-3.5 h-3.5" />
+                                                {t('sectionSystemSettings')}
                                             </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {['Profile', 'Language', 'Background', 'Declaration', 'Notifications'].map((item) => (
+                                                    <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-blue-200">
+                                                        <div>
+                                                            <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${item}Desc`)}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.[`allowInspector${item}` as keyof typeof systemSettings] as boolean ?? true}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${item}`]: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* (2) 開始檢查 (Start Inspection) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-red-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <PlayCircle className="w-3.5 h-3.5" />
+                                                {t('sectionStartInspection')}
+                                            </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {['ListInspection', 'MapInspection'].map((item) => (
+                                                    <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-red-200">
+                                                        <div>
+                                                            <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${item}Desc`)}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.[`allowInspector${item}` as keyof typeof systemSettings] as boolean ?? true}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${item}`]: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-600"></div>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* (3) 異常複檢 (Abnormal Recheck) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <AlertTriangle className="w-3.5 h-3.5" />
+                                                {t('sectionAbnormalRecheck')}
+                                            </label>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowInspectorViewCompletedRechecks')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorViewCompletedRechecksDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowInspectorViewCompletedRechecks ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorViewCompletedRechecks: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* (4) 我的設備 (My Equipment) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <Database className="w-3.5 h-3.5" />
+                                                {t('sectionMyEquipment')}
+                                            </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {['EditEquipment', 'CopyEquipment', 'DeleteEquipment', 'ShowBarcode', 'ShowImage'].map((perm) => (
+                                                    <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-emerald-200">
+                                                        <div>
+                                                            <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${perm}Desc`)}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? (perm.includes('Show') ? true : false)}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* (5) 我的地圖 (My Map) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-sky-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <MapPinned className="w-3.5 h-3.5" />
+                                                {t('sectionMyMap')}
+                                            </label>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-sky-200">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('cloudGallery')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('cloudGalleryDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowCloudGallery ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* (6) 歷史資料 (History) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <History className="w-3.5 h-3.5" />
+                                                {t('sectionHistory')}
+                                            </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {['HistoryFilter', 'HistoryShowHideFields'].map((item) => (
+                                                    <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-indigo-200">
+                                                        <div>
+                                                            <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${item}Desc`)}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.[`allowInspector${item}` as keyof typeof systemSettings] as boolean ?? true}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${item}`]: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* (7) 健康指標 (Health Indicators) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-rose-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <HeartPulse className="w-3.5 h-3.5" />
+                                                {t('sectionHealthIndicators')}
+                                            </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {['EditHealth', 'DeleteHealth'].map((item) => (
+                                                    <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-rose-200">
+                                                        <div>
+                                                            <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${item}Desc`)}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.[`allowInspector${item}` as keyof typeof systemSettings] as boolean ?? false}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${item}`]: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* (8) 新增設備 (Add Equipment) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-teal-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <PlusCircle className="w-3.5 h-3.5" />
+                                                {t('sectionAddEquipment')}
+                                            </label>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-teal-200">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowInspectorEquipmentPhoto')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorEquipmentPhotoDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowInspectorEquipmentPhoto ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorEquipmentPhoto: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* (9) 新增清單/階層 (Add List / Hierarchy) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <ShieldCheck className="w-3.5 h-3.5" />
+                                                {t('sectionAddList')}
+                                            </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {['ResetDefaults', 'EditHierarchy', 'CopyHierarchy', 'DeleteHierarchy'].map((perm) => (
+                                                    <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-purple-200">
+                                                        <div>
+                                                            <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
+                                                            <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${perm}Desc`)}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Organization Manager Modal */}
-            {showOrgManager && (
-                <OrganizationManager
-                    user={user}
-                    currentOrgId={user.currentOrganizationId || null}
-                    onClose={() => setShowOrgManager(false)}
-                    onOrgSwitch={(orgId) => {
-                        onOrgSwitch(orgId);
-                    }}
-                    systemSettings={systemSettings}
-                />
-            )}
-        </div >
+            {
+                showOrgManager && (
+                    <OrganizationManager
+                        user={user}
+                        currentOrgId={user.currentOrganizationId || null}
+                        onClose={() => setShowOrgManager(false)}
+                        onOrgSwitch={(orgId) => {
+                            onOrgSwitch(orgId);
+                        }}
+                        systemSettings={systemSettings}
+                    />
+                )
+            }
+        </div>
     );
 };
 

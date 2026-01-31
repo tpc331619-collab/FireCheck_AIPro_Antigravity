@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, X, Calendar, User, Heart, AlertTriangle, Check, Zap } from 'lucide-react';
-import { Notification, NotificationType } from '../types';
+import { Notification, NotificationType, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -9,9 +9,11 @@ interface NotificationBellProps {
     organizationId?: string | null;
     className?: string; // Container/Button class
     iconClassName?: string; // Icon class
+    systemSettings?: SystemSettings;
+    isAdmin?: boolean;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName, systemSettings, isAdmin }) => {
     const { t } = useLanguage();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -122,6 +124,9 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
         if (days < 7) return `${days} 天前`;
         return new Date(timestamp).toLocaleDateString('zh-TW');
     };
+
+    const canShow = isAdmin || systemSettings?.allowInspectorNotifications !== false;
+    if (!canShow) return null;
 
     return (
         <div className="relative" ref={panelRef}>

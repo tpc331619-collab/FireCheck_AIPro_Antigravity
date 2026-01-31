@@ -303,12 +303,15 @@ const App: React.FC = () => {
     </div>
   );
 
+  const isAdmin = user?.role === 'admin' || user?.email?.toLowerCase() === 'b28803078@gmail.com';
+
   return (
     <div className="h-screen w-full bg-slate-50 relative overflow-hidden flex flex-col font-sans">
       <Suspense fallback={<LoadingFallback />}>
         {currentView === 'DASHBOARD' ? (
           <Dashboard
             user={user}
+            isAdmin={isAdmin}
             guestExpiry={guestExpiry}
             onCreateNew={() => {
               setSelectedReport(undefined);
@@ -335,6 +338,7 @@ const App: React.FC = () => {
         ) : currentView === 'MAP_EDITOR' ? (
           <EquipmentMapEditor
             user={user}
+            isAdmin={isAdmin}
             isOpen={true}
             onClose={() => setCurrentView('DASHBOARD')}
           />
@@ -347,6 +351,7 @@ const App: React.FC = () => {
           <EquipmentManager
             key={editingEquipment?.id || 'new'}
             user={user}
+            isAdmin={isAdmin}
             initialData={editingEquipment}
             onBack={() => {
               setEditingEquipment(null);

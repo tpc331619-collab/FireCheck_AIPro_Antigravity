@@ -6,9 +6,11 @@ interface InspectionModeModalProps {
     onClose: () => void;
     onSelectMode: (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => void;
     t: (key: string) => string;
+    systemSettings?: any;
+    isAdmin?: boolean;
 }
 
-const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClose, onSelectMode, t }) => {
+const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClose, onSelectMode, t, systemSettings, isAdmin }) => {
     if (!isOpen) return null;
 
     const modes = [
@@ -18,7 +20,8 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
             description: t('checklistInspectionDesc'),
             icon: <ClipboardList className="w-8 h-8 text-blue-500" />,
             color: 'bg-blue-50 border-blue-100 hover:border-blue-300',
-            bgIcon: 'bg-blue-100'
+            bgIcon: 'bg-blue-100',
+            visible: true // Base visibility, will be filtered below
         },
         {
             id: 'MAP_VIEW',
@@ -26,9 +29,14 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
             description: t('mapViewDesc'),
             icon: <Map className="w-8 h-8 text-purple-500" />,
             color: 'bg-slate-50 border-slate-100 hover:border-slate-300',
-            bgIcon: 'bg-slate-100'
+            bgIcon: 'bg-slate-100',
+            visible: true
         }
     ] as const;
+
+    // Filter modes based on permissions if systemSettings are provided
+    // Note: To avoid breaking current props, we'll assume they might be passed or we fetch them elsewhere.
+    // However, the cleanest way is to pass them. Since I'm editing the component, I'll update the interface too.
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -46,24 +54,31 @@ const InspectionModeModal: React.FC<InspectionModeModalProps> = ({ isOpen, onClo
                 </div>
 
                 <div className="p-6 space-y-4">
-                    {modes.map((mode) => (
-                        <button
-                            key={mode.id}
-                            onClick={() => onSelectMode(mode.id)}
-                            className={`w-full p-4 rounded-2xl border transition-all flex items-center gap-4 text-left group ${mode.color} hover:shadow-md active:scale-[0.98]`}
-                        >
-                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${mode.bgIcon} group-hover:scale-110 transition-transform`}>
-                                {mode.icon}
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-slate-800 text-lg group-hover:text-slate-900">{mode.title}</h4>
-                                <p className="text-sm text-slate-500 font-medium">{mode.description}</p>
-                            </div>
-                            <div className="p-2 bg-white/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                                <ArrowRight className="w-5 h-5 text-slate-400" />
-                            </div>
-                        </button>
-                    ))}
+                    {modes
+                        .filter(m => {
+                            if (isAdmin) return true;
+                            if (m.id === 'CHECKLIST' && systemSettings?.allowInspectorListInspection === false) return false;
+                            if (m.id === 'MAP_VIEW' && systemSettings?.allowInspectorMapInspection === false) return false;
+                            return true;
+                        })
+                        .map((mode) => (
+                            <button
+                                key={mode.id}
+                                onClick={() => onSelectMode(mode.id)}
+                                className={`w-full p-4 rounded-2xl border transition-all flex items-center gap-4 text-left group ${mode.color} hover:shadow-md active:scale-[0.98]`}
+                            >
+                                <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${mode.bgIcon} group-hover:scale-110 transition-transform`}>
+                                    {mode.icon}
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-slate-800 text-lg group-hover:text-slate-900">{mode.title}</h4>
+                                    <p className="text-sm text-slate-500 font-medium">{mode.description}</p>
+                                </div>
+                                <div className="p-2 bg-white/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ArrowRight className="w-5 h-5 text-slate-400" />
+                                </div>
+                            </button>
+                        ))}
                 </div>
             </div>
         </div>

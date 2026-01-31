@@ -42,9 +42,11 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const activeSettings = systemSettings || fetchedSettings;
 
   // Permission Checks
-  const canEdit = isAdmin || activeSettings?.allowInspectorEditEquipment;
-  const canCopy = isAdmin || activeSettings?.allowInspectorCopyEquipment;
-  const canDelete = isAdmin || activeSettings?.allowInspectorDeleteEquipment;
+  const canEdit = isAdmin || activeSettings?.allowInspectorEditEquipment !== false;
+  const canCopy = isAdmin || activeSettings?.allowInspectorCopyEquipment !== false;
+  const canDelete = isAdmin || activeSettings?.allowInspectorDeleteEquipment !== false;
+  const canViewBarcode = isAdmin || activeSettings?.allowInspectorShowBarcode !== false;
+  const canViewImage = isAdmin || activeSettings?.allowInspectorShowImage !== false;
   const [loading, setLoading] = useState(true);
   const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
   const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
@@ -471,21 +473,25 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
                             {/* Actions */}
                             <div className="flex items-center gap-2 transition-all">
-                              <button
-                                onClick={(e) => handleShowPhoto(e, item)}
-                                className={`p-1.5 rounded-lg border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
-                                title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
-                                disabled={!(item.photoUrl || (item as any).photoURL)}
-                              >
-                                <Image className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={(e) => handleShowQr(e, item)}
-                                className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
-                                title={t('viewQr')}
-                              >
-                                <QrCode className="w-4 h-4" />
-                              </button>
+                              {canViewImage && (
+                                <button
+                                  onClick={(e) => handleShowPhoto(e, item)}
+                                  className={`p-1.5 rounded-lg border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
+                                  title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
+                                  disabled={!(item.photoUrl || (item as any).photoURL)}
+                                >
+                                  <Image className="w-4 h-4" />
+                                </button>
+                              )}
+                              {canViewBarcode && (
+                                <button
+                                  onClick={(e) => handleShowQr(e, item)}
+                                  className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                                  title={t('viewQr')}
+                                >
+                                  <QrCode className="w-4 h-4" />
+                                </button>
+                              )}
                               <div className="w-px h-5 bg-slate-100 mx-1 hidden sm:block"></div>
                               {canEdit && (
                                 <button

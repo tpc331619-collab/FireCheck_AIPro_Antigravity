@@ -33,6 +33,8 @@ interface HistoryTableProps {
         actions: boolean;
     };
     columnOrder?: string[];
+    systemSettings?: any;
+    isAdmin?: boolean;
 }
 
 const HistoryTable: React.FC<HistoryTableProps> = ({
@@ -40,7 +42,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     onViewDetails,
     onViewRecheck,
     visibleColumns,
-    columnOrder = ['index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions']
+    columnOrder = ['index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions'],
+    systemSettings,
+    isAdmin
 }) => {
     const { t } = useLanguage();
 
@@ -189,7 +193,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             case 'actions': return (
                 <td key={key} className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
-                        {row.checkResults && row.checkResults.length > 0 && (
+                        {row.checkResults && row.checkResults.length > 0 && (isAdmin || systemSettings?.allowInspectorViewHistoryDetail !== false) && (
                             <button
                                 onClick={() => onViewDetails(row)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm border border-blue-100"
@@ -199,7 +203,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                 內容
                             </button>
                         )}
-                        {(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常') && (
+                        {(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常') && (isAdmin || systemSettings?.allowInspectorViewCompleted !== false) && (
                             <button
                                 onClick={() => onViewRecheck(row)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm border border-red-100"

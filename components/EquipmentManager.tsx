@@ -14,9 +14,11 @@ interface EquipmentManagerProps {
   initialData?: EquipmentDefinition | null;
   onBack: () => void;
   onSaved?: () => void;
+  systemSettings?: any;
+  isAdmin?: boolean;
 }
 
-const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, onBack, onSaved }) => {
+const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, onBack, onSaved, systemSettings, isAdmin }) => {
   const { t } = useLanguage();
   const [siteName, setSiteName] = useState(initialData?.siteName || '');
   const [buildingName, setBuildingName] = useState(initialData?.buildingName || '');
@@ -891,43 +893,45 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   )}
                 </div>
 
-                {/* Photo Upload */}
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                    <ImageIcon className="w-4 h-4" />
-                    {t('equipmentPhoto')} <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
-                  </label>
-                  <div className="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
-                    <div className="w-14 h-14 bg-white border-2 border-slate-200 rounded-lg overflow-hidden flex-shrink-0 relative group">
-                      {photoUrl ? (
-                        <>
-                          <img src={photoUrl} alt="Equipment" className="w-full h-full object-cover" />
-                          <button
-                            onClick={handleDeletePhoto}
-                            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="w-5 h-5 text-white" />
-                          </button>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-300">
-                          <ImageIcon className="w-6 h-6" />
-                        </div>
-                      )}
-                    </div>
-                    <label className={`flex-1 flex items-center justify-center px-4 py-2.5 bg-white border-2 border-teal-200 rounded-lg text-teal-600 text-sm font-bold hover:bg-teal-50 hover:border-teal-400 transition-all cursor-pointer ${isUploadingPhoto ? 'opacity-50' : ''}`}>
-                      <Upload className="w-4 h-4 mr-2" />
-                      {isUploadingPhoto ? t('uploading') : t('uploadPhoto')}
-                      <input
-                        type="file"
-                        accept="image/png, image/jpeg"
-                        className="hidden"
-                        onChange={handlePhotoUpload}
-                        disabled={isUploadingPhoto}
-                      />
+                {/* Photo Upload - Admin Bypass */}
+                {(isAdmin || systemSettings?.allowInspectorEquipmentPhoto !== false) && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4" />
+                      {t('equipmentPhoto')} <span className="text-xs text-slate-400 font-normal ml-2">Max 1MB</span>
                     </label>
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 border-2 border-slate-200 rounded-lg">
+                      <div className="w-14 h-14 bg-white border-2 border-slate-200 rounded-lg overflow-hidden flex-shrink-0 relative group">
+                        {photoUrl ? (
+                          <>
+                            <img src={photoUrl} alt="Equipment" className="w-full h-full object-cover" />
+                            <button
+                              onClick={handleDeletePhoto}
+                              className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-5 h-5 text-white" />
+                            </button>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-300">
+                            <ImageIcon className="w-6 h-6" />
+                          </div>
+                        )}
+                      </div>
+                      <label className={`flex-1 flex items-center justify-center px-4 py-2.5 bg-white border-2 border-teal-200 rounded-lg text-teal-600 text-sm font-bold hover:bg-teal-50 hover:border-teal-400 transition-all cursor-pointer ${isUploadingPhoto ? 'opacity-50' : ''}`}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        {isUploadingPhoto ? t('uploading') : t('uploadPhoto')}
+                        <input
+                          type="file"
+                          accept="image/png, image/jpeg"
+                          className="hidden"
+                          onChange={handlePhotoUpload}
+                          disabled={isUploadingPhoto}
+                        />
+                      </label>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

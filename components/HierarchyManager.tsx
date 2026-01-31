@@ -22,13 +22,13 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
     const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
 
     // Permission Checks
-    const canEditCategory = isAdmin || systemSettings?.allowInspectorEditCategory;
-    const canDeleteCategory = isAdmin || systemSettings?.allowInspectorDeleteCategory;
-    const canReset = isAdmin || systemSettings?.allowInspectorResetDefaults;
+    const canEditCategory = isAdmin || systemSettings?.allowInspectorEditHierarchy !== false;
+    const canDeleteCategory = isAdmin || systemSettings?.allowInspectorDeleteHierarchy !== false;
+    const canReset = isAdmin || systemSettings?.allowInspectorResetHierarchy !== false;
 
     // Type/MainClass Permissions
-    const canEditType = isAdmin || systemSettings?.allowInspectorEditType;
-    const canDeleteType = isAdmin || systemSettings?.allowInspectorDeleteType;
+    const canEditType = isAdmin || systemSettings?.allowInspectorEditHierarchy !== false;
+    const canDeleteType = isAdmin || systemSettings?.allowInspectorDeleteHierarchy !== false;
 
     // Selection state
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);

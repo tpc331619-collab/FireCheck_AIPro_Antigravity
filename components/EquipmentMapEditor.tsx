@@ -13,10 +13,11 @@ interface EquipmentMapEditorProps {
     onClose: () => void;
     existingMap?: EquipmentMap | null;
     initialMapId?: string;
-    systemSettings?: SystemSettings; // Added prop
+    systemSettings?: SystemSettings;
+    isAdmin?: boolean; // Added prop
 }
 
-const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId, systemSettings: propSystemSettings }) => {
+const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, onClose, existingMap, initialMapId, systemSettings: propSystemSettings, isAdmin }) => {
     const { t } = useLanguage();
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
@@ -966,8 +967,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     <div className="flex items-center gap-4">
                                         <p className="text-sm text-slate-500">{t('total') || 'Total'} {maps.length} {t('maps') || 'Maps'}</p>
 
-                                        {/* Cloud Gallery Toggle Check */}
-                                        {(systemSettings?.allowCloudGallery !== false) && (
+                                        {/* Cloud Gallery Toggle Check - Admin Bypass */}
+                                        {(isAdmin || systemSettings?.allowCloudGallery !== false) && (
                                             <button
                                                 onClick={() => setIsStorageManagerOpen(true)}
                                                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-bold transition-colors"
@@ -996,8 +997,8 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                             </thead>
                                             <tbody className="divide-y divide-slate-200">
                                                 {/* Create New Row */}
-                                                {/* Conditionally Show Cloud Gallery Option */}
-                                                {(systemSettings?.allowCloudGallery !== false) && (
+                                                {/* Conditionally Show Cloud Gallery Option - Admin Bypass */}
+                                                {(isAdmin || systemSettings?.allowCloudGallery !== false) && (
                                                     <tr
                                                         onClick={() => {
                                                             setModalMode('SELECT');

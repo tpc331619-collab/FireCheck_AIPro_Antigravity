@@ -221,19 +221,32 @@ export interface SystemSettings {
   allowGuestRecheck?: boolean;
   allowCloudGallery?: boolean; // Enable/Disable cloud gallery in Map Editor
   // Granular Inspector Permissions
+  allowInspectorProfile?: boolean;
+  allowInspectorLanguage?: boolean;
+  allowInspectorBackground?: boolean;
+  allowInspectorDeclaration?: boolean;
+  allowInspectorNotifications?: boolean;
+  allowInspectorListInspection?: boolean;
+  allowInspectorMapInspection?: boolean;
+  allowInspectorViewCompletedRechecks?: boolean;
   allowInspectorEditEquipment?: boolean;
   allowInspectorCopyEquipment?: boolean;
   allowInspectorDeleteEquipment?: boolean;
+  allowInspectorShowBarcode?: boolean;
+  allowInspectorShowImage?: boolean;
+  allowInspectorHistoryFilter?: boolean;
+  allowInspectorHistoryShowHideFields?: boolean;
+  allowInspectorEditHealth?: boolean;
+  allowInspectorDeleteHealth?: boolean;
+  allowInspectorEquipmentPhoto?: boolean;
   allowInspectorResetDefaults?: boolean;
   allowInspectorEditCategory?: boolean;
   allowInspectorDeleteCategory?: boolean;
   allowInspectorEditType?: boolean;
   allowInspectorDeleteType?: boolean;
-  // New Granular Inspector Settings Permissions
-  allowInspectorProfile?: boolean;
-  allowInspectorLanguage?: boolean;
-  allowInspectorBackground?: boolean;
-  allowInspectorDeclaration?: boolean;
+  allowInspectorEditHierarchy?: boolean;
+  allowInspectorCopyHierarchy?: boolean;
+  allowInspectorDeleteHierarchy?: boolean;
   // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }
