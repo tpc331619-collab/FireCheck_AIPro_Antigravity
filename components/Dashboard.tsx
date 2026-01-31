@@ -1379,12 +1379,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 className="relative w-12 h-12 rounded-full p-[3px] shadow-md transition-all hover:scale-105 cursor-pointer"
                                 style={{
                                     background: `conic-gradient(
-                                        ${systemSettings?.allowGuestView ? '#10b981' : '#e5e7eb'} 0deg 120deg,
-                                        ${systemSettings?.allowGuestRecheck ? '#3b82f6' : '#e5e7eb'} 120deg 240deg,
-                                        ${systemSettings?.allowGuestEquipmentOverview ? '#f59e0b' : '#e5e7eb'} 240deg 360deg
+                                        ${systemSettings?.allowGuestView ? '#10b981' : '#e5e7eb'} 0deg 90deg,
+                                        ${systemSettings?.allowGuestRecheck ? '#3b82f6' : '#e5e7eb'} 90deg 180deg,
+                                        ${systemSettings?.allowGuestEquipmentOverview ? '#f59e0b' : '#e5e7eb'} 180deg 270deg,
+                                        ${systemSettings?.allowGuestHistory ? '#8b5cf6' : '#e5e7eb'} 270deg 360deg
                                     )`
                                 }}
-                                title={`訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}`}
+                                title={`訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}\n4. 歷史: ${systemSettings?.allowGuestHistory ? '開啟' : '關閉'}`}
                                 onClick={() => setIsSettingsOpen(true)}
                             >
                                 <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
@@ -1612,19 +1613,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* History */}
-                        <button
-                            onClick={scrollToHistory}
-                            className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-indigo-500 hover:shadow-md active:scale-[0.98]"
-                        >
-                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <ScrollText className="w-24 h-24 text-indigo-500 -mr-8 -mt-8" />
-                            </div>
-                            <div className="p-2 bg-indigo-500 rounded-xl w-fit mb-2 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                                <ScrollText className="w-5 h-5 text-white" />
-                            </div>
-                            <h3 className="font-bold text-slate-800 text-base mb-1">{t('history')}</h3>
-                            <p className="text-xs text-slate-500">{flattenedHistory.length} {t('historyRecordsCount')}</p>
-                        </button>
+                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestHistory)) && (
+                            <button
+                                onClick={scrollToHistory}
+                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-indigo-500 hover:shadow-md active:scale-[0.98]"
+                            >
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <ScrollText className="w-24 h-24 text-indigo-500 -mr-8 -mt-8" />
+                                </div>
+                                <div className="p-2 bg-indigo-500 rounded-xl w-fit mb-2 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                                    <ScrollText className="w-5 h-5 text-white" />
+                                </div>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('history')}</h3>
+                                <p className="text-xs text-slate-500">{flattenedHistory.length} {t('historyRecordsCount')}</p>
+                            </button>
+                        )}
 
                         {/* Health Indicators */}
                         {!user.isGuest && (
@@ -1679,7 +1682,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     </div>
 
                     {/* Equipment Overview (Collapsible) */}
-                    {!user.isGuest && (
+                    {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestEquipmentOverview)) && (
                         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                             <button
                                 onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
@@ -3207,6 +3210,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         type="checkbox"
                                                         checked={systemSettings?.allowGuestEquipmentOverview ?? false}
                                                         onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestEquipmentOverview: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                                </label>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestHistory')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestHistoryDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowGuestHistory ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestHistory: e.target.checked })}
                                                         className="sr-only peer"
                                                     />
                                                     <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>

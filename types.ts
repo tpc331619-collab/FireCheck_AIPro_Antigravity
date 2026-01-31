@@ -220,6 +220,7 @@ export interface SystemSettings {
   allowGuestView: boolean;
   allowGuestRecheck?: boolean;
   allowGuestEquipmentOverview?: boolean;
+  allowGuestHistory?: boolean;
   allowCloudGallery?: boolean; // Enable/Disable cloud gallery in Map Editor
   // Granular Inspector Permissions
   allowInspectorProfile?: boolean;
