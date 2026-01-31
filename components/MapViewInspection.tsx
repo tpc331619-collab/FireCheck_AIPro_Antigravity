@@ -653,7 +653,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             </div>
 
             {/* Floating Controls Toolbar (RWD Optimized) */}
-            <div className="absolute top-4 sm:top-auto sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-2 bg-white/90 backdrop-blur shadow-2xl rounded-full px-4 py-2 sm:px-4 sm:py-2 border border-slate-200 z-40 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
+            <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-2 bg-white/90 backdrop-blur shadow-2xl rounded-full px-4 py-2 sm:px-4 sm:py-2 border border-slate-200 z-40 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
                 <button
                     onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
                     className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"

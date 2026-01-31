@@ -1443,7 +1443,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Declaration Countdown */}
-                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
+                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 ${isAdmin ? 'md:col-span-1' : 'md:col-span-1'}`}>
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
                                     <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('declarationCountdown')}</p>
                                     <div className="flex items-baseline gap-1 leading-none min-w-0">
@@ -1461,6 +1461,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
                                 </div>
                             </div>
+
+                            {/* Light Settings Card (Admin or Permitted Inspector) */}
+                            {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
+                                <button
+                                    onClick={() => {
+                                        setSettingsTab('LIGHTS');
+                                        setSettingsModalMode('focused');
+                                        setIsSettingsOpen(true);
+                                    }}
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
+                                >
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('lightSettings')}</p>
+                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-orange-600 transition-colors truncate leading-none">
+                                            {t('lights')}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors shrink-0">
+                                        <Zap className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+                                    </div>
+                                </button>
+                            )}
 
                             {/* Permissions Card (Admin Only) */}
                             {isAdmin && (
@@ -1486,27 +1508,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </button>
                             )}
 
-                            {/* Light Settings Card (Admin or Permitted Inspector) */}
-                            {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
-                                <button
-                                    onClick={() => {
-                                        setSettingsTab('LIGHTS');
-                                        setSettingsModalMode('focused');
-                                        setIsSettingsOpen(true);
-                                    }}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
-                                >
-                                    <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('lightSettings')}</p>
-                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-orange-600 transition-colors truncate leading-none">
-                                            {t('lights')}
-                                        </p>
-                                    </div>
-                                    <div className="p-3 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors shrink-0">
-                                        <Zap className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
-                                    </div>
-                                </button>
-                            )}
 
                             {/* System Management Card (Admin Only) */}
                             {isAdmin && (

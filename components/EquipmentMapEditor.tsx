@@ -531,7 +531,12 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         if (optimalZoom < 0.01) optimalZoom = 0.01;
         if (optimalZoom > 5) optimalZoom = 5;
 
-        setZoom(Number(optimalZoom.toFixed(3)));
+        // User request: Initial zoom on mobile should be 95% (0.95)
+        if (window.innerWidth < 768) {
+            setZoom(0.95);
+        } else {
+            setZoom(Number(optimalZoom.toFixed(3)));
+        }
     };
 
     // Auto-fit when image loads
