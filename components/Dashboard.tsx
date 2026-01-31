@@ -1629,6 +1629,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </button>
                         )}
 
+                        {/* Equipment Overview (Guest Card Mode) */}
+                        {user.isGuest && systemSettings?.allowGuestEquipmentOverview && (
+                            <button
+                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
+                                className={`group relative overflow-hidden rounded-2xl bg-white p-3 text-left border transition-all hover:shadow-md active:scale-[0.98] ${isEquipmentExpanded ? 'border-purple-500 ring-1 ring-purple-500' : 'border-slate-200 hover:border-purple-500'}`}
+                            >
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <PieChart className="w-24 h-24 text-purple-500 -mr-8 -mt-8" />
+                                </div>
+                                <div className="p-2 bg-purple-500 rounded-xl w-fit mb-2 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
+                                    <PieChart className="w-5 h-5 text-white" />
+                                </div>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('equipmentOverview')}</h3>
+                                <p className="text-xs text-slate-500">{t('equipmentOverviewDesc')}</p>
+                            </button>
+                        )}
+
                         {/* Health Indicators */}
                         {!user.isGuest && (
                             <button
@@ -1681,8 +1698,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
                     </div>
 
-                    {/* Equipment Overview (Collapsible) */}
-                    {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestEquipmentOverview)) && (
+                    {/* Equipment Overview (Collapsible - Standard Mode) */}
+                    {!user.isGuest && (
                         <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
                             <button
                                 onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
@@ -1726,6 +1743,36 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Equipment Overview Breakdown (Guest Mode - appears below grid) */}
+                    {user.isGuest && isEquipmentExpanded && systemSettings?.allowGuestEquipmentOverview && (
+                        <div className="mt-2 bg-white/50 backdrop-blur-sm rounded-2xl p-4 border border-purple-100 shadow-lg shadow-purple-500/5 animate-in fade-in slide-in-from-top-4 duration-500">
+                            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-purple-100/50">
+                                <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
+                                <h4 className="font-bold text-slate-700 text-sm">{t('equipmentStatistics')}</h4>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {equipmentStats.map((stat: any, index: number) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => onMyEquipment(stat.name)}
+                                        className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-100 hover:border-purple-200 hover:bg-purple-50 transition-all group shadow-sm hover:shadow-md"
+                                    >
+                                        <div className="mb-2 p-2 bg-slate-50 rounded-lg group-hover:scale-110 transition-transform">
+                                            {getEquipmentIcon(stat.name)}
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
+                                        <span className="text-lg font-black text-slate-800">{stat.total}</span>
+                                    </button>
+                                ))}
+                                {equipmentStats.length === 0 && (
+                                    <div className="col-span-full text-center py-4 text-slate-400 text-sm">
+                                        {t('noEquipmentData')}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
