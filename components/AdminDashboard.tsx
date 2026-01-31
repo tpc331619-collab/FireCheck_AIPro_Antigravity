@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService, WhitelistEntry } from '../services/storageService';
 import { Organization, OrganizationRole } from '../types';
-import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Trash2 } from 'lucide-react';
+import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface AdminDashboardProps {
@@ -62,6 +62,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
         try {
             await StorageService.updateWhitelistEntry(email, { orgId: orgId || null });
             setUsers(prev => prev.map(u => u.email === email ? { ...u, orgId: orgId || null } : u));
+        } catch (error) {
+            alert('更新失敗');
+        }
+    };
+
+    const handleUpdatePermission = async (email: string, field: 'allowCreateOrg' | 'allowPersonalWorkspace', value: boolean) => {
+        try {
+            await StorageService.updateWhitelistEntry(email, { [field]: value });
+            setUsers(prev => prev.map(u => u.email === email ? { ...u, [field]: value } : u));
         } catch (error) {
             alert('更新失敗');
         }
@@ -163,7 +172,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                 <tr>
                                     <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('user') || '使用者'}</th>
                                     <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('status') || '狀態'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('rolePermission') || '角色權限'}</th>
+                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('rolePermission')}</th>
+                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs w-24 text-center">{t('allowCreateOrg') || '建組織'}</th>
+                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs w-24 text-center">{t('allowPersonalWorkspace') || '個人空間'}</th>
                                     <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs w-48">{t('assignOrg') || '指派組織'}</th>
                                     <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('applyTime') || '申請時間'}</th>
                                     <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs text-right">{t('operation') || '操作'}</th>
@@ -172,7 +183,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                        <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-medium">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <RefreshCw className="w-8 h-8 animate-spin text-blue-500 opacity-50" />
                                                 <span>{t('loading') || '載入中...'}</span>
@@ -181,7 +192,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                     </tr>
                                 ) : filteredUsers.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
+                                        <td colSpan={8} className="px-6 py-16 text-center text-slate-400">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <User className="w-12 h-12 text-slate-200" />
                                                 <span className="font-medium">{t('noMatchingUsers') || '沒有找到符合的用戶'}</span>
@@ -239,6 +250,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                         {t('roleAdmin') || '管理員'}
                                                     </button>
                                                 </div>
+                                            </td>
+
+                                            <td className="px-4 py-3 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
+                                                    disabled={user.role === 'admin'}
+                                                    onChange={(e) => handleUpdatePermission(user.email, 'allowCreateOrg', e.target.checked)}
+                                                    className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                />
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
+                                                    disabled={user.role === 'admin'}
+                                                    onChange={(e) => handleUpdatePermission(user.email, 'allowPersonalWorkspace', e.target.checked)}
+                                                    className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                />
                                             </td>
 
                                             <td className="px-4 py-3">
@@ -366,26 +396,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
 
                                         {/* Mobile Body: Role & Org */}
                                         <div className="grid grid-cols-1 gap-4 mb-4">
-                                            {/* Role Toggle */}
-                                            <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200 w-full">
-                                                <button
-                                                    onClick={() => handleUpdateRole(user.email, 'user')}
-                                                    className={`flex-1 py-2 rounded-md text-xs font-bold transition-all text-center ${user.role !== 'admin'
-                                                        ? 'bg-white text-slate-800 shadow-sm ring-1 ring-black/5'
-                                                        : 'text-slate-500 hover:text-slate-700'
-                                                        }`}
-                                                >
-                                                    {t('roleMember') || '成員'}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleUpdateRole(user.email, 'admin')}
-                                                    className={`flex-1 py-2 rounded-md text-xs font-bold transition-all text-center ${user.role === 'admin'
-                                                        ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-black/5'
-                                                        : 'text-slate-500 hover:text-slate-700'
-                                                        }`}
-                                                >
-                                                    {t('roleAdmin') || '管理員'}
-                                                </button>
+                                            {/* Role & Permissions */}
+                                            <div className="space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                                <div className="flex bg-white rounded-lg p-1 border border-slate-200 w-full shadow-sm">
+                                                    <button
+                                                        onClick={() => handleUpdateRole(user.email, 'user')}
+                                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${user.role !== 'admin'
+                                                            ? 'bg-slate-100 text-slate-800 shadow-inner'
+                                                            : 'text-slate-500 hover:text-slate-700'
+                                                            }`}
+                                                    >
+                                                        {t('roleMember') || '成員'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleUpdateRole(user.email, 'admin')}
+                                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${user.role === 'admin'
+                                                            ? 'bg-indigo-50 text-indigo-700 shadow-inner'
+                                                            : 'text-slate-500 hover:text-slate-700'
+                                                            }`}
+                                                    >
+                                                        {t('roleAdmin') || '管理員'}
+                                                    </button>
+                                                </div>
+
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <label className={`flex items-center gap-2 text-xs font-bold text-slate-700 select-none ${user.role === 'admin' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
+                                                            disabled={user.role === 'admin'}
+                                                            onChange={(e) => handleUpdatePermission(user.email, 'allowCreateOrg', e.target.checked)}
+                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 shadow-sm"
+                                                        />
+                                                        {t('allowCreateOrg') || '建立組織'}
+                                                    </label>
+                                                    <label className={`flex items-center gap-2 text-xs font-bold text-slate-700 select-none ${user.role === 'admin' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
+                                                            disabled={user.role === 'admin'}
+                                                            onChange={(e) => handleUpdatePermission(user.email, 'allowPersonalWorkspace', e.target.checked)}
+                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 shadow-sm"
+                                                        />
+                                                        {t('allowPersonalWorkspace') || '個人空間'}
+                                                    </label>
+                                                </div>
                                             </div>
 
                                             {/* Org Dropdown */}
@@ -403,7 +458,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                     ))}
                                                 </select>
                                                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                                                    <Building className="h-4 w-4" />
+                                                    <Building2 className="h-4 w-4" />
                                                 </div>
                                             </div>
                                         </div>

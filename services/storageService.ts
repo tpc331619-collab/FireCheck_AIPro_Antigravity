@@ -2053,4 +2053,6 @@ export interface WhitelistEntry {
   photoURL?: string;
   requestedAt: number;
   updatedAt: number;
+  allowCreateOrg?: boolean;
+  allowPersonalWorkspace?: boolean;
 }

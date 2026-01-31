@@ -31,6 +31,37 @@ export const OrganizationManager: React.FC<OrganizationManagerProps> = ({
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteRole, setInviteRole] = useState<OrganizationRole>('member');
 
+    // Permissions
+    const [permissions, setPermissions] = useState<{ role?: string; allowCreateOrg?: boolean; allowPersonalWorkspace?: boolean }>({
+        role: user.role,
+        allowCreateOrg: user.role === 'admin',
+        allowPersonalWorkspace: user.role === 'admin'
+    });
+
+    useEffect(() => {
+        const checkPermissions = async () => {
+            if (!user.email) return;
+            const entry = await StorageService.checkWhitelist(user.email);
+            const isAdmin = user.role === 'admin' || entry?.role === 'admin';
+
+            if (entry) {
+                setPermissions({
+                    role: entry.role || user.role,
+                    allowCreateOrg: isAdmin || entry.allowCreateOrg === true,
+                    allowPersonalWorkspace: isAdmin || entry.allowPersonalWorkspace === true
+                });
+            } else if (user.role === 'admin') {
+                // If super admin (bypass whitelist)
+                setPermissions({
+                    role: 'admin',
+                    allowCreateOrg: true,
+                    allowPersonalWorkspace: true
+                });
+            }
+        };
+        checkPermissions();
+    }, [user.email, user.role]);
+
     useEffect(() => {
         loadOrganizations();
     }, [user.uid]);
@@ -54,6 +85,9 @@ export const OrganizationManager: React.FC<OrganizationManagerProps> = ({
                 const current = orgs.find(o => o.id === currentOrgId);
                 setSelectedOrg(current || null);
             } else {
+                // Logic update: If allowPersonalWorkspace is FALSE, try to pick first org
+                // Note: We need permissions here, but they are async. 
+                // We'll rely on the existing logic for now, but the effect below handles re-routing.
                 setSelectedOrg(null);
             }
         } catch (e) {
@@ -63,10 +97,26 @@ export const OrganizationManager: React.FC<OrganizationManagerProps> = ({
         }
     };
 
+    // Auto-redirect if Personal Workspace is restricted and currently selected (null)
+    useEffect(() => {
+        const canUsePersonal = permissions.role === 'admin' || permissions.allowPersonalWorkspace === true;
+        if (!loading && !canUsePersonal && selectedOrg === null && organizations.length > 0) {
+            setSelectedOrg(organizations[0]);
+        }
+    }, [loading, permissions.role, permissions.allowPersonalWorkspace, selectedOrg, organizations]);
+
     const loadMembers = async (orgId: string) => {
         try {
             const memberList = await StorageService.getOrganizationMembers(orgId);
-            setMembers(memberList);
+            // Enrich with latest names from whitelist
+            const enrichedMembers = await Promise.all(memberList.map(async (m) => {
+                const profile = await StorageService.checkWhitelist(m.userEmail);
+                if (profile && profile.name && profile.name !== m.userEmail) {
+                    return { ...m, userName: profile.name };
+                }
+                return m;
+            }));
+            setMembers(enrichedMembers);
         } catch (e) {
             console.error('Failed to load members', e);
         }
@@ -117,11 +167,18 @@ export const OrganizationManager: React.FC<OrganizationManagerProps> = ({
         if (!selectedOrg) return;
 
         try {
+            // Try to find user's real name from whitelist first
+            let inviteName = inviteEmail;
+            const profile = await StorageService.checkWhitelist(inviteEmail);
+            if (profile && profile.name) {
+                inviteName = profile.name;
+            }
+
             await StorageService.addOrganizationMember({
                 organizationId: selectedOrg.id,
                 userId: inviteEmail,
                 userEmail: inviteEmail,
-                userName: inviteEmail,
+                userName: inviteName,
                 role: inviteRole,
                 joinedAt: Date.now()
             });
@@ -201,41 +258,42 @@ export const OrganizationManager: React.FC<OrganizationManagerProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {/* Organizations List */}
                             <div className="md:col-span-1">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="font-semibold text-gray-900 dark:text-white">
-                                        {t('myOrganizations')}
-                                    </h3>
-                                    <button
-                                        onClick={() => setShowCreateForm(true)}
-                                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                                        title={t('createOrganization')}
-                                    >
-                                        <Plus className="w-5 h-5" />
-                                    </button>
+                                <div className="flex items-center justify-end mb-2">
+                                    {(permissions.role === 'admin' || permissions.allowCreateOrg === true) && (
+                                        <button
+                                            onClick={() => setShowCreateForm(true)}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                            title={t('createOrganization')}
+                                        >
+                                            <Plus className="w-5 h-5" />
+                                        </button>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
                                     {/* Personal Workspace Option */}
-                                    <div
-                                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${!selectedOrg
-                                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
-                                            }`}
-                                        onClick={() => setSelectedOrg(null)}
-                                    >
-                                        <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                                            <Building2 className="w-4 h-4 text-blue-500" />
-                                            {t('personalOrganization')}
-                                        </div>
-                                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                                            {t('personalSpaceDesc') || '個人私人空間'}
-                                        </div>
-                                        {!currentOrgId && (
-                                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                                {t('currentOrganization')}
+                                    {(permissions.role === 'admin' || permissions.allowPersonalWorkspace === true) && (
+                                        <div
+                                            className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${!selectedOrg
+                                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                                : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                                                }`}
+                                            onClick={() => setSelectedOrg(null)}
+                                        >
+                                            <div className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                                                <Building2 className="w-4 h-4 text-blue-500" />
+                                                {t('personalOrganization')}
                                             </div>
-                                        )}
-                                    </div>
+                                            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                                {t('personalSpaceDesc') || '個人私人空間'}
+                                            </div>
+                                            {!currentOrgId && (
+                                                <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                                    {t('currentOrganization')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {organizations.map(org => (
                                         <div
