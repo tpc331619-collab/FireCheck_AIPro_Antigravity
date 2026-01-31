@@ -48,7 +48,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     aiAnalysis: 'AI 分析',
     close: '關閉',
     clear: '清除',
-    appName: '消防資訊平台',
+    appName: 'TPCFSIP',
     morning: '早安',
     afternoon: '午安',
     evening: '晚安',
