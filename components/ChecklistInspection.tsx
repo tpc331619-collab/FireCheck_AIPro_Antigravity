@@ -57,8 +57,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             setLoading(true);
             try {
                 const [data, settings] = await Promise.all([
-                    StorageService.getEquipmentDefinitions(user.uid),
-                    StorageService.getLightSettings(user.uid)
+                    StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId),
+                    StorageService.getLightSettings(user.uid, user.currentOrganizationId)
                 ]);
                 setAllEquipment(data);
                 setLightSettings(settings); // Set settings
@@ -76,7 +76,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             }
         };
         fetchData();
-    }, [user.uid]);
+    }, [user.uid, user.currentOrganizationId]);
 
     // Update Buildings based on Site
     useEffect(() => {
@@ -148,7 +148,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     // For now, let's allow finding the report if building is specific.
 
                     if (selectedBuilding !== 'ALL_BUILDINGS') {
-                        const reports = await StorageService.getReports(user.uid);
+                        const reports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
                         const today = new Date();
                         const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
@@ -163,6 +163,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             setCurrentReport({
                                 id: 'draft_' + Date.now(),
                                 userId: user.uid,
+                                organizationId: user.currentOrganizationId,
                                 buildingName: selectedBuilding,
                                 inspectorName: user.displayName || 'Guest',
                                 date: Date.now(),
@@ -186,7 +187,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                         // To show "Checked" status in ALL mode, we need to see if there are reports.
                         // Let's fetch all reports for this site today.
-                        const reports = await StorageService.getReports(user.uid);
+                        const reports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
                         const today = new Date();
                         const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
@@ -363,7 +364,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             if (selectedBuilding === 'ALL_BUILDINGS') {
                 // Find report for this item's specific building
                 const itemBuilding = inspectingItem.buildingName;
-                const reports = await StorageService.getReports(user.uid);
+                const reports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
                 const today = new Date();
                 const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
@@ -371,13 +372,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                 if (!foundReport) {
                     foundReport = {
-                        id: 'report_' + Date.now(), // Directly create a "Saved" report ID (not draft_) to simplify? Or draft_?
                         // Let's use draft_ logic but we need to create it.
                         // Actually, StorageService.saveReport handles creation.
                         // But we need to maintain state.
                         // This is tricky. simpler to just reload everything after save?
                         id: `draft_${itemBuilding}_${now}`,
                         buildingName: itemBuilding,
+                        organizationId: user.currentOrganizationId,
+                        userId: user.uid,
                         inspectorName: user?.displayName || 'Guest',
                         items: [],
                         date: now,
@@ -442,7 +444,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             if (isDraft) {
                 // Create new report in Firestore
                 if (user?.uid) {
-                    const newId = await StorageService.saveReport(cleanedReport, user.uid);
+                    const newId = await StorageService.saveReport(cleanedReport, user.uid, user.currentOrganizationId);
                     // Update local state with real Firestore ID
                     reportTarget.id = newId;
                 } else {
@@ -499,7 +501,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         status: 'pending',
                         createdAt: now,
                         updatedAt: now
-                    }), user.uid);
+                    }), user.uid, user.currentOrganizationId);
                 } catch (e) {
                     console.error("Failed to save abnormal record:", e);
                     // Don't block the main save flow
@@ -740,7 +742,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     };
 
                                     return priority[statusA] - priority[statusB];
-                                }).map(item => {
+                                }).map((item, index) => {
                                     const freqStatusRaw = getFrequencyStatus(item, lightSettings);
 
                                     // Check if item is in current report (active session)
@@ -765,7 +767,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             statusColor = 'bg-red-100 text-red-600';
                                             rowBorder = 'border-red-200 bg-red-50/30';
                                             iconBg = 'bg-orange-500';
-                                            iconContent = <span className="font-bold text-lg">!</span>;
+                                            iconContent = <span className="font-bold text-sm">!</span>;
                                         } else {
                                             statusLabel = '已檢查';
                                             statusColor = 'bg-green-100 text-green-700';
@@ -817,11 +819,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             className={`bg-white p-4 rounded-xl border transition-all flex items-center justify-between shadow-sm relative overflow-hidden ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md'} ${rowBorder}`}
                                         >
                                             <div className="flex items-center gap-3">
+                                                <span className="flex-shrink-0 text-slate-400 font-bold text-sm min-w-[1.25rem]">
+                                                    {index + 1}.
+                                                </span>
                                                 <div
-                                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0 ${iconBg}`}
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 ${iconBg}`}
                                                     style={iconStyle}
                                                 >
-                                                    {iconContent}
+                                                    {freqStatus === 'COMPLETED' && inspectionItem?.status === InspectionStatus.Normal ? (
+                                                        <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                                    ) : iconContent}
                                                 </div>
                                                 <div>
                                                     <h4 className={`font-bold text-slate-800 flex items-center gap-2`}>

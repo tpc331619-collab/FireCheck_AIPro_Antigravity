@@ -46,8 +46,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
         setLoading(true);
         try {
             const [recordsData, equipmentData] = await Promise.all([
-                StorageService.getAbnormalRecords(user.uid),
-                StorageService.getEquipmentDefinitions(user.uid)
+                StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId),
+                StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId)
             ]);
 
             // 根據 viewMode 篩選記錄
@@ -68,7 +68,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
     useEffect(() => {
         fetchRecords();
-    }, [user.uid, viewMode]); // 當 viewMode 改變時重新載入
+    }, [user.uid, user.currentOrganizationId, viewMode]); // 當 viewMode 或組織改變時重新載入
 
     // 初始化修復表單
     useEffect(() => {
@@ -145,7 +145,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
 
             // 2. 更新設備的最後檢查日期
             try {
-                const equipment = await StorageService.getEquipmentById(selectedRecord.equipmentId, user.uid);
+                const equipment = await StorageService.getEquipmentById(selectedRecord.equipmentId, user.uid, user.currentOrganizationId);
                 if (equipment) {
                     console.log(`[AbnormalRecheck] Updating equipment ${equipment.name} (${equipment.barcode}) lastInspectedDate to ${new Date(fixedDateTime).toLocaleString()}`);
                     await StorageService.updateEquipment({
@@ -165,7 +165,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                 // Note: getReports default does NOT fetch items for Firestore. We need items to find the equipment.
                 // Improvement: Fetch with items = true, OR filtering by date to minimize reads.
                 // For robustness, let's try matching by date first (since inspectionDate is recorded).
-                let allReports = await StorageService.getReports(user.uid, undefined, true);
+                let allReports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
 
                 // Fallback: If no items loaded (legacy/error), we might need to load items for reports near the date.
                 // For now, getReports(uid, true) should handle it for Firestore.
@@ -174,7 +174,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                 const originalReport = allReports.find(r =>
                     r.items?.some(item =>
                         item.equipmentId === selectedRecord.equipmentId &&
-                        (item.status === InspectionStatus.Abnormal || item.status === 'Abnormal')
+                        (item.status === InspectionStatus.Abnormal || (item.status as any) === 'Abnormal')
                     )
                 );
 
@@ -261,11 +261,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({ user, onBack,
                             photoUrl: selectedRecord.photoUrl || undefined
                         }],
                         note: `[異常複檢修復] ${fixedNotes.trim()}`,
+                        organizationId: user.currentOrganizationId,
                         signature: '',
                         updatedAt: Date.now(),
                         archived: true
                     };
-                    await StorageService.saveReport(newReport, user.uid);
+                    await StorageService.saveReport(newReport, user.uid, user.currentOrganizationId);
                 }
             } catch (e) {
                 console.error('Failed to update history report:', e);

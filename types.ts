@@ -21,6 +21,8 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   isGuest: boolean;
+  currentOrganizationId?: string; // 當前選擇的組織
+  role?: 'admin' | 'user'; // 用戶角色
 }
 
 export interface InspectionItem {
@@ -62,6 +64,7 @@ export interface InspectionReport {
   aiSummary?: string;
   archived?: boolean; // Auto-archive normal inspections to history
   userId?: string;    // Added for clarity, though handled by service logic
+  organizationId?: string; // 組織 ID
 }
 
 export type AuthMode = 'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD';
@@ -89,6 +92,7 @@ export interface CustomCheckItem {
 export interface EquipmentDefinition {
   id: string;
   userId?: string;       // 記錄建立者 ID
+  organizationId?: string; // 組織 ID
   siteName: string;      // 新增場所名稱
   buildingName: string;  // 新增建築物名稱
   name: string;          // 新增設備名稱
@@ -137,6 +141,7 @@ export interface EquipmentMarker {
 export interface EquipmentMap {
   id: string;
   userId: string;
+  organizationId?: string | null;
   name: string;
   imageUrl: string; // Base64 or URL
   markers: EquipmentMarker[];
@@ -151,6 +156,7 @@ export interface EquipmentMap {
 export interface AbnormalRecord {
   id: string;
   userId: string;
+  organizationId?: string; // 組織 ID
   equipmentId: string;
   equipmentName: string;
   barcode?: string; // 設備編號
@@ -178,6 +184,7 @@ export interface LightSettings {
 export interface HealthIndicator {
   id: string;
   userId: string;
+  organizationId?: string; // 組織 ID
   buildingName: string;
   equipmentName: string;
   updatedAt: number;
@@ -194,6 +201,7 @@ export interface HealthHistoryRecord {
   newStartDate: string;
   newEndDate: string;
   replacementDate: string;
+  organizationId?: string; // 組織 ID
   updatedAt: number;
 }
 
@@ -212,4 +220,26 @@ export interface SystemSettings {
   allowGuestView: boolean;
   allowGuestRecheck?: boolean;
   publicDataUserId?: string; // ID of the user whose public data is public
+}
+
+// 組織管理
+export interface Organization {
+  id: string;
+  name: string;
+  description?: string;
+  createdBy: string; // 建立者 UID
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type OrganizationRole = 'admin' | 'member';
+
+export interface OrganizationMember {
+  id: string;
+  organizationId: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  role: OrganizationRole;
+  joinedAt: number;
 }

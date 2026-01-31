@@ -87,14 +87,15 @@ const InspectionForm: React.FC<InspectionFormProps> = ({ report: initialReport, 
       date: initialReport?.date || Date.now(),
       items,
       overallStatus,
-      aiSummary
+      aiSummary,
+      organizationId: user.currentOrganizationId
     };
 
     try {
       if (initialReport) {
         await StorageService.updateReport(reportData);
       } else {
-        await StorageService.saveReport(reportData, user.uid);
+        await StorageService.saveReport(reportData, user.uid, user.currentOrganizationId);
       }
       onSaved();
     } catch (e) {

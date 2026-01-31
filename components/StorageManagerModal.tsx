@@ -42,12 +42,12 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
         if (isOpen) {
             loadFiles();
         }
-    }, [isOpen]);
+    }, [isOpen, user.currentOrganizationId]);
 
     const loadFiles = async () => {
         setLoading(true);
         try {
-            const data = await StorageService.getStorageFiles(user.uid);
+            const data = await StorageService.getStorageFiles(user.uid, user.currentOrganizationId);
             // Sort by time created desc
             data.sort((a, b) => new Date(b.timeCreated).getTime() - new Date(a.timeCreated).getTime());
             setFiles(data);
@@ -78,7 +78,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
 
         setLoading(true);
         try {
-            await StorageService.uploadMapImage(file, user.uid);
+            await StorageService.uploadMapImage(file, user.uid, user.currentOrganizationId);
             await loadFiles();
             alert(t('uploadSuccess'));
         } catch (error: any) {

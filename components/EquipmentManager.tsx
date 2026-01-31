@@ -52,7 +52,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
   useEffect(() => {
     const fetchHierarchy = async () => {
       try {
-        const data = await StorageService.getEquipmentHierarchy(user.uid);
+        const data = await StorageService.getEquipmentHierarchy(user.uid, user.currentOrganizationId);
         if (data) {
           setHierarchy(data);
         } else {
@@ -75,7 +75,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       }
     };
     fetchHierarchy();
-  }, [user.uid]);
+  }, [user.uid, user.currentOrganizationId]);
 
 
 
@@ -176,7 +176,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     setIsUploadingPhoto(true);
     try {
       // 1. Upload new photo
-      const newUrl = await StorageService.uploadEquipmentPhoto(file, user.uid);
+      const newUrl = await StorageService.uploadEquipmentPhoto(file, user.uid, user.currentOrganizationId);
 
       // 2. Delete old photo if it exists
       if (photoUrl) {
@@ -378,6 +378,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     const definition: EquipmentDefinition = {
       id: initialData?.id || Date.now().toString(),
       userId: user.uid,
+      organizationId: user.currentOrganizationId,
       siteName,
       buildingName,
       name,
@@ -410,7 +411,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
           try {
             // 1. Sync Maps (Markers are linked by Barcode/EquipmentID)
-            const maps = await StorageService.getMaps(user.uid);
+            const maps = await StorageService.getMaps(user.uid, user.currentOrganizationId);
             const mapsToUpdate = maps.filter(m => m.markers.some(mk => mk.equipmentId === initialData.barcode));
 
             if (mapsToUpdate.length > 0) {
@@ -422,13 +423,13 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                   }
                   return mk;
                 });
-                await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid);
+                await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid, user.currentOrganizationId);
               }
             }
 
             // 2. Sync Abnormal Records (Pending only, or all? User said "Abnormal Recheck List" so likely Pending)
             // Ideally we should update history too if possible, but let's stick to active pending records first.
-            const abnormalRecords = await StorageService.getAbnormalRecords(user.uid);
+            const abnormalRecords = await StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId);
             const recordsToUpdate = abnormalRecords.filter(r => r.equipmentId === initialData.barcode || r.barcode === initialData.barcode);
 
             if (recordsToUpdate.length > 0) {
@@ -458,7 +459,7 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
         setShowSuccessModal(true);
       } else {
         // Create mode
-        await StorageService.saveEquipmentDefinition(definition, user.uid);
+        await StorageService.saveEquipmentDefinition(definition, user.uid, user.currentOrganizationId);
         setShowSuccessModal(true);
       }
     } catch (e) {

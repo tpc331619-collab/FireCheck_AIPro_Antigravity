@@ -36,7 +36,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
         const loadData = async () => {
             setLoading(true);
             try {
-                const data = await StorageService.getEquipmentHierarchy(user.uid);
+                const data = await StorageService.getEquipmentHierarchy(user.uid, user.currentOrganizationId);
                 if (data) {
                     setHierarchy(data);
                 } else {
@@ -59,12 +59,12 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
             }
         };
         loadData();
-    }, [user.uid]);
+    }, [user.uid, user.currentOrganizationId]);
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await StorageService.saveEquipmentHierarchy(hierarchy, user.uid);
+            await StorageService.saveEquipmentHierarchy(hierarchy, user.uid, user.currentOrganizationId);
             showToast(t('saveSuccess'), 'success');
         } catch (err) {
             console.error(err);
@@ -268,7 +268,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack }) => 
                                                 seed[cat] = validTypes;
                                             });
                                             setHierarchy(seed);
-                                            StorageService.saveEquipmentHierarchy(seed, user.uid)
+                                            StorageService.saveEquipmentHierarchy(seed, user.uid, user.currentOrganizationId)
                                                 .then(() => showToast('已回復預設清單', 'success'))
                                                 .catch(() => showToast('重置失敗', 'error'));
                                         }

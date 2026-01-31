@@ -11,12 +11,14 @@ import { Mail, Bell } from 'lucide-react';
 
 
 import InspectionModeModal from './InspectionModeModal';
+import AdminDashboard from './AdminDashboard';
 import MapViewInspection from "./MapViewInspection";
 import AddEquipmentModeModal from './AddEquipmentModeModal';
 import AbnormalRecheckList from './AbnormalRecheckList';
 import HistoryTable from './HistoryTable';
 import BarcodeInputModal from './BarcodeInputModal';
 import { NotificationBell } from './NotificationBell';
+import { OrganizationManager } from './OrganizationManager';
 
 
 import { RegulationFeed } from './RegulationFeed';
@@ -106,14 +108,16 @@ interface DashboardProps {
     onUserUpdate: () => void;
     onManageHierarchy: () => void;
     onOpenMapEditor: () => void;
+    onOrgSwitch: (orgId: string) => void;
+    guestExpiry?: number | null;
 }
 
 const CARTOON_AVATARS = [
-    "/avatars/avatar_us.png",
-    "/avatars/avatar_uk.png",
-    "/avatars/avatar_jp.png",
-    "/avatars/avatar_de.png",
-    "/avatars/avatar_br.png"
+    "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix",
+    "https://api.dicebear.com/9.x/avataaars/svg?seed=Aneka",
+    "https://api.dicebear.com/9.x/avataaars/svg?seed=Zoe",
+    "https://api.dicebear.com/9.x/avataaars/svg?seed=Jack",
+    "https://api.dicebear.com/9.x/avataaars/svg?seed=Ginger"
 ];
 
 const getEquipmentIcon = (name: string) => {
@@ -126,7 +130,7 @@ const getEquipmentIcon = (name: string) => {
     return <Box className="w-5 h-5 text-slate-400" />;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor, onOrgSwitch, guestExpiry }) => {
     const { t, language, setLanguage } = useLanguage();
     const { theme, setTheme, styles } = useTheme(); // Use Theme Hook
     const [activeModal, setActiveModal] = useState<{ type: 'INSPECTION' | 'RECHECK', item: any } | null>(null);
@@ -137,6 +141,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isHealthModalOpen, setIsHealthModalOpen] = useState(false);
+
+    // Guest Timer Logic
+    const [timeLeft, setTimeLeft] = useState<string>('');
+    const [isExpiring, setIsExpiring] = useState(false);
+
+    useEffect(() => {
+        if (!guestExpiry) return;
+
+        const timer = setInterval(() => {
+            const now = Date.now();
+            const diff = guestExpiry - now;
+
+            if (diff <= 0) {
+                // Time's up
+                clearInterval(timer);
+                onLogout(); // Trigger logout from parent App
+                return;
+            }
+
+            // Format time left
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            setTimeLeft(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+
+            // Warn if last 1 minute
+            if (diff <= 60000) setIsExpiring(true);
+            else setIsExpiring(false);
+
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [guestExpiry, onLogout]);
+
+    // Organization State
+    const [showOrgManager, setShowOrgManager] = useState(false);
+    const [currentOrgName, setCurrentOrgName] = useState('');
+
+    useEffect(() => {
+        const loadOrgName = async () => {
+            if (user.currentOrganizationId) {
+                const org = await StorageService.getOrganization(user.currentOrganizationId);
+                if (org) {
+                    setCurrentOrgName(org.name);
+                }
+            } else {
+                setCurrentOrgName('');
+            }
+        };
+        loadOrgName();
+    }, [user.currentOrganizationId, user.uid]);
 
     // Declaration State
     const [declarationSettings, setDeclarationSettings] = useState<DeclarationSettings | null>(null);
@@ -152,9 +206,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Map State
 
     // Settings State
-    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS' | 'DECLARATION'>('PROFILE');
+    const [settingsTab, setSettingsTab] = useState<'PROFILE' | 'LANGUAGE' | 'GENERAL' | 'LIGHTS' | 'DECLARATION' | 'ADMIN' | 'PERMISSIONS'>('PROFILE');
+    const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
     const [displayName, setDisplayName] = useState(user.displayName || '');
-    const [selectedAvatar, setSelectedAvatar] = useState(user.photoURL || CARTOON_AVATARS[0]);
+    const [selectedAvatar, setSelectedAvatar] = useState(() => {
+        // Force cartoon version if it's one of the default paths or missing version query
+        if (user.photoURL && user.photoURL.startsWith('/avatars/avatar_')) {
+            return user.photoURL;
+        }
+        return user.photoURL || CARTOON_AVATARS[0];
+    });
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isUpdating, setIsUpdating] = useState(false);
@@ -239,16 +300,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const handleSaveSystemSettings = async (newSettings: SystemSettings) => {
         if (!user.uid) return;
+        const prevSettings = systemSettings;
+        setSystemSettings(newSettings); // Optimistic Update
+
         try {
             await StorageService.saveSystemSettings({
                 ...newSettings,
-                publicDataUserId: newSettings.allowGuestView ? user.uid : null
+                publicDataUserId: (newSettings.allowGuestView || newSettings.allowGuestRecheck) ? user.uid : null
             });
-            setSystemSettings(newSettings);
-            alert(t('settingsSaved') || '設定已儲存');
+            // Optional: Success feedback could be a toast instead of an alert to avoid blocking
+            console.log('[Dashboard] System settings saved successfully');
         } catch (e) {
-            console.error(e);
-            alert(t('saveFailed'));
+            console.error('[Dashboard] Failed to save system settings:', e);
+            setSystemSettings(prevSettings); // Rollback
+            alert(t('saveFailed') || '儲存失敗');
         }
     };
     const [savingHealth, setSavingHealth] = useState(false);
@@ -256,9 +321,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Fetch Health Indicators
     useEffect(() => {
         if (user?.uid) {
-            StorageService.getHealthIndicators(user.uid).then(setHealthIndicators);
+            StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then(setHealthIndicators);
+            fetchLightSettings();
         }
-    }, [user?.uid]);
+    }, [user?.uid, user.currentOrganizationId]);
 
     // Check for expired health indicators requiring renewal
     useEffect(() => {
@@ -296,7 +362,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 message,
                 timestamp: Date.now(),
                 read: false
-            }, user.uid);
+            }, user.uid, user.currentOrganizationId);
 
             // Trigger a custom event to notify the NotificationBell to reload
             window.dispatchEvent(new CustomEvent('notification-added'));
@@ -322,11 +388,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
             if (editingHealthIndicator.id) {
                 // Update
-                await StorageService.updateHealthIndicator(editingHealthIndicator.id, indicatorData, user.uid);
+                await StorageService.updateHealthIndicator(editingHealthIndicator.id, indicatorData, user.uid, user.currentOrganizationId);
                 setHealthIndicators(prev => prev.map(i => i.id === editingHealthIndicator.id ? { ...i, ...indicatorData } : i));
             } else {
                 // Add
-                const newId = await StorageService.addHealthIndicator(indicatorData, user.uid);
+                const newId = await StorageService.addHealthIndicator(indicatorData, user.uid, user.currentOrganizationId);
                 setHealthIndicators(prev => [{ ...indicatorData, id: newId } as HealthIndicator, ...prev]);
             }
 
@@ -352,7 +418,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (!user?.uid || !confirm('確定要刪除此指標嗎？')) return;
 
         try {
-            await StorageService.deleteHealthIndicator(id, user.uid);
+            await StorageService.deleteHealthIndicator(id, user.uid, user.currentOrganizationId);
             setHealthIndicators(prev => prev.filter(i => i.id !== id));
         } catch (error) {
             console.error('Failed to delete health indicator:', error);
@@ -382,8 +448,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 replacementDate: replacementDate
             };
 
-            await StorageService.addHealthHistory(historyRecord, user.uid);
-            await StorageService.updateHealthIndicator(renewalTarget.id, updatedIndicator, user.uid);
+            await StorageService.addHealthHistory(historyRecord, user.uid, user.currentOrganizationId);
+            await StorageService.updateHealthIndicator(renewalTarget.id, updatedIndicator, user.uid, user.currentOrganizationId);
             setHealthIndicators(prev => prev.map(i => i.id === renewalTarget.id ? updatedIndicator : i));
             setHistoryCounts((prev) => ({
                 ...prev,
@@ -406,7 +472,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 ...renewalTarget,
                 lastPromptDismissed: Date.now()
             };
-            await StorageService.updateHealthIndicator(renewalTarget.id, updatedIndicator, user.uid);
+            await StorageService.updateHealthIndicator(renewalTarget.id, updatedIndicator, user.uid, user.currentOrganizationId);
             setHealthIndicators(prev => prev.map(i => i.id === renewalTarget.id ? updatedIndicator : i));
             setRenewalTarget(null);
         } catch (error) {
@@ -421,7 +487,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         setHistoryData([]); // Reset first
         setIsHistoryLoading(true);
         try {
-            const history = await StorageService.getHealthHistory(indicator.id, user.uid);
+            const history = await StorageService.getHealthHistory(indicator.id, user.uid, user.currentOrganizationId);
             setHistoryData(history);
             if (history.length === 0) {
                 // Optional: Helper log
@@ -520,7 +586,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         const fetchEquipment = async () => {
             if (user?.uid) {
                 try {
-                    const equipment = await StorageService.getEquipmentDefinitions(user.uid);
+                    const equipment = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
                     const map: Record<string, any> = {};
                     equipment.forEach(eq => {
                         map[eq.id] = {
@@ -539,7 +605,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         fetchEquipment();
 
 
-    }, [user?.uid]);
+    }, [user?.uid, user?.currentOrganizationId]);
 
     const handleInspectionModeSelect = (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => {
         console.log('[Dashboard] handleInspectionModeSelect called with mode:', mode);
@@ -584,16 +650,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Orphaned calls fix - Wrap in Effect
     useEffect(() => {
         if (user?.uid) {
+            // Reset states during switch to prevent stale data
+            setDeclarationSettings(null);
+            setEquipmentStats([]);
+            setDeclarationDeadline('');
+            setAbnormalCount(0); // Also reset abnormal count
+
             fetchDeclarationSettings();
             fetchEquipmentStats();
             fetchLightSettings();
             fetchHistoryCounts();
         }
-    }, [user?.uid]);
+    }, [user?.uid, user?.currentOrganizationId]);
 
     const fetchLightSettings = async () => {
         if (user?.uid) {
-            const settings = await StorageService.getLightSettings(user.uid);
+            const settings = await StorageService.getLightSettings(user.uid, user.currentOrganizationId);
             setLightSettings(settings);
         }
     };
@@ -602,7 +674,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (!lightSettings) return;
         setSavingLights(true);
         try {
-            await StorageService.saveLightSettings(lightSettings, user.uid);
+            await StorageService.saveLightSettings(lightSettings, user.uid, user.currentOrganizationId);
             alert("燈號設定已儲存！");
         } catch (e) {
             console.error(e);
@@ -614,7 +686,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const fetchDeclarationSettings = async () => {
         if (user?.uid) {
-            const settings = await StorageService.getDeclarationSettings(user.uid);
+            const settings = await StorageService.getDeclarationSettings(user.uid, user.currentOrganizationId);
             setDeclarationSettings(settings);
         }
     };
@@ -624,7 +696,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const handleSaveSettings = async (settings: DeclarationSettings) => {
         if (user?.uid) {
             try {
-                await StorageService.saveDeclarationSettings(settings, user.uid);
+                await StorageService.saveDeclarationSettings(settings, user.uid, user.currentOrganizationId);
                 setDeclarationSettings(settings); // Update local state
             } catch (error) {
                 console.error("Error saving settings:", error);
@@ -635,7 +707,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const fetchEquipmentStats = async () => {
         if (user?.uid) {
-            const definitions = await StorageService.getEquipmentDefinitions(user.uid);
+            const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
 
             // 1. Group by name
             const counts = definitions.reduce((acc, curr) => {
@@ -692,7 +764,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     useEffect(() => {
         if (!declarationSettings?.nextDate || !declarationSettings?.cycle) {
             // Fallback: if no cycle, use nextDate as deadline (legacy behavior)
-            if (declarationSettings?.nextDate) setDeclarationDeadline(declarationSettings.nextDate);
+            if (declarationSettings?.nextDate) {
+                setDeclarationDeadline(declarationSettings.nextDate);
+            } else {
+                setDeclarationDeadline(''); // Reset if no settings at all
+            }
             return;
         }
 
@@ -744,12 +820,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             setDeclarationDeadline(nextDeadline.toISOString().split('T')[0]);
         }
 
-    }, [declarationSettings, user?.uid]); // Dependency on settings
+    }, [declarationSettings, user?.uid, user?.currentOrganizationId]); // Added organizationId dependency
 
     const fetchHistoryCounts = async () => {
         if (user?.uid) {
             try {
-                const history = await StorageService.getAllHealthHistory(user.uid);
+                const history = await StorageService.getAllHealthHistory(user.uid, user.currentOrganizationId);
                 // Group by indicatorId
                 const counts: Record<string, number> = {};
                 history.forEach(h => {
@@ -815,7 +891,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const fetchReports = async () => {
         setLoading(true);
         try {
-            const data = await StorageService.getReports(user.uid, selectedYear, true);
+            const data = await StorageService.getReports(user.uid, selectedYear, true, user.currentOrganizationId);
             setReports(data);
         } catch (error) {
             console.error("Failed to load reports", error);
@@ -825,10 +901,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     };
 
     useEffect(() => {
-        if (showArchived && user?.uid) {
+        // Fetch reports if either archived view is on OR if there is a search active
+        if (user?.uid && (showArchived || searchTerm.trim())) {
             fetchReports();
         }
-    }, [selectedYear, showArchived, user?.uid]);
+    }, [selectedYear, showArchived, searchTerm, user?.uid, user?.currentOrganizationId]);
 
 
 
@@ -845,15 +922,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const fetchAbnormalCount = React.useCallback(async () => {
         if (user?.uid) {
             try {
-                const records = await StorageService.getAbnormalRecords(user.uid);
+                const records = await StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId);
                 const pendingRecords = records.filter(r => r.status === 'pending' && !r.fixedDate);
                 const pendingCount = pendingRecords.length;
 
                 // Check for new abnormal records
-                const previousCount = parseInt(localStorage.getItem(`abnormal_count_${user.uid}`) || '0');
+                const storageKey = `abnormal_count_${user.uid}_${user.currentOrganizationId || 'personal'}`;
+                const previousCount = parseInt(localStorage.getItem(storageKey) || '0');
 
                 // Update storage immediately to prevent race conditions
-                localStorage.setItem(`abnormal_count_${user.uid}`, pendingCount.toString());
+                localStorage.setItem(storageKey, pendingCount.toString());
 
                 if (pendingCount > previousCount) {
                     const newCount = pendingCount - previousCount;
@@ -868,7 +946,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 console.error('Failed to fetch abnormal count:', error);
             }
         }
-    }, [user?.uid]);
+    }, [user?.uid, user?.currentOrganizationId]);
 
     useEffect(() => {
         fetchAbnormalCount();
@@ -1230,16 +1308,44 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <Shield className="w-6 h-6" />
                         </div>
                         <span className="font-bold text-xl">{t('appName')}</span>
+                        {/* Guest Timer Display */}
+                        {user?.isGuest && guestExpiry && (
+                            <div className={`hidden sm:flex ml-4 px-3 py-1 rounded-full text-xs font-mono font-bold items-center gap-2 border animate-in fade-in ${isExpiring ? 'bg-red-500/20 text-red-200 border-red-500/30 animate-pulse' : 'bg-white/10 text-slate-200 border-white/10'}`}>
+                                <Clock className="w-3.5 h-3.5" />
+                                {t('guestTimer')}: {timeLeft}
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                         {!user.isGuest && (
                             <>
 
-                                <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title="設置">
+                                <button
+                                    onClick={() => setShowOrgManager(true)}
+                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg flex items-center gap-2 transition-all mr-2"
+                                    title={t('switchOrganization')}
+                                >
+                                    <span className="text-sm font-medium hidden sm:inline-block max-w-[100px] truncate">
+                                        {user.currentOrganizationId ? currentOrgName : t('personalOrganization')}
+                                    </span>
+                                    <Building className="w-4 h-4" />
+                                </button>
+                                {(user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com') && (
+                                    <button
+                                        onClick={() => setIsAdminDashboardOpen(true)}
+                                        className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 rounded-lg flex items-center gap-2 transition-all mr-2"
+                                        title="核心管理後台"
+                                    >
+                                        <ShieldCheck className="w-4 h-4" />
+                                        <span className="text-sm font-bold hidden sm:inline-block">管理</span>
+                                    </button>
+                                )}
+                                <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
                                     <Settings className="w-5 h-5" />
                                 </button>
                                 <NotificationBell
                                     userId={user.uid}
+                                    organizationId={user.currentOrganizationId}
                                     className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
                                     iconClassName="text-white w-5 h-5"
                                 />
@@ -2204,7 +2310,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         >
                                             <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
                                         </button>
-
+                                        {!user.isGuest && (
+                                            <button
+                                                onClick={() => setSettingsTab('PERMISSIONS')}
+                                                className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PERMISSIONS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                            >
+                                                <ShieldCheck className="w-4 h-4 mr-2" /> {t('permissions')}
+                                            </button>
+                                        )}
 
 
                                     </div>
@@ -2214,37 +2327,36 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                         {/* PROFILE TAB */}
                                         {settingsTab === 'PROFILE' && (
-                                            <div className="space-y-6">
-                                                <div className="space-y-3">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('changeAvatar')}</label>
-                                                    <div className="flex items-center justify-center mb-4">
-                                                        <div className="w-24 h-24 rounded-full border-4 border-slate-100 overflow-hidden shadow-md relative group">
-                                                            <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
-                                                            {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-xs text-center z-10 px-1">{t('uploading')}</div>}
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-center mb-1">
+                                                    <div className="w-14 h-14 rounded-full border-2 border-slate-100 overflow-hidden shadow-sm relative group">
+                                                        <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                                                        {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-[8px] text-center z-10 px-0.5">{t('uploading')}</div>}
 
-                                                            {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
-                                                                <button
-                                                                    onClick={handleDeleteAvatar}
-                                                                    className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                >
-                                                                    <Trash2 className="w-6 h-6 text-white" />
-                                                                </button>
-                                                            )}
-                                                        </div>
+                                                        {selectedAvatar && !selectedAvatar.includes('dicebear.com') && !isUpdating && (
+                                                            <button
+                                                                onClick={handleDeleteAvatar}
+                                                                className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                                <Trash2 className="w-4 h-4 text-white" />
+                                                            </button>
+                                                        )}
                                                     </div>
-                                                    <div className="grid grid-cols-5 gap-2">
+                                                </div>
+                                                <div className="space-y-3 px-1">
+                                                    <div className="grid grid-cols-5 gap-3">
                                                         {CARTOON_AVATARS.map((url, idx) => (
                                                             <button
                                                                 key={idx}
                                                                 onClick={() => setSelectedAvatar(url)}
-                                                                className={`rounded-full overflow-hidden border-2 transition-all hover: scale-105 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100' : 'border-transparent hover:border-slate-300'} `}
+                                                                className={`aspect-square rounded-full overflow-hidden border-2 transition-all ${selectedAvatar === url ? 'border-red-600 ring-4 ring-red-50' : 'border-slate-100 hover:border-red-400'} `}
                                                             >
-                                                                <img src={url} alt={`Avatar ${idx} `} className="w-full h-full" />
+                                                                <img src={url} alt={`Avatar ${idx}`} className="w-full h-full object-cover" />
                                                             </button>
                                                         ))}
                                                     </div>
                                                     {!user.isGuest && (
-                                                        <div className="mt-2">
+                                                        <div className="pt-1">
                                                             <input
                                                                 type="file"
                                                                 ref={fileInputRef}
@@ -2255,24 +2367,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <button
                                                                 onClick={() => fileInputRef.current?.click()}
                                                                 disabled={isUpdating}
-                                                                className="w-full py-2 border border-dashed border-slate-300 rounded-xl text-slate-500 text-sm hover:bg-slate-50 hover:text-slate-700 hover:border-slate-400 transition-colors flex items-center justify-center"
+                                                                className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2 group"
                                                             >
-                                                                <UploadCloud className="w-4 h-4 mr-2" /> {t('uploadPhoto')}
+                                                                <UploadCloud className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                                {t('uploadPhoto')}
                                                             </button>
-                                                            <div className="mt-1 text-center">
-                                                                <span className="text-xs text-red-500 font-bold">{t('fileSizeLimit')}</span>
-                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>
 
-                                                <div className="space-y-2">
+                                                <div className="space-y-1.5 pt-2 border-t border-slate-100">
                                                     <label className="text-xs font-bold text-slate-500 uppercase">{t('displayName')}</label>
                                                     <input
                                                         type="text"
                                                         value={displayName}
                                                         onChange={(e) => setDisplayName(e.target.value)}
-                                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none"
+                                                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none text-sm"
                                                         disabled={user.isGuest}
                                                     />
                                                 </div>
@@ -2281,51 +2391,63 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <button
                                                         onClick={handleUpdateProfile}
                                                         disabled={isUpdating}
-                                                        className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                                                        className="w-full py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 text-sm"
                                                     >
                                                         {isUpdating ? 'Updating...' : t('saveChanges')}
                                                     </button>
                                                 )}
-
-                                                {!user.isGuest && (
-                                                    <div className="pt-4 border-t border-slate-100 space-y-3">
-                                                        <label className="text-xs font-bold text-slate-500 uppercase">{t('guestPermissions') || '訪客權限'}</label>
-                                                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
-                                                            <div>
-                                                                <div className="font-bold text-slate-700 text-sm">{t('allowGuestView') || '允許訪客瀏覽資料'}</div>
-                                                                <div className="text-xs text-slate-500 mt-1">{t('allowGuestViewDesc') || '開啟後，訪客將能查看您的公開資料'}</div>
-                                                            </div>
-                                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={systemSettings?.allowGuestView || false}
-                                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                                            </label>
-                                                        </div>
-
-                                                        {/* Allow Guest Recheck */}
-                                                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 mt-2">
-                                                            <div>
-                                                                <div className="font-bold text-slate-700 text-sm">{t('allowGuestRecheck') || '允許訪客查看異常複檢'}</div>
-                                                                <div className="text-xs text-slate-500 mt-1">{t('allowGuestRecheckDesc') || '開啟後，訪客模式登入時可以看到異常複檢清單。'}</div>
-                                                            </div>
-                                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={systemSettings?.allowGuestRecheck || false}
-                                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
+                                        )}
 
+                                        {/* PERMISSIONS TAB */}
+                                        {settingsTab === 'PERMISSIONS' && (
+                                            <div className="space-y-4">
+                                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex gap-3 mb-2">
+                                                    <ShieldCheck className="w-6 h-6 text-blue-600 shrink-0 mt-0.5" />
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-bold text-slate-900">{t('permissionsTitle')}</p>
+                                                        <p className="text-xs text-slate-500 leading-relaxed">
+                                                            {t('permissionsDesc')}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="pt-2 space-y-3">
+                                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('guestPermissions')}</label>
+
+                                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                                        <div>
+                                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestView')}</div>
+                                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestViewDesc')}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.allowGuestView || false}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                        </label>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                                        <div>
+                                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestRecheck')}</div>
+                                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestRecheckDesc')}</div>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.allowGuestRecheck || false}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         )}
 
                                         {/* NOTIFICATIONS TAB */}
@@ -2589,7 +2711,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 if (!user?.uid || !lightSettings) return;
                                                                 setSavingLights(true);
                                                                 try {
-                                                                    await StorageService.saveLightSettings(lightSettings, user.uid);
+                                                                    await StorageService.saveLightSettings(lightSettings, user.uid, user.currentOrganizationId);
                                                                     addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
                                                                     alert(t('settingsSaved'));
                                                                 } catch (error) {
@@ -2732,7 +2854,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         )}
 
-                                        {/* HEALTH TAB */}
+
 
                                     </div>
                                 </div>
@@ -2754,6 +2876,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         onSelectMode={handleAddEquipmentModeSelect}
                         t={t}
                     />
+
+                    {/* Admin Dashboard Overlay */}
+                    {isAdminDashboardOpen && (user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com') && (
+                        <AdminDashboard
+                            currentUser={{ email: user.email!, uid: user.uid }}
+                            onClose={() => setIsAdminDashboardOpen(false)}
+                        />
+                    )}
 
                     {/* Quick Search QR Scanner */}
                     <BarcodeInputModal
@@ -2923,6 +3053,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     }
                 </div>
             </div>
+
+            {/* Organization Manager Modal */}
+            {showOrgManager && (
+                <OrganizationManager
+                    user={user}
+                    currentOrgId={user.currentOrganizationId || null}
+                    onClose={() => setShowOrgManager(false)}
+                    onOrgSwitch={(orgId) => {
+                        onOrgSwitch(orgId);
+                    }}
+                />
+            )}
         </div >
     );
 };

@@ -83,17 +83,17 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             });
         }
         // Also load all equipment definitions for color sync
-        StorageService.getEquipmentDefinitions(user.uid).then(setAllEquipment);
+        StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId).then(setAllEquipment);
         // Load reports to determine abnormal status
-        StorageService.getReports(user.uid).then(setReports);
+        StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId).then(setReports);
         // Load light settings
-        StorageService.getLightSettings(user.uid).then(setLightSettings);
-    }, [isOpen, user.uid]);
+        StorageService.getLightSettings(user.uid, user.currentOrganizationId).then(setLightSettings);
+    }, [isOpen, user.uid, user.currentOrganizationId]);
 
     const loadMaps = async (options?: { keepView?: boolean }) => {
         // First sync any files from storage that might be missing in Firestore (e.g. from data reset)
-        // await StorageService.syncMapsFromStorage(user.uid); // Removed as per user request to avoid auto-creating maps from raw images
-        const data = await StorageService.getEquipmentMaps(user.uid);
+        // await StorageService.syncMapsFromStorage(user.uid, user.currentOrganizationId); // Removed as per user request to avoid auto-creating maps from raw images
+        const data = await StorageService.getEquipmentMaps(user.uid, user.currentOrganizationId);
         setMaps(data);
         if (!options?.keepView) setViewMode('LIST');
         return data; // Return data for chaining
@@ -147,6 +147,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             const newMap: Omit<EquipmentMap, 'id'> = {
                 userId: user.uid,
+                organizationId: user.currentOrganizationId,
                 name: displayName,
                 imageUrl: file.url,
                 markers: [],
@@ -196,7 +197,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
             try {
                 // 1. Upload immediately to Storage (Cloud)
-                const storageUrl = await StorageService.uploadMapImage(file, user.uid);
+                const storageUrl = await StorageService.uploadMapImage(file, user.uid, user.currentOrganizationId);
 
                 // 2. Use Local Blob for Display (Avoids CORS/Loading issues)
                 const blobUrl = URL.createObjectURL(file);
@@ -560,7 +561,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
             // Priority logic for map update
             if (selectedFile && !StorageService.isGuest) {
                 try {
-                    finalImageUrl = await StorageService.uploadMapImage(selectedFile, user.uid);
+                    finalImageUrl = await StorageService.uploadMapImage(selectedFile, user.uid, user.currentOrganizationId);
                 } catch (e) {
                     console.warn("Upload failed, using Base64/Blob fallback", e);
                 }
@@ -689,7 +690,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                         const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
                         if (blob) {
                             const editFilename = `${mapName}_Edit.jpg`;
-                            await StorageService.uploadBlob(blob, editFilename, user.uid);
+                            await StorageService.uploadBlob(blob, editFilename, user.uid, user.currentOrganizationId);
                             console.log('Saved edited snapshot:', editFilename);
                         }
                     }
@@ -706,6 +707,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 rotation: rotation,
                 markerSize: markerSize,
                 markerColor: markerColor,
+                organizationId: user.currentOrganizationId,
                 // Preserve size from current map or file
                 size: currentMap?.size || (selectedFile ? selectedFile.size : undefined)
             };
@@ -715,9 +717,9 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 await StorageService.updateEquipmentMap(updatedMap);
                 setCurrentMap(updatedMap);
             } else {
-                const newId = await StorageService.saveEquipmentMap(mapData, user.uid);
+                const newId = await StorageService.saveEquipmentMap(mapData, user.uid, user.currentOrganizationId);
                 // Update current map with new ID so subsequent saves are updates
-                setCurrentMap({ ...mapData, id: newId, userId: user.uid, updatedAt: Date.now() } as EquipmentMap);
+                setCurrentMap({ ...mapData, id: newId, userId: user.uid, organizationId: user.currentOrganizationId, updatedAt: Date.now() } as EquipmentMap);
             }
 
             await loadMaps({ keepView: true });

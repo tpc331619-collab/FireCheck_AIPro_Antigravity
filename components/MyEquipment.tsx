@@ -61,7 +61,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const refreshData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const data = await StorageService.getEquipmentDefinitions(user.uid);
+      const data = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
       setAllEquipment(data);
 
       const uniqueSites = Array.from(new Set(data.map(item => item.siteName)));
@@ -73,7 +73,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       }
 
       // Load Settings
-      const settings = await StorageService.getLightSettings(user.uid);
+      const settings = await StorageService.getLightSettings(user.uid, user.currentOrganizationId);
       setLightSettings(settings);
     } catch (error) {
       console.error("Failed to load equipment", error);
@@ -84,7 +84,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
   useEffect(() => {
     refreshData();
-  }, [user.uid]);
+  }, [user.uid, user.currentOrganizationId]);
 
   // 當數據或篩選 site 改變時，更新可用建築物清單
   useEffect(() => {
@@ -178,15 +178,17 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
         const itemToDelete = allEquipment.find(e => e.id === id);
         if (itemToDelete) {
           const barcode = itemToDelete.barcode;
-          const maps = await StorageService.getMaps(user.uid);
+          if (id && user?.uid) {
+            const maps = await StorageService.getMaps(user.uid, user.currentOrganizationId);
 
-          const mapsToUpdate = maps.filter(m => m.markers.some(mk => mk.equipmentId === barcode));
+            const mapsToUpdate = maps.filter(m => m.markers.some(mk => mk.equipmentId === barcode));
 
-          if (mapsToUpdate.length > 0) {
-            console.log(`Syncing map markers: Removing equipment ${barcode} from ${mapsToUpdate.length} maps`);
-            for (const map of mapsToUpdate) {
-              const updatedMarkers = map.markers.filter(mk => mk.equipmentId !== barcode);
-              await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid);
+            if (mapsToUpdate.length > 0) {
+              console.log(`Syncing map markers: Removing equipment ${barcode} from ${mapsToUpdate.length} maps`);
+              for (const map of mapsToUpdate) {
+                const updatedMarkers = map.markers.filter(mk => mk.equipmentId !== barcode);
+                await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid, user.currentOrganizationId);
+              }
             }
           }
         }
@@ -237,7 +239,8 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
     try {
       console.log('[MyEquipment] Copying item:', item.barcode, '-> New:', cleanItem.barcode);
-      await StorageService.saveEquipmentDefinition(cleanItem, user.uid);
+      // Save either creates or updates based on presence of id in handleEditSubmit
+      await StorageService.saveEquipmentDefinition(cleanItem, user.uid, user.currentOrganizationId);
       refreshData(true);
       showToast(t('copySuccess'));
     } catch (err) {

@@ -6,11 +6,12 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 interface NotificationBellProps {
     userId: string;
+    organizationId?: string | null;
     className?: string; // Container/Button class
     iconClassName?: string; // Icon class
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, className, iconClassName }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName }) => {
     const { t } = useLanguage();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -22,7 +23,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
         if (userId) {
             loadNotifications();
         }
-    }, [userId]);
+    }, [userId, organizationId]);
 
     // Listen for new notifications
     useEffect(() => {
@@ -34,11 +35,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, clas
         return () => {
             window.removeEventListener('notification-added', handleNewNotification);
         };
-    }, [userId]);
+    }, [userId, organizationId]);
 
     const loadNotifications = async () => {
         try {
-            const data = await StorageService.getNotifications(userId);
+            const data = await StorageService.getNotifications(userId, organizationId);
             setNotifications(data);
         } catch (error) {
             console.error('Failed to load notifications:', error);

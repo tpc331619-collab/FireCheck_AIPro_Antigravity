@@ -1,4 +1,4 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings, Organization, OrganizationMember, OrganizationRole } from '../types';
 import { db, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
@@ -16,7 +16,7 @@ export const StorageService = {
     this.isGuest = enabled;
   },
 
-  async getReports(userId: string, year?: number, withItems: boolean = false): Promise<InspectionReport[]> {
+  async getReports(userId: string, year?: number, withItems: boolean = false, organizationId?: string | null): Promise<InspectionReport[]> {
     if (this.isGuest) {
       // First check if Guest View is allowed globally
       if (db) {
@@ -47,20 +47,34 @@ export const StorageService = {
         .sort((a, b) => b.date - a.date);
 
     } else {
-      return this._fetchFirestoreReports(userId, year, withItems);
+      return this._fetchFirestoreReports(userId, year, withItems, organizationId);
     }
   },
 
   // Private helper for Firestore fetching
-  async _fetchFirestoreReports(userId: string, year?: number, withItems: boolean = false): Promise<InspectionReport[]> {
+  async _fetchFirestoreReports(userId: string, year?: number, withItems: boolean = false, organizationId?: string | null): Promise<InspectionReport[]> {
     if (!db) return [];
     try {
       const targetYear = year || new Date().getFullYear();
       const collectionName = `reports_${targetYear}`;
 
-      const q = query(collection(db, collectionName), where('userId', '==', userId));
+      let q;
+      // Prefer organization query if orgId is provided
+      if (organizationId && organizationId !== '') {
+        q = query(collection(db, collectionName), where('organizationId', '==', organizationId));
+      } else {
+        q = query(collection(db, collectionName), where('userId', '==', userId));
+      }
+
       const snapshot = await getDocs(q);
-      const reports = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as InspectionReport));
+      let reports = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as InspectionReport));
+
+      // Client-side filtering to ensure strict separation
+      if (!organizationId || organizationId === '') {
+        reports = reports.filter(r => !r.organizationId);
+      } else {
+        reports = reports.filter(r => r.organizationId === organizationId);
+      }
 
       if (withItems) {
         await Promise.all(reports.map(async (report) => {
@@ -76,7 +90,7 @@ export const StorageService = {
     }
   },
 
-  async saveReport(report: Omit<InspectionReport, 'id'>, userId: string): Promise<string> {
+  async saveReport(report: Omit<InspectionReport, 'id'>, userId: string, organizationId?: string | null): Promise<string> {
     // Separate items from report data
     const { items, ...reportData } = report;
 
@@ -90,14 +104,17 @@ export const StorageService = {
     };
 
     // Prepare new report object (without items for Firestore main doc)
-    const firestoreReport = { ...reportData, userId, stats };
+    const firestoreReport: any = { ...reportData, userId, stats };
+    if (organizationId) {
+      firestoreReport.organizationId = organizationId;
+    }
 
     if (this.isGuest || !db) {
       const data = localStorage.getItem(LOCAL_STORAGE_KEY);
       const reports: InspectionReport[] = data ? JSON.parse(data) : [];
       const id = 'local_' + Date.now().toString();
       // For LocalStorage, we keep items embedded as there are no subcollections
-      const reportWithId = { ...reportData, userId, stats, items, id };
+      const reportWithId = { ...reportData, userId, stats, items, id, organizationId: organizationId || undefined };
       reports.unshift(reportWithId);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
       return id;
@@ -280,15 +297,18 @@ export const StorageService = {
 
   // --- Equipment Definition Methods ---
 
-  async saveEquipmentDefinition(def: EquipmentDefinition, userId: string): Promise<string> {
+  async saveEquipmentDefinition(def: EquipmentDefinition, userId: string, organizationId?: string | null): Promise<string> {
     const { id, ...dataToSave } = def;
-    const newDef = { ...dataToSave, userId };
+    const newDef: any = { ...dataToSave, userId };
+    if (organizationId) {
+      newDef.organizationId = organizationId;
+    }
 
     if (this.isGuest || !db) {
       const data = localStorage.getItem(EQUIP_STORAGE_KEY);
       const defs: EquipmentDefinition[] = data ? JSON.parse(data) : [];
       const localId = 'local_' + Date.now().toString();
-      const defWithId = { ...newDef, id: localId } as EquipmentDefinition;
+      const defWithId = { ...newDef, id: localId, organizationId: organizationId || undefined } as EquipmentDefinition;
       defs.push(defWithId);
       localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(defs));
       return localId;
@@ -369,17 +389,23 @@ export const StorageService = {
     }
   },
 
-  async getEquipmentDefinitions(userId: string): Promise<EquipmentDefinition[]> {
+  async getEquipmentDefinitions(userId: string, organizationId?: string | null): Promise<EquipmentDefinition[]> {
     let targetUserId = userId;
     let useCloud = !this.isGuest && !!db;
 
     // Check for Public Guest Access
-    if (this.isGuest && db) {
+    // If organizationId is present, we skip this guest check logic as we want explicitly org data
+    if (!organizationId && this.isGuest && db) {
       const settings = await this.getSystemSettings();
       if (settings?.allowGuestView && settings?.publicDataUserId) {
         targetUserId = settings.publicDataUserId;
         useCloud = true;
       }
+    }
+
+    // If organizationId is provided, we force cloud usage (or specific handling)
+    if (organizationId && db) {
+      useCloud = true;
     }
 
     if (!useCloud) {
@@ -389,11 +415,16 @@ export const StorageService = {
       return defs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
     } else {
       try {
-        // 主要從 'equipments' 讀取
-        const q = query(collection(db, DB_COLLECTION), where('userId', '==', targetUserId));
+        let q;
+        if (organizationId && organizationId !== '') {
+          q = query(collection(db, DB_COLLECTION), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, DB_COLLECTION), where('userId', '==', targetUserId));
+        }
+
         const snapshot = await getDocs(q);
 
-        const results = snapshot.docs.map(snapshotDoc => {
+        let results = snapshot.docs.map(snapshotDoc => {
           const data = snapshotDoc.data();
           // 剔除資料內部的 id，強制使用 document key
           const { id: _, ...cleanData } = data as any;
@@ -403,24 +434,34 @@ export const StorageService = {
           } as EquipmentDefinition;
         });
 
+        // Client-side filtering to ensure strict separation
+        if (!organizationId || organizationId === '') {
+          results = results.filter(r => !r.organizationId);
+        } else {
+          results = results.filter(r => r.organizationId === organizationId);
+        }
+
         const sortedResults = results.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-        // Sync to local storage for Guest Access (if viewing as Admin)
-        if (!this.isGuest) {
+        // Sync to local storage for Guest Access (if viewing as Admin AND NOT in organization mode)
+        if (!this.isGuest && !organizationId) {
           localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(sortedResults));
         }
 
         return sortedResults;
       } catch (e) {
         console.error("Firebase fetch equipment error", e);
-        // Fallback to local
-        const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
-        return dataStr ? JSON.parse(dataStr) : [];
+        // Fallback to local only if NOT searching for specific organization (because local doesn't have org data usually)
+        if (!organizationId) {
+          const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
+          return dataStr ? JSON.parse(dataStr) : [];
+        }
+        return [];
       }
     }
   },
 
-  async getEquipmentById(equipmentId: string, userId: string): Promise<EquipmentDefinition | null> {
+  async getEquipmentById(equipmentId: string, userId: string, organizationId?: string | null): Promise<EquipmentDefinition | null> {
     if (this.isGuest || !db) {
       const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
       if (!dataStr) return null;
@@ -453,14 +494,16 @@ export const StorageService = {
 
   // --- Hierarchy Methods ---
 
-  async getEquipmentHierarchy(userId: string): Promise<EquipmentHierarchy | null> {
+  async getEquipmentHierarchy(userId: string, organizationId?: string | null): Promise<EquipmentHierarchy | null> {
     const HIERARCHY_KEY = `hierarchy_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(HIERARCHY_KEY);
       return data ? JSON.parse(data) : null;
     } else {
       try {
-        const docRef = doc(db, 'hierarchies', userId);
+        const isPersonal = !organizationId || organizationId === '';
+        const targetId = isPersonal ? userId : organizationId;
+        const docRef = doc(db, 'hierarchies', targetId);
         const snapshot = await getDoc(docRef);
         if (snapshot.exists()) {
           return snapshot.data() as EquipmentHierarchy;
@@ -469,8 +512,11 @@ export const StorageService = {
       } catch (e: any) {
         if (e.code === 'permission-denied') {
           console.warn("Firestore permission denied, falling back to local storage");
-          const data = localStorage.getItem(HIERARCHY_KEY);
-          return data ? JSON.parse(data) : null;
+          // Only fallback if NOT organization view, as local storage doesn't have org data
+          if (!organizationId) {
+            const data = localStorage.getItem(HIERARCHY_KEY);
+            return data ? JSON.parse(data) : null;
+          }
         }
         console.error("Fetch hierarchy error", e);
         return null;
@@ -478,21 +524,29 @@ export const StorageService = {
     }
   },
 
-  async saveEquipmentHierarchy(hierarchy: EquipmentHierarchy, userId: string): Promise<void> {
+  async saveEquipmentHierarchy(hierarchy: EquipmentHierarchy, userId: string, organizationId?: string | null): Promise<void> {
     const HIERARCHY_KEY = `hierarchy_${userId}`;
     if (this.isGuest || !db) {
       localStorage.setItem(HIERARCHY_KEY, JSON.stringify(hierarchy));
     } else {
       try {
-        const docRef = doc(db, 'hierarchies', userId);
+        const isPersonal = !organizationId || organizationId === '';
+        const targetId = isPersonal ? userId : organizationId;
+        const docRef = doc(db, 'hierarchies', targetId);
         await setDoc(docRef, hierarchy);
       } catch (e: any) {
         console.error("Save hierarchy error", e);
 
         if (e.code === 'permission-denied') {
           console.warn("Firestore permission denied, falling back to local storage");
-          localStorage.setItem(HIERARCHY_KEY, JSON.stringify(hierarchy));
-          return; // Treated as success (local only)
+          // If trying to save org data and denied, we can't really fallback to local storage safely
+          // but for user data we can.
+          if (!organizationId) {
+            localStorage.setItem(HIERARCHY_KEY, JSON.stringify(hierarchy));
+          } else {
+            throw e; // Org save failed
+          }
+          return;
         }
 
         if (e instanceof Error) {
@@ -503,14 +557,16 @@ export const StorageService = {
     }
   },
 
-  async getDeclarationSettings(userId: string): Promise<DeclarationSettings | null> {
+  async getDeclarationSettings(userId: string, organizationId?: string | null): Promise<DeclarationSettings | null> {
     const SETTINGS_KEY = `declaration_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(SETTINGS_KEY);
       return data ? JSON.parse(data) : null;
     } else {
       try {
-        const docRef = doc(db, 'settings', `declaration_${userId}`);
+        const isPersonal = !organizationId || organizationId === '';
+        const docId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
+        const docRef = doc(db, 'settings', docId);
         const snapshot = await getDoc(docRef);
         if (snapshot.exists()) {
           return snapshot.data() as DeclarationSettings;
@@ -519,8 +575,10 @@ export const StorageService = {
       } catch (e: any) {
         if (e.code === 'permission-denied') {
           console.warn("Firestore permission denied, falling back to local storage");
-          const data = localStorage.getItem(SETTINGS_KEY);
-          return data ? JSON.parse(data) : null;
+          if (!organizationId) {
+            const data = localStorage.getItem(SETTINGS_KEY);
+            return data ? JSON.parse(data) : null;
+          }
         }
         console.error("Fetch declaration settings error", e);
         return null;
@@ -528,18 +586,24 @@ export const StorageService = {
     }
   },
 
-  async saveDeclarationSettings(settings: DeclarationSettings, userId: string): Promise<void> {
+  async saveDeclarationSettings(settings: DeclarationSettings, userId: string, organizationId?: string | null): Promise<void> {
     const SETTINGS_KEY = `declaration_${userId}`;
     if (this.isGuest || !db) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     } else {
       try {
-        const docRef = doc(db, 'settings', `declaration_${userId}`);
+        const isPersonal = !organizationId || organizationId === '';
+        const docId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
+        const docRef = doc(db, 'settings', docId);
         await setDoc(docRef, settings);
       } catch (e: any) {
         if (e.code === 'permission-denied') {
           console.warn("Firestore permission denied, falling back to local storage");
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+          if (!organizationId) {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+          } else {
+            throw e;
+          }
           return;
         }
         console.error("Save declaration settings error", e);
@@ -590,16 +654,30 @@ export const StorageService = {
 
   // --- Equipment Map Methods ---
 
-  async getEquipmentMaps(userId: string): Promise<EquipmentMap[]> {
+  async getEquipmentMaps(userId: string, organizationId?: string | null): Promise<EquipmentMap[]> {
     const KEY = `maps_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
       return data ? JSON.parse(data) : [];
     } else {
       try {
-        const q = query(collection(db, 'maps'), where('userId', '==', userId));
+        let q;
+        if (organizationId && organizationId !== '') {
+          q = query(collection(db, 'maps'), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, 'maps'), where('userId', '==', userId));
+        }
+
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as EquipmentMap));
+        let results = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as EquipmentMap));
+
+        // Client-side filtering to ensure strict separation
+        if (!organizationId || organizationId === '') {
+          results = results.filter(r => !r.organizationId);
+        } else {
+          results = results.filter(r => r.organizationId === organizationId);
+        }
+        return results;
       } catch (e) {
         console.error("Fetch maps error", e);
         const data = localStorage.getItem(KEY);
@@ -609,27 +687,27 @@ export const StorageService = {
   },
 
   // Aliases for Map Sync Logic
-  async getMaps(userId: string): Promise<EquipmentMap[]> {
-    return this.getEquipmentMaps(userId);
+  async getMaps(userId: string, organizationId?: string | null): Promise<EquipmentMap[]> {
+    return this.getEquipmentMaps(userId, organizationId);
   },
 
-  async saveMap(mapData: EquipmentMap | Omit<EquipmentMap, 'id'>, userId: string): Promise<string> {
+  async saveMap(mapData: EquipmentMap | Omit<EquipmentMap, 'id'>, userId: string, organizationId?: string | null): Promise<string> {
     if ('id' in mapData) {
       await this.updateEquipmentMap(mapData);
       return mapData.id;
     }
-    return this.saveEquipmentMap(mapData, userId);
+    return this.saveEquipmentMap(mapData, userId, organizationId);
   },
 
-  async saveEquipmentMap(mapData: Omit<EquipmentMap, 'id'>, userId: string): Promise<string> {
+  async saveEquipmentMap(mapData: Omit<EquipmentMap, 'id'>, userId: string, organizationId?: string | null): Promise<string> {
     const KEY = `maps_${userId}`;
-    const newMap = { ...mapData, userId, updatedAt: Date.now() };
+    const newMap = { ...mapData, userId, organizationId: organizationId || null, updatedAt: Date.now() };
 
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
       const maps: EquipmentMap[] = data ? JSON.parse(data) : [];
       const id = 'local_map_' + Date.now();
-      maps.push({ ...newMap, id });
+      maps.push({ ...newMap, id } as EquipmentMap);
       localStorage.setItem(KEY, JSON.stringify(maps));
       return id;
     } else {
@@ -704,7 +782,7 @@ export const StorageService = {
     }
   },
 
-  async uploadMapImage(file: File, userId: string): Promise<string> {
+  async uploadMapImage(file: File, userId: string, organizationId?: string | null): Promise<string> {
     if (this.isGuest || !storage) {
       throw new Error("Guest mode cannot upload to Firebase Storage");
     }
@@ -714,7 +792,8 @@ export const StorageService = {
         throw new Error("File size exceeds 1MB limit");
       }
       const timestamp = Date.now();
-      const storageRef = ref(storage, `maps/${userId}/${timestamp}_${file.name}`);
+      const path = organizationId ? `maps/${organizationId}/${timestamp}_${file.name}` : `maps/${userId}/${timestamp}_${file.name}`;
+      const storageRef = ref(storage, path);
 
       const snapshot = await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
@@ -725,14 +804,15 @@ export const StorageService = {
     }
   },
 
-  async uploadBlob(blob: Blob, filename: string, userId: string): Promise<string> {
+  async uploadBlob(blob: Blob, filename: string, userId: string, organizationId?: string | null): Promise<string> {
     if (this.isGuest || !storage) throw new Error("Guest mode");
     try {
       if (blob.size > 1024 * 1024) {
         throw new Error("File size exceeds 1MB limit");
       }
       const timestamp = Date.now();
-      const storageRef = ref(storage, `maps/${userId}/${timestamp}_${filename}`);
+      const path = organizationId ? `maps/${organizationId}/${timestamp}_${filename}` : `maps/${userId}/${timestamp}_${filename}`;
+      const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, blob);
       return await getDownloadURL(snapshot.ref);
     } catch (e) {
@@ -741,7 +821,7 @@ export const StorageService = {
     }
   },
 
-  async uploadEquipmentPhoto(file: File, userId: string): Promise<string> {
+  async uploadEquipmentPhoto(file: File, userId: string, organizationId?: string | null): Promise<string> {
     if (this.isGuest || !storage) {
       throw new Error("Guest mode cannot upload to Firebase Storage");
     }
@@ -753,7 +833,8 @@ export const StorageService = {
       const timestamp = Date.now();
       // Generate unique name to avoid collisions
       const cleanFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      const storageRef = ref(storage, `equipments/${userId}/${timestamp}_${cleanFileName}`);
+      const path = organizationId ? `equipments/${organizationId}/${timestamp}_${cleanFileName}` : `equipments/${userId}/${timestamp}_${cleanFileName}`;
+      const storageRef = ref(storage, path);
 
       const snapshot = await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
@@ -776,16 +857,17 @@ export const StorageService = {
     }
   },
 
-  async syncMapsFromStorage(userId: string): Promise<number> {
+  async syncMapsFromStorage(userId: string, organizationId?: string | null): Promise<number> {
     if (this.isGuest || !storage || !db) return 0;
 
     try {
       // 1. Get all existing maps to avoid duplicates
-      const existingMaps = await this.getEquipmentMaps(userId);
+      const existingMaps = await this.getEquipmentMaps(userId, organizationId);
       const existingUrls = new Set(existingMaps.map(m => m.imageUrl));
 
       // 2. List all files in storage
-      const listRef = ref(storage, `maps/${userId}`);
+      const path = organizationId ? `maps/${organizationId}` : `maps/${userId}`;
+      const listRef = ref(storage, path);
       const res = await listAll(listRef);
 
       let addedCount = 0;
@@ -833,10 +915,11 @@ export const StorageService = {
     }
   },
 
-  async getStorageFiles(userId: string) {
+  async getStorageFiles(userId: string, organizationId?: string | null) {
     if (this.isGuest || !storage) return [];
     try {
-      const listRef = ref(storage, `maps/${userId}`);
+      const path = organizationId ? `maps/${organizationId}` : `maps/${userId}`;
+      const listRef = ref(storage, path);
       const res = await listAll(listRef);
 
       const filesPromise = res.items.map(async (itemRef) => {
@@ -871,8 +954,9 @@ export const StorageService = {
 
   // --- Abnormal Record Methods ---
 
-  async saveAbnormalRecord(record: Omit<AbnormalRecord, 'id'>, userId: string): Promise<string> {
-    const newRecord = { ...record, userId };
+  async saveAbnormalRecord(record: Omit<AbnormalRecord, 'id'>, userId: string, organizationId?: string | null): Promise<string> {
+    console.log('[StorageService] saveAbnormalRecord called', { userId, organizationId, equipmentId: record.equipmentId });
+    const newRecord = { ...record, userId, organizationId: organizationId || null };
     const ABNORMAL_STORAGE_KEY = 'firecheck_abnormal_records';
 
     if (this.isGuest || !db) {
@@ -880,7 +964,14 @@ export const StorageService = {
       const records: AbnormalRecord[] = data ? JSON.parse(data) : [];
 
       // Check for existing pending record
-      const existingIndex = records.findIndex(r => r.equipmentId === record.equipmentId && r.status === 'pending');
+      const existingIndex = records.findIndex(r => {
+        const sameEquipment = r.equipmentId === record.equipmentId && r.status === 'pending';
+        if (organizationId) {
+          return sameEquipment && r.organizationId === organizationId;
+        } else {
+          return sameEquipment && r.userId === userId;
+        }
+      });
 
       if (existingIndex >= 0) {
         // Update existing
@@ -893,19 +984,29 @@ export const StorageService = {
         // Create new
         const id = 'local_abnormal_' + Date.now().toString();
         const recordWithId = { ...newRecord, id };
-        records.unshift(recordWithId);
+        records.unshift(recordWithId as AbnormalRecord);
         localStorage.setItem(ABNORMAL_STORAGE_KEY, JSON.stringify(records));
         return id;
       }
     } else {
       try {
         // Check for existing pending record in Firestore
-        const q = query(
-          collection(db, 'abnormalRecords'),
-          where('userId', '==', userId),
-          where('equipmentId', '==', record.equipmentId),
-          where('status', '==', 'pending')
-        );
+        let q;
+        if (organizationId) {
+          q = query(
+            collection(db, 'abnormalRecords'),
+            where('organizationId', '==', organizationId),
+            where('equipmentId', '==', record.equipmentId),
+            where('status', '==', 'pending')
+          );
+        } else {
+          q = query(
+            collection(db, 'abnormalRecords'),
+            where('userId', '==', userId),
+            where('equipmentId', '==', record.equipmentId),
+            where('status', '==', 'pending')
+          );
+        }
 
         const snapshot = await getDocs(q);
 
@@ -934,7 +1035,7 @@ export const StorageService = {
 
 
 
-  async addHealthIndicator(indicator: Omit<HealthIndicator, 'id' | 'updatedAt'>, userId: string): Promise<string> {
+  async addHealthIndicator(indicator: Omit<HealthIndicator, 'id' | 'updatedAt'>, userId: string, organizationId?: string | null): Promise<string> {
     const KEY = `health_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
@@ -948,6 +1049,7 @@ export const StorageService = {
         const docRef = await addDoc(collection(db, 'health'), {
           ...indicator,
           userId,
+          organizationId: organizationId || null,
           updatedAt: Date.now()
         });
         return docRef.id;
@@ -967,11 +1069,11 @@ export const StorageService = {
     }
   },
 
-  async updateHealthIndicator(id: string, updates: Partial<HealthIndicator>, userId: string): Promise<void> {
+  async updateHealthIndicator(id: string, updates: Partial<HealthIndicator>, userId: string, organizationId?: string | null): Promise<void> {
     const KEY = `health_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
-      let indicators: HealthIndicator[] = data ? JSON.PARSE(data) : [];
+      let indicators: HealthIndicator[] = data ? JSON.parse(data) : [];
       const index = indicators.findIndex(i => i.id === id);
       if (index !== -1) {
         indicators[index] = { ...indicators[index], ...updates, updatedAt: Date.now() };
@@ -980,7 +1082,7 @@ export const StorageService = {
     } else {
       try {
         const docRef = doc(db, 'health', id);
-        await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+        await updateDoc(docRef, { ...updates, updatedAt: Date.now(), organizationId: organizationId || null });
       } catch (e: any) {
         if (e.code === 'permission-denied') {
           // Fallback local
@@ -999,7 +1101,7 @@ export const StorageService = {
     }
   },
 
-  async deleteHealthIndicator(id: string, userId: string): Promise<void> {
+  async deleteHealthIndicator(id: string, userId: string, organizationId?: string | null): Promise<void> {
     const KEY = `health_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
@@ -1024,7 +1126,7 @@ export const StorageService = {
     }
   },
 
-  async addHealthHistory(record: Omit<HealthHistoryRecord, 'id' | 'updatedAt'>, userId: string): Promise<string> {
+  async addHealthHistory(record: Omit<HealthHistoryRecord, 'id' | 'updatedAt'>, userId: string, organizationId?: string | null): Promise<string> {
     const KEY = `health_history_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
@@ -1038,6 +1140,7 @@ export const StorageService = {
         const docRef = await addDoc(collection(db, 'healthHistory'), {
           ...record,
           userId,
+          organizationId: organizationId || null,
           updatedAt: Date.now()
         });
         return docRef.id;
@@ -1057,7 +1160,7 @@ export const StorageService = {
     }
   },
 
-  async getHealthHistory(indicatorId: string, userId: string): Promise<HealthHistoryRecord[]> {
+  async getHealthHistory(indicatorId: string, userId: string, organizationId?: string | null): Promise<HealthHistoryRecord[]> {
     const KEY = `health_history_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
@@ -1066,14 +1169,23 @@ export const StorageService = {
       return history.filter(h => h.indicatorId === indicatorId).sort((a, b) => b.updatedAt - a.updatedAt);
     } else {
       try {
-        const q = query(
-          collection(db, 'healthHistory'),
-          where('userId', '==', userId),
-          where('indicatorId', '==', indicatorId)
-        );
+        let q;
+        if (organizationId) {
+          q = query(
+            collection(db, 'healthHistory'),
+            where('organizationId', '==', organizationId),
+            where('indicatorId', '==', indicatorId)
+          );
+        } else {
+          q = query(
+            collection(db, 'healthHistory'),
+            where('userId', '==', userId),
+            where('indicatorId', '==', indicatorId)
+          );
+        }
         const snapshot = await getDocs(q);
-        return snapshot.docs
-          .map(d => ({ ...d.data(), id: d.id } as HealthHistoryRecord))
+        const records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as HealthHistoryRecord));
+        return records
           .sort((a, b) => b.updatedAt - a.updatedAt);
       } catch (e) {
         console.error("Fetch health history error", e);
@@ -1082,19 +1194,27 @@ export const StorageService = {
     }
   },
 
-  async getAllHealthHistory(userId: string): Promise<HealthHistoryRecord[]> {
-    const KEY = `health_history_${userId}`;
+  async getAllHealthHistory(userId: string, organizationId?: string | null): Promise<HealthHistoryRecord[]> {
+    const KEY = organizationId ? `health_history_${organizationId}` : `health_history_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
       return data ? JSON.parse(data) : [];
     } else {
       try {
-        const q = query(
-          collection(db, 'healthHistory'),
-          where('userId', '==', userId)
-        );
+        let q;
+        if (organizationId) {
+          q = query(
+            collection(db, 'healthHistory'),
+            where('organizationId', '==', organizationId)
+          );
+        } else {
+          q = query(
+            collection(db, 'healthHistory'),
+            where('userId', '==', userId)
+          );
+        }
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as HealthHistoryRecord));
+        return snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as HealthHistoryRecord));
       } catch (e) {
         console.error("Fetch all health history error", e);
         return [];
@@ -1102,31 +1222,34 @@ export const StorageService = {
     }
   },
 
-  async getHealthIndicators(userId: string): Promise<HealthIndicator[]> {
+  async getHealthIndicators(userId: string, organizationId?: string | null): Promise<HealthIndicator[]> {
     const KEY = `health_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
       return data ? JSON.parse(data) : [];
     } else {
       try {
-        // Query the dedicated 'health' collection
-        const q = query(collection(db, 'health'), where('userId', '==', userId));
+        let q;
+        if (organizationId) {
+          q = query(collection(db, 'health'), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, 'health'), where('userId', '==', userId));
+        }
+
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
-          return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HealthIndicator));
+          return snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) } as HealthIndicator));
         }
 
-        // --- MIGRATION CHECK ---
-        // If 'health' collection is empty, check old 'settings' document for legacy data
+        // --- MIGRATION CHECK (Only for User view) ---
+        // If 'health' collection is empty, check old 'settings' document
         const settingsDocRef = doc(db, 'settings', `health_${userId}`);
         const settingsSnapshot = await getDoc(settingsDocRef);
         if (settingsSnapshot.exists()) {
-          const legacyData = settingsSnapshot.data().indicators as HealthIndicator[];
+          const data = settingsSnapshot.data() as { indicators?: HealthIndicator[] };
+          const legacyData = data.indicators;
           if (legacyData && legacyData.length > 0) {
-            // Return legacy data so UI works, user can choose to re-save if we added logic, 
-            // but for now, we just return it. 
-            // Ideally, we could auto-migrate here, but read-only is safer for getter.
             return legacyData;
           }
         }
@@ -1134,19 +1257,57 @@ export const StorageService = {
         return [];
       } catch (e: any) {
         console.error("Fetch health indicators error", e);
-        const data = localStorage.getItem(KEY);
-        return data ? JSON.parse(data) : [];
+        if (!organizationId) {
+          const data = localStorage.getItem(KEY);
+          return data ? JSON.parse(data) : [];
+        }
+        return [];
       }
     }
   },
 
   // Deprecated: Use add/update/delete methods instead
-  async saveHealthIndicators(indicators: HealthIndicator[], userId: string): Promise<void> {
+  // Updated to support organizationId (saves to 'health' collection if orgId present)
+  async saveHealthIndicators(indicators: HealthIndicator[], userId: string, organizationId?: string | null): Promise<void> {
     const KEY = `health_${userId}`;
     if (this.isGuest || !db) {
       localStorage.setItem(KEY, JSON.stringify(indicators));
     } else {
       try {
+        if (organizationId) {
+          // For Organization: WE MUST USE 'health' COLLECTION
+          // Strategy: Delete all existing org indicators and re-create (Save All)
+
+          // 1. Get existing
+          const q = query(collection(db, 'health'), where('organizationId', '==', organizationId));
+          const snapshot = await getDocs(q);
+
+          const batch = writeBatch(db);
+
+          const existingIds = new Set(snapshot.docs.map(d => d.id));
+          const newIds = new Set();
+
+          indicators.forEach(ind => {
+            // Use composite ID to ensure stability and uniqueness
+            const docId = ind.id.includes(organizationId) ? ind.id : `${organizationId}_${ind.id}`;
+            newIds.add(docId);
+            const docRef = doc(db, 'health', docId);
+            const data = { ...ind, organizationId, userId }; // Add userId too for reference
+            batch.set(docRef, data);
+          });
+
+          // Delete ones that are no longer present
+          existingIds.forEach(oldId => {
+            if (!newIds.has(oldId)) {
+              batch.delete(doc(db, 'health', oldId));
+            }
+          });
+
+          await batch.commit();
+          return;
+        }
+
+        // Default User Logic (Legacy Settings Doc)
         const docRef = doc(db, 'settings', `health_${userId}`);
         await setDoc(docRef, { indicators });
       } catch (e: any) {
@@ -1160,12 +1321,14 @@ export const StorageService = {
     }
   },
 
-  async getAbnormalRecords(userId: string): Promise<AbnormalRecord[]> {
+  async getAbnormalRecords(userId: string, organizationId?: string | null): Promise<AbnormalRecord[]> {
+    console.log('[StorageService] getAbnormalRecords called', { userId, organizationId });
     let targetUserId = userId;
     let useCloud = !this.isGuest && !!db;
 
     // Check for Public Guest Access
-    if (this.isGuest && db) {
+    // Skip if organizationId is present
+    if (!organizationId && this.isGuest && db) {
       const settings = await this.getSystemSettings();
       if (settings?.allowGuestView && settings?.publicDataUserId) {
         // Also check for Abnormal Recheck Permission?
@@ -1176,6 +1339,11 @@ export const StorageService = {
       }
     }
 
+    // Force cloud if orgId provided
+    if (organizationId && db) {
+      useCloud = true;
+    }
+
     if (!useCloud) {
       const dataStr = localStorage.getItem('firecheck_abnormal_records');
       if (!dataStr) return [];
@@ -1183,13 +1351,26 @@ export const StorageService = {
       return records.sort((a, b) => b.createdAt - a.createdAt);
     } else {
       try {
-        const q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
+        let q;
+        if (organizationId && organizationId !== '') {
+          q = query(collection(db, 'abnormalRecords'), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
+        }
+
         const snapshot = await getDocs(q);
-        const records = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AbnormalRecord));
+        let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
+
+        // Client-side filtering to ensure strict separation
+        if (!organizationId || organizationId === '') {
+          records = records.filter(r => !r.organizationId);
+        } else {
+          records = records.filter(r => r.organizationId === organizationId);
+        }
         const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
 
-        // Sync to local storage for Guest Access (if Admin)
-        if (!this.isGuest) {
+        // Sync to local storage for Guest Access (if Admin AND not Org view)
+        if (!this.isGuest && !organizationId) {
           localStorage.setItem('firecheck_abnormal_records', JSON.stringify(sorted));
         }
 
@@ -1197,8 +1378,11 @@ export const StorageService = {
       } catch (e) {
         console.error("Abnormal records fetch error", e);
         // Fallback
-        const dataStr = localStorage.getItem('firecheck_abnormal_records');
-        return dataStr ? JSON.parse(dataStr) : [];
+        if (!organizationId) {
+          const dataStr = localStorage.getItem('firecheck_abnormal_records');
+          return dataStr ? JSON.parse(dataStr) : [];
+        }
+        return [];
       }
     }
   },
@@ -1246,8 +1430,9 @@ export const StorageService = {
 
   // --- Light Settings Methods ---
 
-  async getLightSettings(userId: string): Promise<any> {
-    const KEY = `lights_${userId}`;
+  async getLightSettings(userId: string, organizationId?: string | null): Promise<any> {
+    const isPersonal = !organizationId || organizationId === '';
+    const KEY = isPersonal ? `lights_${userId}` : `lights_${organizationId}`;
     const defaults = {
       red: { days: 2, color: '#ef4444' },
       yellow: { days: 5, color: '#facc15' },
@@ -1259,7 +1444,7 @@ export const StorageService = {
       return data ? JSON.parse(data) : defaults;
     } else {
       try {
-        const docRef = doc(db, 'settings', `lights_${userId}`);
+        const docRef = doc(db, 'settings', KEY);
         const snapshot = await getDoc(docRef);
         if (snapshot.exists()) {
           return { ...defaults, ...snapshot.data() };
@@ -1273,14 +1458,15 @@ export const StorageService = {
     }
   },
 
-  async saveLightSettings(settings: any, userId: string): Promise<void> {
-    const KEY = `lights_${userId}`;
+  async saveLightSettings(settings: any, userId: string, organizationId?: string | null): Promise<void> {
+    const isPersonal = !organizationId || organizationId === '';
+    const KEY = isPersonal ? `lights_${userId}` : `lights_${organizationId}`;
     if (this.isGuest || !db) {
       localStorage.setItem(KEY, JSON.stringify(settings));
     } else {
       try {
-        const docRef = doc(db, 'settings', `lights_${userId}`);
-        await setDoc(docRef, settings);
+        const docRef = doc(db, 'settings', KEY);
+        await setDoc(docRef, { ...settings, organizationId: organizationId || null });
       } catch (e: any) {
         if (e.code === 'permission-denied') {
           localStorage.setItem(KEY, JSON.stringify(settings));
@@ -1293,22 +1479,40 @@ export const StorageService = {
   },
 
   // Notification methods
-  async getNotifications(userId: string): Promise<any[]> {
+  async getNotifications(userId: string, organizationId?: string | null): Promise<any[]> {
     const KEY = `notifications_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
-      return data ? JSON.parse(data) : [];
+      const notifications = data ? JSON.parse(data) : [];
+      if (organizationId !== undefined) {
+        return notifications.filter((n: any) => n.organizationId === organizationId);
+      }
+      return notifications;
     } else {
       try {
-        const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+        let q;
+        if (organizationId !== undefined) {
+          q = query(
+            collection(db, 'notifications'),
+            where('userId', '==', userId),
+            where('organizationId', '==', organizationId)
+          );
+        } else {
+          q = query(collection(db, 'notifications'), where('userId', '==', userId));
+        }
+
         const snapshot = await getDocs(q);
         return snapshot.docs
-          .map(d => ({ ...d.data(), id: d.id }))
+          .map(d => ({ ...(d.data() as any), id: d.id }))
           .sort((a: any, b: any) => b.timestamp - a.timestamp);
       } catch (e: any) {
         if (e.code === 'permission-denied') {
           const data = localStorage.getItem(KEY);
-          return data ? JSON.parse(data) : [];
+          const notifications = data ? JSON.parse(data) : [];
+          if (organizationId !== undefined) {
+            return notifications.filter((n: any) => n.organizationId === organizationId);
+          }
+          return notifications;
         }
         console.error("Get notifications error", e);
         return [];
@@ -1316,11 +1520,12 @@ export const StorageService = {
     }
   },
 
-  async addNotification(notification: any, userId: string): Promise<string> {
+  async addNotification(notification: any, userId: string, organizationId?: string | null): Promise<string> {
     const KEY = `notifications_${userId}`;
     const newNotification = {
-      ...notification,
+      ...(notification as any),
       userId,
+      organizationId: organizationId || null,
       id: notification.id || `NOTIF_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: notification.timestamp || Date.now(),
       read: notification.read || false
@@ -1441,5 +1646,362 @@ export const StorageService = {
       console.error("Save system settings error", e);
       throw e;
     }
+  },
+  // ==================== 組織管理 ====================
+
+  async createOrganization(org: Omit<Organization, 'id'>): Promise<string> {
+    if (!db) throw new Error('Database not initialized');
+    try {
+      const docRef = await addDoc(collection(db, 'organizations'), org);
+      console.log('[StorageService] Created organization:', docRef.id);
+      return docRef.id;
+    } catch (e) {
+      console.error('Create organization error', e);
+      throw e;
+    }
+  },
+
+  async getOrganization(orgId: string): Promise<Organization | null> {
+    if (!db) return null;
+    try {
+      const docRef = doc(db, 'organizations', orgId);
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return { ...snapshot.data(), id: snapshot.id } as Organization;
+      }
+      return null;
+    } catch (e) {
+      console.error('Get organization error', e);
+      return null;
+    }
+  },
+
+  async updateOrganization(orgId: string, updates: Partial<Organization>): Promise<void> {
+    if (!db) throw new Error('Database not initialized');
+    try {
+      const docRef = doc(db, 'organizations', orgId);
+      await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+      console.log('[StorageService] Updated organization:', orgId);
+    } catch (e) {
+      console.error('Update organization error', e);
+      throw e;
+    }
+  },
+
+  async deleteOrganization(orgId: string): Promise<void> {
+    if (!db) throw new Error('Database not initialized');
+    try {
+      // 1. Delete all members
+      const membersQuery = query(collection(db, 'organizationMembers'), where('organizationId', '==', orgId));
+      const membersSnapshot = await getDocs(membersQuery);
+      const batch = writeBatch(db);
+      membersSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+
+      // 2. Delete organization
+      const docRef = doc(db, 'organizations', orgId);
+      await deleteDoc(docRef);
+      console.log('[StorageService] Deleted organization:', orgId);
+    } catch (e) {
+      console.error('Delete organization error', e);
+      throw e;
+    }
+  },
+
+  async addOrganizationMember(member: Omit<OrganizationMember, 'id'>): Promise<string> {
+    if (!db) throw new Error('Database not initialized');
+    try {
+      // Use composite ID for easier querying: userId_organizationId
+      const memberId = `${member.userId}_${member.organizationId}`;
+      const docRef = doc(db, 'organizationMembers', memberId);
+      await setDoc(docRef, { ...member, id: memberId });
+      console.log('[StorageService] Added organization member:', memberId);
+      return memberId;
+    } catch (e) {
+      console.error('Add organization member error', e);
+      throw e;
+    }
+  },
+
+  async updateOrganizationMemberUID(docId: string, newUserId: string): Promise<void> {
+    if (!db) return;
+    try {
+      const docRef = doc(db, 'organizationMembers', docId);
+      await updateDoc(docRef, { userId: newUserId });
+    } catch (e) {
+      console.error('Update member UID error', e);
+    }
+  },
+
+  async getOrganizationMembers(orgId: string): Promise<OrganizationMember[]> {
+    if (!db) return [];
+    try {
+      const q = query(collection(db, 'organizationMembers'), where('organizationId', '==', orgId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data() as OrganizationMember);
+    } catch (e) {
+      console.error('Get organization members error', e);
+      return [];
+    }
+  },
+
+  async getUserOrganizations(userId: string, email?: string | null): Promise<Organization[]> {
+    if (!db) return [];
+    try {
+      // 1. Get all memberships for this user
+      const qUID = query(collection(db, 'organizationMembers'), where('userId', '==', userId));
+      const snapUID = await getDocs(qUID);
+      let orgIds = snapUID.docs.map(doc => doc.data().organizationId);
+
+      // 2. Also check by email to "claim" pending invitations
+      if (email) {
+        const qEmail = query(collection(db, 'organizationMembers'), where('userEmail', '==', email));
+        const snapEmail = await getDocs(qEmail);
+
+        for (const d of snapEmail.docs) {
+          const data = d.data();
+          if (!orgIds.includes(data.organizationId)) {
+            orgIds.push(data.organizationId);
+          }
+
+          // If this was a placeholder membership (userId was the email), update it to the real UID
+          if (data.userId === email || data.userId !== userId) {
+            console.log(`[StorageService] Claiming invitation for ${email} -> ${userId}`);
+            await this.updateOrganizationMemberUID(d.id, userId);
+          }
+        }
+      }
+
+      if (orgIds.length === 0) return [];
+
+      // 2. Fetch all organizations (Firestore doesn't support 'in' with more than 10 items, but usually users won't have that many orgs)
+      const orgs: Organization[] = [];
+      for (const orgId of orgIds) {
+        const org = await this.getOrganization(orgId);
+        if (org) orgs.push(org);
+      }
+
+      return orgs.sort((a, b) => b.createdAt - a.createdAt);
+    } catch (e) {
+      console.error('Get user organizations error', e);
+      return [];
+    }
+  },
+
+  async removeOrganizationMember(memberId: string): Promise<void> {
+    if (!db) throw new Error('Database not initialized');
+    try {
+      const docRef = doc(db, 'organizationMembers', memberId);
+      await deleteDoc(docRef);
+      console.log('[StorageService] Removed organization member:', memberId);
+    } catch (e) {
+      console.error('Remove organization member error', e);
+      throw e;
+    }
+  },
+
+  async updateMemberRole(memberId: string, role: OrganizationRole): Promise<void> {
+    if (!db) throw new Error('Database not initialized');
+    try {
+      const docRef = doc(db, 'organizationMembers', memberId);
+      await updateDoc(docRef, { role });
+      console.log('[StorageService] Updated member role:', memberId, role);
+    } catch (e) {
+      console.error('Update member role error', e);
+      throw e;
+    }
+  },
+
+  async getMemberRole(userId: string, orgId: string): Promise<OrganizationRole | null> {
+    if (!db) return null;
+    try {
+      const memberId = `${userId}_${orgId}`;
+      const docRef = doc(db, 'organizationMembers', memberId);
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return snapshot.data().role as OrganizationRole;
+      }
+      return null;
+    } catch (e) {
+      console.error('Get member role error', e);
+      return null;
+    }
+  },
+
+  async migrateUserDataToOrganization(userId: string, orgId: string): Promise<void> {
+    if (!db) throw new Error('Database not initialized');
+
+    try {
+      console.log(`[StorageService] Migrating user ${userId} data to organization ${orgId}`);
+
+      const batch = writeBatch(db);
+      let updateCount = 0;
+
+      // 1. Migrate Equipment Definitions
+      const equipQuery = query(collection(db, 'equipments'), where('userId', '==', userId));
+      const equipSnapshot = await getDocs(equipQuery);
+      equipSnapshot.docs.forEach(doc => {
+        if (!doc.data().organizationId) {
+          batch.update(doc.ref, { organizationId: orgId });
+          updateCount++;
+        }
+      });
+
+      // 2. Migrate Reports (current year and legacy)
+      const currentYear = new Date().getFullYear();
+      const reportCollections = ['reports', `reports_${currentYear}`];
+
+      for (const collName of reportCollections) {
+        try {
+          const reportsQuery = query(collection(db, collName), where('userId', '==', userId));
+          const reportsSnapshot = await getDocs(reportsQuery);
+          reportsSnapshot.docs.forEach(doc => {
+            if (!doc.data().organizationId) {
+              batch.update(doc.ref, { organizationId: orgId });
+              updateCount++;
+            }
+          });
+        } catch (e) {
+          // Collection might not exist, skip
+        }
+      }
+
+      // 3. Migrate Abnormal Records
+      const abnormalQuery = query(collection(db, 'abnormalRecords'), where('userId', '==', userId));
+      const abnormalSnapshot = await getDocs(abnormalQuery);
+      abnormalSnapshot.docs.forEach(doc => {
+        if (!doc.data().organizationId) {
+          batch.update(doc.ref, { organizationId: orgId });
+          updateCount++;
+        }
+      });
+
+      // 4. Migrate Health Indicators
+      const healthQuery = query(collection(db, 'health'), where('userId', '==', userId));
+      const healthSnapshot = await getDocs(healthQuery);
+      healthSnapshot.docs.forEach(doc => {
+        if (!doc.data().organizationId) {
+          batch.update(doc.ref, { organizationId: orgId });
+          updateCount++;
+        }
+      });
+
+      // Commit all updates
+      if (updateCount > 0) {
+        await batch.commit();
+        console.log(`[StorageService] Migrated ${updateCount} documents to organization ${orgId}`);
+      } else {
+        console.log(`[StorageService] No documents to migrate (already migrated or no data)`);
+      }
+    } catch (e) {
+      console.error('Migration error', e);
+      throw e;
+    }
+  },
+
+  // --- Whitelist & User Management ---
+  async checkWhitelist(email: string): Promise<WhitelistEntry | null> {
+    if (!db || !email) return null;
+    try {
+      const docRef = doc(db, 'whitelist', email.toLowerCase());
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return snapshot.data() as WhitelistEntry;
+      }
+      return null;
+    } catch (e) {
+      console.error('Check whitelist error', e);
+      return null;
+    }
+  },
+
+  async requestAccess(user: { email: string; displayName: string; photoURL?: string }): Promise<void> {
+    if (!db || !user.email) return;
+    try {
+      const email = user.email.toLowerCase();
+      const docRef = doc(db, 'whitelist', email);
+      const snapshot = await getDoc(docRef);
+
+      if (!snapshot.exists()) {
+        // Only create if not exists
+        const entry: WhitelistEntry = {
+          email: email,
+          status: 'pending',
+          orgId: null,
+          role: 'user', // Default role
+          name: user.displayName,
+          photoURL: user.photoURL || undefined,
+          requestedAt: Date.now(),
+          updatedAt: Date.now()
+        };
+        await setDoc(docRef, entry);
+        console.log('[StorageService] Access requested for', email);
+      }
+    } catch (e) {
+      console.error('Request access error', e);
+      throw e;
+    }
+  },
+
+  async getWhitelist(): Promise<WhitelistEntry[]> {
+    if (!db) return [];
+    try {
+      const q = query(collection(db, 'whitelist'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => doc.data() as WhitelistEntry)
+        .sort((a, b) => b.requestedAt - a.requestedAt);
+    } catch (e) {
+      console.error('Get whitelist error', e);
+      return [];
+    }
+  },
+
+  async updateWhitelistEntry(email: string, updates: Partial<WhitelistEntry>): Promise<void> {
+    if (!db) return;
+    try {
+      const docRef = doc(db, 'whitelist', email.toLowerCase());
+      await updateDoc(docRef, { ...updates, updatedAt: Date.now() });
+      console.log('[StorageService] Updated whitelist entry for', email);
+    } catch (e) {
+      console.error('Update whitelist error', e);
+      throw e;
+    }
+  },
+
+  async deleteWhitelistEntry(email: string): Promise<void> {
+    if (!db) return;
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      // Robust delete: Query by email field to find the correct document(s)
+      const q = query(collection(db, 'whitelist'), where('email', '==', normalizedEmail));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        // Delete all matching documents (usually just one)
+        const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+        await Promise.all(deletePromises);
+        console.log('[StorageService] Deleted whitelist entry for', normalizedEmail);
+      } else {
+        // Fallback: Try deleting by ID if no field match (though unlikely if data is consistent)
+        const docRef = doc(db, 'whitelist', normalizedEmail);
+        await deleteDoc(docRef);
+        console.log('[StorageService] Attempted ID-based delete for', normalizedEmail);
+      }
+    } catch (e) {
+      console.error('Delete whitelist error', e);
+      throw e;
+    }
   }
 };
+
+// Start of local interface definition (Fallback if types.ts update failed)
+export interface WhitelistEntry {
+  email: string;
+  status: 'approved' | 'pending' | 'blocked';
+  orgId?: string | null;
+  role: 'admin' | 'user';
+  name?: string;
+  photoURL?: string;
+  requestedAt: number;
+  updatedAt: number;
+}

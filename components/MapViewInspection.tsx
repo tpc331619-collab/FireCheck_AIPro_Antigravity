@@ -56,15 +56,15 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         if (isOpen) {
             loadData();
         }
-    }, [isOpen, user.uid]);
+    }, [isOpen, user.uid, user.currentOrganizationId]);
 
     const loadData = async () => {
         try {
             const [mapsData, equipmentData, settings, reportsData] = await Promise.all([
-                StorageService.getEquipmentMaps(user.uid),
-                StorageService.getEquipmentDefinitions(user.uid),
-                StorageService.getLightSettings(user.uid),
-                StorageService.getReports(user.uid, true)
+                StorageService.getEquipmentMaps(user.uid, user.currentOrganizationId),
+                StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId),
+                StorageService.getLightSettings(user.uid, user.currentOrganizationId),
+                StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId)
             ]);
             setMaps(mapsData);
             setAllEquipment(equipmentData);
@@ -327,7 +327,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
             // Save report to Firebase
             if (report.id.startsWith('report_')) {
-                const newId = await StorageService.saveReport(report, user.uid);
+                const newId = await StorageService.saveReport(report, user.uid, user.currentOrganizationId);
                 // Update local ID if needed, but optimistic update covers specific usage
             } else {
                 await StorageService.updateReport(report);
@@ -373,13 +373,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     status: 'pending',
                     createdAt: now,
                     updatedAt: now
-                }, user.uid);
+                }, user.uid, user.currentOrganizationId);
             }
 
             console.log('[handleSubmit] Save Complete');
 
             // Refresh reports to get the latest status (including items)
-            const updatedReports = await StorageService.getReports(user.uid, true);
+            const updatedReports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
             setReports(updatedReports);
 
             showToast('✅ 提交成功！');

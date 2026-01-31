@@ -7,9 +7,14 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 interface AuthProps {
   onLogin: (user: any, isGuest: boolean) => void;
+  showPendingMessage?: boolean;
+  isChecking?: boolean;
+  showUnregisteredMessage?: boolean;
+  onRequestAccess?: () => void;
+  currentUser?: any;
 }
 
-const Auth: React.FC<AuthProps> = ({ onLogin }) => {
+const Auth: React.FC<AuthProps> = ({ onLogin, showPendingMessage, isChecking, showUnregisteredMessage, onRequestAccess, currentUser }) => {
   const { t } = useLanguage();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -45,14 +50,15 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError('');
     try {
       setLoading(true);
-      const result = await signInWithPopup(auth, googleProvider);
-      onLogin(result.user, false);
+      await signInWithPopup(auth, googleProvider);
+      // Removed onLogin call to rely on onAuthStateChanged in App.tsx for whitelist enforcement
     } catch (err: any) {
       console.error("Google Auth Error:", err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError('登入視窗已被關閉，請再試一次。');
-      } else if (err.code === 'auth/cancelled-by-user') {
-        setError('登入已被取消。');
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-by-user') {
+        // User voluntarily closed the popup, no need to show an error
+        console.log('Login cancelled by user');
+        setLoading(false); // Force stop spinner immediately
+        return;
       } else if (err.code === 'auth/popup-blocked') {
         setError('登入視窗被瀏覽器攔截，請允許彈出視窗後再試一次。');
       } else if (err.code === 'auth/operation-not-allowed') {
@@ -67,6 +73,70 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-slate-950 font-sans">
+
+      {/* Checking/Verifying Overlay */}
+      {isChecking && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <h2 className="text-xl font-bold text-white tracking-widest">VERIFYING</h2>
+          <p className="text-slate-400 text-sm mt-2 mb-6">正在驗證帳號權限...</p>
+          <button
+            onClick={() => auth?.signOut()}
+            className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-medium transition-colors border border-white/10"
+          >
+            取消 / 登出
+          </button>
+        </div>
+      )}
+
+      {/* Pending Message Overlay */}
+      {showPendingMessage && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">帳號審核中</h2>
+            <p className="text-slate-600 font-medium">
+              這是新的帳號! <br />您的帳號已申請並等待審核，<br />審核通過後才使用
+            </p>
+            <button onClick={() => auth?.signOut()} className="w-full py-2.5 bg-slate-100 font-bold text-slate-600 rounded-xl hover:bg-slate-200 transition-colors">
+              確認
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Unregistered Message Overlay (Manual Request) */}
+      {showUnregisteredMessage && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-4">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <User className="h-8 w-8 text-blue-600" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">歡迎使用 FireCheck PRO</h2>
+            <p className="text-slate-600 font-medium">
+              您尚未註冊本系統。<br />
+              <span className="text-sm text-slate-500">{currentUser?.email}</span>
+            </p>
+            <div className="pt-2 space-y-3">
+              <button
+                onClick={onRequestAccess}
+                className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+              >
+                申請存取權限
+              </button>
+              <button
+                onClick={() => auth?.signOut()}
+                className="w-full py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+              >
+                登出
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background Image with Tech Overlay */}
       <div className="absolute inset-0 z-0 select-none pointer-events-none">
         <img
