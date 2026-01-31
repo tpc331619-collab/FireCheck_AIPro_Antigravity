@@ -229,6 +229,11 @@ export interface SystemSettings {
   allowInspectorDeleteCategory?: boolean;
   allowInspectorEditType?: boolean;
   allowInspectorDeleteType?: boolean;
+  // New Granular Inspector Settings Permissions
+  allowInspectorProfile?: boolean;
+  allowInspectorLanguage?: boolean;
+  allowInspectorBackground?: boolean;
+  allowInspectorDeclaration?: boolean;
   // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }

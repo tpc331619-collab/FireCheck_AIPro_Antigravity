@@ -1411,43 +1411,43 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {!user.isGuest && (
                         <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('totalEquipment')}</p>
-                                    <p className="text-2xl font-black text-slate-800">{nameCount}</p>
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24">
+                                <div className="flex flex-col justify-between h-full">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{t('totalEquipment')}</p>
+                                    <p className="text-xl sm:text-2xl font-black text-slate-800 leading-none">{nameCount}</p>
                                 </div>
-                                <div className="p-3 bg-blue-50 rounded-xl">
+                                <div className="p-3 bg-blue-50 rounded-xl shrink-0">
                                     <Database className="w-5 h-5 text-blue-500" />
                                 </div>
                             </div>
 
                             {/* Abnormal Pending */}
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('pendingAbnormal')}</p>
-                                    <p className={`text-2xl font-black ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
+                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24">
+                                <div className="flex flex-col justify-between h-full">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{t('pendingAbnormal')}</p>
+                                    <p className={`text-xl sm:text-2xl font-black leading-none ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
                                 </div>
-                                <div className={`p-3 rounded-xl ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
+                                <div className={`p-3 rounded-xl shrink-0 ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
                                     <AlertOctagon className={`w-5 h-5 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-500'}`} />
                                 </div>
                             </div>
 
                             {/* Declaration Countdown */}
-                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
-                                <div>
-                                    <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
-                                    <div className="flex items-baseline gap-1">
+                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
+                                <div className="flex flex-col justify-between h-full">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase">{t('declarationCountdown')}</p>
+                                    <div className="flex items-baseline gap-1 leading-none">
                                         {countdownDays !== null ? (
                                             <>
-                                                <span className={`text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
-                                                <span className="text-sm font-bold text-slate-400">{t('days')}</span>
+                                                <span className={`text-xl sm:text-2xl font-black ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
+                                                <span className="text-xs font-bold text-slate-400">{t('days')}</span>
                                             </>
                                         ) : (
-                                            <span className="text-2xl font-black text-slate-300">--</span>
+                                            <span className="text-xl sm:text-2xl font-black text-slate-300">--</span>
                                         )}
                                     </div>
                                 </div>
-                                <div className={`p-3 rounded-xl ${countdownDays !== null && countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
+                                <div className={`p-3 rounded-xl shrink-0 ${countdownDays !== null && countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
                                     <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
                                 </div>
                             </div>
@@ -1456,22 +1456,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:border-blue-200 hover:shadow-md transition-all group overflow-hidden"
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-blue-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="text-left min-w-0">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mb-0.5 truncate">{t('permissions')}</p>
-                                        <div className="flex items-center gap-1.5 sm:gap-2">
-                                            <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('permissions')}</p>
+                                        <div className="flex items-center gap-1.5 sm:gap-2 leading-none">
+                                            <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors whitespace-nowrap">
                                                 {t('onOff')}
                                             </p>
-                                            <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                                            <div className="flex gap-0.5 sm:gap-1 shrink-0 mt-0.5">
                                                 <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${systemSettings?.allowGuestView ? 'bg-green-500' : 'bg-slate-300'}`} title={t('allowGuestView')} />
                                                 <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${systemSettings?.allowCloudGallery ? 'bg-blue-500' : 'bg-slate-300'}`} title={t('cloudGallery')} />
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="p-2 sm:p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors shrink-0">
-                                        <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
+                                    <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors shrink-0">
+                                        <ShieldCheck className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
                                     </div>
                                 </button>
                             )}
@@ -1483,16 +1483,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         setSettingsTab('LIGHTS');
                                         setIsSettingsOpen(true);
                                     }}
-                                    className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="text-left min-w-0">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mb-0.5 truncate">{t('lightSettings')}</p>
-                                        <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-orange-600 transition-colors whitespace-nowrap">
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('lightSettings')}</p>
+                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-orange-600 transition-colors whitespace-nowrap leading-none">
                                             {t('lights')}
                                         </p>
                                     </div>
-                                    <div className="p-2 sm:p-3 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors shrink-0">
-                                        <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+                                    <div className="p-3 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors shrink-0">
+                                        <Zap className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
                                     </div>
                                 </button>
                             )}
@@ -1501,16 +1501,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsAdminDashboardOpen(true)}
-                                    className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100 shadow-sm flex items-center justify-between md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group overflow-hidden"
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group overflow-hidden"
                                 >
-                                    <div className="text-left min-w-0">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mb-0.5 truncate">{t('systemManagement')}</p>
-                                        <p className="text-xs sm:text-sm font-bold text-slate-800 group-hover:text-red-600 transition-colors whitespace-nowrap">
+                                    <div className="flex flex-col justify-between h-full text-left min-w-0">
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('systemManagement')}</p>
+                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-red-600 transition-colors whitespace-nowrap leading-none">
                                             {t('coreAdmin')}
                                         </p>
                                     </div>
-                                    <div className="p-2 sm:p-3 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors shrink-0">
-                                        <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 group-hover:scale-110 transition-transform" />
+                                    <div className="p-3 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors shrink-0">
+                                        <Settings className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
                                     </div>
                                 </button>
                             )}
@@ -2345,41 +2345,52 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
 
                                     {/* Tabs */}
-                                    <div className="flex border-b border-slate-100 shrink-0">
-                                        <button
-                                            onClick={() => setSettingsTab('PROFILE')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                                        >
-                                            <User className="w-4 h-4 mr-2" /> {t('profile')}
-                                        </button>
+                                    <div className="flex border-b border-slate-100 shrink-0 overflow-x-auto no-scrollbar">
+                                        {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
+                                            <button
+                                                onClick={() => setSettingsTab('PROFILE')}
+                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'PROFILE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                                            >
+                                                <User className="w-4 h-4 mr-2" /> {t('profile')}
+                                            </button>
+                                        )}
 
-                                        <button
-                                            onClick={() => setSettingsTab('LANGUAGE')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Globe className="w-4 h-4 mr-2" /> {t('language')}
-                                        </button>
-                                        <button
-                                            onClick={() => setSettingsTab('GENERAL')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Palette className="w-4 h-4 mr-2" /> {t('background')}
-                                        </button>
-                                        <button
-                                            onClick={() => setSettingsTab('LIGHTS')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Zap className="w-4 h-4 mr-2" /> {t('lights')}
-                                        </button>
-                                        <button
-                                            onClick={() => setSettingsTab('DECLARATION')}
-                                            className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                        >
-                                            <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
-                                        </button>
-                                        {/* Permissions Tab Removed */}
+                                        {(isAdmin || systemSettings?.allowInspectorLanguage !== false) && (
+                                            <button
+                                                onClick={() => setSettingsTab('LANGUAGE')}
+                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LANGUAGE' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                            >
+                                                <Globe className="w-4 h-4 mr-2" /> {t('language')}
+                                            </button>
+                                        )}
 
+                                        {(isAdmin || systemSettings?.allowInspectorBackground !== false) && (
+                                            <button
+                                                onClick={() => setSettingsTab('GENERAL')}
+                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'GENERAL' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                            >
+                                                <Palette className="w-4 h-4 mr-2" /> {t('background')}
+                                            </button>
+                                        )}
 
+                                        {/* Lights tab is usually for admins but we show it if they can see it */}
+                                        {(isAdmin) && (
+                                            <button
+                                                onClick={() => setSettingsTab('LIGHTS')}
+                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                            >
+                                                <Zap className="w-4 h-4 mr-2" /> {t('lights')}
+                                            </button>
+                                        )}
+
+                                        {(isAdmin || systemSettings?.allowInspectorDeclaration !== false) && (
+                                            <button
+                                                onClick={() => setSettingsTab('DECLARATION')}
+                                                className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
+                                            >
+                                                <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Content */}
@@ -3123,93 +3134,140 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
                                 </div>
 
-                                <div className="pt-2 space-y-3">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('guestPermissions')}</label>
-
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestView')}</div>
-                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestViewDesc')}</div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={systemSettings?.allowGuestView || false}
-                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                <div className="space-y-6">
+                                    {/* 系統設定 (System Settings) Block */}
+                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                        <label className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                            <Settings className="w-3.5 h-3.5" />
+                                            {t('sectionSystemSettings')}
                                         </label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {['Profile', 'Language', 'Background', 'Declaration'].map((item) => (
+                                                <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-blue-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${item}Desc`)}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.[`allowInspector${item}` as keyof typeof systemSettings] as boolean ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${item}`]: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm">{t('allowGuestRecheck')}</div>
-                                            <div className="text-xs text-slate-500 mt-1">{t('allowGuestRecheckDesc')}</div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={systemSettings?.allowGuestRecheck || false}
-                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestRecheck: e.target.checked })}
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    {/* 我的設備 (My Equipment) Block */}
+                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                        <label className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                            <Database className="w-3.5 h-3.5" />
+                                            {t('sectionMyEquipment')}
                                         </label>
-                                    </div>
-                                </div>
-
-                                <div className="pt-2 space-y-3 border-t border-slate-100 mt-4">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('inspectorPermissions')}</label>
-
-                                    <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm">{t('cloudGallery')}</div>
-                                            <div className="text-xs text-slate-500 mt-1">{t('cloudGalleryDesc')}</div>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {['EditEquipment', 'CopyEquipment', 'DeleteEquipment'].map((perm) => (
+                                                <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-emerald-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${perm}Desc`)}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                                    </label>
+                                                </div>
+                                            ))}
                                         </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={systemSettings?.allowCloudGallery ?? true}
-                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                        </label>
                                     </div>
 
-                                    {/* Granular Permissions */}
-                                    {/* My Equipment Actions */}
-                                    {['EditEquipment', 'CopyEquipment', 'DeleteEquipment'].map((perm) => (
-                                        <div key={perm} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                            <div className="font-bold text-slate-800 text-sm">{t(`allowInspector${perm}`)}</div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
+                                    {/* 設備階層管理 (Hierarchy Management) Block */}
+                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                        <label className="text-xs font-bold text-purple-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            {t('sectionHierarchy')}
+                                        </label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {['ResetDefaults', 'EditCategory', 'DeleteCategory', 'EditType', 'DeleteType'].map((perm) => (
+                                                <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-purple-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t(`allowInspector${perm}Desc`)}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 訪客權限 (Guest Permissions) Block */}
+                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                        <label className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                            <User className="w-3.5 h-3.5" />
+                                            {t('sectionGuest')}
+                                        </label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {[
+                                                { key: 'allowGuestView', title: t('allowGuestView'), desc: t('allowGuestViewDesc') },
+                                                { key: 'allowGuestRecheck', title: t('allowGuestRecheck'), desc: t('allowGuestRecheckDesc') }
+                                            ].map((item) => (
+                                                <div key={item.key} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{item.title}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{item.desc}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.[item.key as keyof typeof systemSettings] as boolean ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [item.key]: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* 其他設定 (Others) Block */}
+                                    <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 px-1">
+                                            <Zap className="w-3.5 h-3.5" />
+                                            {t('sectionOthers')}
+                                        </label>
+                                        <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
+                                            <div>
+                                                <div className="font-bold text-slate-700 text-sm">{t('cloudGallery')}</div>
+                                                <div className="text-[10px] text-slate-400 mt-0.5">{t('cloudGalleryDesc')}</div>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer ml-4">
                                                 <input
                                                     type="checkbox"
-                                                    checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
-                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
+                                                    checked={systemSettings?.allowCloudGallery ?? true}
+                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
                                                     className="sr-only peer"
                                                 />
-                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
                                             </label>
                                         </div>
-                                    ))}
-
-                                    {/* Hierarchy Actions */}
-                                    {['ResetDefaults', 'EditCategory', 'DeleteCategory', 'EditType', 'DeleteType'].map((perm) => (
-                                        <div key={perm} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
-                                            <div className="font-bold text-slate-800 text-sm">{t(`allowInspector${perm}`)}</div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={systemSettings?.[`allowInspector${perm}` as keyof typeof systemSettings] as boolean ?? false}
-                                                    onChange={(e) => handleSaveSystemSettings({ ...systemSettings, [`allowInspector${perm}`]: e.target.checked })}
-                                                    className="sr-only peer"
-                                                />
-                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                            </label>
-                                        </div>
-                                    ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
