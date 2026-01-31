@@ -1433,7 +1433,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Declaration Countdown */}
-                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
+                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between ${isAdmin ? 'md:col-span-1' : 'md:col-span-2'}`}>
                                 <div>
                                     <p className="text-xs font-bold text-slate-500 mb-1">{t('declarationCountdown')}</p>
                                     <div className="flex items-baseline gap-1">
@@ -1456,7 +1456,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-1 hover:border-blue-200 hover:shadow-md transition-all group"
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between md:col-span-1 hover:border-blue-200 hover:shadow-md transition-all group"
                                 >
                                     <div className="text-left">
                                         <p className="text-xs font-bold text-slate-500 mb-1">{t('permissions')}</p>
@@ -1480,7 +1480,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsAdminDashboardOpen(true)}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between col-span-2 md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group"
+                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group"
                                 >
                                     <div className="text-left">
                                         <p className="text-xs font-bold text-slate-500 mb-1">{t('systemManagement')}</p>
