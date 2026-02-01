@@ -19,7 +19,9 @@
     "qrcode": "1.5.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "react-virtualized-auto-sizer": "^2.0.2",
+    "react-window": "^2.2.6"
   },
   "devDependencies": {
     "@types/datatables.net": "^1.12.3",
