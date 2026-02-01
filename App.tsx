@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 // Lazy load non-critical components
@@ -17,70 +18,158 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 const GUEST_SESSION_DURATION = 30 * 60 * 1000; // 30 minutes
 
+// --- Route Wrappers ---
+
+const EquipmentManagerRoute = ({ user, isAdmin, systemSettings }: { user: UserProfile, isAdmin: boolean, systemSettings?: SystemSettings }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState<EquipmentDefinition | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (id && id !== 'new' && user.uid) {
+      StorageService.getEquipmentById(id, user.uid, user.currentOrganizationId)
+        .then(setData)
+        .catch((err) => {
+          console.error(err);
+          setData(null);
+        });
+    } else {
+      setData(null); // New mode
+    }
+  }, [id, user.uid, user.currentOrganizationId]);
+
+  if (id && id !== 'new' && data === undefined) {
+    return <div className="h-full flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div></div>;
+  }
+
+  return (
+    <EquipmentManager
+      key={id || 'new'}
+      user={user}
+      isAdmin={isAdmin}
+      initialData={data}
+      onBack={() => navigate(-1)}
+      onSaved={() => navigate('/equipment')}
+      systemSettings={systemSettings}
+    />
+  );
+};
+
+const InspectionFormRoute = ({ user }: { user: UserProfile }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [report, setReport] = useState<InspectionReport | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id && user.uid) {
+      // Since we don't have getReportById, we fetch latest reports or implement a find.
+      // Ideally StorageService should have getReportById.
+      // For now, we rely on the fact that if we came from list, we might have it in cache or just fetch all?
+      // Fetching all is heavy. Let's try to assume we can just fetch recent ones or implement getReportById later.
+      // Workaround: Fetch all for now (as getReports does).
+      // Optimization TODO: Implement getReportById
+      StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId)
+        .then(reports => {
+          const found = reports.find(r => r.id === id);
+          setReport(found);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [id, user.uid, user.currentOrganizationId]);
+
+  if (loading) return <div className="h-full flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div></div>;
+
+  return (
+    <InspectionForm
+      user={user}
+      report={report}
+      onBack={() => navigate('/')}
+      onSaved={() => navigate('/')}
+    />
+  );
+}
+
+const MyEquipmentRoute = ({ user, systemSettings }: { user: UserProfile, systemSettings?: SystemSettings }) => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get('q') || '';
+
+  // Internal state for filter since URL approach is not fully ready yet
+  const [selectedSite, setSelectedSite] = useState<string | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
+
+  return (
+    <MyEquipment
+      user={user}
+      selectedSite={selectedSite}
+      selectedBuilding={selectedBuilding}
+      onFilterChange={(site, bld) => {
+        setSelectedSite(site);
+        setSelectedBuilding(bld);
+      }}
+      onBack={() => navigate('/')}
+      onEdit={(item) => navigate(`/equipment/edit/${item.id}`)}
+      initialQuery={query}
+      systemSettings={systemSettings}
+    />
+  );
+}
+
+// --- Main App Component ---
+
 const App: React.FC = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [currentView, setCurrentView] = useState<'DASHBOARD' | 'INSPECTION' | 'EQUIPMENT_MANAGER' | 'MY_EQUIPMENT' | 'CHECKLIST_INSPECTION' | 'HIERARCHY_MANAGER' | 'MAP_EDITOR'>('DASHBOARD');
-  const [selectedReport, setSelectedReport] = useState<InspectionReport | undefined>(undefined);
-  const [editingEquipment, setEditingEquipment] = useState<EquipmentDefinition | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [guestExpiry, setGuestExpiry] = useState<number | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettings | undefined>(undefined);
 
-  // 保持篩選狀態的變數
-  const [filterSite, setFilterSite] = useState<string | null>(null);
-  const [filterBuilding, setFilterBuilding] = useState<string | null>(null);
-  const [equipmentFilter, setEquipmentFilter] = useState('');
+  // 保持篩選狀態的變數 (Moved to MyEquipment internal state or URL params ideally, keeping here locally if needed to pass down, but URL is better.
+  // For now, we will NOT pass these to MyEquipment via props if we want full Router capability,
+  // BUT Dashboard calls onMyEquipment(filter). We should handle that.)
+  // We can pass initialQuery via URL search params?
+  const [searchParams] = useSearchParams(); // To listen to changes if needed, but MyEquipmentRoute handles it.
 
   const [accessStatus, setAccessStatus] = useState<'approved' | 'pending' | 'blocked' | 'checking' | 'idle' | 'unregistered'>('idle');
 
   useEffect(() => {
     if (auth) {
-      // Use standard modular onAuthStateChanged function
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
           const isGuest = firebaseUser.isAnonymous;
-
           let userRole: 'admin' | 'user' = 'user';
 
           // Whitelist Check Logic
           if (!isGuest) {
             try {
               if (firebaseUser.email?.toLowerCase() === 'b28803078@gmail.com') {
-                // Super Admin Bypass
                 setAccessStatus('approved');
                 userRole = 'admin';
               } else {
                 setAccessStatus('checking');
-
-                // Add timeout to prevent infinite hanging
                 const checkPromise = StorageService.checkWhitelist(firebaseUser.email || '');
                 const timeoutPromise = new Promise<null>((_, reject) =>
                   setTimeout(() => reject(new Error('Network timeout checking whitelist')), 8000)
                 );
 
-                // Use Promise.race
                 let whitelistEntry = null;
                 try {
                   whitelistEntry = await Promise.race([checkPromise, timeoutPromise]);
                 } catch (timeoutErr) {
                   console.error(timeoutErr);
-                  throw timeoutErr;
+                  throw timeoutErr; // Pass to outer catch
                 }
 
                 if (!whitelistEntry) {
-                  console.log(`[App] No whitelist entry found for ${firebaseUser.email}. Setting status to unregistered.`);
-                  // Wait for user to request access manually
                   setAccessStatus('unregistered');
                 } else if (whitelistEntry.status !== 'approved') {
-                  console.log(`[App] Whitelist entry found for ${firebaseUser.email}, status: ${whitelistEntry.status}`);
                   setAccessStatus(whitelistEntry.status);
                 } else {
-                  console.log(`[App] Whitelist entry APPROVED for ${firebaseUser.email}`);
                   setAccessStatus('approved');
-                  // Set role from whitelist
-                  if (whitelistEntry.role === 'admin') {
-                    userRole = 'admin';
-                  }
+                  if (whitelistEntry.role === 'admin') userRole = 'admin';
                 }
               }
             } catch (error: any) {
@@ -104,18 +193,15 @@ const App: React.FC = () => {
             role: userRole
           };
 
-          // Auto-create personal organization for non-guest users
           if (!isGuest) {
             try {
               const orgs = await StorageService.getUserOrganizations(firebaseUser.uid, firebaseUser.email);
-
               if (orgs.length > 0) {
-                // Load last used org
                 const lastOrgId = localStorage.getItem(`lastOrgId_${firebaseUser.uid}`);
                 if (lastOrgId && orgs.some(o => o.id === lastOrgId)) {
                   userProfile.currentOrganizationId = lastOrgId;
                 } else if (orgs.length > 0) {
-                  userProfile.currentOrganizationId = orgs[0].id; // Default to first
+                  userProfile.currentOrganizationId = orgs[0].id;
                 }
               }
             } catch (e) {
@@ -123,19 +209,14 @@ const App: React.FC = () => {
             }
           }
 
-          setUser(userProfile); // This line is crucial for rendering the app
+          setUser(userProfile);
           StorageService.setGuestMode(isGuest);
 
-          // Handle Guest Session Timer
           if (isGuest) {
             const storedExpiry = localStorage.getItem('guest_expiry');
             const now = Date.now();
             let expiry = storedExpiry ? parseInt(storedExpiry, 10) : 0;
-
             if (!expiry || expiry <= now) {
-              // New session or expired previous session
-              // Since this block runs on auth state change (login), we assume new session if expired logic falls through
-              // But handleLogout usually clears it. If we are here, we are logged in.
               expiry = now + GUEST_SESSION_DURATION;
               localStorage.setItem('guest_expiry', expiry.toString());
             }
@@ -147,16 +228,14 @@ const App: React.FC = () => {
 
         } else {
           setUser(null);
-          setAccessStatus('idle'); // Reset status to idle so login screen handles interaction
+          setAccessStatus('idle');
           StorageService.setGuestMode(false);
           setGuestExpiry(null);
         }
         setInitializing(false);
       });
 
-      // Fetch system settings
       StorageService.getSystemSettings().then(setSystemSettings);
-
       return () => unsubscribe();
     } else {
       setInitializing(false);
@@ -181,7 +260,6 @@ const App: React.FC = () => {
       if (auth.currentUser.isAnonymous) {
         try {
           await auth.currentUser.delete();
-          console.log('Anonymous account deleted');
         } catch (error) {
           console.error('Error deleting anonymous account:', error);
           await auth.signOut();
@@ -190,14 +268,11 @@ const App: React.FC = () => {
         await auth.signOut();
       }
     }
-    localStorage.removeItem('guest_expiry'); // Clear timer
+    localStorage.removeItem('guest_expiry');
     setGuestExpiry(null);
     setUser(null);
-    setAccessStatus('idle'); // Ensure IDLE on logout
-    setCurrentView('DASHBOARD');
-    setSelectedReport(undefined);
-    setFilterSite(null);
-    setFilterBuilding(null);
+    setAccessStatus('idle');
+    navigate('/'); // Route back to home (which will show Auth)
   };
 
   const handleUserUpdate = () => {
@@ -218,24 +293,27 @@ const App: React.FC = () => {
 
   const handleOrgSwitch = (orgId: string) => {
     if (!user) return;
-
-    // Persist selection locally
     localStorage.setItem(`lastOrgId_${user.uid}`, orgId);
-
-    // Update user state to trigger re-renders in child components
-    setUser(prev => prev ? {
-      ...prev,
-      currentOrganizationId: orgId
-    } : null);
+    setUser(prev => prev ? { ...prev, currentOrganizationId: orgId } : null);
   };
 
-  // Check for standalone mode (New Window)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'standalone') {
-      // We wait for auth to check user
-    }
-  }, []);
+  // Standalone Check
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('mode') === 'standalone') {
+    const initialMapId = urlParams.get('mapId') || undefined;
+    return (
+      <div className="h-screen w-full bg-slate-50">
+        <Suspense fallback={<div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div></div>}>
+          <EquipmentMapEditor
+            user={user}
+            isOpen={true}
+            onClose={() => window.close()}
+            initialMapId={initialMapId}
+          />
+        </Suspense>
+      </div>
+    );
+  }
 
   if (initializing) return <div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div></div>;
 
@@ -243,7 +321,6 @@ const App: React.FC = () => {
     return <Auth onLogin={handleLogin} isChecking={accessStatus === 'checking'} />;
   }
 
-  // Access Denied / Pending UI
   if (accessStatus === 'pending') {
     return <Auth onLogin={handleLogin} showPendingMessage={true} />;
   }
@@ -286,24 +363,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Standalone Editor Mode
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('mode') === 'standalone') {
-    const initialMapId = urlParams.get('mapId') || undefined;
-    return (
-      <div className="h-screen w-full bg-slate-50">
-        <Suspense fallback={<div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div></div>}>
-          <EquipmentMapEditor
-            user={user}
-            isOpen={true}
-            onClose={() => window.close()}
-            initialMapId={initialMapId}
-          />
-        </Suspense>
-      </div>
-    );
-  }
-
   const LoadingFallback = () => (
     <div className="h-screen flex flex-col items-center justify-center bg-slate-50">
       <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-600 mb-4"></div>
@@ -311,102 +370,72 @@ const App: React.FC = () => {
     </div>
   );
 
-  const isAdmin = user?.role === 'admin' || user?.email?.toLowerCase() === 'b28803078@gmail.com';
+  const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
 
   return (
     <div className="h-screen w-full bg-slate-50 relative overflow-hidden flex flex-col font-sans">
       <Suspense fallback={<LoadingFallback />}>
-        {currentView === 'DASHBOARD' ? (
-          <Dashboard
-            user={user}
-            isAdmin={isAdmin}
-            guestExpiry={guestExpiry}
-            onCreateNew={() => {
-              setSelectedReport(undefined);
-              setCurrentView('CHECKLIST_INSPECTION');
-            }}
-            onAddEquipment={() => {
-              setEditingEquipment(null);
-              setCurrentView('EQUIPMENT_MANAGER');
-            }}
-            onMyEquipment={(filter) => {
-              setEquipmentFilter(filter || '');
-              setCurrentView('MY_EQUIPMENT');
-            }}
-            onSelectReport={(report) => {
-              setSelectedReport(report);
-              setCurrentView('INSPECTION');
-            }}
-            onLogout={handleLogout}
-            onUserUpdate={handleUserUpdate}
-            onManageHierarchy={() => setCurrentView('HIERARCHY_MANAGER')}
-            onOpenMapEditor={() => setCurrentView('MAP_EDITOR')}
-            onOrgSwitch={handleOrgSwitch}
-            systemSettings={systemSettings}
-          />
-        ) : currentView === 'MAP_EDITOR' ? (
-          <EquipmentMapEditor
-            user={user}
-            isAdmin={isAdmin}
-            isOpen={true}
-            onClose={() => setCurrentView('DASHBOARD')}
-          />
-        ) : currentView === 'HIERARCHY_MANAGER' ? (
-          <HierarchyManager
-            user={user}
-            onBack={() => setCurrentView('DASHBOARD')}
-            systemSettings={systemSettings}
-          />
-        ) : currentView === 'EQUIPMENT_MANAGER' ? (
-          <EquipmentManager
-            key={editingEquipment?.id || 'new'}
-            user={user}
-            isAdmin={isAdmin}
-            initialData={editingEquipment}
-            onBack={() => {
-              setEditingEquipment(null);
-              if (editingEquipment) {
-                setCurrentView('MY_EQUIPMENT');
-              } else {
-                setCurrentView('DASHBOARD');
-              }
-            }}
-            onSaved={() => {
-              setEditingEquipment(null);
-              setCurrentView('MY_EQUIPMENT');
-            }}
-            systemSettings={systemSettings}
-          />
-        ) : currentView === 'MY_EQUIPMENT' ? (
-          <MyEquipment
-            user={user}
-            selectedSite={filterSite}
-            selectedBuilding={filterBuilding}
-            onFilterChange={(site, bld) => {
-              setFilterSite(site);
-              setFilterBuilding(bld);
-            }}
-            onBack={() => setCurrentView('DASHBOARD')}
-            onEdit={(item) => {
-              setEditingEquipment(item);
-              setCurrentView('EQUIPMENT_MANAGER');
-            }}
-            initialQuery={equipmentFilter}
-            systemSettings={systemSettings}
-          />
-        ) : currentView === 'CHECKLIST_INSPECTION' ? (
-          <ChecklistInspection
-            user={user}
-            onBack={() => setCurrentView('DASHBOARD')}
-          />
-        ) : (
-          <InspectionForm
-            user={user}
-            report={selectedReport}
-            onBack={() => setCurrentView('DASHBOARD')}
-            onSaved={() => setCurrentView('DASHBOARD')}
-          />
-        )}
+        <Routes>
+          <Route path="/" element={
+            <Dashboard
+              user={user}
+              isAdmin={isAdmin}
+              guestExpiry={guestExpiry}
+              onCreateNew={() => navigate('/inspection/check')}
+              onAddEquipment={() => navigate('/equipment/new')}
+              onMyEquipment={(filter) => {
+                if (filter) {
+                  navigate(`/equipment?q=${encodeURIComponent(filter)}`)
+                } else {
+                  navigate('/equipment')
+                }
+              }}
+              onSelectReport={(report) => navigate(`/inspection/report/${report.id}`)}
+              onLogout={handleLogout}
+              onUserUpdate={handleUserUpdate}
+              onManageHierarchy={() => navigate('/hierarchy')}
+              onOpenMapEditor={() => navigate('/map-editor')}
+              onOrgSwitch={handleOrgSwitch}
+              systemSettings={systemSettings}
+            />
+          } />
+
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+
+          <Route path="/equipment" element={<MyEquipmentRoute user={user} systemSettings={systemSettings} />} />
+
+          <Route path="/equipment/new" element={<EquipmentManagerRoute user={user} isAdmin={isAdmin} systemSettings={systemSettings} />} />
+          <Route path="/equipment/edit/:id" element={<EquipmentManagerRoute user={user} isAdmin={isAdmin} systemSettings={systemSettings} />} />
+
+          <Route path="/inspection/check" element={
+            <ChecklistInspection
+              user={user}
+              onBack={() => navigate('/')}
+            />
+          } />
+
+          <Route path="/inspection/report/:id" element={<InspectionFormRoute user={user} />} />
+
+          <Route path="/hierarchy" element={
+            <HierarchyManager
+              user={user}
+              onBack={() => navigate('/')}
+              systemSettings={systemSettings}
+            />
+          } />
+
+          <Route path="/map-editor" element={
+            <EquipmentMapEditor
+              user={user}
+              isAdmin={isAdmin}
+              isOpen={true} // Map Editor works better as "open" when routed to
+              onClose={() => navigate('/')}
+            />
+          } />
+
+          {/* Catch all fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Suspense>
     </div>
   );
