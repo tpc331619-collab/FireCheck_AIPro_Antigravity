@@ -11,9 +11,10 @@ interface NotificationBellProps {
     iconClassName?: string; // Icon class
     systemSettings?: SystemSettings;
     isAdmin?: boolean;
+    pendingUsersCount?: number;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName, systemSettings, isAdmin }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName, systemSettings, isAdmin, pendingUsersCount = 0 }) => {
     const { t } = useLanguage();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +66,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
         };
     }, [isOpen]);
 
-    const unreadCount = notifications.filter(n => !n.read).length;
+    const unreadCount = notifications.filter(n => !n.read).length + (isAdmin ? pendingUsersCount : 0);
 
     const handleMarkAsRead = async (notificationId: string) => {
         try {
@@ -166,7 +167,30 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
 
                     {/* Notification List */}
                     <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                        {notifications.length === 0 ? (
+                        {isAdmin && pendingUsersCount > 0 && (
+                            <div className="p-4 border-b border-amber-100 bg-amber-50/30 hover:bg-amber-50 transition-colors cursor-pointer" onClick={() => (window as any).openAdminDashboard && (window as any).openAdminDashboard()}>
+                                <div className="flex items-start gap-3">
+                                    <div className="shrink-0 mt-0.5">
+                                        <User className="w-4 h-4 text-amber-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                            <h4 className="font-bold text-sm text-amber-800 truncate">
+                                                {t('pendingAccessRequest') || '存取權限申請'}
+                                            </h4>
+                                            <span className="shrink-0 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full">
+                                                {pendingUsersCount}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-amber-700 leading-relaxed">
+                                            {t('pendingAccessRequestDesc') || '有新使用者申請加入系統，請前往審核。'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {notifications.length === 0 && (!isAdmin || pendingUsersCount === 0) ? (
                             <div className="p-8 text-center text-slate-400 dark:text-slate-500">
                                 <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
                                 <p className="text-sm">{t('noNotifications')}</p>

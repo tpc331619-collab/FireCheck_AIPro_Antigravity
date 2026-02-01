@@ -68,11 +68,14 @@ const App: React.FC = () => {
                 }
 
                 if (!whitelistEntry) {
+                  console.log(`[App] No whitelist entry found for ${firebaseUser.email}. Setting status to unregistered.`);
                   // Wait for user to request access manually
                   setAccessStatus('unregistered');
                 } else if (whitelistEntry.status !== 'approved') {
+                  console.log(`[App] Whitelist entry found for ${firebaseUser.email}, status: ${whitelistEntry.status}`);
                   setAccessStatus(whitelistEntry.status);
                 } else {
+                  console.log(`[App] Whitelist entry APPROVED for ${firebaseUser.email}`);
                   setAccessStatus('approved');
                   // Set role from whitelist
                   if (whitelistEntry.role === 'admin') {
@@ -81,7 +84,7 @@ const App: React.FC = () => {
                 }
               }
             } catch (error: any) {
-              console.error('Whitelist check failed:', error);
+              console.error(`[App] Whitelist check FAILED for ${firebaseUser.email}:`, error);
               setAccessStatus('blocked');
               if (error.code === 'permission-denied') {
                 alert('權限不足：請確認 Firestore Rules 是否已部署。');

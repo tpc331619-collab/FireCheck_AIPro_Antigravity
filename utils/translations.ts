@@ -635,6 +635,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     reactivate: '重新啟用',
     updateFailed: '更新失敗',
     guestTimer: '訪客倒數',
+    pendingAccessRequest: '存取權限申請',
+    pendingAccessRequestDesc: '有新使用者申請加入系統，請前往審核。',
   },
   'en': {
     welcome: 'Welcome Back',
@@ -991,6 +993,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     reactivate: 'Reactivate',
     updateFailed: 'Update failed',
     guestTimer: 'Guest Timer',
+    pendingAccessRequest: 'Access Request',
+    pendingAccessRequestDesc: 'New user requested access. Please review.',
 
 
     equipmentStats: 'Equipment Statistics',

@@ -14,22 +14,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
     const [users, setUsers] = useState<WhitelistEntry[]>([]);
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked'>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked'>('pending');
+
+    const { t } = useLanguage();
 
     useEffect(() => {
         console.log('[AdminDashboard] Mounted');
         loadData();
+
+        // Subscribe to real-time updates for the whitelist
+        const unsubscribe = StorageService.onWhitelistChange((updatedUsers) => {
+            console.log('[AdminDashboard] Real-time whitelist update received, count:', updatedUsers.length);
+            setUsers(updatedUsers);
+            setLoading(false);
+        });
+
+        return () => {
+            console.log('[AdminDashboard] Unmounting, unsubscribing');
+            unsubscribe();
+        };
     }, []);
+
+    const getStatusCount = (status: 'all' | 'pending' | 'approved' | 'blocked') => {
+        if (status === 'all') return users.length;
+        return users.filter(u => u.status === status).length;
+    };
 
     const loadData = async () => {
         setLoading(true);
         try {
-            // 1. Fetch Whitelist
+            // Fetch initial whitelist (subscriber will also trigger, but we fetch initially for immediate display if possible)
             const whitelist = await StorageService.getWhitelist();
             setUsers(whitelist);
 
-            // Temporary solution: Fetch orgs of the current super admin to manage assignments.
+            // Fetch orgs of the current super admin to manage assignments.
             const adminOrgs = await StorageService.getUserOrganizations(currentUser.uid);
             setOrganizations(adminOrgs);
 
@@ -88,26 +106,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
         }
     };
 
-    const { t } = useLanguage();
-
     const filteredUsers = users.filter(user => {
-        const matchesSearch = (user.email.includes(searchTerm.toLowerCase()) || (user.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
-        return matchesSearch && matchesStatus;
+        return matchesStatus;
     });
 
     return (
-        <div className="fixed inset-0 bg-slate-50 font-sans text-slate-900 z-[100] overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed inset-0 min-h-screen bg-slate-50 font-sans text-slate-900 z-[100] overflow-y-auto animate-in fade-in duration-500">
+            {/* Professional Background */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+                <div className="absolute top-[-10%] right-[-10%] w-[45%] h-[45%] bg-blue-100/30 blur-[120px] rounded-full animate-pulse"></div>
+                <div className="absolute bottom-[-10%] left-[-10%] w-[45%] h-[45%] bg-emerald-100/30 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
+
             {/* Header */}
-            <header className="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+            <header className="bg-slate-900/95 backdrop-blur-md text-white shadow-lg sticky top-0 z-50 border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/50">
+                        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
                             <ShieldCheck className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold tracking-tight">{t('adminDashboard') || '管理員後台'}</h1>
-                            <p className="text-xs text-slate-400 font-medium">{t('adminDashboardSubtitle') || 'FireCheck Access Control'}</p>
+                            <h1 className="text-base font-bold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('adminDashboard') || '管理員後台'}</h1>
+                            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-[0.1em]">{t('adminDashboardSubtitle') || 'FireCheck Access Control'}</p>
                         </div>
                     </div>
                     <button
@@ -120,41 +141,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 py-8">
-
+            <main className="max-w-7xl mx-auto px-4 py-8 relative z-10">
                 {/* Controls */}
-                <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="relative w-full md:w-96 group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                        <input
-                            type="text"
-                            placeholder={t('userSearchPlaceholder') || "搜尋用戶 Email 或顯示名稱..."}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 shadow-sm transition-all text-slate-700 font-medium placeholder:text-slate-400"
-                        />
-                    </div>
-
+                <div className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-start">
                     <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
                         {(['all', 'pending', 'approved', 'blocked'] as const).map(status => (
                             <button
                                 key={status}
                                 onClick={() => setFilterStatus(status)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all border shadow-sm ${filterStatus === status
-                                    ? 'bg-blue-600 text-white border-blue-600 shadow-blue-200'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-2 shadow-sm ${filterStatus === status
+                                    ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-200'
+                                    : 'bg-white/70 backdrop-blur-md text-slate-600 border-slate-200 hover:bg-white hover:border-slate-300'
                                     }`}
+                                style={{ fontFamily: "'Outfit', sans-serif" }}
                             >
-                                {status === 'all' && (t('all') || '全部')}
-                                {status === 'pending' && (t('statusPending') || '待審核')}
-                                {status === 'approved' && (t('statusApproved') || '已核准')}
-                                {status === 'blocked' && (t('statusBlocked') || '已停用')}
+                                <span>
+                                    {status === 'all' && (t('all') || '全部')}
+                                    {status === 'pending' && (t('statusPending') || '待審核')}
+                                    {status === 'approved' && (t('statusApproved') || '已核准')}
+                                    {status === 'blocked' && (t('statusBlocked') || '已停用')}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${filterStatus === status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                    {getStatusCount(status)}
+                                </span>
                             </button>
                         ))}
 
+                        <div className="h-6 w-[1px] bg-slate-200 mx-2 hidden md:block"></div>
+
                         <button
                             onClick={loadData}
-                            className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                            className="p-2.5 bg-white/70 backdrop-blur-md border border-slate-200 rounded-xl text-slate-500 hover:text-blue-600 transition-colors shadow-sm active:scale-95"
                             title={t('refresh') || "重新整理"}
                         >
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -163,24 +180,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                 </div>
 
                 {/* User List - Mobile Cards & Desktop Table */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden ring-1 ring-slate-900/5">
+                <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl shadow-blue-900/5 border border-white/50 overflow-hidden relative z-10">
 
                     {/* Desktop Table View (Hidden on Mobile) */}
                     <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('user') || '使用者'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('status') || '狀態'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('rolePermission')}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs w-24 text-center">{t('allowCreateOrg') || '建組織'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs w-24 text-center">{t('allowPersonalWorkspace') || '個人空間'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs w-48">{t('assignOrg') || '指派組織'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs">{t('applyTime') || '申請時間'}</th>
-                                    <th className="px-4 py-3 font-bold text-slate-700 uppercase tracking-wider text-xs text-right">{t('operation') || '操作'}</th>
+                        <table className="w-full text-left text-sm border-collapse">
+                            <thead>
+                                <tr className="bg-slate-900/[0.02] border-b border-slate-100">
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('user') || '使用者'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('status') || '狀態'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('rolePermission') || '身分 / 權限'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] w-24 text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowCreateOrg') || '建組織'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] w-24 text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowPersonalWorkspace') || '個人空間'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] w-48" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('assignOrg') || '指派組織'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('applyTime') || '申請時間'}</th>
+                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] text-right" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('operation') || '操作'}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-50">
                                 {loading ? (
                                     <tr>
                                         <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-medium">
@@ -202,50 +219,53 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                 ) : (
                                     filteredUsers.map(user => (
                                         <tr key={user.email} className="hover:bg-blue-50/30 transition-colors group">
-                                            <td className="px-4 py-3">
+                                            <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     {user.photoURL ? (
-                                                        <img src={user.photoURL} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200" />
+                                                        <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200" />
                                                     ) : (
-                                                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
-                                                            <User className="w-4 h-4" />
+                                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+                                                            <User className="w-5 h-5" />
                                                         </div>
                                                     )}
-                                                    <div>
-                                                        <div className="font-bold text-slate-800">{user.name || 'Unknown User'}</div>
-                                                        <div className="text-xs text-slate-500 font-mono mt-0.5">{user.email}</div>
+                                                    <div className="flex flex-col">
+                                                        <div className="font-bold text-slate-800 text-sm leading-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{user.name || 'Unknown User'}</div>
+                                                        <div className="text-[11px] text-slate-400 font-medium font-mono mt-0.5 opacity-80">{user.email}</div>
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            <td className="px-4 py-3">
-                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${user.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                    user.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border ${user.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                                    user.status === 'pending' ? 'bg-amber-100/80 text-amber-700 border-amber-200 shadow-sm shadow-amber-100 animate-pulse' :
                                                         'bg-red-100 text-red-700 border-red-200'
-                                                    }`}>
+                                                    }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full mr-2 ${user.status === 'approved' ? 'bg-emerald-500' : user.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
                                                     {user.status === 'approved' && (t('statusApproved') || '已核准')}
                                                     {user.status === 'pending' && (t('statusPending') || '待審核')}
                                                     {user.status === 'blocked' && (t('statusBlocked') || '已停用')}
                                                 </span>
                                             </td>
 
-                                            <td className="px-4 py-3">
-                                                <div className="flex bg-slate-100 rounded-lg p-1 w-fit border border-slate-200">
+                                            <td className="px-6 py-4">
+                                                <div className="flex bg-slate-100/50 backdrop-blur-sm rounded-xl p-1 w-fit border border-slate-200/50 shadow-inner">
                                                     <button
                                                         onClick={() => handleUpdateRole(user.email, 'user')}
-                                                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${user.role !== 'admin'
-                                                            ? 'bg-white text-slate-800 shadow-sm ring-1 ring-black/5'
-                                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${user.role !== 'admin'
+                                                            ? 'bg-white text-slate-800 shadow-md shadow-slate-200/50'
+                                                            : 'text-slate-500 hover:text-slate-700'
                                                             }`}
+                                                        style={{ fontFamily: "'Outfit', sans-serif" }}
                                                     >
                                                         {t('roleMember') || '成員'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleUpdateRole(user.email, 'admin')}
-                                                        className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${user.role === 'admin'
-                                                            ? 'bg-indigo-600 text-white shadow-sm ring-1 ring-black/5'
-                                                            : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${user.role === 'admin'
+                                                            ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-200'
+                                                            : 'text-slate-500 hover:text-slate-700'
                                                             }`}
+                                                        style={{ fontFamily: "'Outfit', sans-serif" }}
                                                     >
                                                         {t('roleAdmin') || '管理員'}
                                                     </button>
@@ -350,20 +370,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                     </div>
 
                     {/* Mobile Card View (Visible on Mobile) */}
-                    <div className="block md:hidden bg-slate-50 p-4 space-y-4">
+                    <div className="block md:hidden bg-transparent p-4 space-y-4">
                         {loading ? (
                             <div className="text-center py-12 text-slate-500">
                                 <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-2 opacity-50" />
-                                {t('loading') || '載入中...'}
+                                <span style={{ fontFamily: "'Outfit', sans-serif" }}>{t('loading') || '載入中...'}</span>
                             </div>
                         ) : filteredUsers.length === 0 ? (
                             <div className="text-center py-16 text-slate-400">
-                                <User className="w-12 h-12 mx-auto mb-2 text-slate-200" />
-                                {t('noMatchingUsers') || '沒有找到符合的用戶'}
+                                <User className="w-12 h-12 mx-auto mb-2 text-slate-100" />
+                                <span className="font-medium" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('noMatchingUsers') || '沒有找到符合的用戶'}</span>
                             </div>
                         ) : (
                             filteredUsers.map(user => (
-                                <div key={user.email} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div key={user.email} className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg shadow-blue-900/5 border border-white/50 overflow-hidden active:scale-[0.98] transition-all">
                                     <div className="p-4">
                                         {/* Mobile Header: Avatar, Info, Status */}
                                         <div className="flex items-start justify-between gap-3 mb-4">
@@ -509,10 +529,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                         )}
                     </div>
 
-                    <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 font-medium flex justify-between items-center">
+                    <div className="px-6 py-4 bg-slate-900/[0.03] border-t border-slate-100 text-[10px] text-slate-500 font-bold uppercase tracking-wider flex justify-between items-center" style={{ fontFamily: "'Outfit', sans-serif" }}>
                         <div>{t('totalUsers', { count: filteredUsers.length.toString() }) || `總計 ${filteredUsers.length} 位用戶`}</div>
                         <div className="hidden md:flex items-center gap-2">
-                            <span className="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
                             {t('assignOrgNote') || '可指派組織必須先由管理員創建'}
                         </div>
                     </div>

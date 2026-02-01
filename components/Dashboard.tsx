@@ -207,6 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Light Settings State
     const [lightSettings, setLightSettings] = useState<any>(null);
+    const [pendingUsersCount, setPendingUsersCount] = useState(0);
     const [savingLights, setSavingLights] = useState(false);
 
     // Map State
@@ -711,6 +712,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             }
         }
     };
+
+    // Track pending users for Admin Notification Badge
+    useEffect(() => {
+        if (!isAdmin) return;
+
+        console.log('[Dashboard] Subscribing to whitelist for pending count');
+        const unsubscribe = StorageService.onWhitelistChange((entries) => {
+            const pending = entries.filter(e => e.status === 'pending');
+            console.log(`[Dashboard] Pending users updated: ${pending.length}`);
+            setPendingUsersCount(pending.length);
+        });
+
+        return () => unsubscribe();
+    }, [isAdmin]);
 
     const fetchEquipmentStats = async () => {
         if (user?.uid) {
@@ -1316,28 +1331,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             {/* Modern Gradient Header */}
             <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white py-4 px-4 shadow-xl flex-shrink-0">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-4 group px-2">
+                    <div className="flex items-center gap-3 group px-2">
                         <div className="relative flex items-center justify-center">
                             {/* American Badge Styled Container */}
-                            <div className="relative p-1 bg-gradient-to-b from-amber-200 via-amber-500 to-amber-700 rounded-xl border border-amber-300 transform group-hover:scale-105 transition-all duration-300">
+                            <div className="relative p-0.5 bg-gradient-to-b from-amber-200 via-amber-500 to-amber-700 rounded-lg border border-amber-300 transform group-hover:scale-105 transition-all duration-300">
                                 <span className="sr-only">Badge Logo</span>
-                                <svg viewBox="0 0 24 24" className="w-10 h-10 fill-none stroke-slate-900 stroke-[1.2]" strokeLinecap="round" strokeLinejoin="round">
+                                <svg viewBox="0 0 24 24" className="w-8 h-8 fill-none stroke-slate-900 stroke-[1]" strokeLinecap="round" strokeLinejoin="round">
                                     {/* 7-Point Star (Classic Badge Component) */}
                                     <path d="M12 2l2.5 5.5 6 .5-4.5 4.5 1.5 6-5.5-3-5.5 3 1.5-6-4.5-4.5 6-.5z" className="fill-amber-400/90" />
                                     {/* Central Shield Seal */}
-                                    <circle cx="12" cy="12" r="4" className="fill-slate-800" />
+                                    <circle cx="12" cy="12" r="3.5" className="fill-slate-800" />
                                     {/* Protection Icon on Seal */}
-                                    <path d="M12 10.5v3M10.5 12h3" className="stroke-amber-400 stroke-[2]" />
+                                    <path d="M12 10.5v3M10.5 12h3" className="stroke-amber-400 stroke-[1.5]" />
                                     {/* Outer Decorative Elements */}
-                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" className="stroke-slate-900/10 stroke-[0.3]" />
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" className="stroke-slate-900/10 stroke-[0.2]" />
                                 </svg>
                             </div>
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-black text-3xl tracking-tighter bg-gradient-to-r from-amber-100 via-white to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] uppercase italic leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            <span className="font-bold text-2xl tracking-tight bg-gradient-to-r from-amber-100 via-white to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] uppercase italic leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                 {t('appName')}
                             </span>
-                            <span className="text-[9px] font-bold text-amber-400/80 tracking-[0.2em] uppercase mt-0.5 ml-1 drop-shadow-sm">
+                            <span className="text-[8px] font-semibold text-amber-400/80 tracking-[0.2em] uppercase mt-0.5 ml-0.5 drop-shadow-sm">
                                 Professional Edition
                             </span>
                         </div>
@@ -1374,6 +1389,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     iconClassName="text-white w-5 h-5"
                                     systemSettings={systemSettings}
                                     isAdmin={isAdmin}
+                                    pendingUsersCount={pendingUsersCount}
                                 />
                             </>
                         )}
@@ -1444,48 +1460,48 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {!user.isGuest && (
                         <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24">
+                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-blue-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('totalEquipment')}</p>
-                                    <p className="text-xl sm:text-2xl font-black text-slate-800 truncate mb-1">{nameCount}</p>
+                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('totalEquipment')}</p>
+                                    <p className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight truncate leading-none mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{nameCount}</p>
                                 </div>
-                                <div className="p-3 bg-blue-50 rounded-xl shrink-0">
-                                    <Database className="w-5 h-5 text-blue-500" />
+                                <div className="p-3 bg-gradient-to-br from-blue-50 to-white rounded-xl shadow-inner shrink-0 group-hover:bg-blue-100 transition-colors">
+                                    <Database className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
                                 </div>
                             </div>
 
                             {/* Abnormal Pending */}
-                            <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24">
+                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-red-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('pendingAbnormal')}</p>
-                                    <p className={`text-xl sm:text-2xl font-black truncate mb-1 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>{abnormalCount}</p>
+                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('pendingAbnormal')}</p>
+                                    <p className={`text-2xl sm:text-3xl font-bold tracking-tight truncate leading-none mb-1 ${abnormalCount > 0 ? 'text-red-500 underline decoration-2 decoration-red-200 underline-offset-4' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>{abnormalCount}</p>
                                 </div>
-                                <div className={`p-3 rounded-xl shrink-0 ${abnormalCount > 0 ? 'bg-red-50' : 'bg-slate-50'}`}>
-                                    <AlertOctagon className={`w-5 h-5 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-500'}`} />
+                                <div className={`p-3 rounded-xl shadow-inner shrink-0 transition-all ${abnormalCount > 0 ? 'bg-gradient-to-br from-red-50 to-white group-hover:bg-red-100' : 'bg-gradient-to-br from-slate-50 to-white group-hover:bg-slate-100'}`}>
+                                    <AlertOctagon className={`w-5 h-5 transition-transform group-hover:scale-110 ${abnormalCount > 0 ? 'text-red-500' : 'text-slate-500'}`} />
                                 </div>
                             </div>
 
                             {/* Declaration Countdown */}
-                            <div className={`bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 ${isAdmin ? 'md:col-span-1' : 'md:col-span-1'}`}>
+                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-amber-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('declarationCountdown')}</p>
+                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('declarationCountdown')}</p>
                                     <div className="flex items-baseline gap-1 min-w-0 mb-1">
                                         {countdownDays !== null ? (
                                             <>
-                                                <span className={`text-xl sm:text-2xl font-black truncate ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`}>{countdownDays}</span>
-                                                <span className="text-xs font-bold text-slate-400 shrink-0">{t('days')}</span>
+                                                <span className={`text-2xl sm:text-3xl font-bold tracking-tight truncate leading-none ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>{countdownDays}</span>
+                                                <span className="text-[10px] font-bold text-slate-600 shrink-0 uppercase tracking-wider">{t('days')}</span>
                                             </>
                                         ) : (
-                                            <span className="text-xl sm:text-2xl font-black text-slate-300">--</span>
+                                            <span className="text-2xl sm:text-3xl font-bold text-slate-200 tracking-tight italic" style={{ fontFamily: "'Outfit', sans-serif" }}>--</span>
                                         )}
                                     </div>
                                 </div>
-                                <div className={`p-3 rounded-xl shrink-0 ${countdownDays !== null && countdownDays <= 30 ? 'bg-amber-50' : 'bg-slate-50'}`}>
-                                    <Calendar className={`w-5 h-5 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
+                                <div className={`p-3 rounded-xl shadow-inner shrink-0 transition-all ${countdownDays !== null && countdownDays <= 30 ? 'bg-gradient-to-br from-amber-50 to-white group-hover:bg-amber-100' : 'bg-gradient-to-br from-slate-50 to-white group-hover:bg-slate-100'}`}>
+                                    <Calendar className={`w-5 h-5 transition-transform group-hover:scale-110 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
                                 </div>
                             </div>
 
-                            {/* Light Settings Card (Admin or Permitted Inspector) */}
+                            {/* Light Settings Card */}
                             {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
                                 <button
                                     onClick={() => {
@@ -1493,16 +1509,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         setSettingsModalMode('focused');
                                         setIsSettingsOpen(true);
                                     }}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-orange-200 hover:shadow-md transition-all group overflow-hidden"
+                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-orange-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('lightSettings')}</p>
-                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-orange-600 transition-colors truncate mb-1">
+                                        <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('lightSettings')}</p>
+                                        <p className="text-sm sm:text-base font-bold text-slate-800 group-hover:text-orange-600 transition-colors truncate mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {t('lights')}
                                         </p>
                                     </div>
-                                    <div className="p-3 bg-orange-50 rounded-xl group-hover:bg-orange-100 transition-colors shrink-0">
-                                        <Zap className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform" />
+                                    <div className="p-3 bg-gradient-to-br from-orange-50 to-white rounded-xl shadow-inner shrink-0 transition-all group-hover:bg-orange-100">
+                                        <Zap className="w-5 h-5 text-orange-500 transition-transform group-hover:scale-110" />
                                     </div>
                                 </button>
                             )}
@@ -1511,22 +1527,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 hover:border-blue-200 hover:shadow-md transition-all group overflow-hidden"
+                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-blue-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('permissions')}</p>
+                                        <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('permissions')}</p>
                                         <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 mb-1">
-                                            <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-blue-600 transition-colors truncate">
+                                            <p className="text-sm sm:text-base font-bold text-slate-800 group-hover:text-blue-600 transition-colors truncate" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                 {t('onOff')}
                                             </p>
                                             <div className="flex gap-0.5 sm:gap-1 shrink-0 mt-0.5">
-                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${systemSettings?.allowGuestView ? 'bg-green-500' : 'bg-slate-300'}`} title={t('allowGuestView')} />
-                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${systemSettings?.allowCloudGallery ? 'bg-blue-500' : 'bg-slate-300'}`} title={t('cloudGallery')} />
+                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shadow-sm transition-all ${systemSettings?.allowGuestView ? 'bg-green-500 scale-110' : 'bg-slate-200'}`} />
+                                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shadow-sm transition-all ${systemSettings?.allowCloudGallery ? 'bg-blue-500 scale-110' : 'bg-slate-200'}`} />
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-50 transition-colors shrink-0">
-                                        <ShieldCheck className="w-5 h-5 text-slate-500 group-hover:text-blue-500 transition-colors" />
+                                    <div className="p-3 bg-gradient-to-br from-slate-50 to-white rounded-xl shadow-inner shrink-0 transition-all group-hover:bg-blue-50">
+                                        <ShieldCheck className="w-5 h-5 text-slate-500 transition-colors group-hover:text-blue-500" />
                                     </div>
                                 </button>
                             )}
@@ -1536,16 +1552,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsAdminDashboardOpen(true)}
-                                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center justify-between h-24 md:col-span-1 hover:border-red-200 hover:shadow-md transition-all group overflow-hidden"
+                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-red-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase truncate">{t('systemManagement')}</p>
-                                        <p className="text-sm sm:text-base font-black text-slate-800 group-hover:text-red-600 transition-colors truncate mb-1">
+                                        <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('systemManagement')}</p>
+                                        <p className="text-sm sm:text-base font-bold text-slate-800 group-hover:text-red-600 transition-colors truncate mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {t('coreAdmin')}
                                         </p>
                                     </div>
-                                    <div className="p-3 bg-red-50 rounded-xl group-hover:bg-red-100 transition-colors shrink-0">
-                                        <Settings className="w-5 h-5 text-red-500 group-hover:scale-110 transition-transform" />
+                                    <div className="p-3 bg-gradient-to-br from-red-50 to-white rounded-xl shadow-inner shrink-0 transition-all group-hover:bg-red-100 relative">
+                                        <Settings className="w-5 h-5 text-red-500 transition-transform group-hover:scale-110" />
+                                        {pendingUsersCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-600 border-2 border-white shadow-sm flex items-center justify-center">
+                                                    <span className="text-[8px] font-bold text-white leading-none">{pendingUsersCount}</span>
+                                                </span>
+                                            </span>
+                                        )}
                                     </div>
                                 </button>
                             )}
@@ -1561,16 +1585,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (isAdmin || systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false) && (
                             <button
                                 onClick={() => setIsInspectionModeOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-blue-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <ClipboardCheck className="w-24 h-24 text-blue-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <ClipboardCheck className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-blue-500 rounded-xl w-fit mb-2 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                                <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl w-fit mb-3 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
                                     <ClipboardCheck className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('startInspectionTitle')}</h3>
-                                <p className="text-xs text-slate-500">{t('startInspectionDesc')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionTitle')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
                             </button>
                         )}
 
@@ -1578,22 +1602,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestRecheck)) && (
                             <button
                                 onClick={() => setShowAbnormalRecheck(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-amber-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <AlertOctagon className="w-24 h-24 text-amber-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <AlertOctagon className="w-24 h-24 text-amber-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="relative p-2 bg-amber-500 rounded-xl w-fit mb-2 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
+                                <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
                                     <AlertOctagon className="w-5 h-5 text-white" />
                                     {abnormalCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-white"></span>
+                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
                                         </span>
                                     )}
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('abnormalRecheck')}</h3>
-                                <p className="text-xs text-slate-500">
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('abnormalRecheck')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                     {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
                                 </p>
                             </button>
@@ -1603,16 +1627,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestEquipmentOverview)) && (
                             <button
                                 onClick={() => onMyEquipment()}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-cyan-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <Building className="w-24 h-24 text-cyan-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <Building className="w-24 h-24 text-cyan-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-cyan-500 rounded-xl w-fit mb-2 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
+                                <div className="p-2.5 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl w-fit mb-3 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
                                     <Building className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('myEquipment')}</h3>
-                                <p className="text-xs text-slate-500">{t('myEquipmentDesc')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipment')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipmentDesc')}</p>
                             </button>
                         )}
 
@@ -1620,16 +1644,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {!user.isGuest && (
                             <button
                                 onClick={() => setIsEquipmentMapOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-purple-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <MapPinned className="w-24 h-24 text-purple-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <MapPinned className="w-24 h-24 text-purple-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-purple-500 rounded-xl w-fit mb-2 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
+                                <div className="p-2.5 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl w-fit mb-3 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
                                     <MapPinned className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('mapEditor')}</h3>
-                                <p className="text-xs text-slate-500">{t('mapEditorDesc')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditor')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditorDesc')}</p>
                             </button>
                         )}
 
@@ -1637,123 +1661,104 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestHistory)) && (
                             <button
                                 onClick={scrollToHistory}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-indigo-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <ScrollText className="w-24 h-24 text-indigo-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <ScrollText className="w-24 h-24 text-indigo-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-indigo-500 rounded-xl w-fit mb-2 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                                <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl w-fit mb-3 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
                                     <ScrollText className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('history')}</h3>
-                                <p className="text-xs text-slate-500">{flattenedHistory.length} {t('historyRecordsCount')}</p>
-                            </button>
-                        )}
-
-                        {/* Equipment Overview (Guest Card Mode) */}
-                        {user.isGuest && systemSettings?.allowGuestEquipmentOverview && (
-                            <button
-                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                                className={`group relative overflow-hidden rounded-2xl bg-white p-3 text-left border transition-all hover:shadow-md active:scale-[0.98] ${isEquipmentExpanded ? 'border-purple-500 ring-1 ring-purple-500' : 'border-slate-200 hover:border-purple-500'}`}
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <PieChart className="w-24 h-24 text-purple-500 -mr-8 -mt-8" />
-                                </div>
-                                <div className="p-2 bg-purple-500 rounded-xl w-fit mb-2 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
-                                    <PieChart className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('equipmentOverview')}</h3>
-                                <p className="text-xs text-slate-500">{t('equipmentOverviewDesc')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('history')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{flattenedHistory.length} {t('historyRecordsCount')}</p>
                             </button>
                         )}
 
                         {/* Health Indicators */}
-                        {!user.isGuest && (
+                        {(!user.isGuest) && (
                             <button
                                 onClick={() => setIsHealthModalOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-rose-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <HeartPulse className="w-24 h-24 text-rose-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <Activity className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-rose-500 rounded-xl w-fit mb-2 shadow-lg shadow-rose-200 group-hover:scale-110 transition-transform">
-                                    <HeartPulse className="w-5 h-5 text-white" />
+                                <div className="p-2.5 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl w-fit mb-3 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
+                                    <Activity className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('healthIndicators')}</h3>
-                                <p className="text-xs text-slate-500">{healthIndicators.length}{t('indicatorCountSuffix')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('healthIndicators')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
                             </button>
                         )}
 
                         {/* Add Equipment */}
-                        {!user.isGuest && (
+                        {isAdmin && (
                             <button
                                 onClick={onAddEquipment}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-emerald-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <PlusCircle className="w-24 h-24 text-emerald-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <PlusCircle className="w-24 h-24 text-emerald-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-emerald-500 rounded-xl w-fit mb-2 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                                <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl w-fit mb-3 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
                                     <PlusCircle className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('addEquipment')}</h3>
-                                <p className="text-xs text-slate-500">{t('addEquipmentDesc')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipment')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
                             </button>
                         )}
 
-                        {/* Add Name List (Hierarchy) */}
-                        {!user.isGuest && (
+                        {/* Add Name List */}
+                        {isAdmin && (
                             <button
                                 onClick={onManageHierarchy}
-                                className="group relative overflow-hidden rounded-2xl bg-white p-3 text-left border border-slate-200 transition-all hover:border-orange-500 hover:shadow-md active:scale-[0.98]"
+                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                             >
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <ListPlus className="w-24 h-24 text-orange-500 -mr-8 -mt-8" />
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <ListPlus className="w-24 h-24 text-orange-600 -mr-8 -mt-8 rotate-12" />
                                 </div>
-                                <div className="p-2 bg-orange-500 rounded-xl w-fit mb-2 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
+                                <div className="p-2.5 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl w-fit mb-3 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
                                     <ListPlus className="w-5 h-5 text-white" />
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1">{t('addNameList')}</h3>
-                                <p className="text-xs text-slate-500">{t('addNameListDescShort')}</p>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameList')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameListDescShort')}</p>
                             </button>
                         )}
                     </div>
 
-                    {/* Equipment Overview (Collapsible - Standard Mode) */}
-                    {!user.isGuest && (
-                        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                    {/* Equipment Overview Section (Unified for Guest & Inspector) */}
+                    {(!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
+                        <div className={`rounded-2xl transition-all duration-300 ${isEquipmentExpanded && user.isGuest ? 'mt-4 bg-white/70 backdrop-blur-md border border-slate-200/60 shadow-lg' : 'bg-white/70 backdrop-blur-md p-4 border border-slate-200/60 shadow-sm'}`}>
                             <button
                                 onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                                className="w-full flex items-center justify-between"
+                                className={`w-full flex items-center justify-between group ${isEquipmentExpanded && user.isGuest ? 'p-4 border-b border-slate-100/50' : ''}`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-slate-100 rounded-lg">
+                                    <div className="p-2 bg-slate-100 rounded-xl group-hover:scale-110 transition-transform">
                                         <PieChart className="w-5 h-5 text-slate-600" />
                                     </div>
                                     <div className="text-left">
-                                        <h3 className="font-bold text-slate-800">{t('equipmentOverview')}</h3>
-                                        <p className="text-xs text-slate-500">{t('equipmentOverviewDesc')}</p>
+                                        <h3 className="font-bold text-slate-800 text-base" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
+                                        <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
                                     </div>
                                 </div>
                                 {isEquipmentExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                             </button>
 
                             {isEquipmentExpanded && (
-                                <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className={`animate-in fade-in slide-in-from-top-2 duration-300 ${user.isGuest ? 'p-4' : 'mt-4 pt-4 border-t border-slate-100'}`}>
                                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                         {equipmentStats.map((stat: any, index: number) => (
                                             <button
                                                 key={index}
-                                                onClick={() => {
-                                                    onMyEquipment(stat.name);
-                                                }}
-                                                className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50 transition-colors group"
+                                                onClick={() => onMyEquipment(stat.name)}
+                                                className="flex flex-col items-center justify-center p-3 bg-white/50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-white hover:shadow-md transition-all group"
                                             >
-                                                <div className="mb-2 p-2 bg-white rounded-lg shadow-sm group-hover:scale-110 transition-transform">
+                                                <div className="mb-2 p-2 bg-slate-50 rounded-lg group-hover:scale-110 transition-transform">
                                                     {getEquipmentIcon(stat.name)}
                                                 </div>
                                                 <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
-                                                <span className="text-lg font-black text-slate-800">{stat.total}</span>
+                                                <span className="text-lg font-black text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{stat.total}</span>
                                             </button>
                                         ))}
                                         {equipmentStats.length === 0 && (
@@ -1767,38 +1772,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
                     )}
 
-                    {/* Equipment Overview Breakdown (Guest Mode - appears below grid) */}
-                    {user.isGuest && isEquipmentExpanded && systemSettings?.allowGuestEquipmentOverview && (
-                        <div className="mt-2 bg-white/50 backdrop-blur-sm rounded-2xl p-4 border border-purple-100 shadow-lg shadow-purple-500/5 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-purple-100/50">
-                                <div className="w-1 h-4 bg-purple-500 rounded-full"></div>
-                                <h4 className="font-bold text-slate-700 text-sm">{t('equipmentStatistics')}</h4>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {equipmentStats.map((stat: any, index: number) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => onMyEquipment(stat.name)}
-                                        className="flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-100 hover:border-purple-200 hover:bg-purple-50 transition-all group shadow-sm hover:shadow-md"
-                                    >
-                                        <div className="mb-2 p-2 bg-slate-50 rounded-lg group-hover:scale-110 transition-transform">
-                                            {getEquipmentIcon(stat.name)}
-                                        </div>
-                                        <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
-                                        <span className="text-lg font-black text-slate-800">{stat.total}</span>
-                                    </button>
-                                ))}
-                                {equipmentStats.length === 0 && (
-                                    <div className="col-span-full text-center py-4 text-slate-400 text-sm">
-                                        {t('noEquipmentData')}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Full Page Search Results / History Table */}
-                    {/* Full Page Search Results / History Table */}
                     {(showArchived || searchTerm.trim()) && (
                         <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
                             <div className="max-w-7xl mx-auto p-6 space-y-6">

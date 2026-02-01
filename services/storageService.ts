@@ -1,6 +1,6 @@
 import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings, Organization, OrganizationMember, OrganizationRole } from '../types';
 import { db, auth, storage } from './firebase';
-import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
 
 const LOCAL_STORAGE_KEY = 'firecheck_reports';
@@ -1963,44 +1963,73 @@ export const StorageService = {
   },
 
   async requestAccess(user: { email: string; displayName: string; photoURL?: string }): Promise<void> {
-    if (!db || !user.email) return;
+    console.log('[StorageService] Requesting access for:', user.email);
+    if (!db) {
+      console.error('[StorageService] DB not initialized during requestAccess');
+      return;
+    }
+    if (!user.email) {
+      console.error('[StorageService] Email is missing during requestAccess');
+      return;
+    }
+
     try {
       const email = user.email.toLowerCase();
       const docRef = doc(db, 'whitelist', email);
       const snapshot = await getDoc(docRef);
 
       if (!snapshot.exists()) {
-        // Only create if not exists
         const entry: WhitelistEntry = {
           email: email,
           status: 'pending',
           orgId: null,
-          role: 'user', // Default role
+          role: 'user',
           name: user.displayName,
           photoURL: user.photoURL || undefined,
           requestedAt: Date.now(),
           updatedAt: Date.now()
         };
         await setDoc(docRef, entry);
-        console.log('[StorageService] Access requested for', email);
+        console.log('[StorageService] Access request document created for', email);
+      } else {
+        console.log('[StorageService] Access request already exists for', email, snapshot.data());
       }
     } catch (e) {
-      console.error('Request access error', e);
+      console.error('[StorageService] Request access error', e);
       throw e;
     }
   },
 
   async getWhitelist(): Promise<WhitelistEntry[]> {
-    if (!db) return [];
-    try {
-      const q = query(collection(db, 'whitelist'));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => doc.data() as WhitelistEntry)
-        .sort((a, b) => b.requestedAt - a.requestedAt);
-    } catch (e) {
-      console.error('Get whitelist error', e);
+    if (!db) {
+      console.warn('[StorageService] getWhitelist called but DB not initialized');
       return [];
     }
+    try {
+      console.log('[StorageService] Fetching full whitelist...');
+      const q = query(collection(db, 'whitelist'));
+      const snapshot = await getDocs(q);
+      const results = snapshot.docs.map(doc => doc.data() as WhitelistEntry);
+      console.log(`[StorageService] Fetched ${results.length} whitelist entries`);
+
+      return results.sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0));
+    } catch (e) {
+      console.error('[StorageService] Get whitelist error', e);
+      return [];
+    }
+  },
+
+  onWhitelistChange(callback: (entries: WhitelistEntry[]) => void): () => void {
+    if (!db) return () => { };
+    console.log('[StorageService] Subscribing to whitelist changes');
+    const q = query(collection(db, 'whitelist'));
+    return onSnapshot(q, (snapshot: any) => {
+      const entries = snapshot.docs.map((d: any) => d.data() as WhitelistEntry);
+      console.log(`[StorageService] Whitelist updated real-time: ${entries.length} entries`);
+      callback(entries.sort((a, b) => (b.requestedAt || 0) - (a.requestedAt || 0)));
+    }, (error: any) => {
+      console.error('[StorageService] Whitelist subscription error:', error);
+    });
   },
 
   async updateWhitelistEntry(email: string, updates: Partial<WhitelistEntry>): Promise<void> {

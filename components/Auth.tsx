@@ -50,7 +50,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin, showPendingMessage, isChecking, sh
     setError('');
     try {
       setLoading(true);
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      console.log(`[Auth] Google login success for ${result.user.email} (${result.user.uid})`);
       // Removed onLogin call to rely on onAuthStateChanged in App.tsx for whitelist enforcement
     } catch (err: any) {
       console.error("Google Auth Error:", err);
