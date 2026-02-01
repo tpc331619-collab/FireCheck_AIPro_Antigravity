@@ -1898,8 +1898,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     type="text"
                                                     placeholder={t('searchBarcodeNotes')}
                                                     value={keywordSearch}
-                                                    onChange={(e) => setKeywordSearch(e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    onChange={(e) => setKeywordSearch(e.target.value.toUpperCase())}
+                                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                                 />
                                             </div>
                                         </div>
