@@ -308,6 +308,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     searchBarcodeNotes: '搜尋條碼、備註...',
     clearFilters: '清除篩選',
     adjustColumns: '調整欄位顯示與順序',
+    export: '匯出',
+    exportExcel: '匯出 Excel',
+    exportPDF: '匯出 PDF',
+    monthlyReport: '一鍵月報',
     // Table Headers
     index: '序號',
     checkDate: '檢查日期',
