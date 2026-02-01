@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, LightSettings, SystemSettings } from '../types';
-import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useEquipment, useLightSettings, useSystemSettings, useDeleteEquipment, useSaveEquipment, useBatchUpdateEquipment, useBatchDeleteEquipment } from '../hooks/useSystemData';
 // import { calculateNextInspectionDate, getInspectionStatus } from '../utils/dateUtils'; // Deprecated for this view
 import { getFrequencyStatus, getNextInspectionDate } from '../utils/inspectionUtils';
 import QRCode from 'qrcode';
@@ -31,14 +31,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const { t, language } = useLanguage();
   const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
 
-  const [fetchedSettings, setFetchedSettings] = useState<SystemSettings | null>(null);
-
-  useEffect(() => {
-    if (!systemSettings) {
-      StorageService.getSystemSettings().then(setFetchedSettings);
-    }
-  }, [systemSettings]);
-
+  const { data: fetchedSettings } = useSystemSettings();
   const activeSettings = systemSettings || fetchedSettings;
 
   // Permission Checks
@@ -48,9 +41,18 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const canViewBarcode = isAdmin || activeSettings?.allowInspectorShowBarcode !== false;
   const canViewImage = isAdmin || activeSettings?.allowInspectorShowImage !== false;
   const canBatch = isAdmin || activeSettings?.allowInspectorBatchOperations === true;
-  const [loading, setLoading] = useState(true);
-  const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
-  const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
+
+  // React Query Hooks
+  const { data: allEquipment = [], isLoading: equipmentLoading } = useEquipment(user);
+  const { data: lightSettings } = useLightSettings(user);
+
+  const loading = equipmentLoading;
+
+  // Mutations
+  const deleteMutation = useDeleteEquipment(user);
+  const saveMutation = useSaveEquipment(user);
+  const batchUpdateMutation = useBatchUpdateEquipment(user);
+  const batchDeleteMutation = useBatchDeleteEquipment(user);
 
 
   // Search State
@@ -90,33 +92,17 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const refreshData = async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const data = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
-      setAllEquipment(data);
-
-      const uniqueSites = Array.from(new Set(data.map(item => item.siteName)));
+  useEffect(() => {
+    if (allEquipment.length > 0) {
+      const uniqueSites = Array.from(new Set(allEquipment.map(item => item.siteName)));
       setSites(uniqueSites);
 
-      // Auto-select first site if none selected
-      if (!selectedSite && uniqueSites.length > 0) {
+      // Only set if not already set and we have data
+      if (!selectedSite && uniqueSites.length > 0 && !searchQuery) {
         onFilterChange(uniqueSites[0], null);
       }
-
-      // Load Settings
-      const settings = await StorageService.getLightSettings(user.uid, user.currentOrganizationId);
-      setLightSettings(settings);
-    } catch (error) {
-      console.error("Failed to load equipment", error);
-    } finally {
-      if (!silent) setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    refreshData();
-  }, [user.uid, user.currentOrganizationId]);
+  }, [allEquipment, selectedSite, onFilterChange]);
 
   // 當數據或篩選 site 改變時，更新可用建築物清單
   useEffect(() => {
@@ -189,52 +175,17 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
     const { id } = deleteConfirm;
 
-    // 保存原始狀態以備「真的失敗」時還原
-    const originalAll = [...allEquipment];
-
-    // 樂觀 UI 更新
-    setAllEquipment(prev => prev.filter(item => item.id !== id));
-
     // 關閉視窗
     setDeleteConfirm(null);
 
     try {
       console.log("Deleting item:", id);
-      await StorageService.deleteEquipmentDefinition(id);
-
-      refreshData(true);
-
-      // --- Sync Map Markers Fix ---
-      // We need to remove any map markers associated with this equipment ID (barcode)
-      try {
-        const itemToDelete = allEquipment.find(e => e.id === id);
-        if (itemToDelete) {
-          const barcode = itemToDelete.barcode;
-          if (id && user?.uid) {
-            const maps = await StorageService.getMaps(user.uid, user.currentOrganizationId);
-
-            const mapsToUpdate = maps.filter(m => m.markers.some(mk => mk.equipmentId === barcode));
-
-            if (mapsToUpdate.length > 0) {
-              console.log(`Syncing map markers: Removing equipment ${barcode} from ${mapsToUpdate.length} maps`);
-              for (const map of mapsToUpdate) {
-                const updatedMarkers = map.markers.filter(mk => mk.equipmentId !== barcode);
-                await StorageService.saveMap({ ...map, markers: updatedMarkers }, user.uid, user.currentOrganizationId);
-              }
-            }
-          }
-        }
-      } catch (mapErr) {
-        console.error("Failed to sync delete with maps:", mapErr);
-        // Delete was successful, just map sync failed. Non-critical but logged.
-      }
+      await deleteMutation.mutateAsync(id);
 
       showToast(t('dataDeleted') || "資料已刪除", 'success');
 
     } catch (err: any) {
       console.error("Delete failed:", err);
-
-      setAllEquipment(originalAll); // 還原
 
       const errorMsg = err.code === 'permission-denied'
         ? "權限不足，無法刪除。"
@@ -272,8 +223,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     try {
       console.log('[MyEquipment] Copying item:', item.barcode, '-> New:', cleanItem.barcode);
       // Save either creates or updates based on presence of id in handleEditSubmit
-      await StorageService.saveEquipmentDefinition(cleanItem, user.uid, user.currentOrganizationId);
-      refreshData(true);
+      await saveMutation.mutateAsync(cleanItem);
       showToast(t('copySuccess'));
     } catch (err) {
       console.error('[MyEquipment] Copy failed:', err);
@@ -312,23 +262,25 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
     setBatchLoading(true);
     try {
-      const ids = Array.from(selectedIds) as string[];
       if (type === 'delete') {
-        await StorageService.batchDeleteEquipment(ids);
+        const ids = Array.from(selectedIds) as string[];
+        await batchDeleteMutation.mutateAsync(ids);
         showToast(`已批次刪除 ${ids.length} 項設備`);
       } else if (type === 'frequency') {
+        const ids = Array.from(selectedIds) as string[];
         const updates = ids.map(id => ({ id, data: { checkFrequency: newFrequency } }));
-        await StorageService.batchUpdateEquipment(updates);
+        await batchUpdateMutation.mutateAsync(updates);
         showToast(`已批次更新 ${ids.length} 項設備的檢查頻率`);
       } else if (type === 'move') {
+        const ids = Array.from(selectedIds) as string[];
         const updates = ids.map(id => ({ id, data: { siteName: moveSite, buildingName: moveBuilding } }));
-        await StorageService.batchUpdateEquipment(updates);
+        await batchUpdateMutation.mutateAsync(updates);
         showToast(`已批次移動 ${ids.length} 項設備`);
       }
 
       setSelectedIds(new Set());
       setBatchModal(null);
-      refreshData(true);
+      // Data will refresh automatically via React Query invalidation
     } catch (err) {
       console.error("Batch update failed:", err);
       showToast("批次操作失敗", 'error');
