@@ -115,6 +115,7 @@ interface DashboardProps {
     onOrgSwitch: (orgId: string) => void;
     guestExpiry?: number | null;
     systemSettings?: SystemSettings;
+    onSystemSettingsUpdate?: (settings: SystemSettings) => void;
 }
 
 const CARTOON_AVATARS = [
@@ -135,7 +136,7 @@ const getEquipmentIcon = (name: string) => {
     return <Box className="w-5 h-5 text-slate-400" />;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor, onOrgSwitch, guestExpiry }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor, onOrgSwitch, guestExpiry, systemSettings: systemSettingsFromProps, onSystemSettingsUpdate }) => {
     const { t, language, setLanguage } = useLanguage();
     const { theme, setTheme, styles } = useTheme(); // Use Theme Hook
     const [activeModal, setActiveModal] = useState<{ type: 'INSPECTION' | 'RECHECK', item: any } | null>(null);
@@ -250,29 +251,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
-    useEffect(() => {
-        if (true) return; // Disabled duplicate effect
-
-        const checkExpired = () => {
-            const now = Date.now();
-            const twelveHours = 12 * 60 * 60 * 1000;
-
-            // Find the first expired indicator that hasn't been dismissed recently
-            const target = ([] as any[]).find(indicator => {
-                const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - now) / (1000 * 60 * 60 * 24));
-                const isExpired = remainingDays <= 0;
-                const isDismissedRecently = indicator.lastPromptDismissed && (now - indicator.lastPromptDismissed < twelveHours);
-
-                return isExpired && !isDismissedRecently;
-            });
-
-            if (target) {
-                setRenewalTarget(target);
-            }
-        };
-
-        checkExpired();
-    }, []);
     const [nameCount, setNameCount] = useState(0);
 
     const [isInspectionModeOpen, setIsInspectionModeOpen] = useState(false);
@@ -297,22 +275,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Health Indicator State
     const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
     const [editingHealthIndicator, setEditingHealthIndicator] = useState<HealthIndicator | null>(null);
-    const [systemSettings, setSystemSettings] = useState<SystemSettings>({ allowGuestView: false });
-
-    useEffect(() => {
-        if (user?.uid) {
-            StorageService.getSystemSettings().then(settings => {
-                if (settings) {
-                    setSystemSettings(settings);
-                }
-            });
-        }
-    }, [user?.uid, isSettingsOpen]);
+    const systemSettings = systemSettingsFromProps || { allowGuestView: false };
 
     const handleSaveSystemSettings = async (newSettings: SystemSettings) => {
         if (!user.uid) return;
         const prevSettings = systemSettings;
-        setSystemSettings(newSettings); // Optimistic Update
+        if (onSystemSettingsUpdate) onSystemSettingsUpdate(newSettings); // Optimistic Update
 
         try {
             await StorageService.saveSystemSettings({
@@ -323,19 +291,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             console.log('[Dashboard] System settings saved successfully');
         } catch (e) {
             console.error('[Dashboard] Failed to save system settings:', e);
-            setSystemSettings(prevSettings); // Rollback
+            if (onSystemSettingsUpdate) onSystemSettingsUpdate(prevSettings); // Rollback
             alert(t('saveFailed') || '儲存失敗');
         }
     };
     const [savingHealth, setSavingHealth] = useState(false);
-
-    // Fetch Health Indicators
-    useEffect(() => {
-        if (user?.uid) {
-            StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then(setHealthIndicators);
-            fetchLightSettings();
-        }
-    }, [user?.uid, user.currentOrganizationId]);
 
     // Check for expired health indicators requiring renewal
     useEffect(() => {
@@ -671,6 +631,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             fetchEquipmentStats();
             fetchLightSettings();
             fetchHistoryCounts();
+            StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then(setHealthIndicators);
         }
     }, [user?.uid, user?.currentOrganizationId]);
 
@@ -1680,6 +1641,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </button>
                         )}
 
+                        {/* Equipment Overview */}
+                        {(!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
+                            <button
+                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
+                                className={`group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
+                            >
+                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                    <PieChart className="w-24 h-24 text-slate-600 -mr-8 -mt-8 rotate-12" />
+                                </div>
+                                <div className="p-2.5 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl w-fit mb-3 shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform">
+                                    <PieChart className="w-5 h-5 text-white" />
+                                </div>
+                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
+                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
+                            </button>
+                        )}
+
                         {/* Health Indicators */}
                         {(!user.isGuest) && (
                             <button
@@ -1732,49 +1710,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
                     </div>
 
-                    {/* Equipment Overview Section (Unified for Guest & Inspector) */}
-                    {(!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
-                        <div className={`rounded-2xl transition-all duration-300 ${isEquipmentExpanded && user.isGuest ? 'mt-4 bg-white/70 backdrop-blur-md border border-slate-200/60 shadow-lg' : 'bg-white/70 backdrop-blur-md p-4 border border-slate-200/60 shadow-sm'}`}>
-                            <button
-                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                                className={`w-full flex items-center justify-between group ${isEquipmentExpanded && user.isGuest ? 'p-4 border-b border-slate-100/50' : ''}`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-slate-100 rounded-xl group-hover:scale-110 transition-transform">
-                                        <PieChart className="w-5 h-5 text-slate-600" />
+                    {/* Equipment Overview Stats (Expanded) */}
+                    {isEquipmentExpanded && (!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
+                        <div className="mt-4 p-4 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/60 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {equipmentStats.map((stat: any, index: number) => (
+                                    <button
+                                        key={index}
+                                        onClick={() => onMyEquipment(stat.name)}
+                                        className="flex flex-col items-center justify-center p-3 bg-white/50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-white hover:shadow-md transition-all group"
+                                    >
+                                        <div className="mb-2 p-2 bg-slate-50 rounded-lg group-hover:scale-110 transition-transform">
+                                            {getEquipmentIcon(stat.name)}
+                                        </div>
+                                        <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
+                                        <span className="text-lg font-black text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{stat.total}</span>
+                                    </button>
+                                ))}
+                                {equipmentStats.length === 0 && (
+                                    <div className="col-span-full text-center py-4 text-slate-400 text-sm">
+                                        {t('noEquipmentData')}
                                     </div>
-                                    <div className="text-left">
-                                        <h3 className="font-bold text-slate-800 text-base" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
-                                        <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
-                                    </div>
-                                </div>
-                                {isEquipmentExpanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                            </button>
-
-                            {isEquipmentExpanded && (
-                                <div className={`animate-in fade-in slide-in-from-top-2 duration-300 ${user.isGuest ? 'p-4' : 'mt-4 pt-4 border-t border-slate-100'}`}>
-                                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                        {equipmentStats.map((stat: any, index: number) => (
-                                            <button
-                                                key={index}
-                                                onClick={() => onMyEquipment(stat.name)}
-                                                className="flex flex-col items-center justify-center p-3 bg-white/50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-white hover:shadow-md transition-all group"
-                                            >
-                                                <div className="mb-2 p-2 bg-slate-50 rounded-lg group-hover:scale-110 transition-transform">
-                                                    {getEquipmentIcon(stat.name)}
-                                                </div>
-                                                <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
-                                                <span className="text-lg font-black text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{stat.total}</span>
-                                            </button>
-                                        ))}
-                                        {equipmentStats.length === 0 && (
-                                            <div className="col-span-full text-center py-4 text-slate-400 text-sm">
-                                                {t('noEquipmentData')}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     )}
 

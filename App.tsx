@@ -397,6 +397,7 @@ const App: React.FC = () => {
               onOpenMapEditor={() => navigate('/map-editor')}
               onOrgSwitch={handleOrgSwitch}
               systemSettings={systemSettings}
+              onSystemSettingsUpdate={setSystemSettings}
             />
           } />
 
