@@ -49,7 +49,6 @@ export function useDeleteEquipment(user: UserProfile) {
     return useMutation({
         mutationFn: (id: string) => StorageService.deleteEquipmentDefinition(id),
         onSuccess: () => {
-            // Invalidate and refetch list
             queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId) });
         },
     });
@@ -81,7 +80,16 @@ export function useSaveEquipment(user: UserProfile) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (data: EquipmentDefinition) => StorageService.saveEquipmentDefinition(data, user.uid, user.currentOrganizationId),
+        mutationFn: (data: EquipmentDefinition) => {
+            // If data has an ID that doesn't start with 'local_', it might be an update.
+            // However, StorageService.saveEquipmentDefinition uses addDoc (creates new).
+            // We need to check if we should call updateEquipmentDefinition or saveEquipmentDefinition.
+            // For simplicity and to match EquipmentManager logic, we use a helper approach.
+            if (data.id && !data.id.startsWith('local_') && !data.id.includes('COPY')) {
+                return StorageService.updateEquipmentDefinition(data as any).then(() => data.id);
+            }
+            return StorageService.saveEquipmentDefinition(data, user.uid, user.currentOrganizationId);
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId) });
         }

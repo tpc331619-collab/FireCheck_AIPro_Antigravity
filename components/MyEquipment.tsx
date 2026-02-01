@@ -125,7 +125,8 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       const query = queryStr.toLowerCase().trim();
       const filtered = allEquipment.filter(e =>
         e.barcode.toLowerCase().includes(query) ||
-        e.name.toLowerCase().includes(query)
+        e.name.toLowerCase().includes(query) ||
+        (e.tags && e.tags.some(tag => tag.toLowerCase().includes(query)))
       );
       setFilteredEquipment(filtered);
     } else if (selectedSite) {
@@ -326,9 +327,9 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
-                    placeholder={t('searchEquipmentPlaceholder')}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all"
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('searchEquipmentPlaceholder') || "搜尋名稱、條碼、標籤..."}
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all uppercase"
                   />
                   {searchQuery && (
                     <button
@@ -452,6 +453,16 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                 <span className="px-3 py-1 rounded-full text-sm font-bold font-mono bg-slate-100 text-slate-600">
                                   {item.barcode}
                                 </span>
+                                {/* Tags Display - Now next to barcode */}
+                                {item.tags && item.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.tags.map(tag => (
+                                      <span key={tag} className="px-1.5 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-bold rounded border border-teal-100">
+                                        #{tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
 
                               <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -525,6 +536,8 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                     );
                                   })()}
                                 </div>
+
+
                               </div>
                             </div>
 
@@ -754,240 +767,248 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       }
 
       {/* Floating Batch Action Bar */}
-      {canBatch && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500 w-[85%] sm:w-auto max-w-sm">
-          <div className="bg-white/95 backdrop-blur-xl border border-slate-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rounded-2xl p-1 flex items-center gap-1 ring-1 ring-slate-100">
-            {/* Counter Section - Minimalist */}
-            <div className="flex items-center justify-center px-2 border-r border-slate-100">
-              <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-                <span className="text-slate-900 font-extrabold text-xs leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
+      {
+        canBatch && selectedIds.size > 0 && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500 w-[85%] sm:w-auto max-w-sm">
+            <div className="bg-white/95 backdrop-blur-xl border border-slate-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rounded-2xl p-1 flex items-center gap-1 ring-1 ring-slate-100">
+              {/* Counter Section - Minimalist */}
+              <div className="flex items-center justify-center px-2 border-r border-slate-100">
+                <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                  <span className="text-slate-900 font-extrabold text-xs leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
+                </div>
+              </div>
+
+              {/* Actions Section - Uniform Buttons */}
+              <div className="flex items-center gap-1 flex-1">
+                <button
+                  onClick={() => setBatchModal('frequency')}
+                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-emerald-600 rounded-xl transition-all active:scale-95"
+                >
+                  <CalendarClock className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-bold transform scale-90 origin-top">頻率</span>
+                </button>
+
+                <button
+                  onClick={() => setBatchModal('move')}
+                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-blue-600 rounded-xl transition-all active:scale-95"
+                >
+                  <MapPin className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-bold transform scale-90 origin-top">移動</span>
+                </button>
+
+                <button
+                  onClick={() => setBatchModal('delete')}
+                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-rose-600 rounded-xl transition-all active:scale-95"
+                >
+                  <Trash2 className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-bold transform scale-90 origin-top">刪除</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="w-10 flex flex-col items-center justify-center py-1.5 px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all active:scale-90"
+                >
+                  <X className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-bold transform scale-90 origin-top">取消</span>
+                </button>
               </div>
             </div>
-
-            {/* Actions Section - Uniform Buttons */}
-            <div className="flex items-center gap-1 flex-1">
-              <button
-                onClick={() => setBatchModal('frequency')}
-                className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-emerald-600 rounded-xl transition-all active:scale-95"
-              >
-                <CalendarClock className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-bold transform scale-90 origin-top">頻率</span>
-              </button>
-
-              <button
-                onClick={() => setBatchModal('move')}
-                className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-blue-600 rounded-xl transition-all active:scale-95"
-              >
-                <MapPin className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-bold transform scale-90 origin-top">移動</span>
-              </button>
-
-              <button
-                onClick={() => setBatchModal('delete')}
-                className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-rose-600 rounded-xl transition-all active:scale-95"
-              >
-                <Trash2 className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-bold transform scale-90 origin-top">刪除</span>
-              </button>
-
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="w-10 flex flex-col items-center justify-center py-1.5 px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all active:scale-90"
-              >
-                <X className="w-5 h-5 mb-0.5" />
-                <span className="text-[10px] font-bold transform scale-90 origin-top">取消</span>
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Batch Frequency Modal */}
-      {batchModal === 'frequency' && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-white relative animate-in zoom-in-95 duration-300 overflow-hidden">
-            {/* Header Aesthetic */}
-            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-emerald-50 to-teal-50/30 -z-10"></div>
+      {
+        batchModal === 'frequency' && (
+          <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-white relative animate-in zoom-in-95 duration-300 overflow-hidden">
+              {/* Header Aesthetic */}
+              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-emerald-50 to-teal-50/30 -z-10"></div>
 
-            <div className="flex flex-col items-center text-center mb-8">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-xl shadow-emerald-100 flex items-center justify-center mb-4 border border-emerald-50 anime-float">
-                <CalendarClock className="w-8 h-8 text-emerald-500" />
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-xl shadow-emerald-100 flex items-center justify-center mb-4 border border-emerald-50 anime-float">
+                  <CalendarClock className="w-8 h-8 text-emerald-500" />
+                </div>
+                <h3 className="font-extrabold text-2xl text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchEditFrequency')}</h3>
+                <p className="text-slate-400 text-sm mt-1 font-medium italic">Update inspection cycles in bulk</p>
               </div>
-              <h3 className="font-extrabold text-2xl text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchEditFrequency')}</h3>
-              <p className="text-slate-400 text-sm mt-1 font-medium italic">Update inspection cycles in bulk</p>
-            </div>
 
-            <p className="text-slate-600 text-sm mb-6 text-center leading-relaxed">
-              {t('batchFrequencyDesc').replace('{count}', selectedIds.size.toString())}
-            </p>
+              <p className="text-slate-600 text-sm mb-6 text-center leading-relaxed">
+                {t('batchFrequencyDesc').replace('{count}', selectedIds.size.toString())}
+              </p>
 
-            <div className="space-y-3 mb-8">
-              {[
-                { id: '1_MONTH', label: t('freqMonthly'), icon: 'M' },
-                { id: '3_MONTHS', label: t('freqQuarterly'), icon: 'Q' },
-                { id: '6_MONTHS', label: t('enterCustomFrequency').replace('（例如: 每半年）', ''), icon: 'H' },
-                { id: '1_YEAR', label: t('freqYearly'), icon: 'Y' }
-              ].map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => setNewFrequency(opt.id)}
-                  className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all group ${newFrequency === opt.id ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-slate-50 border-slate-100 text-slate-700 hover:border-emerald-300 hover:bg-white'}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${newFrequency === opt.id ? 'bg-white/20' : 'bg-slate-200 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'}`}>
-                      {opt.icon}
+              <div className="space-y-3 mb-8">
+                {[
+                  { id: '1_MONTH', label: t('freqMonthly'), icon: 'M' },
+                  { id: '3_MONTHS', label: t('freqQuarterly'), icon: 'Q' },
+                  { id: '6_MONTHS', label: t('enterCustomFrequency').replace('（例如: 每半年）', ''), icon: 'H' },
+                  { id: '1_YEAR', label: t('freqYearly'), icon: 'Y' }
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setNewFrequency(opt.id)}
+                    className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all group ${newFrequency === opt.id ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-slate-50 border-slate-100 text-slate-700 hover:border-emerald-300 hover:bg-white'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${newFrequency === opt.id ? 'bg-white/20' : 'bg-slate-200 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'}`}>
+                        {opt.icon}
+                      </div>
+                      <span className="font-bold">{opt.label}</span>
                     </div>
-                    <span className="font-bold">{opt.label}</span>
-                  </div>
-                  {newFrequency === opt.id && <CheckCircle className="w-5 h-5" />}
-                </button>
-              ))}
-            </div>
+                    {newFrequency === opt.id && <CheckCircle className="w-5 h-5" />}
+                  </button>
+                ))}
+              </div>
 
-            <div className="flex gap-4">
-              <button
-                onClick={() => setBatchModal(null)}
-                className="flex-1 py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={() => handleBatchUpdate('frequency')}
-                disabled={batchLoading}
-                className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {batchLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>{t('batchUpdateConfirmBtn')}</>
-                )}
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setBatchModal(null)}
+                  className="flex-1 py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => handleBatchUpdate('frequency')}
+                  disabled={batchLoading}
+                  className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {batchLoading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <>{t('batchUpdateConfirmBtn')}</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Batch Move Modal */}
-      {batchModal === 'move' && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-white relative animate-in zoom-in-95 duration-300 overflow-hidden">
-            {/* Header Aesthetic */}
-            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-blue-50 to-indigo-50/30 -z-10"></div>
+      {
+        batchModal === 'move' && (
+          <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-in fade-in duration-300">
+            <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-white relative animate-in zoom-in-95 duration-300 overflow-hidden">
+              {/* Header Aesthetic */}
+              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-blue-50 to-indigo-50/30 -z-10"></div>
 
-            <div className="flex flex-col items-center text-center mb-8">
-              <div className="w-16 h-16 bg-white rounded-2xl shadow-xl shadow-blue-100 flex items-center justify-center mb-4 border border-blue-50 anime-float">
-                <MapPin className="w-8 h-8 text-blue-500" />
+              <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-xl shadow-blue-100 flex items-center justify-center mb-4 border border-blue-50 anime-float">
+                  <MapPin className="w-8 h-8 text-blue-500" />
+                </div>
+                <h3 className="font-extrabold text-2xl text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchMoveLocation')}</h3>
+                <p className="text-slate-400 text-sm mt-1 font-medium italic">Relocate equipment to new areas</p>
               </div>
-              <h3 className="font-extrabold text-2xl text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchMoveLocation')}</h3>
-              <p className="text-slate-400 text-sm mt-1 font-medium italic">Relocate equipment to new areas</p>
-            </div>
 
-            <p className="text-slate-600 text-sm mb-6 text-center leading-relaxed">
-              {t('batchMoveDesc').replace('{count}', selectedIds.size.toString())}
-            </p>
+              <p className="text-slate-600 text-sm mb-6 text-center leading-relaxed">
+                {t('batchMoveDesc').replace('{count}', selectedIds.size.toString())}
+              </p>
 
-            <div className="space-y-5 mb-10">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{t('siteName')}</label>
-                <div className="relative">
-                  <select
-                    value={moveSite}
-                    onChange={(e) => {
-                      setMoveSite(e.target.value);
-                      setMoveBuilding('');
-                    }}
-                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition-all appearance-none"
-                  >
-                    <option value="">{t('selectSite')}</option>
-                    {sites.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none" />
+              <div className="space-y-5 mb-10">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{t('siteName')}</label>
+                  <div className="relative">
+                    <select
+                      value={moveSite}
+                      onChange={(e) => {
+                        setMoveSite(e.target.value);
+                        setMoveBuilding('');
+                      }}
+                      className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition-all appearance-none"
+                    >
+                      <option value="">{t('selectSite')}</option>
+                      {sites.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{t('buildingName')}</label>
+                  <div className="relative">
+                    <select
+                      value={moveBuilding}
+                      onChange={(e) => setMoveBuilding(e.target.value)}
+                      disabled={!moveSite}
+                      className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50 transition-all appearance-none"
+                    >
+                      <option value="">{t('selectBuilding')}</option>
+                      {Array.from(new Set(allEquipment.filter(e => e.siteName === moveSite).map(e => e.buildingName))).map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{t('buildingName')}</label>
-                <div className="relative">
-                  <select
-                    value={moveBuilding}
-                    onChange={(e) => setMoveBuilding(e.target.value)}
-                    disabled={!moveSite}
-                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50 transition-all appearance-none"
-                  >
-                    <option value="">{t('selectBuilding')}</option>
-                    {Array.from(new Set(allEquipment.filter(e => e.siteName === moveSite).map(e => e.buildingName))).map(b => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none" />
-                </div>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setBatchModal(null)}
+                  className="py-4 bg-slate-50 text-slate-400 rounded-2xl font-bold hover:bg-slate-100 transition-all"
+                >
+                  {t('forgetIt')}
+                </button>
+                <button
+                  onClick={() => handleBatchUpdate('move')}
+                  disabled={batchLoading || !moveSite || !moveBuilding}
+                  className="py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {batchLoading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <>{t('batchMoveConfirmBtn')}</>
+                  )}
+                </button>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setBatchModal(null)}
-                className="py-4 bg-slate-50 text-slate-400 rounded-2xl font-bold hover:bg-slate-100 transition-all"
-              >
-                {t('forgetIt')}
-              </button>
-              <button
-                onClick={() => handleBatchUpdate('move')}
-                disabled={batchLoading || !moveSite || !moveBuilding}
-                className="py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {batchLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>{t('batchMoveConfirmBtn')}</>
-                )}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Batch Delete Modal */}
-      {batchModal === 'delete' && (
-        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-400">
-          <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-300 border border-red-50 text-center">
-            <div className="w-24 h-24 bg-red-50 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto text-red-500 shadow-inner relative">
-              <Trash2 className="w-10 h-10 anime-shake" />
-              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black w-10 h-10 rounded-full border-4 border-white flex items-center justify-center shadow-lg">
-                {selectedIds.size}
+      {
+        batchModal === 'delete' && (
+          <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-400">
+            <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-300 border border-red-50 text-center">
+              <div className="w-24 h-24 bg-red-50 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto text-red-500 shadow-inner relative">
+                <Trash2 className="w-10 h-10 anime-shake" />
+                <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black w-10 h-10 rounded-full border-4 border-white flex items-center justify-center shadow-lg">
+                  {selectedIds.size}
+                </div>
+              </div>
+
+              <h3 className="font-extrabold text-3xl text-slate-800 mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchDeleteConfirmTitle')}</h3>
+              <p className="text-slate-400 text-sm mb-10 font-medium">{t('batchDeleteConfirmDesc')}</p>
+
+              <div className="bg-red-50/50 p-6 rounded-[2rem] border border-red-100 mb-10">
+                <p className="text-red-600 text-sm font-bold leading-relaxed">
+                  {t('confirmDelete').replace('？', '')} ({selectedIds.size})<br />
+                  <span className="text-[10px] uppercase tracking-[0.2em] mt-2 block opacity-70">{t('irreversible')}</span>
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => handleBatchUpdate('delete')}
+                  disabled={batchLoading}
+                  className="w-full py-5 bg-red-600 text-white rounded-3xl font-black text-lg hover:bg-red-500 transition-all shadow-2xl shadow-red-200 active:scale-95 disabled:opacity-50"
+                >
+                  {batchLoading ? t('uploading') : t('batchDeleteConfirmBtn')}
+                </button>
+                <button
+                  onClick={() => setBatchModal(null)}
+                  className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
+                >
+                  {t('calmDown')}
+                </button>
               </div>
             </div>
-
-            <h3 className="font-extrabold text-3xl text-slate-800 mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchDeleteConfirmTitle')}</h3>
-            <p className="text-slate-400 text-sm mb-10 font-medium">{t('batchDeleteConfirmDesc')}</p>
-
-            <div className="bg-red-50/50 p-6 rounded-[2rem] border border-red-100 mb-10">
-              <p className="text-red-600 text-sm font-bold leading-relaxed">
-                {t('confirmDelete').replace('？', '')} ({selectedIds.size})<br />
-                <span className="text-[10px] uppercase tracking-[0.2em] mt-2 block opacity-70">{t('irreversible')}</span>
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => handleBatchUpdate('delete')}
-                disabled={batchLoading}
-                className="w-full py-5 bg-red-600 text-white rounded-3xl font-black text-lg hover:bg-red-500 transition-all shadow-2xl shadow-red-200 active:scale-95 disabled:opacity-50"
-              >
-                {batchLoading ? t('uploading') : t('batchDeleteConfirmBtn')}
-              </button>
-              <button
-                onClick={() => setBatchModal(null)}
-                className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
-              >
-                {t('calmDown')}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div >
   );
 };

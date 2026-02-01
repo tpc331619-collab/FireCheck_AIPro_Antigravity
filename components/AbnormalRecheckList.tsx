@@ -40,6 +40,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRecord, setSelectedRecord] = useState<AbnormalRecord | null>(null);
     const [equipmentPhotoMap, setEquipmentPhotoMap] = useState<Record<string, string>>({});
+    const [equipmentTagMap, setEquipmentTagMap] = useState<Record<string, string[]>>({});
     const [viewMode, setViewMode] = useState<'pending' | 'fixed'>('pending'); // 切換待複檢/已完成
 
     const ticketNo = useMemo(() => {
@@ -83,16 +84,21 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
             // 3. Fetch Equipment with the derived ID
             const equipmentData = await StorageService.getEquipmentDefinitions(user.uid, effectiveOrgId);
 
-            // Build Photo Map
+            // Build Photo and Tag Maps
             console.log("[AbnormalRecheckList] Equipment Data Fetched:", equipmentData.length);
             const photoMap: Record<string, string> = {};
+            const tagMap: Record<string, string[]> = {};
             equipmentData.forEach(e => {
                 if (e.photoUrl) {
                     photoMap[e.id] = e.photoUrl;
                 }
+                if (e.tags && e.tags.length > 0) {
+                    tagMap[e.id] = e.tags;
+                }
             });
             console.log("[AbnormalRecheckList] Photo Map Size:", Object.keys(photoMap).length);
             setEquipmentPhotoMap(photoMap);
+            setEquipmentTagMap(tagMap);
         } catch (err) {
             console.error(err);
         } finally {
@@ -424,7 +430,17 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         <div className="flex-1 flex flex-col">
                                             <div className="border-b border-black p-3">
                                                 <div className="text-xs text-slate-500 font-bold mb-1">{t('equipmentId')} <span className="font-normal scale-90 inline-block">No.</span></div>
-                                                <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
+                                                    {/* Tags in Detail Sheet */}
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {(selectedRecord.tags || equipmentTagMap[selectedRecord.equipmentId] || []).map(tag => (
+                                                            <span key={tag} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-300 rounded text-[10px] font-bold">
+                                                                #{tag}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="p-3 flex-1">
                                                 <div className="text-xs text-slate-500 font-bold mb-1">{t('buildingName')} <span className="font-normal scale-90 inline-block">Area</span></div>
@@ -695,6 +711,14 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                                         {record.barcode}
                                                                     </span>
                                                                 )}
+                                                                {/* Tags in List */}
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {(record.tags || equipmentTagMap[record.equipmentId] || []).map(tag => (
+                                                                        <span key={tag} className="px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-100 rounded text-[10px] font-bold">
+                                                                            #{tag}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
                                                             </div>
 
                                                             <div className="text-sm text-slate-500 space-y-1 mb-3">

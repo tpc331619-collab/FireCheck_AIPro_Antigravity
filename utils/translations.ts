@@ -370,6 +370,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectType: '選擇設備種類',
     selectDetail: '選擇詳細規格',
     equipmentPhoto: '設備照片',
+    tags: '自定義標籤',
+    optional: '選填',
+    noTags: '尚未設定標籤',
+    addTagPlaceholder: '輸入標籤按 Enter...',
+    enterToSubmit: 'ENTER 送出',
+    specRange: '規格範圍：',
+    checkItemsList: '檢查項目列表',
 
 
     // --- Common ---
@@ -891,6 +898,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorEditHealthDesc: 'Allow modifying health scores and records.',
     allowInspectorDeleteHealth: 'Delete Feature (Health)',
     allowInspectorDeleteHealthDesc: 'Allow removing health records for specific dates.',
+    tags: 'Tags',
+    optional: 'optional',
+    noTags: 'No tags set',
+    addTagPlaceholder: 'Type tag and press Enter...',
+    enterToSubmit: 'ENTER to submit',
+    specRange: 'Spec Range: ',
+    checkItemsList: 'Check Items List',
     allowInspectorEquipmentPhoto: 'Equipment Photo Feature',
     allowInspectorEquipmentPhotoDesc: 'Allow taking photos when adding new equipment.',
     allowInspectorResetDefaults: 'Reset to Defaults',
@@ -1504,6 +1518,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     confirmDeleteMarker: '이 마커를 삭제하시겠습니까?',
     //     deleteFailed: '삭제 실패', // Duplicate
     unnamed: '이름 없음',
+    tags: '태그',
+    optional: '선택 사항',
+    noTags: '설정된 태그 없음',
+    addTagPlaceholder: '태그 입력 후 Enter...',
+    enterToSubmit: 'ENTER 제출',
+    specRange: '사양 범위: ',
+    checkItemsList: '점검 항목 목록',
 
 
     // --- Abnormal Recheck ---
@@ -2059,6 +2080,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     scanBarcode: 'バーコードスキャン',
     manualInput: '手動入力',
     deviceVerification: 'デバイス確認',
+    tags: 'タグ',
+    optional: 'オプション',
+    noTags: 'タグ設定なし',
+    addTagPlaceholder: 'タグを入力して Enter を押す...',
+    enterToSubmit: 'ENTER 送信',
+    specRange: '仕様範囲：',
+    checkItemsList: '検査項目一覧',
     quickSearch: 'クイック検索',
     expectedBarcode: '予想 ID',
     scanOrInput: 'スキャンまたはキーワード検索',

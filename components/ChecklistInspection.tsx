@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock } from 'lucide-react';
+import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -39,6 +39,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     // Inspection Modal State (To be implemented, maybe simplistic for now)
     const [inspectingItem, setInspectingItem] = useState<EquipmentDefinition | null>(null);
     const [activeInspectionItem, setActiveInspectionItem] = useState<InspectionItem | null>(null);
+    const [inspectingTags, setInspectingTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
+    const [showTagInput, setShowTagInput] = useState(false);
 
     // Barcode Scanner State
     const [scannerOpen, setScannerOpen] = useState(false);
@@ -240,14 +243,15 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         return (currentReport.items || []).find((i: any) => i.equipmentId === equipId);
     }
 
-    const handleInspect = (item: EquipmentDefinition) => {
+    const handleSelectItem = (item: EquipmentDefinition) => {
         setInspectingItem(item);
-
+        setInspectingTags(item.tags || []);
+        setShowTagInput(false); // Reset to closed
         // Find existing draft in current report
-        const exist = (currentReport?.items || []).find(i => i.equipmentId === item.id);
+        const existingInReport = (currentReport?.items || []).find((i: any) => i.equipmentId === item.id);
 
-        if (exist) {
-            setActiveInspectionItem({ ...exist });
+        if (existingInReport) {
+            setActiveInspectionItem({ ...existingInReport });
         } else {
             // Initialize Defaults: Assume all boolean checks are Normal (true)
             const defaultCheckPoints: Record<string, any> = {};
@@ -262,11 +266,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
             setActiveInspectionItem({
                 equipmentId: item.id,
-                equipmentName: item.name,
+                name: item.name,
+                barcode: item.barcode,
                 checkPoints: defaultCheckPoints, // Pre-filled defaults
                 status: InspectionStatus.Normal, // Default Status
                 notes: '',
                 photos: [],
+                checkResults: [], // Initialize empty
                 lastUpdated: Date.now()
             });
         }
@@ -286,7 +292,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const searchEquipmentByBarcode = (barcode: string) => {
         const found = filteredEquipment.find(e => e.barcode === barcode);
         if (found) {
-            handleInspect(found);
+            handleSelectItem(found);
             setManualInput(''); // 清空輸入
         } else {
             alert(`找不到設備編號「${barcode}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`);
@@ -304,7 +310,17 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
         const now = Date.now();
 
-        // Sanitize CheckPoints (Remove empty keys or undefined values)
+        // Final tag check: Capture what is in the input box if not empty
+        let finalTags = [...inspectingTags];
+        const currentInput = tagInput.trim();
+        if (currentInput) {
+            const newTags = currentInput.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !finalTags.includes(t));
+            if (newTags.length > 0) {
+                finalTags = [...finalTags, ...newTags];
+            }
+        }
+
+        // Sanitize CheckPoints
         const sanitizedPoints: Record<string, any> = {};
         if (activeInspectionItem.checkPoints) {
             Object.entries(activeInspectionItem.checkPoints).forEach(([key, val]) => {
@@ -314,65 +330,49 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             });
         }
 
-        // Generate Check Results Snapshot (移除 undefined 值)
+        // Generate Snapshot
         const checkResultsSnapshot = inspectingItem.checkItems?.map(ci => {
             const result: any = {
                 name: ci.name,
                 value: sanitizedPoints[ci.id] ?? sanitizedPoints[ci.name]
             };
-
-            // 只在數值類型時添加 threshold 和 unit
             if (ci.inputType === 'number') {
-                if (ci.thresholdMode === 'range') {
-                    result.threshold = `${ci.val1}~${ci.val2}`;
-                } else if (ci.thresholdMode) {
-                    result.threshold = `${ci.thresholdMode} ${ci.val1}`;
-                }
-                if (ci.unit) {
-                    result.unit = ci.unit;
-                }
+                if (ci.thresholdMode === 'range') result.threshold = `${ci.val1}~${ci.val2}`;
+                else if (ci.thresholdMode) result.threshold = `${ci.thresholdMode} ${ci.val1}`;
+                if (ci.unit) result.unit = ci.unit;
             }
-
             return result;
         }) || [];
 
         const updatedItem: InspectionItem = {
             ...activeInspectionItem,
-            name: inspectingItem.name, // Snapshot
-            barcode: inspectingItem.barcode, // Snapshot
-            checkFrequency: inspectingItem.checkFrequency, // Snapshot
+            name: inspectingItem.name,
+            barcode: inspectingItem.barcode,
+            tags: finalTags,
+            checkFrequency: inspectingItem.checkFrequency,
             checkPoints: sanitizedPoints,
-            checkResults: checkResultsSnapshot, // Snapshot
+            checkResults: checkResultsSnapshot,
             lastUpdated: now
         };
 
         try {
-            console.log("Saving Report Details:", {
-                userId: user?.uid,
-                reportId: currentReport?.id,
-                item: updatedItem
+            // Update Equipment Definition FIRST for reliability
+            await StorageService.updateEquipmentDefinition({
+                id: inspectingItem.id,
+                tags: finalTags,
+                lastInspectedDate: now,
+                updatedAt: now
             });
 
-            // Update Report (Create or Update Draft)
-            // CRITICAL CHANGE FOR ALL_BUILDINGS:
-            // If we are in "ALL_BUILDINGS" mode (virtual report), we need to find/create the REAL report for this item's building.
             let reportTarget: InspectionReport | null = null;
-
             if (selectedBuilding === 'ALL_BUILDINGS') {
-                // Find report for this item's specific building
                 const itemBuilding = inspectingItem.buildingName;
                 const reports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
                 const today = new Date();
                 const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-
                 let foundReport = reports.find(r => r.buildingName === itemBuilding && r.date >= startOfDay);
-
                 if (!foundReport) {
                     foundReport = {
-                        // Let's use draft_ logic but we need to create it.
-                        // Actually, StorageService.saveReport handles creation.
-                        // But we need to maintain state.
-                        // This is tricky. simpler to just reload everything after save?
                         id: `draft_${itemBuilding}_${now}`,
                         buildingName: itemBuilding,
                         organizationId: user.currentOrganizationId,
@@ -388,186 +388,99 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 reportTarget = currentReport!;
             }
 
-            // Safety check
-            if (!reportTarget) {
-                throw new Error("Could not determine target report.");
-            }
+            if (!reportTarget) throw new Error("Could not determine target report.");
 
-            // Upsert Item in reportTarget
             const newItems = [...(reportTarget.items || [])];
             const idx = newItems.findIndex((i: any) => i.equipmentId === inspectingItem.id);
-            if (idx >= 0) {
-                newItems[idx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
-            } else {
-                newItems.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
-            }
+            if (idx >= 0) newItems[idx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
+            else newItems.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
 
             reportTarget.items = newItems;
+            reportTarget.archived = updatedItem.status === InspectionStatus.Normal;
 
-            // Auto-archive if all items are normal
-            const shouldArchive = updatedItem.status === InspectionStatus.Normal;
-            reportTarget.archived = shouldArchive;
-
-            // 清理函數:遞迴移除所有 undefined 值，但保留必要的空數組
             const removeUndefined = (obj: any): any => {
                 if (obj === null || obj === undefined) return null;
-                if (Array.isArray(obj)) {
-                    return obj.map(removeUndefined);
-                }
+                if (Array.isArray(obj)) return obj.map(removeUndefined);
                 if (typeof obj === 'object') {
                     const cleaned: any = {};
                     Object.keys(obj).forEach(key => {
                         const value = obj[key];
-                        if (value !== undefined) {
-                            cleaned[key] = removeUndefined(value);
-                        }
+                        if (value !== undefined) cleaned[key] = removeUndefined(value);
                     });
-                    // Ensure items exists for report objects
-                    if (obj.buildingName || obj.inspectorName || obj.date) {
-                        if (!cleaned.items) cleaned.items = [];
-                    }
                     return cleaned;
                 }
                 return obj;
             };
 
-            // 清理 report
             const cleanedReport = removeUndefined(reportTarget);
-
-            // Save to Firestore
-            // Check if this is a draft (never saved to Firestore)
             const isDraft = reportTarget.id.startsWith('draft_');
 
             if (isDraft) {
-                // Create new report in Firestore
-                if (user?.uid) {
-                    const newId = await StorageService.saveReport(cleanedReport, user.uid, user.currentOrganizationId);
-                    // Update local state with real Firestore ID
-                    reportTarget.id = newId;
-                } else {
-                    console.error("User ID missing, cannot create new report");
-                    alert('儲存失敗：找不到使用者 ID，請重新登入');
-                    return;
-                }
+                const newId = await StorageService.saveReport(cleanedReport, user.uid, user.currentOrganizationId);
+                reportTarget.id = newId;
             } else {
-                // Update existing report
                 await StorageService.updateReport(cleanedReport);
             }
 
-            // Also Update Equipment's lastInspectedDate in DB
-            await StorageService.updateEquipmentDefinition({
-                id: inspectingItem.id,
-                lastInspectedDate: now,
-                updatedAt: now
-            });
-
-            // If Abnormal, add to abnormal re-inspection list
+            // Handle Abnormal Records
             if (updatedItem.status === InspectionStatus.Abnormal) {
-                try {
-                    // Collect abnormal items (failed checks)
-                    const abnormalItems: string[] = [];
-                    inspectingItem.checkItems.forEach(ci => {
-                        const val = sanitizedPoints[ci.id] || sanitizedPoints[ci.name];
-                        if (ci.inputType === 'number') {
-                            const num = parseFloat(String(val));
-                            if (!isNaN(num) && ci.thresholdMode) {
-                                let failed = false;
-                                if (ci.thresholdMode === 'range' && (num < (ci.val1 || 0) || num > (ci.val2 || 0))) failed = true;
-                                else if (ci.thresholdMode === 'gt' && num <= (ci.val1 || 0)) failed = true;
-                                else if (ci.thresholdMode === 'gte' && num < (ci.val1 || 0)) failed = true;
-                                else if (ci.thresholdMode === 'lt' && num >= (ci.val1 || 0)) failed = true;
-                                else if (ci.thresholdMode === 'lte' && num > (ci.val1 || 0)) failed = true;
-                                if (failed) abnormalItems.push(ci.name);
-                            }
-                        } else {
-                            // Boolean check: false = abnormal
-                            if (val === false) abnormalItems.push(ci.name);
+                const abnormalItems: string[] = [];
+                inspectingItem.checkItems.forEach(ci => {
+                    const val = sanitizedPoints[ci.id] || sanitizedPoints[ci.name];
+                    if (ci.inputType === 'number') {
+                        const num = parseFloat(String(val));
+                        if (!isNaN(num) && ci.thresholdMode) {
+                            let f = false;
+                            if (ci.thresholdMode === 'range' && (num < (ci.val1 || 0) || num > (ci.val2 || 0))) f = true;
+                            else if (ci.thresholdMode === 'gt' && num <= (ci.val1 || 0)) f = true;
+                            else if (ci.thresholdMode === 'gte' && num < (ci.val1 || 0)) f = true;
+                            else if (ci.thresholdMode === 'lt' && num >= (ci.val1 || 0)) f = true;
+                            else if (ci.thresholdMode === 'lte' && num > (ci.val1 || 0)) f = true;
+                            if (f) abnormalItems.push(ci.name);
                         }
-                    });
+                    } else if (val === false) abnormalItems.push(ci.name);
+                });
 
-                    await StorageService.saveAbnormalRecord(removeUndefined({
-                        userId: user.uid,
-                        equipmentId: inspectingItem.id,
-                        equipmentName: inspectingItem.name,
-                        barcode: inspectingItem.barcode,
-                        siteName: inspectingItem.siteName,
-                        buildingName: inspectingItem.buildingName,
-                        inspectionDate: now,
-                        abnormalItems: abnormalItems.length > 0 ? abnormalItems : ['未指定項目'],
-                        abnormalReason: updatedItem.notes || '未填寫原因',
-                        status: 'pending',
-                        createdAt: now,
-                        updatedAt: now
-                    }), user.uid, user.currentOrganizationId);
-                } catch (e) {
-                    console.error("Failed to save abnormal record:", e);
-                    // Don't block the main save flow
-                }
+                await StorageService.saveAbnormalRecord(removeUndefined({
+                    userId: user.uid,
+                    equipmentId: inspectingItem.id,
+                    equipmentName: inspectingItem.name,
+                    barcode: inspectingItem.barcode,
+                    siteName: inspectingItem.siteName,
+                    buildingName: inspectingItem.buildingName,
+                    inspectionDate: now,
+                    abnormalItems: abnormalItems.length > 0 ? abnormalItems : ['未指定項目'],
+                    abnormalReason: updatedItem.notes || '未填寫原因',
+                    status: 'pending',
+                    tags: finalTags,
+                    createdAt: now,
+                    updatedAt: now
+                }), user.uid, user.currentOrganizationId);
             }
 
-            // 更新本地狀態,確保統計數字和燈號即時更新
+            // Update local state for immediate UI feedback (tags and lastInspectedDate)
+            setAllEquipment(prev => prev.map(e => e.id === inspectingItem.id ? { ...e, tags: finalTags, lastInspectedDate: now } : e));
+            setFilteredEquipment(prev => prev.map(e => e.id === inspectingItem.id ? { ...e, tags: finalTags, lastInspectedDate: now } : e));
 
-            // IF in ALL_BUILDINGS mode, we updated `reportTarget` (a specific building report).
-            // But `currentReport` is a "Virtual" combined report.
-            // We need to update `currentReport` to include this item so the UI updates (lamp color etc).
             if (selectedBuilding === 'ALL_BUILDINGS' && currentReport) {
-                const combinedItems = [...currentReport.items];
-                const existIdx = combinedItems.findIndex((i: any) => i.equipmentId === inspectingItem.id);
-                if (existIdx >= 0) {
-                    combinedItems[existIdx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
-                } else {
-                    combinedItems.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
-                }
-                setCurrentReport({
-                    ...currentReport,
-                    items: combinedItems,
-                    updatedAt: Date.now()
-                }); // Force re-render
+                const combined = [...currentReport.items];
+                const eIdx = combined.findIndex((i: any) => i.equipmentId === inspectingItem.id);
+                if (eIdx >= 0) combined[eIdx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
+                else combined.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
+                setCurrentReport({ ...currentReport, items: combined, updatedAt: now });
             } else {
-                // Normal mode
-                const updatedReport = {
-                    ...cleanedReport,
-                    updatedAt: Date.now()
-                };
-                setCurrentReport(updatedReport);
+                setCurrentReport({ ...cleanedReport, updatedAt: now });
             }
 
-
-            // Update Equipment Definition's lastInspectedDate to reflect current status
-            await StorageService.updateEquipmentDefinition({
-                id: inspectingItem.id,
-                lastInspectedDate: now
-            });
-            // Update local state 'allEquipment' to reflect the new lastInspectedDate immediately
-            // This ensures the list view shows 'Ready' or 'Completed' status correctly even if currentReport reasoning falls back.
-            const updatedAllEquip = allEquipment.map(e =>
-                e.id === inspectingItem.id ? { ...e, lastInspectedDate: now } : e
-            );
-            setAllEquipment(updatedAllEquip);
-
-            // Also update filteredEquipment so the list re-renders with correct status
-            setFilteredEquipment(prev => prev.map(e =>
-                e.id === inspectingItem.id ? { ...e, lastInspectedDate: now } : e
-            ));
-
-            // Close Modal first
+            showToast(`✅ 檢查完成！\n設備：${inspectingItem.name}`);
             setInspectingItem(null);
-
-            // Show success notification
-            const statusText = updatedItem.status === InspectionStatus.Normal ? '正常' : '異常';
-            showToast(`✅ 檢查完成！\n設備：${inspectingItem.name}\n狀態：${statusText}`);
-
-            // If Abnormal, show toast instead of alert (or combined message)
-            if (updatedItem.status === InspectionStatus.Abnormal) {
-                // We already have a toast, maybe append or show a slightly different one
-                // showToast(`已記錄異常，將加入「異常複檢」清單。`, 'success');
-            }
-
+            setActiveInspectionItem(null);
+            setInspectingTags([]);
+            setTagInput('');
+            setShowTagInput(false);
         } catch (e: any) {
             console.error("Save failed:", e);
-            // Show more detailed error if possible
-            const errorMsg = e.message || e.code || "未預期的錯誤";
-            alert(`儲存失敗，請重試。\n錯誤代碼: ${errorMsg}`);
+            alert(`儲存失敗：${e.message || '未知錯誤'}`);
         }
     };
 
@@ -812,7 +725,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         <div key={item.id}
                                             onClick={() => {
                                                 if (isLocked) return;
-                                                handleInspect(item);
+                                                handleSelectItem(item);
                                             }}
                                             className={`bg-white p-4 rounded-xl border transition-all flex items-center justify-between shadow-sm relative overflow-hidden ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md'} ${rowBorder}`}
                                         >
@@ -835,6 +748,15 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                     </h4>
                                                     <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
                                                         <span>{item.barcode}</span>
+                                                        {item.tags && item.tags.length > 0 && (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {item.tags.map(tag => (
+                                                                    <span key={tag} className="px-1 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-100">
+                                                                        #{tag}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
                                                         <span>•</span>
                                                         {inspectionItem ? (
                                                             <span className="text-blue-600 font-bold">
@@ -909,10 +831,89 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         </div>
 
                         <div className="p-6 overflow-y-auto space-y-6">
+                            {/* Tag Management */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
+                                        <Tag className="w-4 h-4 mr-1.5" /> 設備標籤
+                                    </label>
+                                    <button
+                                        onClick={() => setShowTagInput(!showTagInput)}
+                                        className={`p-1 rounded-lg transition-all ${showTagInput ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}
+                                        title="新增標籤"
+                                    >
+                                        <Plus className={`w-4 h-4 transition-transform duration-300 ${showTagInput ? 'rotate-45' : ''}`} />
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-1 min-h-[32px]">
+                                    {inspectingTags.map((tag, idx) => (
+                                        <span
+                                            key={idx}
+                                            className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 group/tag transition-all hover:bg-blue-100"
+                                        >
+                                            #{tag}
+                                            <button
+                                                onClick={() => setInspectingTags(prev => prev.filter((_, i) => i !== idx))}
+                                                className="ml-1.5 p-0.5 rounded-full hover:bg-blue-200 text-blue-400 hover:text-blue-600 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {inspectingTags.length === 0 && !showTagInput && (
+                                        <span className="text-xs text-slate-400 italic">{t('noTags')}</span>
+                                    )}
+                                </div>
+                                {showTagInput && (
+                                    <div className="relative animate-in slide-in-from-top-2 duration-200">
+                                        <input
+                                            type="text"
+                                            value={tagInput}
+                                            autoFocus
+                                            onChange={(e) => setTagInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = tagInput.trim();
+                                                    if (val) {
+                                                        // Support multiple tags separated by comma, space or semicolon
+                                                        const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+                                                        if (newTags.length > 0) {
+                                                            setInspectingTags(prev => [...prev, ...newTags]);
+                                                        }
+                                                        setTagInput('');
+                                                    }
+                                                }
+                                                if (e.key === 'Escape') {
+                                                    setShowTagInput(false);
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                if (tagInput.trim()) {
+                                                    const val = tagInput.trim();
+                                                    const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+                                                    if (newTags.length > 0) {
+                                                        setInspectingTags(prev => [...prev, ...newTags]);
+                                                    }
+                                                    setTagInput('');
+                                                }
+                                                // We don't necessarily hide here if it breaks focus transitions? 
+                                                // Actually, common UX is to hide if click outside.
+                                                // setShowTagInput(false); // Let's try keeping it open if focused elsewhere? No, better hide.
+                                            }}
+                                            placeholder={t('addTagPlaceholder')}
+                                            className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm"
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                            <span className="text-[10px] font-bold text-slate-300 mr-1">{t('enterToSubmit')}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Check Items */}
                             <div className="space-y-4">
                                 <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                                    <ClipboardCheck className="w-4 h-4 mr-1.5" /> 檢查項目列表
+                                    <ClipboardCheck className="w-4 h-4 mr-1.5" /> {t('checkItemsList')}
                                 </label>
                                 {inspectingItem.checkItems.map(ci => {
                                     const val = activeInspectionItem.checkPoints[ci.name];
@@ -955,7 +956,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 flex items-center gap-2">
                                                                 <Gauge className="w-4 h-4 text-blue-600 shrink-0" />
                                                                 <div className="text-xs text-blue-700 font-medium">
-                                                                    <span className="font-bold">規格範圍：</span>
+                                                                    <span className="font-bold">{t('specRange')}</span>
                                                                     {ci.thresholdMode === 'range' && ci.val1 !== undefined && ci.val2 !== undefined && (
                                                                         <span>{ci.val1} ~ {ci.val2} {ci.unit || ''}</span>
                                                                     )}

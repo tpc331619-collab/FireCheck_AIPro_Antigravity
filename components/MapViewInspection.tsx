@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2 } from 'lucide-react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -30,6 +30,20 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     // Check Items State
     const [checkResults, setCheckResults] = useState<Record<string, any>>({});
     const [notes, setNotes] = useState('');
+    const [inspectingTags, setInspectingTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState('');
+    const [showTagInput, setShowTagInput] = useState(false);
+
+    const handleAddTag = (inputVal?: string) => {
+        const val = (inputVal || tagInput).trim();
+        if (val) {
+            const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+            if (newTags.length > 0) {
+                setInspectingTags(prev => [...prev, ...newTags]);
+            }
+            setTagInput('');
+        }
+    };
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
@@ -114,6 +128,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         });
         setCheckResults(initialResults);
         setNotes('');
+        setInspectingTags(equipment.tags || []);
+        setTagInput('');
+        setShowTagInput(false);
     };
 
     const handleCheckItemChange = (itemId: string, value: any) => {
@@ -243,6 +260,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 checkPoints: JSON.parse(JSON.stringify(checkResults)), // Remove undefineds
                 checkResults: JSON.parse(JSON.stringify(checkResultsSnapshot)), // Remove undefineds
                 notes: notes || '',
+                tags: inspectingTags, // Snapshot tags
                 // Photo upload removed
                 lastUpdated: now
             };
@@ -336,17 +354,29 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 report.items.push(inspectionItem);
             }
 
-            // Save report to Firebase
-            if (report.id.startsWith('report_')) {
+            // 6. ASYNC SAVING (Firebase)
+            if (report.id.startsWith('temp_report_') || report.id.startsWith('report_')) {
+                // If it's a temp ID or a new report ID, use saveReport
                 const newId = await StorageService.saveReport(report, user.uid, user.currentOrganizationId);
-                // Update local ID if needed, but optimistic update covers specific usage
+                report.id = newId;
             } else {
                 await StorageService.updateReport(report);
             }
 
-            // Update equipment definition in Firebase
+            // Final tag check: Capture what is in the input box if not empty
+            let finalTags = [...inspectingTags];
+            const currentTagInput = tagInput.trim();
+            if (currentTagInput) {
+                const newTags = currentTagInput.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !finalTags.includes(t));
+                if (newTags.length > 0) {
+                    finalTags = [...finalTags, ...newTags];
+                }
+            }
+
+            // Update equipment definition in Firebase (Do this first for reliability)
             await StorageService.updateEquipmentDefinition({
                 id: currentEquipment.id,
+                tags: finalTags, // Persist tags
                 lastInspectedDate: now,
                 updatedAt: now
             });
@@ -382,6 +412,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     abnormalItems: abnormalItems.length > 0 ? abnormalItems : ['未指定項目'],
                     abnormalReason: notes,
                     status: 'pending',
+                    tags: finalTags,
                     createdAt: now,
                     updatedAt: now
                 }, user.uid, user.currentOrganizationId);
@@ -392,6 +423,11 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             // Refresh reports to get the latest status (including items)
             const updatedReports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
             setReports(updatedReports);
+
+            // Sync local equipment data
+            setAllEquipment(prev => prev.map(e =>
+                e.id === currentEquipment.id ? { ...e, tags: finalTags, lastInspectedDate: now } : e
+            ));
 
             showToast('✅ 提交成功！');
 
@@ -407,6 +443,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 setSelectedMarker(null);
                 setCheckResults({});
                 setNotes('');
+                setInspectingTags([]);
+                setTagInput('');
                 setIsSubmitting(false);
             }, 100);
         }
@@ -725,6 +763,11 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                         {/* Modal Content */}
                         <div className="p-6 overflow-y-auto space-y-6">
                             {/* Check Items */}
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-slate-700 flex items-center">
+                                    <ClipboardCheck className="w-4 h-4 mr-1.5" /> {t('checkItemsList')}
+                                </label>
+                            </div>
                             {currentEquipment.checkItems.map(item => (
                                 <div key={item.id} className="space-y-2">
                                     <label className="block text-sm font-bold text-slate-700">{item.name}</label>
@@ -766,15 +809,90 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     )}
                                     {item.inputType === 'number' && item.thresholdMode && (
                                         <p className="text-xs text-slate-500">
-                                            標準: {item.thresholdMode === 'range' ? `${item.val1} ~ ${item.val2}` : `${item.thresholdMode} ${item.val1}`}
+                                            <span className="font-bold">{t('specRange')}</span>: {item.thresholdMode === 'range' ? `${item.val1} ~ ${item.val2}` : `${item.thresholdMode} ${item.val1}`}
                                         </p>
                                     )}
                                 </div>
                             ))}
 
+                            {/* Tag Management */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-bold text-slate-700 flex items-center">
+                                        <Tag className="w-4 h-4 mr-2" /> 設備標籤
+                                    </label>
+                                    <button
+                                        onClick={() => setShowTagInput(!showTagInput)}
+                                        className={`p-1 rounded-lg transition-all ${showTagInput ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}
+                                        title="新增標籤"
+                                    >
+                                        <Plus className={`w-4 h-4 transition-transform duration-300 ${showTagInput ? 'rotate-45' : ''}`} />
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-2 min-h-[32px]">
+                                    {inspectingTags.map((tag, idx) => (
+                                        <span
+                                            key={idx}
+                                            className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 group/tag transition-all hover:bg-blue-100"
+                                        >
+                                            #{tag}
+                                            <button
+                                                onClick={() => setInspectingTags(prev => prev.filter((_, i) => i !== idx))}
+                                                className="ml-1.5 p-0.5 rounded-full hover:bg-blue-200 text-blue-400 hover:text-blue-600 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {inspectingTags.length === 0 && !showTagInput && (
+                                        <span className="text-xs text-slate-400 italic">{t('noTags')}</span>
+                                    )}
+                                </div>
+                                {showTagInput && (
+                                    <div className="relative animate-in slide-in-from-top-2 duration-200">
+                                        <input
+                                            type="text"
+                                            value={tagInput}
+                                            autoFocus
+                                            onChange={(e) => setTagInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const val = tagInput.trim();
+                                                    if (val) {
+                                                        const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+                                                        if (newTags.length > 0) {
+                                                            setInspectingTags(prev => [...prev, ...newTags]);
+                                                        }
+                                                        setTagInput('');
+                                                    }
+                                                }
+                                                if (e.key === 'Escape') {
+                                                    setShowTagInput(false);
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                if (tagInput.trim()) {
+                                                    const val = tagInput.trim();
+                                                    const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+                                                    if (newTags.length > 0) {
+                                                        setInspectingTags(prev => [...prev, ...newTags]);
+                                                    }
+                                                    setTagInput('');
+                                                }
+                                            }}
+                                            placeholder={t('addTagPlaceholder')}
+                                            className="w-full text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                                        />
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                            <span className="text-[10px] font-bold text-slate-300 mr-1">{t('enterToSubmit')}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Notes */}
                             <div className="space-y-2">
-                                <label className="block text-sm font-bold text-slate-700">備註</label>
+                                <label className="block text-sm font-bold text-slate-700">{t('notes')}</label>
                                 <textarea
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}

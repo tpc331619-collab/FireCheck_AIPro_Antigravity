@@ -1035,7 +1035,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     (item.barcode?.toLowerCase() || '').includes(itemKeywordSearch) ||
                     (item.notes?.toLowerCase() || '').includes(itemKeywordSearch) ||
                     (report.buildingName?.toLowerCase() || '').includes(itemKeywordSearch) ||
-                    (report.inspectorName?.toLowerCase() || '').includes(itemKeywordSearch);
+                    (report.inspectorName?.toLowerCase() || '').includes(itemKeywordSearch) ||
+                    (item.tags && item.tags.some(tag => tag.toLowerCase().includes(itemKeywordSearch)));
 
                 const matchesStatus = filterStatus === 'ALL' ||
                     (item.status === filterStatus) ||
@@ -1959,9 +1960,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                                 <input
                                                     type="text"
-                                                    placeholder="搜尋條碼、備註、建築物、檢查員..."
+                                                    placeholder="搜尋條碼、備註、建築物、檢查員、標籤..."
                                                     value={keywordSearch}
-                                                    onChange={(e) => setKeywordSearch(e.target.value.toUpperCase())}
+                                                    onChange={(e) => setKeywordSearch(e.target.value)}
                                                     className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                                 />
                                             </div>

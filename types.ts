@@ -43,6 +43,7 @@ export interface InspectionItem {
   repairNotes?: string;
   abnormalItems?: string[]; // List of original abnormal items (preserved even after repair)
   inspectionDate?: number; // Original inspection/discovery date
+  tags?: string[]; // Snapshot of tags at time of inspection
 }
 
 export interface InspectionStats {
@@ -110,6 +111,7 @@ export interface EquipmentDefinition {
   updatedAt: number;
   createdAt?: number;    // 建立時間
   photoUrl?: string;     // 設備照片
+  tags?: string[];       // 自定義標籤 (e.g., #HighRisk, #Renewal2027)
 }
 
 // 設備階層結構
@@ -171,6 +173,7 @@ export interface AbnormalRecord {
   fixedCategory?: string; // 修復類別 (快選項目)
   createdAt: number;
   updatedAt: number;
+  tags?: string[]; // 設備標籤快照
 }
 
 export interface LightSettings {
