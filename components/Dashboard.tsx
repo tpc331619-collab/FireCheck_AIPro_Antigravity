@@ -1316,11 +1316,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             {/* Modern Gradient Header */}
             <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white py-4 px-4 shadow-xl flex-shrink-0">
                 <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white/20 backdrop-blur-sm rounded-xl">
-                            <Shield className="w-6 h-6" />
+                    <div className="flex items-center gap-4 group px-2">
+                        <div className="relative flex items-center justify-center">
+                            {/* American Badge Styled Container */}
+                            <div className="relative p-1 bg-gradient-to-b from-amber-200 via-amber-500 to-amber-700 rounded-xl border border-amber-300 transform group-hover:scale-105 transition-all duration-300">
+                                <span className="sr-only">Badge Logo</span>
+                                <svg viewBox="0 0 24 24" className="w-10 h-10 fill-none stroke-slate-900 stroke-[1.2]" strokeLinecap="round" strokeLinejoin="round">
+                                    {/* 7-Point Star (Classic Badge Component) */}
+                                    <path d="M12 2l2.5 5.5 6 .5-4.5 4.5 1.5 6-5.5-3-5.5 3 1.5-6-4.5-4.5 6-.5z" className="fill-amber-400/90" />
+                                    {/* Central Shield Seal */}
+                                    <circle cx="12" cy="12" r="4" className="fill-slate-800" />
+                                    {/* Protection Icon on Seal */}
+                                    <path d="M12 10.5v3M10.5 12h3" className="stroke-amber-400 stroke-[2]" />
+                                    {/* Outer Decorative Elements */}
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" className="stroke-slate-900/10 stroke-[0.3]" />
+                                </svg>
+                            </div>
                         </div>
-                        <span className="font-bold text-xl">{t('appName')}</span>
+                        <div className="flex flex-col">
+                            <span className="font-black text-3xl tracking-tighter bg-gradient-to-r from-amber-100 via-white to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] uppercase italic leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                {t('appName')}
+                            </span>
+                            <span className="text-[9px] font-bold text-amber-400/80 tracking-[0.2em] uppercase mt-0.5 ml-1 drop-shadow-sm">
+                                Professional Edition
+                            </span>
+                        </div>
                         {/* Guest Timer Display */}
                         {user?.isGuest && guestExpiry && (
                             <div className={`hidden sm:flex ml-4 px-3 py-1 rounded-full text-xs font-mono font-bold items-center gap-2 border animate-in fade-in ${isExpiring ? 'bg-red-500/20 text-red-200 border-red-500/30 animate-pulse' : 'bg-white/10 text-slate-200 border-white/10'}`}>
