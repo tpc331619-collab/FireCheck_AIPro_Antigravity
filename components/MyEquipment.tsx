@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -47,6 +47,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const canDelete = isAdmin || activeSettings?.allowInspectorDeleteEquipment !== false;
   const canViewBarcode = isAdmin || activeSettings?.allowInspectorShowBarcode !== false;
   const canViewImage = isAdmin || activeSettings?.allowInspectorShowImage !== false;
+  const canBatch = isAdmin || activeSettings?.allowInspectorBatchOperations === true;
   const [loading, setLoading] = useState(true);
   const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
   const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
@@ -71,6 +72,17 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
   // UI State for Toast Notification
   const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+
+  // Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchMode, setIsBatchMode] = useState(false);
+
+  // Batch Action Modals
+  const [batchModal, setBatchModal] = useState<'frequency' | 'move' | 'delete' | null>(null);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [newFrequency, setNewFrequency] = useState('1_MONTH');
+  const [moveSite, setMoveSite] = useState('');
+  const [moveBuilding, setMoveBuilding] = useState('');
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMsg({ text, type });
@@ -275,6 +287,56 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     onEdit(item);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === filteredEquipment.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredEquipment.map(e => e.id)));
+    }
+  };
+
+  const handleBatchUpdate = async (type: 'frequency' | 'move' | 'delete') => {
+    if (selectedIds.size === 0) return;
+
+    setBatchLoading(true);
+    try {
+      const ids = Array.from(selectedIds) as string[];
+      if (type === 'delete') {
+        await StorageService.batchDeleteEquipment(ids);
+        showToast(`已批次刪除 ${ids.length} 項設備`);
+      } else if (type === 'frequency') {
+        const updates = ids.map(id => ({ id, data: { checkFrequency: newFrequency } }));
+        await StorageService.batchUpdateEquipment(updates);
+        showToast(`已批次更新 ${ids.length} 項設備的檢查頻率`);
+      } else if (type === 'move') {
+        const updates = ids.map(id => ({ id, data: { siteName: moveSite, buildingName: moveBuilding } }));
+        await StorageService.batchUpdateEquipment(updates);
+        showToast(`已批次移動 ${ids.length} 項設備`);
+      }
+
+      setSelectedIds(new Set());
+      setBatchModal(null);
+      refreshData(true);
+    } catch (err) {
+      console.error("Batch update failed:", err);
+      showToast("批次操作失敗", 'error');
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50 relative">
       {/* Header */}
@@ -358,12 +420,43 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                 </div>
               </div>
 
+              {/* Batch Select Header */}
+              {filteredEquipment.length > 0 && (
+                <div className="flex items-center justify-between px-2">
+                  <div className="flex items-center gap-3">
+                    {canBatch && (
+                      <>
+                        <button
+                          onClick={handleSelectAll}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm border ${selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 ? 'bg-white border-white' : 'bg-white border-slate-300'}`}>
+                            {selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 && <CheckCircle className="w-3 h-3 text-indigo-600" />}
+                          </div>
+                          <span style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            {selectedIds.size === filteredEquipment.length ? t('deselectAll') : t('selectAll')} ({selectedIds.size}/{filteredEquipment.length})
+                          </span>
+                        </button>
+                        {selectedIds.size > 0 && (
+                          <button
+                            onClick={() => setSelectedIds(new Set())}
+                            className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1"
+                          >
+                            <X className="w-3 h-3" /> {t('clearSelection')}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* 設備清單 (條列式) */}
               {selectedSite || searchQuery ? (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                   {filteredEquipment.length === 0 ? (
                     <div className="text-center py-20 bg-slate-50/50">
-                      <p className="text-slate-400 font-medium">此路徑下目前無對應設備</p>
+                      <p className="text-slate-400 font-medium">{t('noEquipmentFound')}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">
@@ -381,7 +474,19 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                         // For simplicity and performance, mapping to Tailwind classes is preferred here.
 
                         return (
-                          <div key={item.id} className={`p-5 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 ${borderColorClass} shadow-sm mb-2 rounded-r-xl`}>
+                          <div
+                            key={item.id}
+                            className={`p-5 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 ${borderColorClass} shadow-sm mb-2 rounded-r-2xl relative overflow-hidden ${selectedIds.has(item.id) ? 'bg-indigo-50/40 border-r-indigo-100 ring-2 ring-indigo-500/20 translate-x-1' : 'border-transparent'}`}
+                            onClick={() => toggleSelect(item.id)}
+                          >
+                            {/* Selection Checkbox */}
+                            {canBatch && (
+                              <div className="flex-shrink-0 cursor-pointer p-1">
+                                <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${selectedIds.has(item.id) ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-200 scale-110' : 'bg-white border-slate-200 group-hover:border-slate-300 opacity-60 group-hover:opacity-100'}`}>
+                                  {selectedIds.has(item.id) && <CheckCircle className="w-4 h-4 text-white" />}
+                                </div>
+                              </div>
+                            )}
 
                             {/* Main Info */}
                             <div className="flex-1 min-w-0">
@@ -695,6 +800,262 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
           </div>
         )
       }
+
+      {/* Floating Batch Action Bar */}
+      {canBatch && selectedIds.size > 0 && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500">
+          <div className="bg-white/80 backdrop-blur-2xl border border-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2rem] p-3 flex items-center gap-2 ring-1 ring-slate-200/50">
+            {/* Counter Section */}
+            <div className="flex items-center gap-3 px-5 py-2 border-r border-slate-100 mr-2">
+              <div className="relative">
+                <div className="w-10 h-10 bg-indigo-600 rounded-2xl rotate-3 shadow-lg shadow-indigo-200 flex items-center justify-center">
+                  <Database className="w-5 h-5 text-white -rotate-3" />
+                </div>
+                <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm anime-bounce" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                  {selectedIds.size}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{t('selectedCount')}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-slate-800 leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{t('devices')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions Section */}
+            <div className="flex items-center gap-2 pr-2">
+              <button
+                onClick={() => setBatchModal('frequency')}
+                className="flex items-center gap-2 px-5 py-3 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-2xl transition-all font-bold text-sm active:scale-95 border border-transparent hover:border-emerald-100 hover:shadow-sm"
+              >
+                <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
+                  <CalendarClock className="w-4 h-4 text-emerald-600" />
+                </div>
+                {t('batchEditFrequency')}
+              </button>
+
+              <button
+                onClick={() => setBatchModal('move')}
+                className="flex items-center gap-2 px-5 py-3 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-2xl transition-all font-bold text-sm active:scale-95 border border-transparent hover:border-blue-100 hover:shadow-sm"
+              >
+                <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <MapPin className="w-4 h-4 text-blue-600" />
+                </div>
+                {t('batchMoveLocation')}
+              </button>
+
+              <div className="w-px h-8 bg-slate-100 mx-2"></div>
+
+              <button
+                onClick={() => setBatchModal('delete')}
+                className="flex items-center gap-2 px-5 py-3 bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white rounded-2xl transition-all font-bold text-sm active:scale-95 border border-rose-100 hover:border-rose-600 hover:shadow-lg hover:shadow-rose-100"
+              >
+                <div className="w-7 h-7 bg-white/50 rounded-lg flex items-center justify-center group-hover:bg-rose-600">
+                  <Trash2 className="w-4 h-4" />
+                </div>
+                {t('batchDelete')}
+              </button>
+
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all active:scale-90"
+                title={t('deselectAll')}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Frequency Modal */}
+      {batchModal === 'frequency' && (
+        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-white relative animate-in zoom-in-95 duration-300 overflow-hidden">
+            {/* Header Aesthetic */}
+            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-emerald-50 to-teal-50/30 -z-10"></div>
+
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="w-16 h-16 bg-white rounded-2xl shadow-xl shadow-emerald-100 flex items-center justify-center mb-4 border border-emerald-50 anime-float">
+                <CalendarClock className="w-8 h-8 text-emerald-500" />
+              </div>
+              <h3 className="font-extrabold text-2xl text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchEditFrequency')}</h3>
+              <p className="text-slate-400 text-sm mt-1 font-medium italic">Update inspection cycles in bulk</p>
+            </div>
+
+            <p className="text-slate-600 text-sm mb-6 text-center leading-relaxed">
+              {t('batchFrequencyDesc').replace('{count}', selectedIds.size.toString())}
+            </p>
+
+            <div className="space-y-3 mb-8">
+              {[
+                { id: '1_MONTH', label: t('freqMonthly'), icon: 'M' },
+                { id: '3_MONTHS', label: t('freqQuarterly'), icon: 'Q' },
+                { id: '6_MONTHS', label: t('enterCustomFrequency').replace('（例如: 每半年）', ''), icon: 'H' },
+                { id: '1_YEAR', label: t('freqYearly'), icon: 'Y' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setNewFrequency(opt.id)}
+                  className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all group ${newFrequency === opt.id ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-slate-50 border-slate-100 text-slate-700 hover:border-emerald-300 hover:bg-white'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${newFrequency === opt.id ? 'bg-white/20' : 'bg-slate-200 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'}`}>
+                      {opt.icon}
+                    </div>
+                    <span className="font-bold">{opt.label}</span>
+                  </div>
+                  {newFrequency === opt.id && <CheckCircle className="w-5 h-5" />}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setBatchModal(null)}
+                className="flex-1 py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleBatchUpdate('frequency')}
+                disabled={batchLoading}
+                className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {batchLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>{t('batchUpdateConfirmBtn')}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Move Modal */}
+      {batchModal === 'move' && (
+        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-[2px] animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-white relative animate-in zoom-in-95 duration-300 overflow-hidden">
+            {/* Header Aesthetic */}
+            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-br from-blue-50 to-indigo-50/30 -z-10"></div>
+
+            <div className="flex flex-col items-center text-center mb-8">
+              <div className="w-16 h-16 bg-white rounded-2xl shadow-xl shadow-blue-100 flex items-center justify-center mb-4 border border-blue-50 anime-float">
+                <MapPin className="w-8 h-8 text-blue-500" />
+              </div>
+              <h3 className="font-extrabold text-2xl text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchMoveLocation')}</h3>
+              <p className="text-slate-400 text-sm mt-1 font-medium italic">Relocate equipment to new areas</p>
+            </div>
+
+            <p className="text-slate-600 text-sm mb-6 text-center leading-relaxed">
+              {t('batchMoveDesc').replace('{count}', selectedIds.size.toString())}
+            </p>
+
+            <div className="space-y-5 mb-10">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{t('siteName')}</label>
+                <div className="relative">
+                  <select
+                    value={moveSite}
+                    onChange={(e) => {
+                      setMoveSite(e.target.value);
+                      setMoveBuilding('');
+                    }}
+                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition-all appearance-none"
+                  >
+                    <option value="">{t('selectSite')}</option>
+                    {sites.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">{t('buildingName')}</label>
+                <div className="relative">
+                  <select
+                    value={moveBuilding}
+                    onChange={(e) => setMoveBuilding(e.target.value)}
+                    disabled={!moveSite}
+                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl text-base font-bold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50 transition-all appearance-none"
+                  >
+                    <option value="">{t('selectBuilding')}</option>
+                    {Array.from(new Set(allEquipment.filter(e => e.siteName === moveSite).map(e => e.buildingName))).map(b => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setBatchModal(null)}
+                className="py-4 bg-slate-50 text-slate-400 rounded-2xl font-bold hover:bg-slate-100 transition-all"
+              >
+                {t('forgetIt')}
+              </button>
+              <button
+                onClick={() => handleBatchUpdate('move')}
+                disabled={batchLoading || !moveSite || !moveBuilding}
+                className="py-4 bg-blue-600 text-white rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {batchLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                ) : (
+                  <>{t('batchMoveConfirmBtn')}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Delete Modal */}
+      {batchModal === 'delete' && (
+        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-400">
+          <div className="bg-white rounded-[3rem] p-10 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-300 border border-red-50 text-center">
+            <div className="w-24 h-24 bg-red-50 rounded-[2.5rem] flex items-center justify-center mb-8 mx-auto text-red-500 shadow-inner relative">
+              <Trash2 className="w-10 h-10 anime-shake" />
+              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-black w-10 h-10 rounded-full border-4 border-white flex items-center justify-center shadow-lg">
+                {selectedIds.size}
+              </div>
+            </div>
+
+            <h3 className="font-extrabold text-3xl text-slate-800 mb-2" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('batchDeleteConfirmTitle')}</h3>
+            <p className="text-slate-400 text-sm mb-10 font-medium">{t('batchDeleteConfirmDesc')}</p>
+
+            <div className="bg-red-50/50 p-6 rounded-[2rem] border border-red-100 mb-10">
+              <p className="text-red-600 text-sm font-bold leading-relaxed">
+                {t('confirmDelete').replace('？', '')} ({selectedIds.size})<br />
+                <span className="text-[10px] uppercase tracking-[0.2em] mt-2 block opacity-70">{t('irreversible')}</span>
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => handleBatchUpdate('delete')}
+                disabled={batchLoading}
+                className="w-full py-5 bg-red-600 text-white rounded-3xl font-black text-lg hover:bg-red-500 transition-all shadow-2xl shadow-red-200 active:scale-95 disabled:opacity-50"
+              >
+                {batchLoading ? t('uploading') : t('batchDeleteConfirmBtn')}
+              </button>
+              <button
+                onClick={() => setBatchModal(null)}
+                className="w-full py-4 text-slate-400 font-bold hover:text-slate-600 transition-colors"
+              >
+                {t('calmDown')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 };

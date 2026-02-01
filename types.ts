@@ -250,6 +250,7 @@ export interface SystemSettings {
   allowInspectorCopyHierarchy?: boolean;
   allowInspectorDeleteHierarchy?: boolean;
   allowInspectorLightSettings?: boolean;
+  allowInspectorBatchOperations?: boolean;
   // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }

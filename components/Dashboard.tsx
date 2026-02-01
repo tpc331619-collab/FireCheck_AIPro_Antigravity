@@ -3356,7 +3356,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionMyEquipment')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
-                                                {['EditEquipment', 'CopyEquipment', 'DeleteEquipment', 'ShowBarcode', 'ShowImage'].map((perm) => (
+                                                {['EditEquipment', 'CopyEquipment', 'DeleteEquipment', 'BatchOperations', 'ShowBarcode', 'ShowImage'].map((perm) => (
                                                     <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-emerald-200">
                                                         <div>
                                                             <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${perm}`)}</div>

@@ -398,6 +398,69 @@ export const StorageService = {
     }
   },
 
+  async batchUpdateEquipment(updates: { id: string, data: Partial<EquipmentDefinition> }[]): Promise<void> {
+    if (this.isGuest || !db) {
+      const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
+      if (!dataStr) return;
+      let defs: EquipmentDefinition[] = JSON.parse(dataStr);
+      updates.forEach(update => {
+        defs = defs.map(d => d.id === update.id ? { ...d, ...update.data } : d);
+      });
+      localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(defs));
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      updates.forEach(update => {
+        const equipRef = doc(db!, DB_COLLECTION, update.id);
+        batch.update(equipRef, { ...update.data, updatedAt: Date.now() });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error("Batch update error", e);
+      throw e;
+    }
+  },
+
+  async batchDeleteEquipment(ids: string[]): Promise<void> {
+    if (this.isGuest || !db) {
+      const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
+      if (!dataStr) return;
+      let defs: EquipmentDefinition[] = JSON.parse(dataStr);
+      const idSet = new Set(ids);
+      defs = defs.filter(d => !idSet.has(d.id));
+      localStorage.setItem(EQUIP_STORAGE_KEY, JSON.stringify(defs));
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      for (const id of ids) {
+        const equipRef = doc(db!, DB_COLLECTION, id);
+
+        // Cleanup photo if exists
+        const snap = await getDoc(equipRef);
+        if (snap.exists()) {
+          const data = snap.data() as EquipmentDefinition;
+          if (data.photoUrl) {
+            try {
+              await this.deleteEquipmentPhoto(data.photoUrl);
+            } catch (err) {
+              console.warn("[StorageService] Failed to cleanup photo during batch delete:", err);
+            }
+          }
+        }
+
+        batch.delete(equipRef);
+      }
+      await batch.commit();
+    } catch (e) {
+      console.error("Batch delete error", e);
+      throw e;
+    }
+  },
+
   async getEquipmentDefinitions(userId: string, organizationId?: string | null): Promise<EquipmentDefinition[]> {
     let targetUserId = userId;
     let useCloud = !this.isGuest && !!db;
