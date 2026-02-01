@@ -631,7 +631,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     roleAdmin: '管理員',
     unassigned: '(未指派)',
     approve: '核准',
-    block: '停用/拒絕',
+    block: '拒絕',
     reactivate: '重新啟用',
     updateFailed: '更新失敗',
     guestTimer: '訪客倒數',

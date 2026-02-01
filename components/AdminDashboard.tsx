@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService, WhitelistEntry } from '../services/storageService';
 import { Organization, OrganizationRole } from '../types';
-import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2 } from 'lucide-react';
+import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2, ChevronRight, Info } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface AdminDashboardProps {
@@ -14,7 +14,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
     const [users, setUsers] = useState<WhitelistEntry[]>([]);
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked'>('pending');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked'>('all');
+    const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+
+    const toggleExpand = (email: string) => {
+        setExpandedEmails(prev => {
+            const next = new Set(prev);
+            if (next.has(email)) next.delete(email);
+            else next.add(email);
+            return next;
+        });
+    };
 
     const { t } = useLanguage();
 
@@ -187,14 +197,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                         <table className="w-full text-left text-sm border-collapse">
                             <thead>
                                 <tr className="bg-slate-900/[0.02] border-b border-slate-100">
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('user') || '使用者'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('status') || '狀態'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('rolePermission') || '身分 / 權限'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] w-24 text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowCreateOrg') || '建組織'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] w-24 text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowPersonalWorkspace') || '個人空間'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] w-48" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('assignOrg') || '指派組織'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('applyTime') || '申請時間'}</th>
-                                    <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-[0.1em] text-[11px] text-right" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('operation') || '操作'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm min-w-[120px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('user') || '使用者'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('status') || '狀態'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('rolePermission') || '身分 / 權限'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowCreateOrg') || '建立組織'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowPersonalWorkspace') || '個人空間'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('assignOrg') || '指派組織'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('applyTime') || '申請時間'}</th>
+                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-right" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('operation') || '操作'}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
@@ -218,61 +228,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                     </tr>
                                 ) : (
                                     filteredUsers.map(user => (
-                                        <tr key={user.email} className="hover:bg-blue-50/30 transition-colors group">
-                                            <td className="px-6 py-4">
+                                        <tr key={user.email} className="hover:bg-blue-50/20 transition-colors group">
+                                            <td className={`px-4 py-2.5 transition-all duration-300 ${expandedEmails.has(user.email) ? 'min-w-[200px]' : 'w-[80px]'}`}>
                                                 <div className="flex items-center gap-3">
-                                                    {user.photoURL ? (
-                                                        <img src={user.photoURL} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200" />
-                                                    ) : (
-                                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
-                                                            <User className="w-5 h-5" />
+                                                    <div
+                                                        className="relative cursor-pointer group/avatar shrink-0"
+                                                        onClick={() => toggleExpand(user.email)}
+                                                        title={expandedEmails.has(user.email) ? '點擊收合詳情' : '點擊展開詳情'}
+                                                    >
+                                                        <div className="relative">
+                                                            {user.photoURL ? (
+                                                                <img src={user.photoURL} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200 transition-all group-hover/avatar:scale-105" />
+                                                            ) : (
+                                                                <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 transition-all group-hover/avatar:scale-105">
+                                                                    <User className="w-6 h-6" />
+                                                                </div>
+                                                            )}
+                                                            <div className={`absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center transition-all ${expandedEmails.has(user.email) ? 'bg-blue-50 border-blue-200 rotate-90' : ''}`}>
+                                                                <ChevronRight className={`w-3.5 h-3.5 text-slate-400 ${expandedEmails.has(user.email) ? 'text-blue-500' : ''}`} />
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                    <div className="flex flex-col">
-                                                        <div className="font-bold text-slate-800 text-sm leading-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{user.name || 'Unknown User'}</div>
-                                                        <div className="text-[11px] text-slate-400 font-medium font-mono mt-0.5 opacity-80">{user.email}</div>
+                                                    </div>
+
+                                                    <div className={`flex flex-col transition-all duration-300 ease-in-out ${expandedEmails.has(user.email) ? 'max-w-md opacity-100 ml-1' : 'max-w-0 opacity-0 overflow-hidden'}`}>
+                                                        <div className="font-bold text-slate-800 text-sm leading-tight whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{user.name || 'Unknown User'}</div>
+                                                        <div className="text-[12px] text-slate-400 font-medium font-mono opacity-80 whitespace-nowrap">{user.email}</div>
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold border ${user.status === 'approved' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                                    user.status === 'pending' ? 'bg-amber-100/80 text-amber-700 border-amber-200 shadow-sm shadow-amber-100 animate-pulse' :
-                                                        'bg-red-100 text-red-700 border-red-200'
+                                            <td className="px-4 py-2.5 overflow-hidden">
+                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${user.status === 'approved' ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50' :
+                                                    user.status === 'pending' ? 'bg-amber-100/50 text-amber-700 border-amber-200/50 shadow-sm shadow-amber-100 anime-pulse' :
+                                                        'bg-red-100/50 text-red-700 border-red-200/50'
                                                     }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                                    <div className={`w-1.5 h-1.5 rounded-full mr-2 ${user.status === 'approved' ? 'bg-emerald-500' : user.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
+                                                    <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${user.status === 'approved' ? 'bg-emerald-500' : user.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
                                                     {user.status === 'approved' && (t('statusApproved') || '已核准')}
                                                     {user.status === 'pending' && (t('statusPending') || '待審核')}
                                                     {user.status === 'blocked' && (t('statusBlocked') || '已停用')}
                                                 </span>
                                             </td>
 
-                                            <td className="px-6 py-4">
-                                                <div className="flex bg-slate-100/50 backdrop-blur-sm rounded-xl p-1 w-fit border border-slate-200/50 shadow-inner">
+                                            <td className="px-4 py-2.5">
+                                                <div className="flex bg-slate-200/40 backdrop-blur-sm rounded-xl p-1 w-fit border border-slate-200/50 shadow-inner">
                                                     <button
                                                         onClick={() => handleUpdateRole(user.email, 'user')}
-                                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${user.role !== 'admin'
-                                                            ? 'bg-white text-slate-800 shadow-md shadow-slate-200/50'
-                                                            : 'text-slate-500 hover:text-slate-700'
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${user.role !== 'admin'
+                                                            ? 'bg-white text-slate-900 shadow-md shadow-slate-200/30 ring-1 ring-slate-100'
+                                                            : 'text-slate-400 hover:text-slate-600'
                                                             }`}
                                                         style={{ fontFamily: "'Outfit', sans-serif" }}
                                                     >
-                                                        {t('roleMember') || '成員'}
+                                                        <Users className={`w-3.5 h-3.5 ${user.role !== 'admin' ? 'text-blue-500' : 'text-slate-400'}`} />
+                                                        {t('roleMember') || '檢查員'}
                                                     </button>
                                                     <button
                                                         onClick={() => handleUpdateRole(user.email, 'admin')}
-                                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${user.role === 'admin'
-                                                            ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-200'
-                                                            : 'text-slate-500 hover:text-slate-700'
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${user.role === 'admin'
+                                                            ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-100'
+                                                            : 'text-slate-400 hover:text-slate-600'
                                                             }`}
                                                         style={{ fontFamily: "'Outfit', sans-serif" }}
                                                     >
+                                                        <ShieldCheck className={`w-3.5 h-3.5 ${user.role === 'admin' ? 'text-white' : 'text-slate-400'}`} />
                                                         {t('roleAdmin') || '管理員'}
                                                     </button>
                                                 </div>
                                             </td>
 
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-4 py-2.5 text-center">
                                                 <input
                                                     type="checkbox"
                                                     checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
@@ -281,7 +305,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                     className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 />
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-4 py-2.5 text-center">
                                                 <input
                                                     type="checkbox"
                                                     checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
@@ -291,12 +315,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                 />
                                             </td>
 
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-2.5">
                                                 <div className="relative">
                                                     <select
                                                         value={user.orgId || ''}
                                                         onChange={(e) => handleAssignOrg(user.email, e.target.value)}
-                                                        className="appearance-none bg-slate-50 border border-slate-200 hover:border-blue-400 text-slate-700 text-xs font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-2 transition-colors cursor-pointer"
+                                                        className="appearance-none bg-slate-50 border border-slate-200 hover:border-blue-400 text-slate-700 text-sm font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-2.5 transition-colors cursor-pointer"
                                                     >
                                                         <option value="">{t('unassigned') || '(未指派)'}</option>
                                                         {organizations.map(org => (
@@ -306,59 +330,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                         ))}
                                                     </select>
                                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                                                        <Building className="h-3 w-3" />
+                                                        <Building className="h-4 w-4" />
                                                     </div>
                                                 </div>
                                             </td>
 
-                                            <td className="px-4 py-3 text-xs font-medium text-slate-500">
-                                                <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded w-fit text-slate-600">
+                                            <td className="px-4 py-2.5 text-sm font-medium text-slate-500">
+                                                <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1.5 rounded w-fit text-slate-600 whitespace-nowrap border border-slate-100">
                                                     <Clock className="w-3.5 h-3.5 text-slate-400" />
                                                     {new Date(user.requestedAt).toLocaleDateString()}
                                                 </div>
                                             </td>
 
-                                            <td className="px-4 py-3 text-right">
+                                            <td className="px-4 py-2.5 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     {user.status === 'pending' && (
                                                         <button
                                                             onClick={() => handleUpdateStatus(user.email, 'approved')}
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-green-100 text-green-700 font-bold text-xs rounded-lg hover:bg-green-200 hover:shadow-sm transition-all border border-green-200"
+                                                            className="flex items-center justify-center w-9 h-9 bg-emerald-50 text-emerald-600 font-bold rounded-lg hover:bg-emerald-100 hover:shadow-sm transition-all border border-emerald-200 active:scale-95"
                                                             title={t('approve') || "核准"}
                                                         >
-                                                            <Check className="w-3.5 h-3.5" />
-                                                            <span className="hidden xl:inline">{t('approve') || '核准'}</span>
+                                                            <Check className="w-5 h-5" />
                                                         </button>
                                                     )}
 
                                                     {user.status !== 'blocked' && (
                                                         <button
                                                             onClick={() => handleUpdateStatus(user.email, 'blocked')}
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 font-bold text-xs rounded-lg hover:bg-red-100 hover:shadow-sm transition-all border border-red-200"
-                                                            title={t('block') || "停用/拒絕"}
+                                                            className="flex items-center justify-center w-9 h-9 bg-rose-50 text-rose-600 font-bold rounded-lg hover:bg-rose-100 hover:shadow-sm transition-all border border-rose-200 active:scale-95"
+                                                            title={t('block') || "拒絕"}
                                                         >
-                                                            <X className="w-3.5 h-3.5" />
-                                                            <span className="hidden xl:inline">{t('block') || '停用'}</span>
+                                                            <X className="w-5 h-5" />
                                                         </button>
                                                     )}
 
                                                     {user.status === 'blocked' && (
                                                         <button
                                                             onClick={() => handleUpdateStatus(user.email, 'approved')}
-                                                            className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-600 font-bold text-xs rounded-lg hover:bg-slate-200 hover:shadow-sm transition-all border border-slate-200"
+                                                            className="flex items-center justify-center w-9 h-9 bg-slate-50 text-slate-600 font-bold rounded-lg hover:bg-slate-100 hover:shadow-sm transition-all border border-slate-200 active:scale-95"
                                                             title={t('reactivate') || "重新啟用"}
                                                         >
-                                                            <RefreshCw className="w-3.5 h-3.5" />
-                                                            <span className="hidden xl:inline">{t('reactivate') || '啟用'}</span>
+                                                            <RefreshCw className="w-4 h-4" />
                                                         </button>
                                                     )}
 
                                                     <button
                                                         onClick={() => handleDeleteUser(user.email)}
-                                                        className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-500 font-bold text-xs rounded-lg hover:bg-red-100 hover:text-red-600 hover:shadow-sm transition-all border border-slate-200 hover:border-red-200"
+                                                        className="flex items-center justify-center w-9 h-9 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-slate-200 hover:border-red-200 active:scale-95"
                                                         title={t('delete') || "刪除"}
                                                     >
-                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                        <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                             </td>

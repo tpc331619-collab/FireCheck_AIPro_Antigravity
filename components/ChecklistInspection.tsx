@@ -94,11 +94,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             // If selectedSite changes, we DO want to reset.
             // If allEquipment changes (e.g. update status), we DO NOT want to reset if valid.
 
-            if (selectedBuilding && !uniqueBuildings.includes(selectedBuilding)) {
-                setSelectedBuilding('');
-            } else if (!selectedBuilding && uniqueBuildings.length === 1) {
-                // Optional: Auto-select if only one building
-                // setSelectedBuilding(uniqueBuildings[0]);
+            if (!selectedBuilding || (selectedBuilding !== 'ALL_BUILDINGS' && !uniqueBuildings.includes(selectedBuilding))) {
+                setSelectedBuilding('ALL_BUILDINGS');
             }
 
             // Note: If selectedSite changed, uniqueBuildings would likely not contain the old selectedBuilding 
@@ -615,7 +612,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
                             >
                                 <option value="">{t('pleaseSelect')}</option>
-                                <option value="ALL_BUILDINGS">顯示全部</option>
+                                <option value="ALL_BUILDINGS">全部</option>
                                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
                             </select>
                         </div>
