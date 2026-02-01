@@ -803,67 +803,47 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
       {/* Floating Batch Action Bar */}
       {canBatch && selectedIds.size > 0 && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500">
-          <div className="bg-white/80 backdrop-blur-2xl border border-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[2rem] p-3 flex items-center gap-2 ring-1 ring-slate-200/50">
-            {/* Counter Section */}
-            <div className="flex items-center gap-3 px-5 py-2 border-r border-slate-100 mr-2">
-              <div className="relative">
-                <div className="w-10 h-10 bg-indigo-600 rounded-2xl rotate-3 shadow-lg shadow-indigo-200 flex items-center justify-center">
-                  <Database className="w-5 h-5 text-white -rotate-3" />
-                </div>
-                <div className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border-2 border-white shadow-sm anime-bounce" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                  {selectedIds.size}
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{t('selectedCount')}</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-xl font-black text-slate-800 leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{t('devices')}</span>
-                </div>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500 w-[85%] sm:w-auto max-w-sm">
+          <div className="bg-white/95 backdrop-blur-xl border border-slate-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rounded-2xl p-1 flex items-center gap-1 ring-1 ring-slate-100">
+            {/* Counter Section - Minimalist */}
+            <div className="flex items-center justify-center px-2 border-r border-slate-100">
+              <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                <span className="text-slate-900 font-extrabold text-xs leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
               </div>
             </div>
 
-            {/* Actions Section */}
-            <div className="flex items-center gap-2 pr-2">
+            {/* Actions Section - Uniform Buttons */}
+            <div className="flex items-center gap-1 flex-1">
               <button
                 onClick={() => setBatchModal('frequency')}
-                className="flex items-center gap-2 px-5 py-3 bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 rounded-2xl transition-all font-bold text-sm active:scale-95 border border-transparent hover:border-emerald-100 hover:shadow-sm"
+                className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-emerald-600 rounded-xl transition-all active:scale-95"
               >
-                <div className="w-7 h-7 bg-emerald-100 rounded-lg flex items-center justify-center">
-                  <CalendarClock className="w-4 h-4 text-emerald-600" />
-                </div>
-                {t('batchEditFrequency')}
+                <CalendarClock className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-bold transform scale-90 origin-top">頻率</span>
               </button>
 
               <button
                 onClick={() => setBatchModal('move')}
-                className="flex items-center gap-2 px-5 py-3 bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-2xl transition-all font-bold text-sm active:scale-95 border border-transparent hover:border-blue-100 hover:shadow-sm"
+                className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-blue-600 rounded-xl transition-all active:scale-95"
               >
-                <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <MapPin className="w-4 h-4 text-blue-600" />
-                </div>
-                {t('batchMoveLocation')}
+                <MapPin className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-bold transform scale-90 origin-top">移動</span>
               </button>
-
-              <div className="w-px h-8 bg-slate-100 mx-2"></div>
 
               <button
                 onClick={() => setBatchModal('delete')}
-                className="flex items-center gap-2 px-5 py-3 bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white rounded-2xl transition-all font-bold text-sm active:scale-95 border border-rose-100 hover:border-rose-600 hover:shadow-lg hover:shadow-rose-100"
+                className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-rose-600 rounded-xl transition-all active:scale-95"
               >
-                <div className="w-7 h-7 bg-white/50 rounded-lg flex items-center justify-center group-hover:bg-rose-600">
-                  <Trash2 className="w-4 h-4" />
-                </div>
-                {t('batchDelete')}
+                <Trash2 className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-bold transform scale-90 origin-top">刪除</span>
               </button>
 
               <button
                 onClick={() => setSelectedIds(new Set())}
-                className="ml-2 w-10 h-10 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-2xl transition-all active:scale-90"
-                title={t('deselectAll')}
+                className="w-10 flex flex-col items-center justify-center py-1.5 px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all active:scale-90"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5 mb-0.5" />
+                <span className="text-[10px] font-bold transform scale-90 origin-top">取消</span>
               </button>
             </div>
           </div>
