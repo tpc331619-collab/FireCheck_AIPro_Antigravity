@@ -142,7 +142,8 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
                                         }
                                     }}
                                     placeholder=""
-                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-mono text-slate-900"
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-lg font-mono text-slate-900 uppercase"
+                                    style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     autoFocus
                                 />
                             </div>

@@ -703,7 +703,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         onChange={(e) => setManualInput(e.target.value.toUpperCase())}
                                         onKeyPress={(e) => e.key === 'Enter' && handleManualSearch()}
                                         placeholder="輸入設備編號"
-                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-blue-500 focus:outline-none transition-colors"
+                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium text-slate-900 focus:border-blue-500 focus:outline-none transition-colors uppercase"
+                                        style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     />
                                     <button
                                         onClick={handleManualSearch}
