@@ -1875,68 +1875,54 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             {t('filterCriteria')}
                                         </h3>
 
-                                        <div className="space-y-4">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {/* Date Range Start */}
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">{t('startDate')}</label>
-                                                    <div className="relative">
-                                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                        <input
-                                                            type="date"
-                                                            value={dateRange.start}
-                                                            onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                                            className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            style={{ fontSize: '16px' }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {/* Date Range End */}
-                                                <div>
-                                                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">{t('endDate')}</label>
-                                                    <div className="relative">
-                                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                        <input
-                                                            type="date"
-                                                            value={dateRange.end}
-                                                            onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                                            className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                            style={{ fontSize: '16px' }}
-                                                        />
-                                                    </div>
-                                                </div>
+                                        <div className="flex flex-col gap-4">
+                                            {/* Date Range Start */}
+                                            <div className="w-full overflow-hidden">
+                                                <label className="text-xs font-bold text-slate-700 mb-1 block">{t('startDate')}</label>
+                                                <input
+                                                    type="date"
+                                                    value={dateRange.start}
+                                                    onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    style={{ fontSize: '16px', boxSizing: 'border-box' }}
+                                                />
+                                            </div>
+                                            {/* Date Range End */}
+                                            <div className="w-full overflow-hidden">
+                                                <label className="text-xs font-bold text-slate-700 mb-1 block">{t('endDate')}</label>
+                                                <input
+                                                    type="date"
+                                                    value={dateRange.end}
+                                                    onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    style={{ fontSize: '16px', boxSizing: 'border-box' }}
+                                                />
                                             </div>
 
                                             {/* Equipment Name Filter */}
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 mb-1.5 block">{t('equipmentName')}</label>
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder={t('searchEquipmentName')}
-                                                        value={locationFilter}
-                                                        onChange={(e) => setLocationFilter(e.target.value.toUpperCase())}
-                                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-                                                        style={{ fontSize: '16px' }}
-                                                    />
-                                                </div>
+                                            <div className="w-full overflow-hidden">
+                                                <label className="text-xs font-bold text-slate-700 mb-1 block">{t('equipmentName')}</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder={t('searchEquipmentName')}
+                                                    value={locationFilter}
+                                                    onChange={(e) => setLocationFilter(e.target.value.toUpperCase())}
+                                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                                    style={{ fontSize: '16px', boxSizing: 'border-box' }}
+                                                />
                                             </div>
 
                                             {/* Keyword Search */}
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 mb-1.5 block">{t('keywordSearch')}</label>
-                                                <div className="relative">
-                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                    <input
-                                                        type="text"
-                                                        placeholder="搜尋條碼、備註、建築物、檢查員、標籤..."
-                                                        value={keywordSearch}
-                                                        onChange={(e) => setKeywordSearch(e.target.value.toUpperCase())}
-                                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
-                                                        style={{ fontSize: '16px' }}
-                                                    />
-                                                </div>
+                                            <div className="w-full overflow-hidden">
+                                                <label className="text-xs font-bold text-slate-700 mb-1 block">{t('keywordSearch')}</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="搜尋條碼、備註、建築物、檢查員、標籤..."
+                                                    value={keywordSearch}
+                                                    onChange={(e) => setKeywordSearch(e.target.value.toUpperCase())}
+                                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                                    style={{ fontSize: '16px', boxSizing: 'border-box' }}
+                                                />
                                             </div>
                                         </div>
 
