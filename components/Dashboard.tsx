@@ -1806,7 +1806,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     {t('export')}
                                                 </button>
                                                 {/* Dropdown Menu */}
-                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right">
+                                                <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-left sm:origin-top-right">
                                                     <div className="p-1">
                                                         <button
                                                             onClick={() => exportToExcel(flattenedHistory, `Export_${formatDateTime(new Date()).replace(/\//g, '-')}`)}
@@ -1875,32 +1875,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             {t('filterCriteria')}
                                         </h3>
 
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                                             {/* Date Range */}
-                                            <div className="col-span-1">
-                                                <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('startDate')}</label>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 block">{t('startDate')}</label>
                                                 <input
                                                     type="date"
                                                     value={dateRange.start}
                                                     onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-900 dark:text-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                     style={{ fontSize: '16px' }}
                                                 />
                                             </div>
-                                            <div className="col-span-1">
-                                                <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('endDate')}</label>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 block">{t('endDate')}</label>
                                                 <input
                                                     type="date"
                                                     value={dateRange.end}
                                                     onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-full px-3 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold text-slate-900 dark:text-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                     style={{ fontSize: '16px' }}
                                                 />
                                             </div>
 
                                             {/* Equipment Name Filter */}
-                                            <div className="col-span-2 md:col-span-1">
-                                                <label className="text-xs font-bold text-slate-800 mb-1.5 block">{t('equipmentName')}</label>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 block">{t('equipmentName')}</label>
                                                 <div className="relative">
                                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                                     <input
@@ -1908,7 +1908,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         placeholder={t('searchEquipmentName')}
                                                         value={locationFilter}
                                                         onChange={(e) => setLocationFilter(e.target.value.toUpperCase())}
-                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                                        className="w-full pl-10 pr-4 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg text-base font-bold text-slate-900 dark:text-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                                                         style={{ fontSize: '16px' }}
                                                     />
                                                 </div>
