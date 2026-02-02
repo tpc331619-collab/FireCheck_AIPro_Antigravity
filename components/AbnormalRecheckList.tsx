@@ -428,18 +428,16 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </div>
                                         {/* Right Column */}
                                         <div className="flex-1 flex flex-col">
-                                            <div className="border-b border-black p-3">
+                                            <div className="p-3 flex-1 flex flex-col justify-center">
                                                 <div className="text-xs text-slate-500 font-bold mb-1">{t('equipmentId')} <span className="font-normal scale-90 inline-block">No.</span></div>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="text-lg font-mono">{selectedRecord.barcode || '無編號'}</div>
-                                                    {/* Tags in Detail Sheet */}
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {(selectedRecord.tags || equipmentTagMap[selectedRecord.equipmentId] || []).map(tag => (
-                                                            <span key={tag} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-300 rounded text-[10px] font-bold">
-                                                                #{tag}
-                                                            </span>
-                                                        ))}
-                                                    </div>
+                                                <div className="text-lg font-mono leading-tight mb-1 font-bold">{selectedRecord.barcode || '無編號'}</div>
+                                                {/* Cleanest Inline Tags */}
+                                                <div className="flex flex-wrap gap-x-3 mt-1">
+                                                    {(selectedRecord.tags || equipmentTagMap[selectedRecord.equipmentId] || []).map(tag => (
+                                                        <span key={tag} className="text-sm font-bold text-black whitespace-nowrap">
+                                                            # {tag}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             </div>
                                             <div className="p-3 flex-1">
