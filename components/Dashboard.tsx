@@ -1410,7 +1410,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
 
                         {/* Compact Quick Search */}
-                        {(!user.isGuest || systemSettings?.allowGuestQuickSearch !== false) && (
+                        {((!user.isGuest && (isAdmin || systemSettings?.allowInspectorQuickSearch !== false)) || (user.isGuest && systemSettings?.allowGuestQuickSearch !== false)) && (
                             <div className="relative flex-1 max-w-md">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <Search className="h-4 w-4 text-slate-400" />
@@ -1563,7 +1563,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                         }`}>
                         {/* Start Inspection */}
-                        {(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false) : systemSettings?.allowGuestStartInspection === true) && (
+                        {(!user.isGuest ? (isAdmin || (systemSettings?.allowInspectorStartInspection !== false && (systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false))) : systemSettings?.allowGuestStartInspection === true) && (
                             <button
                                 onClick={() => setIsInspectionModeOpen(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -3338,7 +3338,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionSystemSettings')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
-                                                {['Profile', 'Language', 'Background', 'Declaration', 'Notifications', 'LightSettings'].map((item) => (
+                                                {['Profile', 'Language', 'Background', 'Declaration', 'Notifications', 'QuickSearch', 'LightSettings'].map((item) => (
                                                     <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-blue-200">
                                                         <div>
                                                             <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>
@@ -3365,7 +3365,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionStartInspection')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
-                                                {['ListInspection', 'MapInspection'].map((item) => (
+                                                {['StartInspection', 'ListInspection', 'MapInspection'].map((item) => (
                                                     <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-red-200">
                                                         <div>
                                                             <div className="font-bold text-slate-700 text-sm">{t(`allowInspector${item}`)}</div>

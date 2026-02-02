@@ -235,6 +235,8 @@ export interface SystemSettings {
   allowInspectorBackground?: boolean;
   allowInspectorDeclaration?: boolean;
   allowInspectorNotifications?: boolean;
+  allowInspectorQuickSearch?: boolean;
+  allowInspectorStartInspection?: boolean;
   allowInspectorListInspection?: boolean;
   allowInspectorMapInspection?: boolean;
   allowInspectorViewCompletedRechecks?: boolean;
