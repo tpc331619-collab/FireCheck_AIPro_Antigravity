@@ -5,6 +5,7 @@ import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLightSettings } from '../hooks/useSystemData';
 
 interface MapViewInspectionProps {
     user: UserProfile;
@@ -24,7 +25,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [isScanningBarcode, setIsScanningBarcode] = useState(false);
     const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
     const [currentEquipment, setCurrentEquipment] = useState<EquipmentDefinition | null>(null);
-    const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
+    const { data: lightSettings } = useLightSettings(user);
     const [reports, setReports] = useState<InspectionReport[]>([]);
 
     // Check Items State
@@ -74,15 +75,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
     const loadData = async () => {
         try {
-            const [mapsData, equipmentData, settings, reportsData] = await Promise.all([
+            const [mapsData, equipmentData, reportsData] = await Promise.all([
                 StorageService.getEquipmentMaps(user.uid, user.currentOrganizationId),
                 StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId),
-                StorageService.getLightSettings(user.uid, user.currentOrganizationId),
                 StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId)
             ]);
             setMaps(mapsData);
             setAllEquipment(equipmentData);
-            setLightSettings(settings);
             setReports(reportsData);
         } catch (error) {
             console.error('Failed to load data:', error);

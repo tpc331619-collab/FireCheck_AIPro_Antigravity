@@ -6,6 +6,7 @@ import StorageManagerModal from './StorageManagerModal';
 import { calculateNextInspectionDate } from '../utils/dateUtils';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useLightSettings } from '../hooks/useSystemData';
 
 interface EquipmentMapEditorProps {
     user: UserProfile;
@@ -58,7 +59,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
     // Legend Modal State
     const [isLegendModalOpen, setIsLegendModalOpen] = useState(false);
 
-    const [lightSettings, setLightSettings] = useState<LightSettings | null>(null);
+    const { data: lightSettings } = useLightSettings(user);
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -101,8 +102,6 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
         StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId).then(setAllEquipment);
         // Load reports to determine abnormal status
         StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId).then(setReports);
-        // Load light settings
-        StorageService.getLightSettings(user.uid, user.currentOrganizationId).then(setLightSettings);
     }, [isOpen, user.uid, user.currentOrganizationId]);
 
     const loadMaps = async (options?: { keepView?: boolean }) => {

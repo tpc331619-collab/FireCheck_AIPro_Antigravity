@@ -6,6 +6,7 @@ import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFrequencyStatus, getNextInspectionDate, getCycleDays } from '../utils/inspectionUtils';
 import { THEME_COLORS } from '../constants';
+import { useLightSettings } from '../hooks/useSystemData';
 import InspectionForm from './InspectionForm'; // We might reuse or partial reuse, but for now let's build the list logic first
 import BarcodeScanner from './BarcodeScanner';
 
@@ -28,7 +29,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
     const [sites, setSites] = useState<string[]>([]);
     const [buildings, setBuildings] = useState<string[]>([]);
-    const [lightSettings, setLightSettings] = useState<any>(null); // Add this
+    const { data: lightSettings } = useLightSettings(user);
 
     // Filtered Data for current view
     const [filteredEquipment, setFilteredEquipment] = useState<EquipmentDefinition[]>([]);
@@ -59,12 +60,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [data, settings] = await Promise.all([
-                    StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId),
-                    StorageService.getLightSettings(user.uid, user.currentOrganizationId)
-                ]);
+                const data = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
                 setAllEquipment(data);
-                setLightSettings(settings); // Set settings
                 const uniqueSites = Array.from(new Set(data.map(item => item.siteName))).filter(Boolean);
                 setSites(uniqueSites);
 
@@ -546,7 +543,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 let notNeededCount = 0;       // 綠色 + 橙色 (UNNECESSARY + CAN_INSPECT)
 
                                 targetEquipment.forEach(e => {
-                                    const status = getFrequencyStatus(e);
+                                    const status = getFrequencyStatus(e, lightSettings);
                                     if (status === 'PENDING') {
                                         needInspectionCount++;  // 紅色: 需檢查
                                     } else if (status === 'COMPLETED') {
@@ -565,19 +562,41 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 return (
                                     <>
                                         <div className="grid grid-cols-4 gap-4">
-                                            <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-center">
-                                                <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">需檢查</p>
-                                                <p className="text-2xl font-black text-red-700">{needInspectionCount}</p>
+                                            <div className="p-4 rounded-xl border text-center"
+                                                style={{
+                                                    backgroundColor: `${lightSettings?.red?.color || '#ef4444'}15`,
+                                                    borderColor: `${lightSettings?.red?.color || '#ef4444'}33`
+                                                }}>
+                                                <p className="text-xs font-bold uppercase tracking-wider mb-1"
+                                                    style={{ color: lightSettings?.red?.color || '#ef4444' }}>需檢查</p>
+                                                <p className="text-2xl font-black"
+                                                    style={{ color: lightSettings?.red?.color || '#ef4444' }}>{needInspectionCount}</p>
                                             </div>
-                                            <div className="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
-                                                <p className="text-xs font-bold text-green-400 uppercase tracking-wider mb-1">已完成</p>
-                                                <p className="text-2xl font-black text-green-700">{completedNormalCount}</p>
+                                            <div className="p-4 rounded-xl border text-center"
+                                                style={{
+                                                    backgroundColor: `${lightSettings?.completed?.color || '#10b981'}15`,
+                                                    borderColor: `${lightSettings?.completed?.color || '#10b981'}33`
+                                                }}>
+                                                <p className="text-xs font-bold uppercase tracking-wider mb-1"
+                                                    style={{ color: lightSettings?.completed?.color || '#10b981' }}>已完成</p>
+                                                <p className="text-2xl font-black"
+                                                    style={{ color: lightSettings?.completed?.color || '#10b981' }}>{completedNormalCount}</p>
                                             </div>
-                                            <div className="bg-red-50 p-4 rounded-xl border border-red-200 text-center">
-                                                <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-1">異常</p>
-                                                <p className="text-2xl font-black text-red-600">{abnormalCount}</p>
+                                            <div className="p-4 rounded-xl border text-center"
+                                                style={{
+                                                    backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}15`,
+                                                    borderColor: `${lightSettings?.abnormal?.color || '#f97316'}33`
+                                                }}>
+                                                <p className="text-xs font-bold uppercase tracking-wider mb-1"
+                                                    style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>異常</p>
+                                                <p className="text-2xl font-black"
+                                                    style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{abnormalCount}</p>
                                             </div>
-                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+                                            <div className="p-4 rounded-xl border text-center"
+                                                style={{
+                                                    backgroundColor: `${lightSettings?.green?.color || '#10b981'}15`,
+                                                    borderColor: `${lightSettings?.green?.color || '#10b981'}33`
+                                                }}>
                                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">不需檢查</p>
                                                 <p className="text-2xl font-black text-slate-700">{notNeededCount}</p>
                                             </div>
@@ -669,52 +688,80 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     let rowBorder = 'border-slate-200 hover:border-red-300';
                                     let iconBg = 'bg-slate-300';
                                     let iconStyle: React.CSSProperties = {};
+                                    let labelStyle: React.CSSProperties = {};
                                     let iconContent = null; // No number by default
 
                                     if (freqStatus === 'COMPLETED') {
                                         const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal;
                                         if (isAbnormal) {
                                             statusLabel = '已檢查+異常';
-                                            statusColor = 'bg-red-100 text-red-600';
+                                            statusColor = ''; // Clear default tailwind classes
+                                            labelStyle = {
+                                                backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}15`,
+                                                color: lightSettings?.abnormal?.color || '#f97316'
+                                            };
                                             rowBorder = 'border-red-200 bg-red-50/30';
-                                            iconBg = 'bg-orange-500';
+
+                                            if (lightSettings?.abnormal?.color) {
+                                                iconStyle = { backgroundColor: lightSettings.abnormal.color };
+                                                iconBg = '';
+                                            } else {
+                                                iconBg = 'bg-orange-500';
+                                            }
                                             iconContent = <span className="font-bold text-sm">!</span>;
                                         } else {
                                             statusLabel = '已檢查';
-                                            statusColor = 'bg-green-100 text-green-700';
+                                            statusColor = ''; // Clear default tailwind classes
                                             rowBorder = 'border-green-200 bg-green-50/30';
 
                                             // Normal Completed: Use custom color if set, otherwise default emerald
                                             if (lightSettings?.completed?.color) {
                                                 iconStyle = { backgroundColor: lightSettings.completed.color };
+                                                labelStyle = { backgroundColor: `${lightSettings.completed.color}15`, color: lightSettings.completed.color };
                                                 iconBg = '';
                                             } else {
                                                 iconBg = 'bg-emerald-500';
                                                 iconStyle = {};
+                                                labelStyle = { backgroundColor: '#10b98115', color: '#10b981' }; // Default green
                                             }
                                             iconContent = <CheckCircle className="w-5 h-5 text-white" />;
                                         }
                                     } else if (freqStatus === 'CAN_INSPECT') {
                                         statusLabel = '可以檢查';
-                                        statusColor = 'bg-yellow-100 text-yellow-700';
+                                        statusColor = ''; // Clear default tailwind classes
                                         rowBorder = 'border-yellow-200 hover:border-yellow-300';
                                         if (lightSettings?.yellow?.color) {
                                             iconStyle = { backgroundColor: lightSettings.yellow.color };
+                                            labelStyle = { backgroundColor: `${lightSettings.yellow.color}15`, color: lightSettings.yellow.color };
+                                            iconBg = '';
+                                        } else {
                                             iconBg = 'bg-yellow-400';
+                                            labelStyle = { backgroundColor: '#facc1515', color: '#facc15' }; // Default yellow
                                         }
                                     } else if (freqStatus === 'UNNECESSARY') {
                                         statusLabel = '不須檢查';
-                                        statusColor = 'bg-slate-100 text-slate-500';
+                                        statusColor = ''; // Clear default tailwind classes
                                         rowBorder = 'border-slate-200 opacity-75';
                                         if (lightSettings?.green?.color) {
                                             iconStyle = { backgroundColor: lightSettings.green.color };
+                                            labelStyle = { backgroundColor: `${lightSettings.green.color}15`, color: lightSettings.green.color };
+                                            iconBg = '';
+                                        } else {
                                             iconBg = 'bg-emerald-500';
+                                            labelStyle = { backgroundColor: '#10b98115', color: '#10b981' }; // Default green
                                         }
                                     } else {
                                         // PENDING
+                                        statusLabel = '需檢查'; // Ensure label is set
+                                        statusColor = ''; // Clear default tailwind classes
+                                        rowBorder = 'border-red-200 hover:border-red-300'; // Ensure border is set
                                         if (lightSettings?.red?.color) {
                                             iconStyle = { backgroundColor: lightSettings.red.color };
+                                            labelStyle = { backgroundColor: `${lightSettings.red.color}15`, color: lightSettings.red.color };
+                                            iconBg = '';
+                                        } else {
                                             iconBg = 'bg-red-500';
+                                            labelStyle = { backgroundColor: '#ef444415', color: '#ef4444' }; // Default red
                                         }
                                     }
 
@@ -804,14 +851,15 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                     const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal;
 
                                                     if (isAbnormal) {
-                                                        return <div className="w-3 h-3 rounded-full bg-orange-500 shadow-lg shadow-orange-300" />;
+                                                        const color = lightSettings?.abnormal?.color || '#f97316';
+                                                        return <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}66` }} />;
                                                     } else {
                                                         // Completed Normal - Custom color or default emerald
                                                         return <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings?.completed?.color || '#10b981' }}></div>;
                                                     }
                                                 })()}
 
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`} style={labelStyle}>
                                                     {statusLabel}
                                                 </span>
                                             </div>

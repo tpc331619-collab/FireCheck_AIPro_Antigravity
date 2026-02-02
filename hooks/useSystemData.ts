@@ -4,13 +4,13 @@ import { UserProfile, EquipmentDefinition, LightSettings, SystemSettings } from 
 
 // Query Keys
 export const EQUIPMENT_KEYS = {
-    all: (userId: string, orgId?: string) => ['equipment', userId, orgId] as const,
-    item: (id: string, userId: string, orgId?: string) => ['equipment', id, userId, orgId] as const,
+    all: (userId: string, orgId?: string | null) => ['equipment', userId, orgId || 'PERSONAL'] as const,
+    item: (id: string, userId: string, orgId?: string | null) => ['equipment', id, userId, orgId || 'PERSONAL'] as const,
 };
 
 export const SETTINGS_KEYS = {
     system: ['settings', 'system'] as const,
-    light: (userId: string, orgId?: string) => ['settings', 'light', userId, orgId] as const,
+    light: (userId: string, orgId?: string | null) => ['settings', 'light', userId, orgId || 'PERSONAL'] as const,
 };
 
 // 1. Equipment Hook
@@ -93,5 +93,16 @@ export function useSaveEquipment(user: UserProfile) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId) });
         }
+    });
+}
+
+export function useUpdateLightSettings(user: UserProfile) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (settings: LightSettings) => StorageService.saveLightSettings(settings, user.uid, user.currentOrganizationId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: SETTINGS_KEYS.light(user.uid, user.currentOrganizationId) });
+        },
     });
 }

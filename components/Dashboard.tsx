@@ -102,6 +102,7 @@ import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useUpdateLightSettings, useLightSettings } from '../hooks/useSystemData';
 
 interface DashboardProps {
     user: UserProfile;
@@ -211,9 +212,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
     // Light Settings State
-    const [lightSettings, setLightSettings] = useState<any>(null);
     const [pendingUsersCount, setPendingUsersCount] = useState(0);
     const [savingLights, setSavingLights] = useState(false);
+    const { data: currentLightSettings } = useLightSettings(user);
+    const [lightSettings, setLightSettings] = useState<any>(null);
+    const updateLightSettingsMutation = useUpdateLightSettings(user);
 
     // Map State
 
@@ -630,28 +633,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
             fetchDeclarationSettings();
             fetchEquipmentStats();
-            fetchLightSettings();
             fetchHistoryCounts();
             StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then(setHealthIndicators);
         }
     }, [user?.uid, user?.currentOrganizationId]);
 
-    const fetchLightSettings = async () => {
-        if (user?.uid) {
-            const settings = await StorageService.getLightSettings(user.uid, user.currentOrganizationId);
-            setLightSettings(settings);
+    useEffect(() => {
+        if (isSettingsOpen && settingsTab === 'LIGHTS' && currentLightSettings) {
+            setLightSettings(JSON.parse(JSON.stringify(currentLightSettings)));
         }
-    };
+    }, [isSettingsOpen, settingsTab, currentLightSettings]);
 
     const handleSaveLightSettings = async () => {
         if (!lightSettings) return;
         setSavingLights(true);
         try {
-            await StorageService.saveLightSettings(lightSettings, user.uid, user.currentOrganizationId);
-            alert("燈號設定已儲存！");
+            await updateLightSettingsMutation.mutateAsync(lightSettings);
+            await addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
+            alert(t('settingsSaved'));
         } catch (e) {
             console.error(e);
-            alert("儲存失敗");
+            alert(t('saveFailed'));
         } finally {
             setSavingLights(false);
         }
@@ -1286,7 +1288,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         return <AbnormalRecheckList
             user={user}
             onBack={() => setShowAbnormalRecheck(false)}
-            lightSettings={lightSettings}
+            lightSettings={currentLightSettings}
             onRecordsUpdated={fetchAbnormalCount}
             systemSettings={systemSettings}
         />;
@@ -2840,20 +2842,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         </div>
 
                                                         <button
-                                                            onClick={async () => {
-                                                                if (!user?.uid || !lightSettings) return;
-                                                                setSavingLights(true);
-                                                                try {
-                                                                    await StorageService.saveLightSettings(lightSettings, user.uid, user.currentOrganizationId);
-                                                                    addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
-                                                                    alert(t('settingsSaved'));
-                                                                } catch (error) {
-                                                                    console.error('Failed to save light settings:', error);
-                                                                    alert(t('saveFailed'));
-                                                                } finally {
-                                                                    setSavingLights(false);
-                                                                }
-                                                            }}
+                                                            onClick={handleSaveLightSettings}
                                                             disabled={savingLights}
                                                             className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
                                                         >
