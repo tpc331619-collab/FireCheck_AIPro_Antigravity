@@ -1380,17 +1380,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
                             </div>
                             <div
-                                className="relative w-12 h-12 rounded-full p-[3px] shadow-md transition-all hover:scale-105 cursor-pointer"
+                                className={`relative w-12 h-12 rounded-full p-[3px] shadow-md transition-all ${!user.isGuest ? 'hover:scale-105 cursor-pointer' : ''}`}
                                 style={{
-                                    background: `conic-gradient(
+                                    background: user.isGuest ? `conic-gradient(
                                         ${systemSettings?.allowGuestView ? '#10b981' : '#e5e7eb'} 0deg 90deg,
                                         ${systemSettings?.allowGuestRecheck ? '#3b82f6' : '#e5e7eb'} 90deg 180deg,
                                         ${systemSettings?.allowGuestEquipmentOverview ? '#f59e0b' : '#e5e7eb'} 180deg 270deg,
                                         ${systemSettings?.allowGuestHistory ? '#8b5cf6' : '#e5e7eb'} 270deg 360deg
-                                    )`
+                                    )` : `linear-gradient(135deg, ${THEME_COLORS.primary}, ${THEME_COLORS.secondary})`,
+                                    padding: '3px'
                                 }}
-                                title={`訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}\n4. 歷史: ${systemSettings?.allowGuestHistory ? '開啟' : '關閉'}`}
-                                onClick={() => setIsSettingsOpen(true)}
+                                title={user.isGuest ? `訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}\n4. 歷史: ${systemSettings?.allowGuestHistory ? '開啟' : '關閉'}` : t('settings')}
+                                onClick={() => !user.isGuest && setIsSettingsOpen(true)}
                             >
                                 <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
                                     <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
@@ -1470,7 +1471,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Light Settings Card */}
-                            {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
+                            {!user.isGuest && (isAdmin || systemSettings?.allowInspectorLightSettings) && (
                                 <button
                                     onClick={() => {
                                         setSettingsTab('LIGHTS');
@@ -1677,7 +1678,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Add Equipment */}
-                        {(isAdmin || systemSettings?.allowInspectorAddEquipment === true) && (
+                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorAddEquipment === true) && (
                             <button
                                 onClick={onAddEquipment}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1694,7 +1695,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Add Name List */}
-                        {(isAdmin || systemSettings?.allowInspectorManageHierarchy === true) && (
+                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorManageHierarchy === true) && (
                             <button
                                 onClick={onManageHierarchy}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"

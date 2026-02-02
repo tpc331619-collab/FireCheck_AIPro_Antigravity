@@ -405,8 +405,8 @@ const App: React.FC = () => {
 
           <Route path="/equipment" element={<MyEquipmentRoute user={user} systemSettings={systemSettings} />} />
 
-          <Route path="/equipment/new" element={<EquipmentManagerRoute user={user} isAdmin={isAdmin} systemSettings={systemSettings} />} />
-          <Route path="/equipment/edit/:id" element={<EquipmentManagerRoute user={user} isAdmin={isAdmin} systemSettings={systemSettings} />} />
+          <Route path="/equipment/new" element={!user.isGuest ? <EquipmentManagerRoute user={user} isAdmin={isAdmin} systemSettings={systemSettings} /> : <Navigate to="/" replace />} />
+          <Route path="/equipment/edit/:id" element={!user.isGuest ? <EquipmentManagerRoute user={user} isAdmin={isAdmin} systemSettings={systemSettings} /> : <Navigate to="/" replace />} />
 
           <Route path="/inspection/check" element={
             <ChecklistInspection
@@ -418,20 +418,24 @@ const App: React.FC = () => {
           <Route path="/inspection/report/:id" element={<InspectionFormRoute user={user} />} />
 
           <Route path="/hierarchy" element={
-            <HierarchyManager
-              user={user}
-              onBack={() => navigate('/')}
-              systemSettings={systemSettings}
-            />
+            !user.isGuest ? (
+              <HierarchyManager
+                user={user}
+                onBack={() => navigate('/')}
+                systemSettings={systemSettings}
+              />
+            ) : <Navigate to="/" replace />
           } />
 
           <Route path="/map-editor" element={
-            <EquipmentMapEditor
-              user={user}
-              isAdmin={isAdmin}
-              isOpen={true} // Map Editor works better as "open" when routed to
-              onClose={() => navigate('/')}
-            />
+            !user.isGuest ? (
+              <EquipmentMapEditor
+                user={user}
+                isAdmin={isAdmin}
+                isOpen={true} // Map Editor works better as "open" when routed to
+                onClose={() => navigate('/')}
+              />
+            ) : <Navigate to="/" replace />
           } />
 
           {/* Catch all fallback */}
