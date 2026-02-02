@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag } from 'lucide-react';
+import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag, Clock } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -741,29 +741,45 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                         <CheckCircle className="w-3.5 h-3.5 text-white" />
                                                     ) : iconContent}
                                                 </div>
-                                                <div>
-                                                    <h4 className={`font-bold text-slate-800 flex items-center gap-2`}>
-                                                        {item.name}
-                                                        {isLocked && <Lock className="w-3.5 h-3.5 text-slate-400" />}
-                                                    </h4>
-                                                    <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-                                                        <span>{item.barcode}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                                                        <h4 className="font-bold text-slate-800 text-sm sm:text-base leading-tight">
+                                                            {item.name}
+                                                        </h4>
+                                                        {item.barcode && (
+                                                            <span className="text-[11px] sm:text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded leading-none shrink-0 border border-slate-200">
+                                                                {item.barcode}
+                                                            </span>
+                                                        )}
                                                         {item.tags && item.tags.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1">
+                                                            <div className="flex flex-wrap gap-1 shrink-0">
                                                                 {item.tags.map(tag => (
-                                                                    <span key={tag} className="px-1 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-100">
+                                                                    <span key={tag} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded border border-blue-100 leading-none">
                                                                         #{tag}
                                                                     </span>
                                                                 ))}
                                                             </div>
                                                         )}
-                                                        <span>•</span>
-                                                        {inspectionItem ? (
-                                                            <span className="text-blue-600 font-bold">
-                                                                已檢: {new Date(inspectionItem.timestamp || Date.now()).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        ) : (
-                                                            <span>下次: {new Date(getNextInspectionDate(item)).toLocaleDateString()}</span>
+                                                        {isLocked && <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] font-medium text-slate-500">
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <CalendarClock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+                                                            <span>下次: <span className="text-slate-700">{new Date(getNextInspectionDate(item)).toLocaleDateString()}</span></span>
+                                                        </div>
+                                                        {item.lastInspectedDate && (
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
+                                                                <span>最近: <span className="text-slate-700">{new Date(item.lastInspectedDate).toLocaleDateString()}</span></span>
+                                                            </div>
+                                                        )}
+                                                        {inspectionItem && (
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-500" />
+                                                                <span className="text-blue-600 font-bold">
+                                                                    本次已檢: {new Date(inspectionItem.timestamp || Date.now()).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                                </span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
