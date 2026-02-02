@@ -612,44 +612,54 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                 // 列表頁面 (保持不變)
                 <div className="flex flex-col h-full bg-slate-50 relative">
                     <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
-                        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-                            <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                                <ArrowLeft className="w-6 h-6" />
-                            </button>
-                            <h1 className="font-bold text-lg text-slate-800">{t('abnormalRecheckList')}</h1>
+                        <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                                <div className="flex items-center gap-2">
+                                    <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                        <ArrowLeft className="w-6 h-6" />
+                                    </button>
+                                    <h1 className="font-bold text-lg text-slate-800 whitespace-nowrap">{t('abnormalRecheckList')}</h1>
+                                    <span className={`sm:hidden ml-auto px-2 py-0.5 rounded-full text-xs font-bold ${viewMode === 'pending'
+                                        ? 'bg-orange-100 text-orange-700'
+                                        : 'bg-green-100 text-green-700'
+                                        }`}>
+                                        {filteredRecords.length}{t('recordsCountSuffix')}
+                                    </span>
+                                </div>
 
-                            {/* 切換按鈕 */}
-                            <div className="ml-auto flex bg-slate-100 p-1 rounded-xl">
-                                <button
-                                    onClick={() => setViewMode('pending')}
-                                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'pending'
-                                        ? 'bg-white text-red-600 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                        }`}
-                                >
-                                    <Clock className="w-4 h-4" />
-                                    {t('pending')}
-                                </button>
-                                {(user.role === 'admin' || systemSettings?.allowInspectorViewCompletedRechecks !== false) && (
+                                {/* 切換按鈕 */}
+                                <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto sm:ml-auto">
                                     <button
-                                        onClick={() => setViewMode('fixed')}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'fixed'
-                                            ? 'bg-white text-emerald-600 shadow-sm'
+                                        onClick={() => setViewMode('pending')}
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'pending'
+                                            ? 'bg-white text-red-600 shadow-sm'
                                             : 'text-slate-500 hover:text-slate-700'
                                             }`}
                                     >
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        {t('completed')}
+                                        <Clock className="w-4 h-4" />
+                                        {t('pending')}
                                     </button>
-                                )}
-                            </div>
+                                    {(user.role === 'admin' || systemSettings?.allowInspectorViewCompletedRechecks !== false) && (
+                                        <button
+                                            onClick={() => setViewMode('fixed')}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'fixed'
+                                                ? 'bg-white text-emerald-600 shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700'
+                                                }`}
+                                        >
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            {t('completed')}
+                                        </button>
+                                    )}
+                                </div>
 
-                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${viewMode === 'pending'
-                                ? 'bg-orange-100 text-orange-700'
-                                : 'bg-green-100 text-green-700'
-                                }`}>
-                                {filteredRecords.length}{t('recordsCountSuffix')}
-                            </span>
+                                <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-sm font-bold ${viewMode === 'pending'
+                                    ? 'bg-orange-100 text-orange-700'
+                                    : 'bg-green-100 text-green-700'
+                                    }`}>
+                                    {filteredRecords.length}{t('recordsCountSuffix')}
+                                </span>
+                            </div>
                         </div>
                     </div>
 

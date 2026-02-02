@@ -1,0 +1,21 @@
+{
+    "name": "FSIPPRO - 消防安全系統",
+    "short_name": "FSIPPRO",
+    "description": "專業消防安全設備檢修系統",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#4f46e5",
+    "icons": [
+        {
+            "src": "/images/login-bg.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/images/login-bg.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

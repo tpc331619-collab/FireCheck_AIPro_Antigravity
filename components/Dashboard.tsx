@@ -49,6 +49,7 @@ import {
     Wrench,
     X,
     Trash2,
+    AlertCircle,
     LogOut,
     Shield,
     ShieldCheck,
@@ -1738,9 +1739,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     {(showArchived || searchTerm.trim()) && (
                         <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
-                            <div className="max-w-7xl mx-auto p-6 space-y-6">
+                            <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
                                 {/* Header */}
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border-l-4 border-blue-500 sticky top-4 z-30 gap-4 sm:gap-0">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-800 p-3 md:p-4 rounded-2xl shadow-sm border-l-4 border-blue-500 sticky top-4 z-30 gap-4 sm:gap-0">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-xl">
                                             {searchTerm ? <Search className="w-6 h-6 text-blue-600 dark:text-blue-400" /> : <History className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
@@ -1868,7 +1869,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                 {/* Filter Controls */}
                                 {showFilters && (
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
                                         <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                                             <Filter className="w-4 h-4" />
                                             {t('filterCriteria')}
@@ -1949,7 +1950,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                 {/* Column Visibility Panel */}
                                 {showColumns && (
-                                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200">
                                         <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
                                             <LayoutGrid className="w-4 h-4" />
                                             {t('adjustColumns')}
@@ -2341,62 +2342,83 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         {t('noHealthIndicators')}
                                                     </div>
                                                 ) : (
-                                                    healthIndicators.map(indicator => {
-                                                        const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                                        const isExpired = remainingDays < 0;
+                                                    <div className="space-y-4">
+                                                        {/* Status Legend */}
+                                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center gap-4 text-[11px] shadow-sm">
+                                                            <div className="font-bold text-slate-500 uppercase tracking-tight flex items-center gap-2">
+                                                                <AlertCircle className="w-3.5 h-3.5" />
+                                                                {t('healthLegendTitle')}:
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-slate-100">
+                                                                <div className="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+                                                                <span className="text-slate-600 font-medium">{t('healthLegendValid')}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-md border border-slate-100">
+                                                                <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
+                                                                <span className="text-slate-600 font-medium">{t('healthLegendExpired')}</span>
+                                                            </div>
+                                                        </div>
 
-                                                        return (
-                                                            <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
-                                                                <div className="flex-1 flex items-center gap-3 min-w-0">
-                                                                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 text-blue-500">
-                                                                        <Database className="w-4 h-4" />
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <div className="font-bold text-slate-700 truncate text-sm">
-                                                                            {indicator.buildingName} <span className="text-slate-300 font-normal">|</span> {indicator.equipmentName}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
+                                                        {healthIndicators.map(indicator => {
+                                                            const endDate = new Date(indicator.endDate);
+                                                            const remainingDaysValue = endDate.getTime() - new Date().getTime();
+                                                            const remainingDays = isNaN(remainingDaysValue) ? 0 : Math.ceil(remainingDaysValue / (1000 * 60 * 60 * 24));
+                                                            const isExpired = remainingDays < 0;
 
-                                                                <div className="flex items-center gap-3 shrink-0">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-8 h-8 rounded-lg bg-amber-50 items-center justify-center text-amber-500 hidden sm:flex">
-                                                                            <Clock className="w-4 h-4" />
+                                                            return (
+                                                                <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
+                                                                    <div className="flex-1 flex items-center gap-3 min-w-0">
+                                                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 text-blue-500">
+                                                                            <Database className="w-4 h-4" />
                                                                         </div>
-                                                                        <div className="text-right">
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <span className={`font-black text-sm ${isExpired ? 'text-red-500' : 'text-slate-700'}`}>
-                                                                                    {isExpired ? t('expired') : remainingDays}
-                                                                                </span>
-                                                                                {!isExpired && <span className="text-[10px] font-bold text-slate-500">{t('days')}</span>}
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="font-bold text-slate-700 truncate text-sm">
+                                                                                {indicator.buildingName} <span className="text-slate-300 font-normal">|</span> {indicator.equipmentName}
                                                                             </div>
                                                                         </div>
                                                                     </div>
 
-                                                                    <div className="flex items-center gap-1 border-l border-slate-100 pl-2 ml-1">
-                                                                        {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
-                                                                            <button
-                                                                                onClick={() => setEditingHealthIndicator(indicator)}
-                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                                                title="編輯"
-                                                                            >
-                                                                                <Edit2 className="w-4 h-4" />
-                                                                            </button>
-                                                                        )}
-                                                                        {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
-                                                                            <button
-                                                                                onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                                title={t('delete')}
-                                                                            >
-                                                                                <Trash2 className="w-4 h-4" />
-                                                                            </button>
-                                                                        )}
+                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                        <div className="flex flex-col items-end gap-1">
+                                                                            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter leading-none block">
+                                                                                {t('remainingDays')}
+                                                                            </div>
+                                                                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-colors ${isExpired ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
+                                                                                <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-red-500' : 'text-amber-500'}`} />
+                                                                                <div className="flex items-baseline gap-0.5">
+                                                                                    <span className={`font-black text-sm ${isExpired ? 'text-red-500' : 'text-slate-700'}`}>
+                                                                                        {isExpired ? t('expired') : remainingDays}
+                                                                                    </span>
+                                                                                    {!isExpired && <span className="text-[10px] font-bold text-slate-500">{t('days')}</span>}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="flex items-center gap-0.5 border-l border-slate-100 pl-1.5 ml-0.5">
+                                                                            {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
+                                                                                <button
+                                                                                    onClick={() => setEditingHealthIndicator(indicator)}
+                                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                                    title="編輯"
+                                                                                >
+                                                                                    <Edit2 className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                            {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
+                                                                                <button
+                                                                                    onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                                    title={t('delete')}
+                                                                                >
+                                                                                    <Trash2 className="w-4 h-4" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })
+                                                            );
+                                                        })}
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
