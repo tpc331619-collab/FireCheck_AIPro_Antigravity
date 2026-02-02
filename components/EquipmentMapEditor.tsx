@@ -1570,7 +1570,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                     value={pendingEquipmentId}
                                     onChange={(e) => setPendingEquipmentId(e.target.value.toUpperCase())}
                                     placeholder={t('exampleId')}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg text-slate-900"
 
                                     autoFocus
                                     onKeyDown={(e) => {

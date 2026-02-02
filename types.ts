@@ -167,6 +167,8 @@ export interface AbnormalRecord {
   inspectionDate: number; // 發現異常的檢查日期
   abnormalItems: string[]; // 異常的項目列表
   abnormalReason: string; // 異常原因/內容
+  abnormalValue?: string; // 當時檢查的異常數值或狀態描述
+  thresholdMode?: string; // 當時的閥值判定模式 (選填)
   status: 'pending' | 'fixed'; // 待複檢 | 已改善
   fixedDate?: number; // 修復時間
   fixedNotes?: string; // 修復情況

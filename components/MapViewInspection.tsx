@@ -382,23 +382,33 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
             // Handle Abnormal Records
             if (status === InspectionStatus.Abnormal) {
-                const abnormalItems = currentEquipment.checkItems
-                    .filter(item => {
-                        const value = checkResults[item.id];
-                        if (item.inputType === 'boolean') return value === false;
-                        if (item.inputType === 'number') {
-                            const num = parseFloat(String(value));
-                            if (!isNaN(num) && item.thresholdMode) {
-                                if (item.thresholdMode === 'range') return num < (item.val1 || 0) || num > (item.val2 || 0);
-                                if (item.thresholdMode === 'gt') return num <= (item.val1 || 0);
-                                if (item.thresholdMode === 'gte') return num < (item.val1 || 0);
-                                if (item.thresholdMode === 'lt') return num >= (item.val1 || 0);
-                                if (item.thresholdMode === 'lte') return num > (item.val1 || 0);
+                const abnormalItems: string[] = [];
+                const abnormalValues: string[] = [];
+                const thresholdModes: string[] = [];
+
+                currentEquipment.checkItems.forEach(item => {
+                    const value = checkResults[item.id];
+                    if (item.inputType === 'boolean' && value === false) {
+                        abnormalItems.push(item.name);
+                        abnormalValues.push(t('abnormal'));
+                    } else if (item.inputType === 'number') {
+                        const num = parseFloat(String(value));
+                        if (!isNaN(num) && item.thresholdMode) {
+                            let f = false;
+                            if (item.thresholdMode === 'range') f = (num < (item.val1 || 0) || num > (item.val2 || 0));
+                            else if (item.thresholdMode === 'gt') f = (num <= (item.val1 || 0));
+                            else if (item.thresholdMode === 'gte') f = (num < (item.val1 || 0));
+                            else if (item.thresholdMode === 'lt') f = (num >= (item.val1 || 0));
+                            else if (item.thresholdMode === 'lte') f = (num > (item.val1 || 0));
+
+                            if (f) {
+                                abnormalItems.push(item.name);
+                                abnormalValues.push(`${num} ${item.unit || ''}`);
+                                thresholdModes.push(item.thresholdMode);
                             }
                         }
-                        return false;
-                    })
-                    .map(item => item.name);
+                    }
+                });
 
                 await StorageService.saveAbnormalRecord({
                     userId: user.uid,
@@ -409,6 +419,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     buildingName: currentEquipment.buildingName,
                     inspectionDate: now,
                     abnormalItems: abnormalItems.length > 0 ? abnormalItems : ['未指定項目'],
+                    abnormalValue: abnormalValues.length > 0 ? abnormalValues.join(', ') : undefined,
+                    thresholdMode: thresholdModes.length > 0 ? thresholdModes.join(', ') : undefined,
                     abnormalReason: notes,
                     status: 'pending',
                     tags: finalTags,

@@ -422,6 +422,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             // Handle Abnormal Records
             if (updatedItem.status === InspectionStatus.Abnormal) {
                 const abnormalItems: string[] = [];
+                const abnormalDetails: string[] = [];
+                const thresholdModes: string[] = [];
+
                 inspectingItem.checkItems.forEach(ci => {
                     const val = sanitizedPoints[ci.id] || sanitizedPoints[ci.name];
                     if (ci.inputType === 'number') {
@@ -433,9 +436,17 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             else if (ci.thresholdMode === 'gte' && num < (ci.val1 || 0)) f = true;
                             else if (ci.thresholdMode === 'lt' && num >= (ci.val1 || 0)) f = true;
                             else if (ci.thresholdMode === 'lte' && num > (ci.val1 || 0)) f = true;
-                            if (f) abnormalItems.push(ci.name);
+
+                            if (f) {
+                                abnormalItems.push(ci.name);
+                                abnormalDetails.push(`${num} ${ci.unit || ''}`);
+                                thresholdModes.push(ci.thresholdMode);
+                            }
                         }
-                    } else if (val === false) abnormalItems.push(ci.name);
+                    } else if (val === false) {
+                        abnormalItems.push(ci.name);
+                        abnormalDetails.push(t('abnormal'));
+                    }
                 });
 
                 await StorageService.saveAbnormalRecord(removeUndefined({
@@ -447,6 +458,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     buildingName: inspectingItem.buildingName,
                     inspectionDate: now,
                     abnormalItems: abnormalItems.length > 0 ? abnormalItems : ['未指定項目'],
+                    abnormalValue: abnormalDetails.length > 0 ? abnormalDetails.join(', ') : undefined,
+                    thresholdMode: thresholdModes.length > 0 ? thresholdModes.join(', ') : undefined,
                     abnormalReason: updatedItem.notes || '未填寫原因',
                     status: 'pending',
                     tags: finalTags,

@@ -484,16 +484,27 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </div>
                                         <div className="p-3">
                                             <div className="text-xs text-slate-500 font-bold mb-1">{t('abnormalCategory')} <span className="font-normal scale-90 inline-block">Category</span></div>
-                                            <div className="flex flex-wrap gap-1">
-                                                {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 ? (
-                                                    selectedRecord.abnormalItems.map((item, idx) => (
-                                                        <span key={idx} className="after:content-[','] last:after:content-[''] font-medium">
-                                                            {item}
-                                                        </span>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-slate-400 italic">無</span>
+                                            <div className="flex flex-col gap-1">
+                                                {selectedRecord.abnormalValue && (
+                                                    <div className="flex items-baseline gap-1 mb-1">
+                                                        <span className="text-xs text-slate-500 font-bold">{t('inspectionResult')}：</span>
+                                                        <span className="font-bold text-red-600">{selectedRecord.abnormalValue}</span>
+                                                        {selectedRecord.thresholdMode && (
+                                                            <span className="text-[10px] text-slate-400 font-normal ml-1">({selectedRecord.thresholdMode})</span>
+                                                        )}
+                                                    </div>
                                                 )}
+                                                <div className="flex flex-wrap gap-1">
+                                                    {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 ? (
+                                                        selectedRecord.abnormalItems.map((item, idx) => (
+                                                            <span key={idx} className="after:content-[','] last:after:content-[''] font-medium text-slate-700">
+                                                                {item}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-slate-400 italic">無</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
