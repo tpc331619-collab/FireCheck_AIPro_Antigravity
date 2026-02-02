@@ -327,9 +327,10 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   <input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                     placeholder={t('searchEquipmentPlaceholder') || "搜尋名稱、條碼、標籤..."}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all uppercase"
+                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all uppercase text-base"
+                    style={{ fontSize: '16px' }}
                   />
                   {searchQuery && (
                     <button

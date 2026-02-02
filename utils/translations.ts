@@ -233,6 +233,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorEquipmentPhotoDesc: '允許在新增設備時拍攝物理照片',
     allowInspectorResetDefaults: '重置為預設功能',
     allowInspectorResetDefaultsDesc: '將類別與種類清單還原為初始設定',
+    allowInspectorAddEquipment: '新增設備功能',
+    allowInspectorAddEquipmentDesc: '允許巡檢員在儀表板新增全新設備資料',
+    allowInspectorManageHierarchy: '管理清單功能',
+    allowInspectorManageHierarchyDesc: '允許巡檢員管理設備類別、種類與詳細規格清單',
     allowInspectorEditHierarchy: '修改 (階層)',
     allowInspectorEditHierarchyDesc: '允許修改現有的設備類別與種類',
     allowInspectorCopyHierarchy: '複製 (階層)',
@@ -909,6 +913,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorEquipmentPhotoDesc: 'Allow taking photos when adding new equipment.',
     allowInspectorResetDefaults: 'Reset to Defaults',
     allowInspectorResetDefaultsDesc: 'Restore category and type lists to system defaults.',
+    allowInspectorAddEquipment: 'Add Equipment Feature',
+    allowInspectorAddEquipmentDesc: 'Allow inspector to add new equipment data on the dashboard',
+    allowInspectorManageHierarchy: 'Manage List Feature',
+    allowInspectorManageHierarchyDesc: 'Allow inspector to manage equipment categories, types, and detail specifications',
     allowInspectorEditHierarchy: 'Edit (Hierarchy)',
     allowInspectorEditHierarchyDesc: 'Allow modifying existing categories and types.',
     allowInspectorCopyHierarchy: 'Copy (Hierarchy)',
@@ -1644,6 +1652,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     themeChangedDesc: '배경 테마가 {theme}로 변경되었습니다',
     lightsUpdated: '표시등 설정 업데이트됨',
     lightsUpdatedDesc: '검사 표시등 규칙이 저장되었습니다',
+    allowInspectorAddEquipment: '장비 추가 기능',
+    allowInspectorAddEquipmentDesc: '검사원이 대시보드에서 새로운 장비 데이터를 추가할 수 있도록 허용',
+    allowInspectorManageHierarchy: '목록 관리 기능',
+    allowInspectorManageHierarchyDesc: '검사원이 장비 범주, 유형 및 세부 사양 목록을 관리할 수 있도록 허용',
 
 
     uploadGenericError: '업로드 실패',
@@ -2055,6 +2067,10 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     themeChangedDesc: '背景テーマが {theme} に切り替わりました',
     lightsUpdated: 'ライト設定が更新されました',
     lightsUpdatedDesc: '検査ライトのルールが保存されました',
+    allowInspectorAddEquipment: '設備追加機能',
+    allowInspectorAddEquipmentDesc: '検査員がダッシュボードから新しい設備データを追加できるようにします',
+    allowInspectorManageHierarchy: 'リスト管理機能',
+    allowInspectorManageHierarchyDesc: '検査員が設備カテゴリ、種類、詳細仕様リストを管理できるようにします',
 
 
     uploadGenericError: 'アップロード失敗',

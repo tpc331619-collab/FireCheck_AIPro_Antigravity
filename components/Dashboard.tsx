@@ -1676,7 +1676,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Add Equipment */}
-                        {isAdmin && (
+                        {(isAdmin || systemSettings?.allowInspectorAddEquipment === true) && (
                             <button
                                 onClick={onAddEquipment}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1693,7 +1693,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Add Name List */}
-                        {isAdmin && (
+                        {(isAdmin || systemSettings?.allowInspectorManageHierarchy === true) && (
                             <button
                                 onClick={onManageHierarchy}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1904,8 +1904,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         type="text"
                                                         placeholder={t('searchEquipmentName')}
                                                         value={locationFilter}
-                                                        onChange={(e) => setLocationFilter(e.target.value)}
-                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        onChange={(e) => setLocationFilter(e.target.value.toUpperCase())}
+                                                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                                        style={{ fontSize: '16px' }}
                                                     />
                                                 </div>
                                             </div>
@@ -1920,8 +1921,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     type="text"
                                                     placeholder="搜尋條碼、備註、建築物、檢查員、標籤..."
                                                     value={keywordSearch}
-                                                    onChange={(e) => setKeywordSearch(e.target.value)}
-                                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                                    onChange={(e) => setKeywordSearch(e.target.value.toUpperCase())}
+                                                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                                    style={{ fontSize: '16px' }}
                                                 />
                                             </div>
                                         </div>
@@ -3481,20 +3483,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <PlusCircle className="w-3.5 h-3.5" />
                                                 {t('sectionAddEquipment')}
                                             </label>
-                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-teal-200">
-                                                <div>
-                                                    <div className="font-bold text-slate-700 text-sm">{t('allowInspectorEquipmentPhoto')}</div>
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorEquipmentPhotoDesc')}</div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-teal-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorAddEquipment')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorAddEquipmentDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorAddEquipment ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorAddEquipment: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                                                    </label>
                                                 </div>
-                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={systemSettings?.allowInspectorEquipmentPhoto ?? true}
-                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorEquipmentPhoto: e.target.checked })}
-                                                        className="sr-only peer"
-                                                    />
-                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
-                                                </label>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-teal-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorEquipmentPhoto')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorEquipmentPhotoDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorEquipmentPhoto ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorEquipmentPhoto: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-teal-600"></div>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -3505,6 +3524,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionAddList')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-purple-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorManageHierarchy')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorManageHierarchyDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorManageHierarchy ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorManageHierarchy: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                                                    </label>
+                                                </div>
                                                 {['ResetDefaults', 'EditHierarchy', 'DeleteHierarchy'].map((perm) => (
                                                     <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-purple-200">
                                                         <div>

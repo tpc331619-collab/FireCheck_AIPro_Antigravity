@@ -664,7 +664,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                                     placeholder={t('searchAbnormalPlaceholder')}
-                                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm"
+                                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm text-base"
+                                    style={{ fontSize: '16px' }}
                                 />
                             </div>
 
