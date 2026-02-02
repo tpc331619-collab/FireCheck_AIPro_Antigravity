@@ -1410,27 +1410,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
 
                         {/* Compact Quick Search */}
-                        <div className="relative flex-1 max-w-md">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-slate-400" />
-                            </div>
-                            <input
-                                type="text"
-                                className="block w-full pl-9 pr-10 py-2 border border-slate-200 bg-white rounded-lg text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 text-base sm:text-sm font-medium transition-all shadow-sm uppercase"
-                                placeholder={t('quickSearchPlaceholder')}
-                                style={{ fontSize: '16px', textTransform: 'uppercase' }}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-                            />
-                            <button
-                                onClick={() => setIsQuickScanOpen(true)}
-                                className="absolute inset-y-0 right-0 pr-2 flex items-center"
-                            >
-                                <div className="p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
-                                    <ScanLine className="h-4 w-4 text-slate-600" />
+                        {(!user.isGuest || systemSettings?.allowGuestQuickSearch !== false) && (
+                            <div className="relative flex-1 max-w-md">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search className="h-4 w-4 text-slate-400" />
                                 </div>
-                            </button>
-                        </div>
+                                <input
+                                    type="text"
+                                    className="block w-full pl-9 pr-10 py-2 border border-slate-200 bg-white rounded-lg text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 text-base sm:text-sm font-medium transition-all shadow-sm uppercase"
+                                    placeholder={t('quickSearchPlaceholder')}
+                                    style={{ fontSize: '16px', textTransform: 'uppercase' }}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+                                />
+                                <button
+                                    onClick={() => setIsQuickScanOpen(true)}
+                                    className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                                >
+                                    <div className="p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
+                                        <ScanLine className="h-4 w-4 text-slate-600" />
+                                    </div>
+                                </button>
+                            </div>
+                        )}
                     </div>
 
 
@@ -1561,7 +1563,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                         }`}>
                         {/* Start Inspection */}
-                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false) && (
+                        {(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false) : systemSettings?.allowGuestStartInspection === true) && (
                             <button
                                 onClick={() => setIsInspectionModeOpen(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1603,7 +1605,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* My Equipment */}
-                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestEquipmentOverview)) && (
+                        {!user.isGuest && (
                             <button
                                 onClick={() => onMyEquipment()}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -3255,14 +3257,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </label>
                                             <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
                                                 <div>
-                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestView')}</div>
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestViewDesc')}</div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestQuickSearch')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestQuickSearchDesc')}</div>
                                                 </div>
                                                 <label className="relative inline-flex items-center cursor-pointer ml-4">
                                                     <input
                                                         type="checkbox"
-                                                        checked={systemSettings?.allowGuestView ?? true}
-                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestView: e.target.checked })}
+                                                        checked={systemSettings?.allowGuestQuickSearch ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestQuickSearch: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                                </label>
+                                            </div>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowGuestStartInspection')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowGuestStartInspectionDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowGuestStartInspection ?? false}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowGuestStartInspection: e.target.checked })}
                                                         className="sr-only peer"
                                                     />
                                                     <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
