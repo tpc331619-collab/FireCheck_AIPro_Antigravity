@@ -2342,59 +2342,58 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     </div>
                                                 ) : (
                                                     healthIndicators.map(indicator => {
-                                                        const totalDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date(indicator.startDate).getTime()) / (1000 * 60 * 60 * 24));
                                                         const remainingDays = Math.ceil((new Date(indicator.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
                                                         const isExpired = remainingDays < 0;
 
                                                         return (
-                                                            <div key={indicator.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group hover:border-indigo-200 hover:shadow-md transition-all">
-                                                                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                                                            <Database className="w-5 h-5" />
-                                                                        </div>
-                                                                        <div className="min-w-0">
-                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('equipmentDetails')}</div>
-                                                                            <div className="font-bold text-slate-700 truncate text-sm">
-                                                                                {indicator.buildingName}
-                                                                                <span className="text-slate-300 mx-2">|</span>
-                                                                                {indicator.equipmentName}
-                                                                            </div>
-                                                                        </div>
+                                                            <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
+                                                                <div className="flex-1 flex items-center gap-3 min-w-0">
+                                                                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 text-blue-500">
+                                                                        <Database className="w-4 h-4" />
                                                                     </div>
-
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-500 transition-colors">
-                                                                            <Clock className="w-5 h-5" />
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">{t('remainingDays')}</div>
-                                                                            <div className="flex items-baseline gap-1">
-                                                                                <span className="font-black text-slate-700 text-base">{totalDays}</span>
-                                                                                <span className="text-xs font-bold text-slate-500">{t('days')}</span>
-                                                                            </div>
+                                                                    <div className="min-w-0">
+                                                                        <div className="font-bold text-slate-700 truncate text-sm">
+                                                                            {indicator.buildingName} <span className="text-slate-300 font-normal">|</span> {indicator.equipmentName}
                                                                         </div>
                                                                     </div>
                                                                 </div>
 
-                                                                {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
-                                                                    <button
-                                                                        onClick={() => setEditingHealthIndicator(indicator)}
-                                                                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                        title="編輯"
-                                                                    >
-                                                                        <Edit2 className="w-4 h-4" />
-                                                                    </button>
-                                                                )}
-                                                                {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
-                                                                    <button
-                                                                        onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
-                                                                        title={t('delete')}
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </button>
-                                                                )}
+                                                                <div className="flex items-center gap-3 shrink-0">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-8 h-8 rounded-lg bg-amber-50 items-center justify-center text-amber-500 hidden sm:flex">
+                                                                            <Clock className="w-4 h-4" />
+                                                                        </div>
+                                                                        <div className="text-right">
+                                                                            <div className="flex items-baseline gap-1">
+                                                                                <span className={`font-black text-sm ${isExpired ? 'text-red-500' : 'text-slate-700'}`}>
+                                                                                    {isExpired ? t('expired') : remainingDays}
+                                                                                </span>
+                                                                                {!isExpired && <span className="text-[10px] font-bold text-slate-500">{t('days')}</span>}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-center gap-1 border-l border-slate-100 pl-2 ml-1">
+                                                                        {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
+                                                                            <button
+                                                                                onClick={() => setEditingHealthIndicator(indicator)}
+                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                                title="編輯"
+                                                                            >
+                                                                                <Edit2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                        {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                                title={t('delete')}
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         );
                                                     })
@@ -2404,14 +2403,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     </div>
 
                                     {/* Modal Footer */}
-                                    <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
-                                        <button
-                                            onClick={() => setIsHealthModalOpen(false)}
-                                            className="px-6 py-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl font-bold hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
-                                        >
-                                            {t('close')}
-                                        </button>
-                                    </div>
+                                    {!editingHealthIndicator && (
+                                        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                                            <button
+                                                onClick={() => setIsHealthModalOpen(false)}
+                                                className="px-6 py-2.5 bg-white text-slate-500 border border-slate-200 rounded-xl font-bold hover:text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+                                            >
+                                                {t('close')}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )
