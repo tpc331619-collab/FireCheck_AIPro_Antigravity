@@ -1720,6 +1720,27 @@ export const StorageService = {
     }
   },
 
+  onNotificationsChange(userId: string, callback: (notifications: any[]) => void, organizationId?: string | null): () => void {
+    if (!db) return () => { };
+    let q;
+    if (organizationId !== undefined) {
+      q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        where('organizationId', '==', organizationId)
+      );
+    } else {
+      q = query(collection(db, 'notifications'), where('userId', '==', userId));
+    }
+
+    return onSnapshot(q, (snapshot) => {
+      const notifications = snapshot.docs
+        .map(d => ({ ...(d.data() as any), id: d.id }))
+        .sort((a: any, b: any) => b.timestamp - a.timestamp);
+      callback(notifications);
+    });
+  },
+
   async getSystemSettings(): Promise<SystemSettings | null> {
     const CACHE_KEY = 'system_settings_cache';
     // Try Cloud fetch even for guests (Anonymous Auth allows it if rules permit)
@@ -1818,7 +1839,7 @@ export const StorageService = {
     }
   },
 
-  async addOrganizationMember(member: Omit<OrganizationMember, 'id'>): Promise<string> {
+  async addOrganizationMember(member: Omit<OrganizationMember, 'id'>, skipSync = false): Promise<string> {
     if (!db) throw new Error('Database not initialized');
     try {
       // Use composite ID for easier querying: userId_organizationId
@@ -1826,6 +1847,21 @@ export const StorageService = {
       const docRef = doc(db, 'organizationMembers', memberId);
       await setDoc(docRef, { ...member, id: memberId });
       console.log('[StorageService] Added organization member:', memberId);
+
+      // --- NEW SYNC LOGIC ---
+      // Update whitelist as well to keep them in sync
+      if (!skipSync && member.userEmail) {
+        try {
+          // Only update if current whitelist orgId is empty
+          const currentWhitelist = await this.checkWhitelist(member.userEmail);
+          if (currentWhitelist && !currentWhitelist.orgId) {
+            await this.updateWhitelistEntry(member.userEmail, { orgId: member.organizationId }, true);
+          }
+        } catch (e) {
+          console.warn('[StorageService] Failed to sync update whitelist during member add', e);
+        }
+      }
+
       return memberId;
     } catch (e) {
       console.error('Add organization member error', e);
@@ -1898,10 +1934,29 @@ export const StorageService = {
     }
   },
 
-  async removeOrganizationMember(memberId: string): Promise<void> {
+  async removeOrganizationMember(memberId: string, skipSync = false): Promise<void> {
     if (!db) throw new Error('Database not initialized');
     try {
       const docRef = doc(db, 'organizationMembers', memberId);
+
+      // --- NEW SYNC LOGIC ---
+      // Get member info before deletion to sync whitelist
+      const memberSnap = await getDoc(docRef);
+      if (!skipSync && memberSnap.exists()) {
+        const memberData = memberSnap.data() as OrganizationMember;
+        if (memberData.userEmail) {
+          try {
+            const whitelist = await this.checkWhitelist(memberData.userEmail);
+            if (whitelist && whitelist.orgId === memberData.organizationId) {
+              // Only remove if it's the currently assigned org
+              await this.updateWhitelistEntry(memberData.userEmail, { orgId: null }, true);
+            }
+          } catch (e) {
+            console.warn('[StorageService] Failed to sync whitelist during member removal', e);
+          }
+        }
+      }
+
       await deleteDoc(docRef);
       console.log('[StorageService] Removed organization member:', memberId);
     } catch (e) {
@@ -2054,6 +2109,27 @@ export const StorageService = {
         };
         await setDoc(docRef, entry);
         console.log('[StorageService] Access request document created for', email);
+
+        // Notify all admins
+        try {
+          const whitelist = await this.getWhitelist();
+          const admins = whitelist.filter(u => u.role === 'admin');
+          console.log(`[StorageService] Notifying ${admins.length} admins about access request`);
+
+          for (const admin of admins) {
+            // Notifications are associated with UID
+            const adminId = admin.uid || admin.email; // Fallback to email if UID not set (though unlikely for active admins)
+            await this.addNotification({
+              type: 'profile',
+              title: '存取權限申請',
+              message: `${user.displayName} (${user.email}) 正在申請系統存取權限。`,
+              timestamp: Date.now(),
+              read: false
+            }, adminId);
+          }
+        } catch (notifyError) {
+          console.warn('[StorageService] Failed to notify admins about access request:', notifyError);
+        }
       } else {
         console.log('[StorageService] Access request already exists for', email, snapshot.data());
       }
@@ -2095,10 +2171,50 @@ export const StorageService = {
     });
   },
 
-  async updateWhitelistEntry(email: string, updates: Partial<WhitelistEntry>): Promise<void> {
+  async updateWhitelistEntry(email: string, updates: Partial<WhitelistEntry>, skipSync = false): Promise<void> {
     if (!db) return;
     try {
-      const docRef = doc(db, 'whitelist', email.toLowerCase());
+      const normalizedEmail = email.toLowerCase();
+      const docRef = doc(db, 'whitelist', normalizedEmail);
+
+      // --- NEW SYNC LOGIC ---
+      // If orgId is changed, sync to organizationMembers
+      if (!skipSync && updates.hasOwnProperty('orgId')) {
+        const currentSnap = await getDoc(docRef);
+        if (currentSnap.exists()) {
+          const currentData = currentSnap.data() as WhitelistEntry;
+          const oldOrgId = currentData.orgId;
+          const newOrgId = updates.orgId;
+
+          // If assigned to a new organization
+          if (newOrgId && newOrgId !== oldOrgId) {
+            try {
+              // Add to member list automatically
+              await this.addOrganizationMember({
+                organizationId: newOrgId,
+                userId: currentData.uid || normalizedEmail, // Use UID if available, fallback to email
+                userEmail: normalizedEmail,
+                userName: currentData.name || normalizedEmail,
+                role: 'member',
+                joinedAt: Date.now()
+              }, true); // Important: skipSync to avoid loop
+            } catch (e) {
+              console.warn('[StorageService] Auto-add member failed during sync', e);
+            }
+          }
+          // If unassigned (orgId set to null)
+          else if (newOrgId === null && oldOrgId) {
+            try {
+              const memberId = `${currentData.uid || normalizedEmail}_${oldOrgId}`;
+              // Simply call internal removal logic or delete directly avoid loop
+              await this.removeOrganizationMember(memberId, true);
+            } catch (e) {
+              console.warn('[StorageService] Auto-remove member failed during sync', e);
+            }
+          }
+        }
+      }
+
       await updateDoc(docRef, {
         ...updates, updatedAt: Date.now()
       });
@@ -2138,6 +2254,7 @@ export const StorageService = {
 // Start of local interface definition (Fallback if types.ts update failed)
 export interface WhitelistEntry {
   email: string;
+  uid?: string;
   status: 'approved' | 'pending' | 'blocked';
   orgId?: string | null;
   role: 'admin' | 'user';

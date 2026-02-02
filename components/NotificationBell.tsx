@@ -21,33 +21,32 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
     const [loading, setLoading] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
 
-    // Fetch notifications
+    // Subscribe to notifications
     useEffect(() => {
-        if (userId) {
-            loadNotifications();
+        if (!userId) {
+            setNotifications([]);
+            return;
         }
+
+        setLoading(true);
+        const unsubscribe = StorageService.onNotificationsChange(userId, (updatedNotifications) => {
+            setNotifications(updatedNotifications);
+            setLoading(false);
+        }, organizationId);
+
+        return () => unsubscribe();
     }, [userId, organizationId]);
 
-    // Listen for new notifications
+    // Legacy listener for backward compatibility or local-only updates
     useEffect(() => {
-        const handleNewNotification = () => {
-            loadNotifications();
+        const handleNewNotification = async () => {
+            const data = await StorageService.getNotifications(userId, organizationId);
+            setNotifications(data);
         };
 
         window.addEventListener('notification-added', handleNewNotification);
-        return () => {
-            window.removeEventListener('notification-added', handleNewNotification);
-        };
+        return () => window.removeEventListener('notification-added', handleNewNotification);
     }, [userId, organizationId]);
-
-    const loadNotifications = async () => {
-        try {
-            const data = await StorageService.getNotifications(userId, organizationId);
-            setNotifications(data);
-        } catch (error) {
-            console.error('Failed to load notifications:', error);
-        }
-    };
 
     // Close panel when clicking outside
     useEffect(() => {
@@ -201,7 +200,13 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
                                     key={notification.id}
                                     className={`p-4 border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer ${!notification.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
                                         }`}
-                                    onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                                    onClick={() => {
+                                        if (!notification.read) handleMarkAsRead(notification.id);
+                                        if (notification.type === 'profile' && (window as any).openAdminDashboard) {
+                                            (window as any).openAdminDashboard();
+                                            setIsOpen(false);
+                                        }
+                                    }}
                                 >
                                     <div className="flex items-start gap-3">
                                         <div className="shrink-0 mt-0.5">{getIcon(notification.type)}</div>

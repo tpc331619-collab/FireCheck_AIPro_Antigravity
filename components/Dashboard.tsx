@@ -243,6 +243,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isEquipmentExpanded, setIsEquipmentExpanded] = useState(false);
     const [isHealthExpanded, setIsHealthExpanded] = useState(false);
 
+    // Expose Admin Dashboard open function to window for NotificationBell
+    useEffect(() => {
+        (window as any).openAdminDashboard = () => setIsAdminDashboardOpen(true);
+        return () => {
+            delete (window as any).openAdminDashboard;
+        };
+    }, []);
+
     // Health Renewal State
 
     // Health Renewal State

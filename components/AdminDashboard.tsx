@@ -16,6 +16,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked'>('all');
     const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+    const initialLoadRef = React.useRef(true);
 
     const toggleExpand = (email: string) => {
         setExpandedEmails(prev => {
@@ -36,6 +37,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
         const unsubscribe = StorageService.onWhitelistChange((updatedUsers) => {
             console.log('[AdminDashboard] Real-time whitelist update received, count:', updatedUsers.length);
             setUsers(updatedUsers);
+
+            // Auto-switch to pending on first load if pending users exist
+            if (initialLoadRef.current && updatedUsers.some(u => u.status === 'pending')) {
+                setFilterStatus('pending');
+            }
+            initialLoadRef.current = false;
+
             setLoading(false);
         });
 
