@@ -44,14 +44,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 }
 
                 const config = {
-                    fps: 25,
+                    fps: 15, // 提升掃描頻率,更靈敏
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                        // 縮小掃描框到 70%,讓視野更廣闊
+                        // 響應式掃描框,約 65% 大小
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const size = Math.floor(minEdge * 0.7);
+                        const size = Math.floor(minEdge * 0.65);
                         return { width: size, height: size };
                     },
-                    aspectRatio: 1.0,
                     formatsToSupport: [
                         Html5QrcodeSupportedFormats.QR_CODE,
                         Html5QrcodeSupportedFormats.CODE_128,
@@ -60,16 +59,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                         Html5QrcodeSupportedFormats.EAN_8
                     ],
                     experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true
+                        useBarCodeDetectorIfSupported: true // 啟用硬體加速
                     }
                 };
 
-                // Use backCameraId if found, otherwise fallback to facingMode with wider FOV constraints
-                const cameraSelector = backCameraId ? backCameraId : {
-                    facingMode: 'environment',
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                };
+                // 簡單選擇後置鏡頭
+                const cameraSelector = backCameraId || { facingMode: 'environment' };
 
                 await scanner.start(
                     cameraSelector,
