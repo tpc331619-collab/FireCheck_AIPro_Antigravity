@@ -46,8 +46,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 const config = {
                     fps: 25,
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                        // 縮小掃描框到 70%,讓視野更廣闊
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const size = Math.floor(minEdge * 0.9);
+                        const size = Math.floor(minEdge * 0.7);
                         return { width: size, height: size };
                     },
                     aspectRatio: 1.0,
@@ -63,8 +64,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                     }
                 };
 
-                // Use backCameraId if found, otherwise fallback to facingMode
-                const cameraSelector = backCameraId ? backCameraId : { facingMode: 'environment' };
+                // Use backCameraId if found, otherwise fallback to facingMode with wider FOV constraints
+                const cameraSelector = backCameraId ? backCameraId : {
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                };
 
                 await scanner.start(
                     cameraSelector,
