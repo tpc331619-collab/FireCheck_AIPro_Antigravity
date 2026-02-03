@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
-import { X, Camera, AlertCircle } from 'lucide-react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { X, Camera, AlertCircle, Zap, ZapOff } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface BarcodeScannerProps {
@@ -14,6 +14,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [error, setError] = useState<string>('');
     const [isScanning, setIsScanning] = useState(false);
+    const [hasTorch, setHasTorch] = useState(false);
+    const [isTorchOn, setIsTorchOn] = useState(false);
 
     useEffect(() => {
         const startScanner = async () => {
@@ -22,16 +24,35 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 scannerRef.current = scanner;
 
                 const config = {
-                    fps: 10,
+                    fps: 20, // Increase FPS for smoother scanning
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                        // Increase to ~90% of the screen width for better visibility (Square for mixed usage)
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        return {
-                            width: Math.floor(minEdge * 0.9),
-                            height: Math.floor(minEdge * 0.9)
-                        };
+                        // 80% is often better to ensure enough "quiet zone" around the barcode
+                        const boxSize = Math.floor(minEdge * 0.8);
+                        return { width: boxSize, height: boxSize };
                     },
-                    aspectRatio: 1.0
+                    aspectRatio: 1.0,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.QR_CODE,
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.ITF,
+                        Html5QrcodeSupportedFormats.DATA_MATRIX
+                    ],
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true // Use native browser API for better performance
+                    },
+                    videoConstraints: {
+                        focusMode: 'continuous',
+                        whiteBalanceMode: 'continuous',
+                        exposureMode: 'continuous',
+                        width: { min: 640, ideal: 1280, max: 1920 },
+                        height: { min: 480, ideal: 720, max: 1080 }
+                    }
                 };
 
                 await scanner.start(
@@ -49,6 +70,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 );
 
                 setIsScanning(true);
+
+                // Check for torch capability
+                const track = scanner.getRunningTrackCapabilities();
+                if (track && 'torch' in track) {
+                    setHasTorch(true);
+                }
             } catch (err: any) {
                 console.error('Scanner error:', err);
                 if (err.name === 'NotAllowedError') {
@@ -131,11 +158,35 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                         </div>
                     ) : (
                         <>
-                            <div
-                                id="qr-reader"
-                                className="rounded-xl overflow-hidden border-2 border-slate-200 aspect-square"
-                            ></div>
-                            <p className="text-sm text-slate-500 text-center mt-4">
+                            <div className="relative rounded-xl overflow-hidden border-2 border-slate-200 aspect-square bg-slate-100">
+                                <div id="qr-reader" className="w-full h-full"></div>
+
+                                {/* Visual Scanning Guide / Red Line */}
+                                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.8)] z-10 animate-pulse pointer-events-none"></div>
+
+                                {/* Torch Button Overlay */}
+                                {hasTorch && isScanning && (
+                                    <button
+                                        onClick={async (e) => {
+                                            e.stopPropagation();
+                                            try {
+                                                const newTorchState = !isTorchOn;
+                                                await scannerRef.current?.applyVideoConstraints({
+                                                    advanced: [{ torch: newTorchState } as any]
+                                                });
+                                                setIsTorchOn(newTorchState);
+                                            } catch (err) {
+                                                console.error('Failed to toggle torch:', err);
+                                            }
+                                        }}
+                                        className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg z-20 transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 scale-110' : 'bg-slate-800/80 text-white hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        {isTorchOn ? <Zap className="w-6 h-6" /> : <ZapOff className="w-6 h-6" />}
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-sm text-slate-500 text-center mt-4 px-4">
                                 {t('alignBarcode')}
                             </p>
                         </>
