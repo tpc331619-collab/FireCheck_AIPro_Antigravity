@@ -50,22 +50,22 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 z-[120] flex items-center justify-center p-4 backdrop-blur-sm pointer-events-auto animate-in fade-in duration-200">
             <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden scale-in-center animate-in zoom-in-95 duration-200">
                 {/* Header Decoration */}
                 <div className={`h-2 bg-gradient-to-r ${getHeaderBg()}`} />
-                
+
                 <div className="p-8 text-center">
                     <div className="mb-4">
                         {getIcon()}
                     </div>
-                    
+
                     {title && (
                         <h3 className="text-xl font-bold text-slate-800 mb-2">
                             {title}
                         </h3>
                     )}
-                    
+
                     <div className="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
                         {message}
                     </div>
@@ -74,15 +74,14 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
                 <div className="px-6 pb-8 flex flex-col gap-3">
                     <button
                         onClick={onConfirm}
-                        className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 ${
-                            type === 'confirm' ? 'bg-blue-600 hover:bg-blue-700' : 
-                            type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' : 
-                            'bg-slate-800 hover:bg-slate-900'
-                        }`}
+                        className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 ${type === 'confirm' ? 'bg-blue-600 hover:bg-blue-700' :
+                                type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                                    'bg-slate-800 hover:bg-slate-900'
+                            }`}
                     >
                         {confirmText || (type === 'confirm' ? t('confirm') : t('close'))}
                     </button>
-                    
+
                     {type === 'confirm' && (
                         <button
                             onClick={onCancel}

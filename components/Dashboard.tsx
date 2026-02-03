@@ -150,6 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+    const [isSearchActive, setIsSearchActive] = useState(!!searchParams.get('q'));
 
     const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
@@ -1427,6 +1428,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && searchTerm.trim()) {
+                                            setIsSearchActive(true);
+                                        }
+                                    }}
                                 />
                                 <button
                                     onClick={() => setIsQuickScanOpen(true)}
@@ -1755,8 +1761,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
                     )}
 
-                    {(showArchived || searchTerm.trim()) && (
-                        <div className="fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
+                    {(showArchived || (isSearchActive && searchTerm.trim())) && (
+                        <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
                             <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
                                 {/* Header */}
                                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white dark:bg-slate-800 p-3 md:p-4 rounded-2xl shadow-sm border-l-4 border-blue-500 sticky top-4 z-30 gap-4 sm:gap-0">
@@ -1875,9 +1881,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             onClick={() => {
                                                 setShowArchived(false);
+                                                setIsSearchActive(false);
                                                 setSearchTerm('');
                                                 setSearchParams({}, { replace: true });
-
                                             }}
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-slate-200"
                                         >
@@ -2685,7 +2691,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     const newLang = lang.code as LanguageCode;
                                                                     setLanguage(newLang);
                                                                 }}
-                                                                className={`p-4 rounded-xl border-2 flex items-center justify-between transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
+                                                                className={`p-4 rounded-xl border-2 flex items-center justify-center gap-2 transition-all ${language === lang.code ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-100 hover:border-slate-200 text-slate-700'} `}
                                                             >
                                                                 <span className="font-bold text-base">{lang.name}</span>
                                                                 {language === lang.code && <Check className="w-5 h-5 text-red-600" />}
@@ -3052,17 +3058,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {isAdminDashboardOpen && (user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com') && (
                         <AdminDashboard
                             currentUser={{ email: user.email!, uid: user.uid }}
-                            onClose={() => setIsAdminDashboardOpen(false)}
+                            onClose={() => {
+                                setIsAdminDashboardOpen(false);
+                                // Reset search state when returning from admin dashboard
+                                setIsSearchActive(false);
+                                setSearchTerm('');
+                                setSearchParams({}, { replace: true });
+                            }}
                         />
                     )}
 
-                    {/* Quick Search QR Scanner */}
+
                     <BarcodeInputModal
                         isOpen={isQuickScanOpen}
                         onScan={(code) => {
                             setSearchTerm(code);
+                            setIsSearchActive(true);
                             setSearchParams({ q: code }, { replace: true });
-
                             setIsQuickScanOpen(false);
                         }}
                         onCancel={() => setIsQuickScanOpen(false)}
