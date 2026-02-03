@@ -1457,11 +1457,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     title: t('searchFailed') || '搜尋失敗',
                                                     message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                                     onConfirm: () => {
-                                                        setAlertConfig(null);
-                                                        // 返回儀錶板主畫面
-                                                        setSearchParams({}, { replace: true });
+                                                        // 先設置狀態
                                                         setIsSearchActive(false);
                                                         setSearchTerm('');
+                                                        setAlertConfig(null);
+                                                        // 最後清空 URL
+                                                        setSearchParams({}, { replace: true });
                                                     }
                                                 });
                                             }
@@ -3122,11 +3123,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         title: t('searchFailed') || '搜尋失敗',
                                         message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                         onConfirm: () => {
-                                            setAlertConfig(null);
-                                            // 返回儀錶板主畫面
-                                            setSearchParams({}, { replace: true });
+                                            // 先設置狀態
                                             setIsSearchActive(false);
                                             setSearchTerm('');
+                                            setAlertConfig(null);
+                                            // 最後清空 URL
+                                            setSearchParams({}, { replace: true });
                                         }
                                     });
                                 }, 100);
