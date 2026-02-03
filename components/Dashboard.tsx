@@ -1458,7 +1458,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 setAlertConfig({
                                                     isOpen: true,
                                                     title: t('searchFailed') || '搜尋失敗',
-                                                    message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物\n\n[DEBUG] 當前 URL: ${window.location.pathname}${window.location.search}`,
+                                                    message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                                     onConfirm: () => {
                                                         console.log('[Search Failed] Before state update');
                                                         console.log('[Search Failed] Current URL:', window.location.href);
@@ -3130,7 +3130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     setAlertConfig({
                                         isOpen: true,
                                         title: t('searchFailed') || '搜尋失敗',
-                                        message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物\n\n[DEBUG] 當前 URL: ${window.location.pathname}${window.location.search}`,
+                                        message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                         onConfirm: () => {
                                             console.log('[Scan Failed] Before state update');
                                             console.log('[Scan Failed] Current URL:', window.location.href);
