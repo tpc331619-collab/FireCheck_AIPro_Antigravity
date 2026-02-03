@@ -6,6 +6,7 @@ import BarcodeInputModal from './BarcodeInputModal';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLightSettings } from '../hooks/useSystemData';
+import CustomAlertModal from './CustomAlertModal';
 
 interface MapViewInspectionProps {
     user: UserProfile;
@@ -54,6 +55,30 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         setTimeout(() => setToastMsg(null), 3000);
     };
 
+    // Modal State
+    const [alertConfig, setAlertConfig] = useState<{
+        isOpen: boolean;
+        title?: string;
+        message: string;
+        type?: 'alert' | 'confirm' | 'success';
+        onConfirm: () => void;
+        onCancel?: () => void;
+    }>({
+        isOpen: false,
+        message: '',
+        onConfirm: () => { }
+    });
+
+    const showAlert = (message: string, title?: string, type: 'alert' | 'success' = 'alert') => {
+        setAlertConfig({
+            isOpen: true,
+            title,
+            message,
+            type,
+            onConfirm: () => setAlertConfig(prev => ({ ...prev, isOpen: false }))
+        });
+    };
+
     const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
     const [renderKey, setRenderKey] = useState(0);
 
@@ -85,7 +110,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             setReports(reportsData);
         } catch (error) {
             console.error('Failed to load data:', error);
-            alert('載入資料失敗，請重試');
+            showAlert('載入資料失敗，請重試');
         }
     };
 
@@ -97,7 +122,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
     const handleMarkerClick = (marker: EquipmentMarker) => {
         if (!marker.equipmentId) {
-            alert('此標註點尚未綁定設備');
+            showAlert('此標註點尚未綁定設備');
             return;
         }
         setSelectedMarker(marker);
@@ -110,7 +135,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         // Find equipment by barcode
         const equipment = allEquipment.find(e => e.barcode === barcode);
         if (!equipment) {
-            alert(`找不到設備編號 ${barcode}`);
+            showAlert(`找不到設備編號 ${barcode}`);
             setSelectedMarker(null);
             return;
         }
@@ -208,7 +233,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         );
 
         if (missingNumeric) {
-            alert(`請填寫「${missingNumeric.name}」的數值！`);
+            showAlert(`請填寫「${missingNumeric.name}」的數值！`);
             return;
         }
 
@@ -216,7 +241,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
         // Validate abnormal notes
         if (status === InspectionStatus.Abnormal && !notes.trim()) {
-            alert('檢查結果異常，請務必填寫異常說明！');
+            showAlert('檢查結果異常，請務必填寫異常說明！');
             return;
         }
 
@@ -444,7 +469,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
         } catch (error) {
             console.error('[handleSubmit] Error:', error);
-            alert(`提交失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
+            showAlert(`提交失敗: ${error instanceof Error ? error.message : '未知錯誤'}`);
             // Note: We deliberately do NOT revert optimistic updates here to avoid UI flickering, 
             // unless users manually refresh, assuming retry might be possible or it's a transient network issue.
             // But realistically, user will just try again.
@@ -619,6 +644,15 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 <h2 className="text-lg font-bold truncate max-w-[200px] text-slate-900">{currentMap?.name}</h2>
                 <div className="w-10"></div> {/* Spacer for center alignment balance */}
             </div>
+
+            <CustomAlertModal
+                isOpen={alertConfig.isOpen}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                onConfirm={alertConfig.onConfirm}
+                onCancel={alertConfig.onCancel}
+            />
 
             {/* Map Container */}
             <div className="flex-1 overflow-hidden relative bg-slate-800 touch-none cursor-move select-none">

@@ -9,6 +9,7 @@ import { THEME_COLORS } from '../constants';
 import { useLightSettings } from '../hooks/useSystemData';
 import InspectionForm from './InspectionForm'; // We might reuse or partial reuse, but for now let's build the list logic first
 import BarcodeScanner from './BarcodeScanner';
+import CustomAlertModal from './CustomAlertModal';
 
 interface ChecklistInspectionProps {
     user: UserProfile;
@@ -53,6 +54,30 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const showToast = (text: string, type: 'success' | 'error' = 'success') => {
         setToastMsg({ text, type });
         setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    // Modal State
+    const [alertConfig, setAlertConfig] = useState<{
+        isOpen: boolean;
+        title?: string;
+        message: string;
+        type?: 'alert' | 'confirm' | 'success';
+        onConfirm: () => void;
+        onCancel?: () => void;
+    }>({
+        isOpen: false,
+        message: '',
+        onConfirm: () => { }
+    });
+
+    const showAlert = (message: string, title?: string, type: 'alert' | 'success' = 'alert') => {
+        setAlertConfig({
+            isOpen: true,
+            title,
+            message,
+            type,
+            onConfirm: () => setAlertConfig(prev => ({ ...prev, isOpen: false }))
+        });
     };
 
     // Load Initial Data (All Equipment & Settings)
@@ -292,7 +317,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             handleSelectItem(found);
             setManualInput(''); // 清空輸入
         } else {
-            alert(`找不到設備編號「${barcode}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`);
+            showAlert(
+                `找不到設備編號「${barcode}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
+                '搜尋失敗'
+            );
         }
     };
 
@@ -301,7 +329,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
         // Ensure notes if abnormal
         if (activeInspectionItem.status === InspectionStatus.Abnormal && !activeInspectionItem.notes.trim()) {
-            alert('檢查結果異常，請務必填寫異常說明！');
+            showAlert('檢查結果異常，請務必填寫異常說明！');
             return;
         }
 
@@ -490,7 +518,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             setShowTagInput(false);
         } catch (e: any) {
             console.error("Save failed:", e);
-            alert(`儲存失敗：${e.message || '未知錯誤'}`);
+            showAlert(`儲存失敗：${e.message || '未知錯誤'}`);
         }
     };
 
@@ -505,6 +533,15 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     <h1 className="font-bold text-lg text-slate-800">{t('startInspection')}</h1>
                 </div>
             </div>
+
+            <CustomAlertModal
+                isOpen={alertConfig.isOpen}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                onConfirm={alertConfig.onConfirm}
+                onCancel={alertConfig.onCancel}
+            />
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                 <div className="max-w-3xl mx-auto space-y-6">
