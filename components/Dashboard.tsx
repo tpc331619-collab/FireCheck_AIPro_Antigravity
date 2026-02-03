@@ -132,6 +132,7 @@ const CARTOON_AVATARS = [
 ];
 
 const getEquipmentIcon = (name: string) => {
+    if (!name) return <Box className="w-5 h-5 text-slate-400" />;
     if (name.includes('滅火')) return <Flame className="w-5 h-5 text-orange-500" />;
     if (name.includes('警報') || name.includes('廣播')) return <BellRing className="w-5 h-5 text-red-500" />;
     if (name.includes('栓') || name.includes('水')) return <Droplets className="w-5 h-5 text-blue-500" />;
@@ -588,29 +589,59 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
+
     useEffect(() => {
         const fetchEquipment = async () => {
             if (user?.uid) {
                 try {
                     const equipment = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
+
                     const map: Record<string, any> = {};
                     equipment.forEach(eq => {
                         map[eq.id] = {
-                            name: eq.name,
-                            barcode: eq.barcode,
-                            checkFrequency: eq.checkFrequency
+                            name: eq.name || '未命名',
+                            barcode: eq.barcode || '',
+                            checkFrequency: eq.checkFrequency || ''
                         };
                     });
                     setEquipmentMap(map);
-                    setNameCount(equipment.length); // Set count directly from fetch
+                    setNameCount(equipment.length);
+
+                    const statsMap: Record<string, { siteName: string; buildingName: string; equipmentName: string; count: number }> = {};
+
+                    equipment.forEach(eq => {
+                        const sName = eq.siteName || '預設場所';
+                        const bName = eq.buildingName || '預設建築';
+                        const eName = eq.name || '未命名設備';
+                        const key = `${sName}|${bName}|${eName}`;
+
+                        if (statsMap[key]) {
+                            statsMap[key].count++;
+                        } else {
+                            statsMap[key] = {
+                                siteName: sName,
+                                buildingName: bName,
+                                equipmentName: eName,
+                                count: 1
+                            };
+                        }
+                    });
+
+                    const statsArray = Object.values(statsMap).sort((a, b) => {
+                        if (a.siteName !== b.siteName) return a.siteName.localeCompare(b.siteName);
+                        if (a.buildingName !== b.buildingName) return a.buildingName.localeCompare(b.buildingName);
+                        return a.equipmentName.localeCompare(b.equipmentName);
+                    });
+
+                    setEquipmentStats(statsArray);
                 } catch (error) {
-                    console.error("Failed to fetch equipment for map:", error);
+                    console.error("Failed to fetch equipment:", error);
                 }
+            } else {
+                // No user.uid, skipping fetch
             }
         };
         fetchEquipment();
-
-
     }, [user?.uid, user?.currentOrganizationId]);
 
     const handleInspectionModeSelect = (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => {
@@ -658,12 +689,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (user?.uid) {
             // Reset states during switch to prevent stale data
             setDeclarationSettings(null);
-            setEquipmentStats([]);
-            setDeclarationDeadline('');
-            setAbnormalCount(0); // Also reset abnormal count
-
             fetchDeclarationSettings();
-            fetchEquipmentStats();
             fetchHistoryCounts();
             StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then(setHealthIndicators);
         }
@@ -725,57 +751,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         return () => unsubscribe();
     }, [isAdmin]);
 
-    const fetchEquipmentStats = async () => {
-        if (user?.uid) {
-            const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
-
-            // 1. Group by name
-            const counts = definitions.reduce((acc, curr) => {
-                const displayName = curr.equipmentDetail || curr.name || '未命名設備';
-                acc[displayName] = (acc[displayName] || 0) + 1;
-                return acc;
-            }, {} as Record<string, number>);
-
-            const total = definitions.length;
-
-            // 2. Map to array with design properties
-            const stats = Object.entries(counts).map(([name, count]) => {
-                let color = 'text-slate-600 bg-slate-100';
-                let icon = Box;
-
-                if (name.includes('滅火器')) {
-                    color = 'text-red-600 bg-red-100';
-                    icon = Flame;
-                }
-                else if (name.includes('避難')) {
-                    color = 'text-green-600 bg-green-100';
-                    icon = DoorOpen;
-                }
-                else if (name.includes('照明')) {
-                    color = 'text-amber-600 bg-amber-100';
-                    icon = Lightbulb;
-                }
-                else if (name.includes('警報') || name.includes('廣播')) {
-                    color = 'text-orange-600 bg-orange-100';
-                    icon = BellRing;
-                }
-                else if (name.includes('栓') || name.includes('水')) {
-                    color = 'text-blue-600 bg-blue-100';
-                    icon = Droplets;
-                }
-
-                return {
-                    name,
-                    total: count,
-                    percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-                    icon,
-                    color
-                };
-            }).sort((a, b) => b.total - a.total); // Sort by count descending
-
-            setEquipmentStats(stats);
-        }
-    };
 
 
 
@@ -1782,26 +1757,47 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {/* Equipment Overview Stats (Expanded) */}
                     {isEquipmentExpanded && (!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
                         <div className="mt-4 p-4 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/60 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                {equipmentStats.map((stat: any, index: number) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => onMyEquipment(stat.name)}
-                                        className="flex flex-col items-center justify-center p-3 bg-white/50 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-white hover:shadow-md transition-all group"
-                                    >
-                                        <div className="mb-2 p-2 bg-slate-50 rounded-lg group-hover:scale-110 transition-transform">
-                                            {getEquipmentIcon(stat.name)}
-                                        </div>
-                                        <span className="text-xs font-bold text-slate-500 mb-1 text-center truncate w-full">{stat.name}</span>
-                                        <span className="text-lg font-black text-slate-800" style={{ fontFamily: "'Outfit', sans-serif" }}>{stat.total}</span>
-                                    </button>
-                                ))}
-                                {equipmentStats.length === 0 && (
-                                    <div className="col-span-full text-center py-4 text-slate-400 text-sm">
-                                        {t('noEquipmentData')}
-                                    </div>
-                                )}
-                            </div>
+                            {equipmentStats.length === 0 ? (
+                                <div className="text-center py-4 text-slate-400 text-sm">
+                                    {t('noEquipmentData')}
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-200">
+                                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">場所</th>
+                                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">建築物</th>
+                                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">設備名稱</th>
+                                                <th className="text-right py-3 px-4 font-bold text-slate-700 bg-slate-50/50">數量</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {equipmentStats.map((stat: any, index: number) => (
+                                                <tr
+                                                    key={index}
+                                                    className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                                                    onClick={() => onMyEquipment(stat.equipmentName)}
+                                                >
+                                                    <td className="py-3 px-4 text-slate-600">{stat.siteName}</td>
+                                                    <td className="py-3 px-4 text-slate-600">{stat.buildingName}</td>
+                                                    <td className="py-3 px-4 font-medium text-slate-800 flex items-center gap-2">
+                                                        <div className="p-1.5 bg-slate-100 rounded-lg">
+                                                            {getEquipmentIcon(stat.equipmentName)}
+                                                        </div>
+                                                        {stat.equipmentName}
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right">
+                                                        <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg text-sm">
+                                                            {stat.count}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
 
