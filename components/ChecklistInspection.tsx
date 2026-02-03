@@ -301,8 +301,12 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     };
 
     const handleBarcodeScanned = (barcode: string) => {
+        // Close FIRST to remove backdrop
         setScannerOpen(false);
-        searchEquipmentByBarcode(barcode);
+        // Small delay to ensure scanner cleanup
+        setTimeout(() => {
+            searchEquipmentByBarcode(barcode);
+        }, 120);
     };
 
     const handleManualSearch = () => {

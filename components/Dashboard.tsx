@@ -1451,6 +1451,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             if (hasMatch) {
                                                 setSearchParams({ q: code }, { replace: true });
                                             } else {
+                                                // Ensure any potential overlays are considered if this was triggered in a way that might conflict
                                                 setAlertConfig({
                                                     isOpen: true,
                                                     title: t('searchFailed') || '搜尋失敗',
@@ -3098,6 +3099,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     <BarcodeInputModal
                         isOpen={isQuickScanOpen}
                         onScan={async (code) => {
+                            // Close the scanner modal FIRST to prevent backdrop conflicts
+                            setIsQuickScanOpen(false);
+
                             // Check if equipment exists before activating search
                             const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
                             const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
@@ -3105,14 +3109,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             if (hasMatch) {
                                 setSearchParams({ q: code }, { replace: true });
                             } else {
-                                setAlertConfig({
-                                    isOpen: true,
-                                    title: t('searchFailed') || '搜尋失敗',
-                                    message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
-                                    onConfirm: () => setAlertConfig(null)
-                                });
+                                // Small delay to let the scanner modal finish its closing animation/transition
+                                setTimeout(() => {
+                                    setAlertConfig({
+                                        isOpen: true,
+                                        title: t('searchFailed') || '搜尋失敗',
+                                        message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
+                                        onConfirm: () => setAlertConfig(null)
+                                    });
+                                }, 100);
                             }
-                            setIsQuickScanOpen(false);
                         }}
                         onCancel={() => setIsQuickScanOpen(false)}
                     // No expectedBarcode provided implies Search Mode
