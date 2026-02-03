@@ -336,37 +336,52 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
             <style>{`
                 @media print {
                     @page { margin: 0; size: A4; }
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
-                    body * { visibility: hidden; }
-                    .print-area, .print-area * { visibility: visible; }
-                    .print-area {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 210mm; /* A4 width */
-                        min-height: 297mm; /* A4 height */
-                        padding: 15mm;
-                        background: white;
-                        color: black;
-                        font-family: "Times New Roman", "DFKai-SB", sans-serif; /* 標楷體更像正式文件 */
-                    }
+                    body { background: white; -webkit-print-color-adjust: exact; }
                     .no-print { display: none !important; }
-
-                    /* 強制表格式邊框 */
-                    .form-border { border: 2px solid #000 !important; }
-                    .cell-border { border: 1px solid #000 !important; }
-                    .bg-print-gray { background-color: #f0f0f0 !important; }
-
-                    /* 調整輸入框列印樣式 - 去除邊框，只留文字 */
-                    input, textarea, select {
+                    .print-area {
+                        position: static;
+                        width: 100%;
+                        padding: 15mm !important;
                         border: none !important;
-                        background: transparent !important;
-                        resize: none;
                         box-shadow: none !important;
-                        font-size: 11pt !important;
                     }
-                    /* 針對 textarea 讓它在列印時可以撐開高度 (雖然 CSS 無法完全做到，但盡量設定) */
-                    textarea { min-height: 100px; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th, td { border: 1px solid black !important; padding: 4px 8px; }
+                }
+
+                .strict-table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    border: 1px solid black;
+                    table-layout: fixed;
+                }
+                .strict-table th, .strict-table td {
+                    border: 1px solid black;
+                    padding: 8px;
+                    text-align: left;
+                    vertical-align: middle;
+                    font-size: 14px;
+                }
+                .label-cell {
+                    background-color: #fcfcfc;
+                    width: 100px;
+                    font-weight: bold;
+                }
+                .section-header {
+                    background-color: #ffffff;
+                    text-align: left;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+                .photo-cell {
+                    width: 150px;
+                    text-align: center;
+                }
+                .signature-line {
+                    border-bottom: 1px solid black;
+                    display: inline-block;
+                    width: 150px;
+                    margin: 0 5px;
                 }
             `}</style>
 
@@ -391,227 +406,224 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-8 flex justify-center custom-scrollbar bg-slate-100">
-                        {/* A4 模擬容器 */}
-                        <div ref={printRef} className="print-area w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-3 sm:p-[15mm] text-slate-900 border border-slate-200 text-xs sm:text-base">
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-8 flex justify-center custom-scrollbar bg-slate-200">
+                        {/* Paper Container */}
+                        <div ref={printRef} className="print-area w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-6 sm:p-12 text-black font-sans border border-gray-200">
 
-                            {/* 表頭 */}
-                            <div className="text-center mb-6 pb-2 border-b-2 border-black">
-                                <h1 className="text-3xl font-extrabold tracking-widest text-black mb-1 font-serif">{t('abnormalRecheckForm')}</h1>
-                                <h2 className="text-sm font-bold tracking-wider text-slate-500 uppercase">Fire Safety Equipment Abnormal Recheck List</h2>
-                                <div className="flex justify-between items-end mt-2 text-sm text-slate-600 font-medium">
+                            {/* Paper Title Section */}
+                            <div className="text-center mb-6">
+                                <h1 className="text-3xl font-bold border-b-2 border-black pb-2 inline-block px-10">
+                                    {t('abnormalRecheckForm')}
+                                </h1>
+                                <div className="flex justify-between items-center mt-4 px-2 text-sm">
                                     <span>{t('recheckNo')}：{ticketNo}</span>
-                                    <span>{t('printDate')}：{new Date().toLocaleDateString()}</span>
+                                    <span>{t('inspector')}：{user.displayName}</span>
                                 </div>
+                                <div className="border-b border-black mt-1" />
                             </div>
 
-                            {/* 主要表格結構 */}
-                            <div className="border-2 border-black">
-                                {/* 1. 設備資訊 (含照片) */}
-                                <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
-                                    <div className="font-bold text-lg">一、{t('equipmentBasicInfo')}</div>
-                                    <div className="text-xs font-bold text-slate-500 uppercase">I. Equipment Basic Information</div>
-                                </div>
-                                <div className="border-b border-black flex">
-                                    {/* Left: Info Grid (Refactored to Flex for height stretch) */}
-                                    <div className="flex-1 border-r border-black flex">
-                                        {/* Left Column */}
-                                        <div className="flex-1 border-r border-black flex flex-col">
-                                            <div className="border-b border-black p-3">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('equipmentName')} <span className="font-normal scale-90 inline-block">Name</span></div>
-                                                <div className="text-lg font-bold">{selectedRecord.equipmentName}</div>
+                            {/* Section I: Basic Info */}
+                            <table className="strict-table mb-6">
+                                <thead>
+                                    <tr>
+                                        <td colSpan={3} className="section-header">
+                                            一、{t('equipmentBasicInfo')}
+                                        </td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('siteName')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Site Name</div>
+                                        </td>
+                                        <td className="value-cell text-base">{selectedRecord.siteName}</td>
+                                        <td rowSpan={5} className="photo-cell">
+                                            <div className="text-[10px] mb-1 font-bold">
+                                                <div>{t('equipmentPhoto')}</div>
+                                                <div className="text-[8px] text-gray-400 font-normal uppercase">Photo</div>
                                             </div>
-                                            <div className="p-3 flex-1">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('siteName')} <span className="font-normal scale-90 inline-block">Location</span></div>
-                                                <div>{selectedRecord.siteName}</div>
-                                            </div>
-                                        </div>
-                                        {/* Right Column */}
-                                        <div className="flex-1 flex flex-col">
-                                            <div className="p-3 flex-1 flex flex-col justify-center">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('equipmentId')} <span className="font-normal scale-90 inline-block">No.</span></div>
-                                                <div className="text-lg font-mono leading-tight mb-1 font-bold">{selectedRecord.barcode || '無編號'}</div>
-                                                {/* Cleanest Inline Tags */}
-                                                <div className="flex flex-wrap gap-x-3 mt-1">
-                                                    {(selectedRecord.tags || equipmentTagMap[selectedRecord.equipmentId] || []).map(tag => (
-                                                        <span key={tag} className="text-sm font-bold text-black whitespace-nowrap">
-                                                            # {tag}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div className="p-3 flex-1">
-                                                <div className="text-xs text-slate-500 font-bold mb-1">{t('buildingName')} <span className="font-normal scale-90 inline-block">Area</span></div>
-                                                <div>{selectedRecord.buildingName}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Right: Photo */}
-                                    <div className="w-[60mm] flex flex-col">
-                                        <div className="p-1 border-b border-black text-center bg-slate-50 bg-print-gray">
-                                            <div className="text-xs font-bold text-slate-500">設備照片 / Photo</div>
-                                        </div>
-                                        <div className="flex-1 p-2 flex items-center justify-center bg-white">
                                             {equipmentPhotoMap[selectedRecord.equipmentId] ? (
                                                 <img
                                                     src={equipmentPhotoMap[selectedRecord.equipmentId]}
-                                                    alt="設備照片"
-                                                    className="max-w-full max-h-[120px] object-contain border border-slate-200"
+                                                    className="w-full h-auto max-h-[160px] object-contain mx-auto border border-gray-100"
+                                                    alt="Equip"
                                                 />
                                             ) : (
-                                                <div className="text-slate-300 text-sm flex flex-col items-center">
-                                                    <span className="text-2xl mb-1">📷</span>
-                                                    <span className="text-xs">No Photo</span>
+                                                <div className="h-32 flex items-center justify-center text-gray-300 border border-dashed border-gray-200">
+                                                    (NO PHOTO)
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 2. 異常資訊 (純文字) */}
-                                <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
-                                    <div className="font-bold text-lg">二、{t('abnormalInfo')}</div>
-                                    <div className="text-xs font-bold text-slate-500 uppercase">II. Abnormal Information</div>
-                                </div>
-                                <div className="border-b border-black">
-                                    <div className="grid grid-cols-2 border-b border-black">
-                                        <div className="border-r border-black p-3">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">{t('discoveryDate')} <span className="font-normal scale-90 inline-block">Date</span></div>
-                                            <div className="font-medium">{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</div>
-                                        </div>
-                                        <div className="p-3">
-                                            <div className="text-xs text-slate-500 font-bold mb-1">{t('abnormalCategory')} <span className="font-normal scale-90 inline-block">Category</span></div>
-                                            <div className="flex flex-col gap-1">
-                                                {selectedRecord.abnormalValue && (
-                                                    <div className="flex items-baseline gap-1 mb-1">
-                                                        <span className="text-xs text-slate-500 font-bold">{t('inspectionResult')}：</span>
-                                                        <span className="font-bold text-red-600">{selectedRecord.abnormalValue}</span>
-                                                        {selectedRecord.thresholdMode && (
-                                                            <span className="text-[10px] text-slate-400 font-normal ml-1">({selectedRecord.thresholdMode})</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                                <div className="flex flex-wrap gap-1">
-                                                    {selectedRecord.abnormalItems && selectedRecord.abnormalItems.length > 0 ? (
-                                                        selectedRecord.abnormalItems.map((item, idx) => (
-                                                            <span key={idx} className="after:content-[','] last:after:content-[''] font-medium text-slate-700">
-                                                                {item}
-                                                            </span>
-                                                        ))
-                                                    ) : (
-                                                        <span className="text-slate-400 italic">無</span>
-                                                    )}
-                                                </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('buildingName')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Building</div>
+                                        </td>
+                                        <td className="value-cell text-base">{selectedRecord.buildingName}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('equipmentName')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Equipment</div>
+                                        </td>
+                                        <td className="value-cell text-base">{selectedRecord.equipmentName}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('equipmentId')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">ID / Barcode</div>
+                                        </td>
+                                        <td className="value-cell font-mono text-base">{selectedRecord.barcode || '---'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('tags')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Tags</div>
+                                        </td>
+                                        <td className="value-cell">
+                                            <div className="flex flex-wrap gap-1">
+                                                {(selectedRecord.tags || equipmentTagMap[selectedRecord.equipmentId] || []).map(tag => (
+                                                    <span key={tag} className="px-1 border border-black text-[10px] font-bold">#{tag}</span>
+                                                ))}
                                             </div>
-                                        </div>
-                                    </div>
-                                    <div className="p-3 min-h-[80px] border-b-0">
-                                        <div className="text-xs text-slate-500 font-bold mb-2">{t('abnormalDescription')} <span className="font-normal scale-90 inline-block">Description</span></div>
-                                        <div className="text-slate-900 leading-relaxed font-medium">
-                                            {selectedRecord.abnormalReason}
-                                        </div>
-                                    </div>
-                                </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
-                                {/* 3. 修復資訊 */}
-                                <div className="bg-slate-100 border-b border-black p-2 text-left pl-2 bg-print-gray">
-                                    <div className="font-bold text-lg">三、{t('repairReport')}</div>
-                                    <div className="text-xs font-bold text-slate-500 uppercase">III. Repair Report</div>
-                                </div>
-                                <div>
-                                    <div className="p-3 border-b border-black">
-                                        <div className="flex items-center gap-4">
-                                            <label className="text-sm font-bold text-slate-700 whitespace-nowrap">
-                                                {t('repairDate')} <span className="font-normal scale-90 inline-block text-slate-500">Completion Date</span> {selectedRecord.status === 'pending' && <span className="text-red-500">*</span>}：
-                                            </label>
+                            {/* Section II: Abnormal record */}
+                            <table className="strict-table mb-6">
+                                <thead>
+                                    <tr>
+                                        <td colSpan={4} className="section-header">
+                                            二、{t('abnormalInfo')}
+                                        </td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="label-cell" style={{ width: '15%' }}>
+                                            <div>{t('discoveryDate')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Dated</div>
+                                        </td>
+                                        <td className="value-cell" style={{ width: '35%' }}>{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</td>
+                                        <td className="label-cell" style={{ width: '15%' }}>
+                                            <div>{t('abnormalCategory')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Category</div>
+                                        </td>
+                                        <td className="value-cell">{selectedRecord.abnormalItems?.join(', ') || 'General'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('inspectionResult')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Result</div>
+                                        </td>
+                                        <td className="value-cell font-bold text-red-600">
+                                            {selectedRecord.abnormalValue || 'FAIL'}
+                                            {selectedRecord.thresholdMode && <span className="text-[10px] ml-1 font-normal text-gray-400">({selectedRecord.thresholdMode})</span>}
+                                        </td>
+                                        <td colSpan={2} />
+                                    </tr>
+                                    <tr>
+                                        <td colSpan={4} className="label-cell">
+                                            <div>{t('abnormalDescription')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Abnormal Description</div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colSpan={4} className="h-12 align-top p-4 leading-relaxed whitespace-pre-wrap">
+                                            {selectedRecord.abnormalReason}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            {/* Section III: Repair report */}
+                            <table className="strict-table mb-8">
+                                <thead>
+                                    <tr>
+                                        <td colSpan={2} className="section-header">
+                                            三、{t('repairReport')}
+                                        </td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td className="label-cell">
+                                            <div>{t('repairDate')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Repair Date</div>
+                                        </td>
+                                        <td className="p-2">
                                             <input
                                                 type="date"
                                                 value={fixedDate}
                                                 onChange={(e) => setFixedDate(e.target.value)}
                                                 disabled={selectedRecord.status === 'fixed'}
-                                                className="flex-1 px-2 py-1 bg-transparent border-b border-slate-300 focus:outline-none focus:border-black font-medium print:border-none disabled:opacity-70 disabled:cursor-not-allowed"
+                                                className="px-3 py-1 border-2 border-gray-200 rounded focus:border-black outline-none font-bold disabled:bg-white print:border-none"
                                             />
-                                        </div>
-                                    </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td className="label-cell align-top py-4" style={{ verticalAlign: 'top' }}>
+                                            <div>{t('repairNotes')}</div>
+                                            <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Repair Notes</div>
+                                        </td>
+                                        <td className="p-2">
+                                            <textarea
+                                                value={fixedNotes}
+                                                onChange={(e) => setFixedNotes(e.target.value)}
+                                                placeholder={t('repairNotesPlaceholder')}
+                                                disabled={selectedRecord.status === 'fixed'}
+                                                className="w-full h-16 p-2 bg-gray-50 border border-gray-200 rounded focus:border-black outline-none resize-none disabled:bg-white print:border-none print:p-0 leading-relaxed"
+                                            />
+                                            {selectedRecord.status === 'pending' && (
+                                                <div className="flex justify-start mt-1 no-print">
+                                                    <select
+                                                        className="w-full text-[11px] border border-gray-300 rounded px-1 py-0.5 bg-gray-50 focus:border-black outline-none"
+                                                        onChange={handleQuickTextSelect}
+                                                        defaultValue=""
+                                                    >
+                                                        <option value="" disabled>{t('quickFixTemplate')}</option>
+                                                        {QUICK_FIX_TEMPLATES.map((tpl, i) => (
+                                                            <option key={i} value={tpl}>{tpl}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
 
-                                    <div className="p-3 min-h-[140px]">
-                                        {selectedRecord.status === 'pending' && (
-                                            <div className="flex justify-between items-center mb-2 no-print">
-                                                <label className="text-sm font-bold text-slate-700">{t('repairNotes')} <span className="text-red-500">*</span></label>
-                                                <select
-                                                    className="text-sm border border-slate-300 rounded-md px-2 py-1 bg-white focus:outline-none focus:border-slate-500"
-                                                    onChange={handleQuickTextSelect}
-                                                    defaultValue=""
-                                                >
-                                                    <option value="" disabled>{t('quickFixTemplate')}</option>
-                                                    {QUICK_FIX_TEMPLATES.map((tpl, i) => (
-                                                        <option key={i} value={tpl}>{tpl}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
-                                        <label className="text-xs text-slate-500 font-bold mb-1 hidden print:block">
-                                            {t('repairNotes')} <span className="font-normal scale-90 inline-block">Action Taken</span>
-                                        </label>
-
-                                        <textarea
-                                            value={fixedNotes}
-                                            onChange={(e) => setFixedNotes(e.target.value)}
-                                            placeholder={t('repairNotesPlaceholder')}
-                                            disabled={selectedRecord.status === 'fixed'}
-                                            className="w-full h-full min-h-[100px] p-2 bg-slate-50 rounded-md border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-200 resize-none print:bg-transparent print:border-none print:p-0 print:min-h-0 text-slate-900 leading-relaxed disabled:opacity-70 disabled:cursor-not-allowed disabled:bg-slate-100"
-                                        />
-                                    </div>
+                            {/* Footer Signatures */}
+                            <div className="flex justify-between items-end mt-4 px-2">
+                                <div className="text-center">
+                                    <span className="font-bold text-sm">{t('technicianSig')}：</span>
+                                    <div className="text-[9px] text-gray-400 font-normal uppercase">Technician Signature</div>
+                                    <div className="signature-line mt-1" />
+                                </div>
+                                <div className="text-center">
+                                    <span className="font-bold text-sm">{t('supervisorSig')}：</span>
+                                    <div className="text-[9px] text-gray-400 font-normal uppercase">Supervisor Signature</div>
+                                    <div className="signature-line mt-1" />
                                 </div>
                             </div>
 
-                            {/* 操作按鈕 (列印時隱藏) */}
+                            {/* Submit Button (Screen Only) */}
                             {selectedRecord.status === 'pending' && (
-                                <div className="mt-8 mb-4 text-center no-print">
+                                <div className="mt-8 mb-4 no-print flex justify-center">
                                     <button
                                         onClick={handleSubmit}
                                         disabled={isSubmitting}
-                                        className="px-10 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold rounded-full transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none inline-flex items-center justify-center gap-2 text-base tracking-wide group"
+                                        className="px-8 py-2.5 bg-black text-white hover:bg-gray-800 font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
                                     >
-                                        {isSubmitting ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                <span>處理中...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                                <span>{t('confirmSubmit')}</span>
-                                            </>
-                                        )}
+                                        {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                        {t('confirmSubmit')}
                                     </button>
                                 </div>
                             )}
-                            {selectedRecord.status === 'fixed' && (
-                                <div className="mt-8 mb-4 text-center no-print">
-                                    <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-50 border-2 border-green-200 rounded-full text-green-700 font-bold">
-                                        <CheckCircle className="w-5 h-5" />
-                                        <span>{t('readOnlyMode')}</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* 簽名欄 */}
-                            <div className="mt-12 grid grid-cols-2 gap-12">
-                                <div className="border-t border-black pt-2 text-center">
-                                    <p className="font-bold text-black mb-1">{t('technicianSig')}</p>
-                                    <p className="text-xs text-slate-500 uppercase mb-12">Technician Signature</p>
-                                </div>
-                                <div className="border-t border-black pt-2 text-center">
-                                    <p className="font-bold text-black mb-1">{t('supervisorSig')}</p>
-                                    <p className="text-xs text-slate-500 uppercase mb-12">Supervisor Signature</p>
-                                </div>
-                            </div>
-
-                            {/* 頁尾 */}
-                            {/* 頁尾 */}
-                            <div className="mt-auto pt-8"></div>
                         </div>
                     </div>
 
