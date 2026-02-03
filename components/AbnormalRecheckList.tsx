@@ -341,47 +341,55 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                     .print-area {
                         position: static;
                         width: 100%;
-                        padding: 15mm !important;
+                        padding: 12mm !important;
                         border: none !important;
                         box-shadow: none !important;
                     }
                     table { border-collapse: collapse; width: 100%; }
-                    th, td { border: 1px solid black !important; padding: 4px 8px; }
+                    th, td { border: 1px solid #1e293b !important; padding: 4px 8px; }
                 }
 
                 .strict-table {
                     border-collapse: collapse;
                     width: 100%;
-                    border: 1px solid black;
+                    border: 1.5px solid #1e293b;
                     table-layout: fixed;
                 }
                 .strict-table th, .strict-table td {
-                    border: 1px solid black;
+                    border: 1px solid #1e293b;
                     padding: 8px;
                     text-align: left;
                     vertical-align: middle;
                     font-size: 14px;
                 }
                 .label-cell {
-                    background-color: #fcfcfc;
-                    width: 100px;
+                    background-color: #f8fafc;
+                    width: 110px;
                     font-weight: bold;
+                    color: #334155;
                 }
                 .section-header {
-                    background-color: #ffffff;
+                    background-color: #1e293b;
+                    color: white;
                     text-align: left;
                     font-weight: bold;
-                    font-size: 16px;
+                    font-size: 15px;
+                    padding: 6px 10px !important;
                 }
                 .photo-cell {
-                    width: 150px;
+                    width: 140px;
                     text-align: center;
+                    background-color: #fff;
                 }
                 .signature-line {
-                    border-bottom: 1px solid black;
+                    border-bottom: 1.5px solid #1e293b;
                     display: inline-block;
-                    width: 150px;
+                    width: 140px;
                     margin: 0 5px;
+                }
+                .value-cell {
+                    background-color: #fff;
+                    color: #0f172a;
                 }
             `}</style>
 
@@ -423,7 +431,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                             </div>
 
                             {/* Section I: Basic Info */}
-                            <table className="strict-table mb-6">
+                            <table className="strict-table">
                                 <thead>
                                     <tr>
                                         <td colSpan={3} className="section-header">
@@ -431,6 +439,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </td>
                                     </tr>
                                 </thead>
+
                                 <tbody>
                                     <tr>
                                         <td className="label-cell">
@@ -494,14 +503,15 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                             </table>
 
                             {/* Section II: Abnormal record */}
-                            <table className="strict-table mb-6">
+                            <table className="strict-table border-t-0">
                                 <thead>
                                     <tr>
-                                        <td colSpan={4} className="section-header">
+                                        <td colSpan={4} className="section-header border-t-0">
                                             二、{t('abnormalInfo')}
                                         </td>
                                     </tr>
                                 </thead>
+
                                 <tbody>
                                     <tr>
                                         <td className="label-cell" style={{ width: '15%' }}>
@@ -520,12 +530,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div>{t('inspectionResult')}</div>
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Result</div>
                                         </td>
-                                        <td className="value-cell font-bold text-red-600">
+                                        <td className="value-cell font-bold text-red-600" colSpan={3}>
                                             {selectedRecord.abnormalValue || 'FAIL'}
                                             {selectedRecord.thresholdMode && <span className="text-[10px] ml-1 font-normal text-gray-400">({selectedRecord.thresholdMode})</span>}
                                         </td>
-                                        <td colSpan={2} />
                                     </tr>
+
                                     <tr>
                                         <td colSpan={4} className="label-cell">
                                             <div>{t('abnormalDescription')}</div>
@@ -541,14 +551,15 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                             </table>
 
                             {/* Section III: Repair report */}
-                            <table className="strict-table mb-8">
+                            <table className="strict-table border-t-0">
                                 <thead>
                                     <tr>
-                                        <td colSpan={2} className="section-header">
+                                        <td colSpan={2} className="section-header border-t-0">
                                             三、{t('repairReport')}
                                         </td>
                                     </tr>
                                 </thead>
+
                                 <tbody>
                                     <tr>
                                         <td className="label-cell">
@@ -613,17 +624,18 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                             {/* Submit Button (Screen Only) */}
                             {selectedRecord.status === 'pending' && (
-                                <div className="mt-8 mb-4 no-print flex justify-center">
+                                <div className="mt-4 mb-2 no-print flex justify-center">
                                     <button
                                         onClick={handleSubmit}
                                         disabled={isSubmitting}
-                                        className="px-8 py-2.5 bg-black text-white hover:bg-gray-800 font-bold rounded shadow transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                                        className="px-8 py-2.5 bg-slate-800 text-white hover:bg-slate-900 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
                                     >
                                         {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                                         {t('confirmSubmit')}
                                     </button>
                                 </div>
                             )}
+
                         </div>
                     </div>
 

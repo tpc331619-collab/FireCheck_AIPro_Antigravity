@@ -1,5 +1,7 @@
 ﻿
 import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import {
     InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, EquipmentType, HealthIndicator,
     HealthHistoryRecord, UserProfile, LanguageCode, SystemSettings
@@ -141,11 +143,14 @@ const getEquipmentIcon = (name: string) => {
 const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor, onOrgSwitch, guestExpiry, systemSettings: systemSettingsFromProps, onSystemSettingsUpdate }) => {
     const { t, language, setLanguage } = useLanguage();
     const { theme, setTheme, styles } = useTheme(); // Use Theme Hook
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const [activeModal, setActiveModal] = useState<{ type: 'INSPECTION' | 'RECHECK', item: any } | null>(null);
     const { user: userFromContext } = useTheme(); // Access user from context if needed for role checks
     const [reports, setReports] = useState<InspectionReport[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+
     const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1871,6 +1876,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             onClick={() => {
                                                 setShowArchived(false);
                                                 setSearchTerm('');
+                                                setSearchParams({}, { replace: true });
+
                                             }}
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-slate-200"
                                         >
@@ -3054,6 +3061,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         isOpen={isQuickScanOpen}
                         onScan={(code) => {
                             setSearchTerm(code);
+                            setSearchParams({ q: code }, { replace: true });
+
                             setIsQuickScanOpen(false);
                         }}
                         onCancel={() => setIsQuickScanOpen(false)}
