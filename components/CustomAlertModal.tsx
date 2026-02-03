@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, AlertCircle, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -50,9 +50,20 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
         }
     };
 
+    const isClosingRef = useRef(false);
+
     const handleClose = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // Prevent multiple calls
+        if (isClosingRef.current) {
+            console.log('[CustomAlertModal] Already closing, ignoring');
+            return;
+        }
+
+        isClosingRef.current = true;
+        console.log('[CustomAlertModal] handleClose called, calling onConfirm');
         onConfirm();
     };
 
@@ -107,11 +118,9 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
                     <button
                         type="button"
                         onClick={handleClose}
-                        onPointerDown={handleClose}
-                        onTouchEnd={handleClose}
                         className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 cursor-pointer ${type === 'confirm' ? 'bg-blue-600 hover:bg-blue-700' :
-                            type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
-                                'bg-slate-800 hover:bg-slate-900'
+                                type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                                    'bg-slate-800 hover:bg-slate-900'
                             }`}
                         style={{ isolation: 'isolate', touchAction: 'manipulation' }}
                     >
