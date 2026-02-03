@@ -1456,7 +1456,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     isOpen: true,
                                                     title: t('searchFailed') || '搜尋失敗',
                                                     message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
-                                                    onConfirm: () => setAlertConfig(null)
+                                                    onConfirm: () => {
+                                                        setAlertConfig(null);
+                                                        // 返回儀錶板主畫面
+                                                        setSearchParams({}, { replace: true });
+                                                        setIsSearchActive(false);
+                                                        setSearchTerm('');
+                                                    }
                                                 });
                                             }
                                         }
@@ -3115,7 +3121,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         isOpen: true,
                                         title: t('searchFailed') || '搜尋失敗',
                                         message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
-                                        onConfirm: () => setAlertConfig(null)
+                                        onConfirm: () => {
+                                            setAlertConfig(null);
+                                            // 返回儀錶板主畫面
+                                            setSearchParams({}, { replace: true });
+                                            setIsSearchActive(false);
+                                            setSearchTerm('');
+                                        }
                                     });
                                 }, 100);
                             }

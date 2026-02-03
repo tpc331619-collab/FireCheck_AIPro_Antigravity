@@ -44,11 +44,11 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 }
 
                 const config = {
-                    fps: 15, // 提升掃描頻率,更靈敏
+                    fps: 20, // 提升掃描頻率,更靈敏
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                        // 響應式掃描框,約 65% 大小
+                        // 響應式掃描框,約 95% 大小
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const size = Math.floor(minEdge * 0.65);
+                        const size = Math.floor(minEdge * 0.95);
                         return { width: size, height: size };
                     },
                     formatsToSupport: [
