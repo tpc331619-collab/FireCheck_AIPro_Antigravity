@@ -18,17 +18,36 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
     const [isTorchOn, setIsTorchOn] = useState(false);
 
     useEffect(() => {
+        let isMounted = true;
+
         const startScanner = async () => {
             try {
+                // Ensure DOM is ready
+                await new Promise(resolve => setTimeout(resolve, 300));
+                if (!isMounted) return;
+
                 const scanner = new Html5Qrcode('qr-reader');
                 scannerRef.current = scanner;
 
+                // TRY to find back camera explicitly
+                const devices = await Html5Qrcode.getCameras();
+                let backCameraId = null;
+
+                if (devices && devices.length > 0) {
+                    // Look for back camera in label
+                    const backDev = devices.find(d =>
+                        d.label.toLowerCase().includes('back') ||
+                        d.label.toLowerCase().includes('rear') ||
+                        d.label.toLowerCase().includes('environment')
+                    );
+                    backCameraId = backDev ? backDev.id : devices[devices.length - 1].id;
+                }
+
                 const config = {
-                    fps: 25, // Slightly higher for even better response
+                    fps: 25,
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                        // Maximize the box - 95% of the shortest side
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        const size = Math.floor(minEdge * 0.95);
+                        const size = Math.floor(minEdge * 0.9);
                         return { width: size, height: size };
                     },
                     aspectRatio: 1.0,
@@ -37,43 +56,36 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                         Html5QrcodeSupportedFormats.CODE_128,
                         Html5QrcodeSupportedFormats.CODE_39,
                         Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.EAN_8,
-                        Html5QrcodeSupportedFormats.UPC_A,
-                        Html5QrcodeSupportedFormats.UPC_E,
-                        Html5QrcodeSupportedFormats.ITF,
-                        Html5QrcodeSupportedFormats.DATA_MATRIX
+                        Html5QrcodeSupportedFormats.EAN_8
                     ],
                     experimentalFeatures: {
                         useBarCodeDetectorIfSupported: true
-                    },
-                    videoConstraints: {
-                        facingMode: 'environment', // ESSENTIAL: Move inside constraints to ensure priority
-                        focusMode: 'continuous',
-                        width: { min: 640, ideal: 1280 },
-                        height: { min: 480, ideal: 720 }
                     }
                 };
 
+                // Use backCameraId if found, otherwise fallback to facingMode
+                const cameraSelector = backCameraId ? backCameraId : { facingMode: 'environment' };
+
                 await scanner.start(
-                    { facingMode: 'environment' }, // Keep as dual-assurance
+                    cameraSelector,
                     config,
                     (decodedText) => {
-                        // 掃描成功
-                        onScanSuccess(decodedText);
-                        stopScanner();
+                        if (isMounted) {
+                            onScanSuccess(decodedText);
+                            stopScanner();
+                        }
                     },
-                    (errorMessage) => {
-                        // 掃描失敗 (持續掃描中,這是正常的)
-                        // console.log('Scanning...', errorMessage);
-                    }
+                    () => { }
                 );
 
-                setIsScanning(true);
+                if (isMounted) {
+                    setIsScanning(true);
 
-                // Check for torch capability
-                const track = scanner.getRunningTrackCapabilities();
-                if (track && 'torch' in track) {
-                    setHasTorch(true);
+                    // Torch check
+                    try {
+                        const track = scanner.getRunningTrackCapabilities();
+                        if (track && 'torch' in track) setHasTorch(true);
+                    } catch (e) { }
                 }
             } catch (err: any) {
                 console.error('Scanner error:', err);
@@ -90,6 +102,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
         startScanner();
 
         return () => {
+            isMounted = false;
             stopScanner();
         };
     }, []);

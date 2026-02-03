@@ -50,29 +50,40 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
         }
     };
 
-    const handleBackdropClick = (e: React.MouseEvent) => {
-        // If it's a simple alert or success, allow clicking outside to close
-        if (type !== 'confirm') {
-            onConfirm();
-        } else if (onCancel) {
-            onCancel();
-        }
+    const handleClose = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onConfirm();
+    };
+
+    const handleCancelClick = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (onCancel) onCancel();
     };
 
     const modalContent = (
         <div
-            className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
-            style={{ touchAction: 'none' }}
-            onClick={handleBackdropClick}
+            className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+            style={{
+                zIndex: 1000000,
+                pointerEvents: 'auto'
+            }}
+            onClick={(e) => {
+                // backdrop click
+                if (type !== 'confirm') onConfirm();
+                else if (onCancel) onCancel();
+            }}
         >
             <div
                 className="bg-white w-full max-w-sm rounded-[3xl] shadow-2xl overflow-hidden scale-in-center animate-in zoom-in-95 duration-200 relative"
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
             >
-                {/* Close Button Top-Right (Redundant) */}
+                {/* Close Button Top-Right */}
                 <button
-                    onClick={onConfirm}
+                    onClick={handleClose}
+                    onPointerDown={handleClose}
                     className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-[10]"
                 >
                     <X className="w-5 h-5" />
@@ -100,15 +111,14 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
                 <div className="px-6 pb-8 flex flex-col gap-3">
                     <button
                         type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onConfirm();
-                        }}
+                        onClick={handleClose}
+                        onPointerDown={handleClose}
+                        onTouchEnd={handleClose}
                         className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 cursor-pointer ${type === 'confirm' ? 'bg-blue-600 hover:bg-blue-700' :
                             type === 'success' ? 'bg-emerald-600 hover:bg-emerald-700' :
                                 'bg-slate-800 hover:bg-slate-900'
                             }`}
-                        style={{ touchAction: 'manipulation' }}
+                        style={{ isolation: 'isolate', touchAction: 'manipulation' }}
                     >
                         {confirmText || (type === 'confirm' ? t('confirm') : t('close'))}
                     </button>
@@ -116,10 +126,9 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
                     {type === 'confirm' && (
                         <button
                             type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (onCancel) onCancel();
-                            }}
+                            onClick={handleCancelClick}
+                            onPointerDown={handleCancelClick}
+                            onTouchEnd={handleCancelClick}
                             className="w-full py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all cursor-pointer"
                             style={{ touchAction: 'manipulation' }}
                         >
