@@ -24,12 +24,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 scannerRef.current = scanner;
 
                 const config = {
-                    fps: 20, // Increase FPS for smoother scanning
+                    fps: 25, // Slightly higher for even better response
                     qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                        // Maximize the box - 95% of the shortest side
                         const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                        // 80% is often better to ensure enough "quiet zone" around the barcode
-                        const boxSize = Math.floor(minEdge * 0.8);
-                        return { width: boxSize, height: boxSize };
+                        const size = Math.floor(minEdge * 0.95);
+                        return { width: size, height: size };
                     },
                     aspectRatio: 1.0,
                     formatsToSupport: [
@@ -44,19 +44,18 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                         Html5QrcodeSupportedFormats.DATA_MATRIX
                     ],
                     experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true // Use native browser API for better performance
+                        useBarCodeDetectorIfSupported: true
                     },
                     videoConstraints: {
+                        facingMode: 'environment', // ESSENTIAL: Move inside constraints to ensure priority
                         focusMode: 'continuous',
-                        whiteBalanceMode: 'continuous',
-                        exposureMode: 'continuous',
-                        width: { min: 640, ideal: 1280, max: 1920 },
-                        height: { min: 480, ideal: 720, max: 1080 }
+                        width: { min: 640, ideal: 1280 },
+                        height: { min: 480, ideal: 720 }
                     }
                 };
 
                 await scanner.start(
-                    { facingMode: 'environment' }, // 使用後置攝影機
+                    { facingMode: 'environment' }, // Keep as dual-assurance
                     config,
                     (decodedText) => {
                         // 掃描成功
@@ -144,9 +143,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                 </div>
 
                 {/* Scanner Area */}
-                <div className="p-4">
+                <div className="p-0 sm:p-4">
                     {error ? (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                        <div className="m-4 bg-red-50 border border-red-200 rounded-xl p-6 text-center">
                             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
                             <p className="text-red-700 font-medium">{error}</p>
                             <button
@@ -158,11 +157,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                         </div>
                     ) : (
                         <>
-                            <div className="relative rounded-xl overflow-hidden border-2 border-slate-200 aspect-square bg-slate-100">
+                            <div className="relative w-full overflow-hidden bg-black sm:rounded-xl aspect-square">
                                 <div id="qr-reader" className="w-full h-full"></div>
 
                                 {/* Visual Scanning Guide / Red Line */}
-                                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.8)] z-10 animate-pulse pointer-events-none"></div>
+                                <div className="absolute inset-x-0 top-1/2 h-0.5 bg-red-500 z-10 animate-pulse pointer-events-none opacity-60"></div>
+
+                                {/* Overlay Corners */}
+                                <div className="absolute inset-0 border-[40px] border-black/30 pointer-events-none z-10"></div>
 
                                 {/* Torch Button Overlay */}
                                 {hasTorch && isScanning && (
@@ -179,14 +181,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess, onClose,
                                                 console.error('Failed to toggle torch:', err);
                                             }
                                         }}
-                                        className={`absolute bottom-4 right-4 p-3 rounded-full shadow-lg z-20 transition-all ${isTorchOn ? 'bg-yellow-400 text-slate-900 scale-110' : 'bg-slate-800/80 text-white hover:bg-slate-800'
+                                        className={`absolute bottom-6 right-6 p-4 rounded-full shadow-2xl z-20 transition-all active:scale-90 ${isTorchOn ? 'bg-yellow-400 text-slate-900 scale-110' : 'bg-white/20 text-white backdrop-blur-md border border-white/30'
                                             }`}
                                     >
                                         {isTorchOn ? <Zap className="w-6 h-6" /> : <ZapOff className="w-6 h-6" />}
                                     </button>
                                 )}
                             </div>
-                            <p className="text-sm text-slate-500 text-center mt-4 px-4">
+                            <p className="text-sm text-slate-500 text-center py-4 px-6 font-medium">
                                 {t('alignBarcode')}
                             </p>
                         </>
