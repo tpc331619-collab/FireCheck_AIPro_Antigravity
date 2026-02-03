@@ -266,6 +266,30 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     }
 
     const handleSelectItem = (item: EquipmentDefinition) => {
+        // Check if item is already in current report
+        const inspectionItem = (currentReport?.items || []).find((i: any) => i.equipmentId === item.id);
+
+        // Get frequency status
+        const freqStatusRaw = getFrequencyStatus(item, lightSettings);
+        const freqStatus = inspectionItem ? 'COMPLETED' : freqStatusRaw;
+
+        // Block if already completed or unnecessary
+        if (freqStatus === 'COMPLETED') {
+            showAlert(
+                `設備「${item.name}」已經檢查過了\n\n檢查時間: ${inspectionItem ? new Date(inspectionItem.timestamp || Date.now()).toLocaleString() : '未知'}\n\n如需修改,請從清單中點選該設備。`,
+                '無法檢查'
+            );
+            return;
+        }
+
+        if (freqStatus === 'UNNECESSARY') {
+            showAlert(
+                `設備「${item.name}」目前不需要檢查\n\n下次檢查日期: ${new Date(getNextInspectionDate(item)).toLocaleDateString()}\n\n如需強制檢查,請從清單中點選該設備。`,
+                '不需檢查'
+            );
+            return;
+        }
+
         setInspectingItem(item);
         setInspectingTags(item.tags || []);
         setShowTagInput(false); // Reset to closed
