@@ -64,15 +64,10 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
 
     const modalContent = (
         <div
-            className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200 cursor-pointer"
+            className="fixed inset-0 bg-slate-900/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
             style={{
                 zIndex: 1000000,
                 pointerEvents: 'auto'
-            }}
-            onClick={(e) => {
-                // backdrop click
-                if (type !== 'confirm') onConfirm();
-                else if (onCancel) onCancel();
             }}
         >
             <div

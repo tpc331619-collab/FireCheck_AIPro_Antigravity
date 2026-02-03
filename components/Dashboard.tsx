@@ -157,12 +157,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Sync isSearchActive with URL q parameter
     useEffect(() => {
         const q = searchParams.get('q');
+        console.log('[useEffect] searchParams changed, q =', q);
         if (q) {
             setIsSearchActive(true);
             setSearchTerm(q);
+            console.log('[useEffect] Set isSearchActive = true, searchTerm =', q);
         } else {
             setIsSearchActive(false);
             setSearchTerm('');
+            console.log('[useEffect] Set isSearchActive = false, searchTerm = empty');
         }
     }, [searchParams]);
 
@@ -1457,12 +1460,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     title: t('searchFailed') || '搜尋失敗',
                                                     message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                                     onConfirm: () => {
+                                                        console.log('[Search Failed] Before state update');
                                                         // 先設置狀態
                                                         setIsSearchActive(false);
                                                         setSearchTerm('');
                                                         setAlertConfig(null);
                                                         // 最後清空 URL
                                                         setSearchParams({}, { replace: true });
+                                                        console.log('[Search Failed] After state update');
                                                     }
                                                 });
                                             }
