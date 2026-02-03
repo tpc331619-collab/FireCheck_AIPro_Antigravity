@@ -3700,13 +3700,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     message={alertConfig.message}
                     type={alertConfig.type || 'alert'}
                     onConfirm={() => {
-                        if (alertConfig.onConfirm) alertConfig.onConfirm();
-                        setAlertConfig(null);
-                        setIsQuickScanOpen(false); // Forced cleanup
+                        if (alertConfig.onConfirm) {
+                            alertConfig.onConfirm();
+                        } else {
+                            setAlertConfig(null);
+                        }
                     }}
                     onCancel={() => {
-                        setAlertConfig(null);
-                        setIsQuickScanOpen(false); // Forced cleanup
+                        if (alertConfig.onCancel) {
+                            alertConfig.onCancel();
+                        } else {
+                            setAlertConfig(null);
+                        }
                     }}
                 />
             )}
