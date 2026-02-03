@@ -1306,6 +1306,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     </div>
                 )
             }
+
+            {/* Custom Alert Modal for Checklist */}
+            <CustomAlertModal
+                isOpen={alertConfig.isOpen}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                type={alertConfig.type}
+                onConfirm={alertConfig.onConfirm}
+                onCancel={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+            />
         </div >
     );
 };

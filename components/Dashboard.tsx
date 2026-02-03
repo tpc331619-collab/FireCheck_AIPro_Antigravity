@@ -19,6 +19,7 @@ import AddEquipmentModeModal from './AddEquipmentModeModal';
 import AbnormalRecheckList from './AbnormalRecheckList';
 import HistoryTable from './HistoryTable';
 import BarcodeInputModal from './BarcodeInputModal';
+import CustomAlertModal from './CustomAlertModal';
 import { NotificationBell } from './NotificationBell';
 import { OrganizationManager } from './OrganizationManager';
 import EquipmentMapEditor from './EquipmentMapEditor'; // Import EquipmentMapEditor
@@ -151,6 +152,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
     const [isSearchActive, setIsSearchActive] = useState(!!searchParams.get('q'));
+    const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; title?: string; message: string; type?: 'alert' | 'confirm' | 'success'; onConfirm?: () => void } | null>(null);
+
+    // Sync isSearchActive with URL q parameter
+    useEffect(() => {
+        const q = searchParams.get('q');
+        if (q) {
+            setIsSearchActive(true);
+            setSearchTerm(q);
+        } else {
+            setIsSearchActive(false);
+            setSearchTerm('');
+        }
+    }, [searchParams]);
 
     const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'Pass' | 'Fail'>('ALL');
@@ -1428,9 +1442,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
-                                    onKeyDown={(e) => {
+                                    onKeyDown={async (e) => {
                                         if (e.key === 'Enter' && searchTerm.trim()) {
-                                            setIsSearchActive(true);
+                                            const code = searchTerm.trim();
+                                            const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
+                                            const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
+
+                                            if (hasMatch) {
+                                                setSearchParams({ q: code }, { replace: true });
+                                            } else {
+                                                setAlertConfig({
+                                                    isOpen: true,
+                                                    title: t('searchFailed') || '搜尋失敗',
+                                                    message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
+                                                    onConfirm: () => setAlertConfig(null)
+                                                });
+                                            }
                                         }
                                     }}
                                 />
@@ -1881,9 +1908,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             onClick={() => {
                                                 setShowArchived(false);
-                                                setIsSearchActive(false);
-                                                setSearchTerm('');
                                                 setSearchParams({}, { replace: true });
+                                                // useEffect will catch this and set isSearchActive(false) and searchTerm('')
                                             }}
                                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-slate-200"
                                         >
@@ -3071,10 +3097,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     <BarcodeInputModal
                         isOpen={isQuickScanOpen}
-                        onScan={(code) => {
-                            setSearchTerm(code);
-                            setIsSearchActive(true);
-                            setSearchParams({ q: code }, { replace: true });
+                        onScan={async (code) => {
+                            // Check if equipment exists before activating search
+                            const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
+                            const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
+
+                            if (hasMatch) {
+                                setSearchParams({ q: code }, { replace: true });
+                            } else {
+                                setAlertConfig({
+                                    isOpen: true,
+                                    title: t('searchFailed') || '搜尋失敗',
+                                    message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
+                                    onConfirm: () => setAlertConfig(null)
+                                });
+                            }
                             setIsQuickScanOpen(false);
                         }}
                         onCancel={() => setIsQuickScanOpen(false)}
@@ -3636,6 +3673,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     />
                 )
             }
+
+            {/* Custom Alert Modal for Dashboard */}
+            {alertConfig && (
+                <CustomAlertModal
+                    isOpen={alertConfig.isOpen}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    type={alertConfig.type || 'alert'}
+                    onConfirm={() => {
+                        if (alertConfig.onConfirm) alertConfig.onConfirm();
+                        setAlertConfig(null);
+                    }}
+                    onCancel={() => setAlertConfig(null)}
+                />
+            )}
         </div>
     );
 };
