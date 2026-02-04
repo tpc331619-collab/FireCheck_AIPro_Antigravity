@@ -76,6 +76,17 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
             return;
         }
 
+        // Check for duplicate filename
+        const isDuplicate = files.some(existingFile => {
+            const existingName = existingFile.name.replace(/^\d+_(.+)$/, '$1');
+            return existingName === file.name;
+        });
+
+        if (isDuplicate) {
+            alert(`檔名重複:「${file.name}」已存在,請重新命名後再上傳。`);
+            return;
+        }
+
         setLoading(true);
         try {
             await StorageService.uploadMapImage(file, user.uid, user.currentOrganizationId);
@@ -226,7 +237,7 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {filteredFiles.map((file) => {
+                            {filteredFiles.map((file, index) => {
                                 const displayName = file.name.replace(/^\d+_(.+)$/, '$1'); // clean timestamp
                                 const isSelecting = selectingId === file.fullPath;
                                 const isDeleting = deletingId === file.fullPath;
@@ -253,9 +264,14 @@ const StorageManagerModal: React.FC<StorageManagerModalProps> = ({
 
                                         {/* Content Area */}
                                         <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-                                            <h4 className={`font-bold text-sm sm:text-base truncate transition-colors ${isSelecting ? 'text-blue-700' : 'text-slate-700 group-hover:text-blue-600'}`} title={displayName}>
-                                                {displayName}
-                                            </h4>
+                                            <div className="flex items-center gap-2">
+                                                <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-700 rounded-full text-xs font-bold shrink-0">
+                                                    {index + 1}
+                                                </span>
+                                                <h4 className={`font-bold text-sm sm:text-base truncate transition-colors ${isSelecting ? 'text-blue-700' : 'text-slate-700 group-hover:text-blue-600'}`} title={displayName}>
+                                                    {displayName}
+                                                </h4>
+                                            </div>
 
                                             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 font-medium">
                                                 <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-md">
