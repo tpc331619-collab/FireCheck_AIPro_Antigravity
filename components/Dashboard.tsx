@@ -1610,7 +1610,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Abnormal Recheck */}
-                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestRecheck)) && (
+                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestRecheck)) && (isAdmin || systemSettings?.allowInspectorAbnormalRecheck !== false) && (
                             <button
                                 onClick={() => setShowAbnormalRecheck(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1635,7 +1635,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* My Equipment */}
-                        {!user.isGuest && (
+                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorMyEquipment !== false) && (
                             <button
                                 onClick={() => onMyEquipment()}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
