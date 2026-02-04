@@ -235,8 +235,15 @@ const App: React.FC = () => {
         setInitializing(false);
       });
 
-      StorageService.getSystemSettings().then(setSystemSettings);
-      return () => unsubscribe();
+      // Listen to system settings changes in real-time
+      const unsubscribeSettings = StorageService.onSystemSettingsChange((settings) => {
+        setSystemSettings(settings || undefined);
+      });
+
+      return () => {
+        unsubscribe();
+        unsubscribeSettings();
+      };
     } else {
       setInitializing(false);
     }

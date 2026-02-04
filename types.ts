@@ -264,6 +264,10 @@ export interface SystemSettings {
   allowInspectorManageHierarchy?: boolean;
   allowInspectorAbnormalRecheck?: boolean;
   allowInspectorMyEquipment?: boolean;
+  allowInspectorMyMap?: boolean;
+  allowInspectorHistory?: boolean;
+  allowInspectorEquipmentOverview?: boolean;
+  allowInspectorHealthIndicators?: boolean;
   // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }

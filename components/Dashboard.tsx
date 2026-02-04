@@ -1355,9 +1355,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <Building className="w-4 h-4" />
                                 </button>
                                 {/* Management Button Removed */}
-                                <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
-                                    <Settings className="w-5 h-5" />
-                                </button>
+                                {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
+                                    <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
+                                        <Settings className="w-5 h-5" />
+                                    </button>
+                                )}
                                 <NotificationBell
                                     userId={user.uid}
                                     organizationId={user.currentOrganizationId}
@@ -1652,7 +1654,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Map Editor */}
-                        {!user.isGuest && (
+                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorMyMap !== false) && (
                             <button
                                 onClick={() => setIsEquipmentMapOpen(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1669,7 +1671,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* History */}
-                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestHistory)) && (
+                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestHistory)) && (isAdmin || systemSettings?.allowInspectorHistory !== false) && (
                             <button
                                 onClick={scrollToHistory}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -1686,7 +1688,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Equipment Overview */}
-                        {(!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
+                        {(!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (isAdmin || systemSettings?.allowInspectorEquipmentOverview !== false) && (
                             <button
                                 onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
                                 className={`group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
@@ -1703,7 +1705,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
 
                         {/* Health Indicators */}
-                        {(!user.isGuest) && (
+                        {(!user.isGuest) && (isAdmin || systemSettings?.allowInspectorHealthIndicators !== false) && (
                             <button
                                 onClick={() => setIsHealthModalOpen(true)}
                                 className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
@@ -3562,20 +3564,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <MapPinned className="w-3.5 h-3.5" />
                                                 {t('sectionMyMap')}
                                             </label>
-                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-sky-200">
-                                                <div>
-                                                    <div className="font-bold text-slate-700 text-sm">{t('cloudGallery')}</div>
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('cloudGalleryDesc')}</div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-sky-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorMyMap')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorMyMapDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorMyMap ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorMyMap: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                                                    </label>
                                                 </div>
-                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={systemSettings?.allowCloudGallery ?? true}
-                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
-                                                        className="sr-only peer"
-                                                    />
-                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
-                                                </label>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-sky-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('cloudGallery')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('cloudGalleryDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowCloudGallery ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowCloudGallery: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -3586,6 +3605,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionHistory')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-indigo-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorHistory')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorHistoryDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorHistory ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorHistory: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                    </label>
+                                                </div>
                                                 {['HistoryFilter', 'HistoryShowHideFields'].map((item) => (
                                                     <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-indigo-200">
                                                         <div>
@@ -3606,13 +3640,51 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         </div>
 
-                                        {/* (7) 健康指標 (Health Indicators) Block */}
+                                        {/* (7) 設備概覽 (Equipment Overview) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <PieChart className="w-3.5 h-3.5" />
+                                                設備概覽
+                                            </label>
+                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-200">
+                                                <div>
+                                                    <div className="font-bold text-slate-700 text-sm">{t('allowInspectorEquipmentOverview')}</div>
+                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorEquipmentOverviewDesc')}</div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={systemSettings?.allowInspectorEquipmentOverview ?? true}
+                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorEquipmentOverview: e.target.checked })}
+                                                        className="sr-only peer"
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-slate-600"></div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {/* (8) 健康指標 (Health Indicators) Block */}
                                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
                                             <label className="text-xs font-bold text-rose-600 uppercase tracking-wider flex items-center gap-2 px-1">
                                                 <HeartPulse className="w-3.5 h-3.5" />
                                                 {t('sectionHealthIndicators')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-rose-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorHealthIndicators')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorHealthIndicatorsDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorHealthIndicators ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorHealthIndicators: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                                                    </label>
+                                                </div>
                                                 {['EditHealth', 'DeleteHealth'].map((item) => (
                                                     <div key={item} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-rose-200">
                                                         <div>

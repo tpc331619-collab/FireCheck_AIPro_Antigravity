@@ -1776,6 +1776,28 @@ export const StorageService = {
       throw e;
     }
   },
+
+  onSystemSettingsChange(callback: (settings: SystemSettings | null) => void): () => void {
+    if (!db) return () => { };
+
+    const docRef = doc(db, 'settings', 'global_config');
+    return onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as SystemSettings;
+        const CACHE_KEY = 'system_settings_cache';
+        localStorage.setItem(CACHE_KEY, JSON.stringify(data)); // Update cache
+        callback(data);
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      console.error("System settings listener error", error);
+      // Fallback to cache on error
+      const CACHE_KEY = 'system_settings_cache';
+      const cached = localStorage.getItem(CACHE_KEY);
+      callback(cached ? JSON.parse(cached) : { allowGuestView: false });
+    });
+  },
   // ==================== 組織管理 ====================
 
   async createOrganization(org: Omit<Organization, 'id'>): Promise<string> {
