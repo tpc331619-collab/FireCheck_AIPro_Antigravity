@@ -623,6 +623,24 @@ export const StorageService = {
     }
   },
 
+  onHierarchyChange(userId: string, organizationId: string | null | undefined, callback: (hierarchy: EquipmentHierarchy | null) => void): () => void {
+    if (!db) return () => { };
+    const isPersonal = !organizationId || organizationId === '';
+    const targetId = isPersonal ? userId : organizationId!;
+    const docRef = doc(db, 'hierarchies', targetId);
+
+    return onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        callback(snapshot.data() as EquipmentHierarchy);
+      } else {
+        callback(null);
+      }
+    }, (error) => {
+      console.error("Hierarchy listener error", error);
+      // Optional: fallback to local query if needed, but for real-time usually we just log
+    });
+  },
+
   async saveEquipmentHierarchy(hierarchy: EquipmentHierarchy, userId: string, organizationId?: string | null): Promise<void> {
     const HIERARCHY_KEY = `hierarchy_${userId}`;
     if (this.isGuest || !db) {

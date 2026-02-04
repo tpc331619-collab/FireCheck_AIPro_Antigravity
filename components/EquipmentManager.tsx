@@ -68,33 +68,24 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
   const [qrCodeUrl, setQrCodeUrl] = useState('');
 
-  // Load Hierarchy on Mount
+  // Load Hierarchy Real-time
   useEffect(() => {
-    const fetchHierarchy = async () => {
-      try {
-        const data = await StorageService.getEquipmentHierarchy(user.uid, user.currentOrganizationId);
-        if (data) {
-          setHierarchy(data);
-        } else {
-          // Seed from constants if empty (filtering out Custom if desired, or just use as is but ignore '自定義' keys logic if new logic replaces it)
-          // Ideally we replicate the logic from HierarchyManager or just use constants directly but sanitized.
-          // For simplicity and consistency, let's replicate the seed logic or just use constants but prefer user data.
-          // If we use constants directly as fallback, we might get '自定義' options.
-          // The user wants to remove '自定義' dropdown logic.
-          // Let's seed same as HierarchyManager.
-          const seed: EquipmentHierarchy = {};
-          Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
-            if (cat === '自定義') return;
-            const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
-            seed[cat] = validTypes;
-          });
-          setHierarchy(seed);
-        }
-      } catch (e) {
-        console.error(e);
+    const unsubscribe = StorageService.onHierarchyChange(user.uid, user.currentOrganizationId, (data) => {
+      if (data) {
+        setHierarchy(data);
+      } else {
+        // Fallback or seed logic if empty
+        const seed: EquipmentHierarchy = {};
+        Object.entries(EQUIPMENT_HIERARCHY).forEach(([cat, types]) => {
+          if (cat === '自定義') return;
+          const validTypes = Array.isArray(types) ? types.filter(t => t !== '自定義') : [];
+          seed[cat] = validTypes;
+        });
+        setHierarchy(seed);
       }
-    };
-    fetchHierarchy();
+    });
+
+    return () => unsubscribe();
   }, [user.uid, user.currentOrganizationId]);
 
 
