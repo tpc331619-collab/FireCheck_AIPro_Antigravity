@@ -262,6 +262,8 @@ export interface SystemSettings {
   allowInspectorBatchOperations?: boolean;
   allowInspectorAddEquipment?: boolean;
   allowInspectorManageHierarchy?: boolean;
+  allowInspectorAbnormalRecheck?: boolean;
+  allowInspectorMyEquipment?: boolean;
   // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }

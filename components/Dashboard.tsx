@@ -3480,20 +3480,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <AlertTriangle className="w-3.5 h-3.5" />
                                                 {t('sectionAbnormalRecheck')}
                                             </label>
-                                            <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
-                                                <div>
-                                                    <div className="font-bold text-slate-700 text-sm">{t('allowInspectorViewCompletedRechecks')}</div>
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorViewCompletedRechecksDesc')}</div>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorAbnormalRecheck')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorAbnormalRecheckDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorAbnormalRecheck ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorAbnormalRecheck: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+                                                    </label>
                                                 </div>
-                                                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={systemSettings?.allowInspectorViewCompletedRechecks ?? true}
-                                                        onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorViewCompletedRechecks: e.target.checked })}
-                                                        className="sr-only peer"
-                                                    />
-                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
-                                                </label>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorViewCompletedRechecks')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorViewCompletedRechecksDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorViewCompletedRechecks ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorViewCompletedRechecks: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -3504,6 +3521,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('sectionMyEquipment')}
                                             </label>
                                             <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-emerald-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorMyEquipment')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorMyEquipmentDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorMyEquipment ?? true}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorMyEquipment: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                                                    </label>
+                                                </div>
                                                 {['EditEquipment', 'CopyEquipment', 'DeleteEquipment', 'BatchOperations', 'ShowBarcode', 'ShowImage'].map((perm) => (
                                                     <div key={perm} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-emerald-200">
                                                         <div>
