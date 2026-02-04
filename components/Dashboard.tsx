@@ -1498,7 +1498,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     padding: '3px'
                                 }}
                                 title={user.isGuest ? `訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}\n4. 歷史: ${systemSettings?.allowGuestHistory ? '開啟' : '關閉'}` : t('sectionCardOrder')}
-                                onClick={() => !user.isGuest && setIsCardOrderModalOpen(true)}
+                                onClick={() => {
+                                    if (!user.isGuest && (isAdmin || systemSettings?.allowInspectorCustomizeCardOrder)) {
+                                        setIsCardOrderModalOpen(true);
+                                    }
+                                }}
                             >
                                 <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
                                     <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
