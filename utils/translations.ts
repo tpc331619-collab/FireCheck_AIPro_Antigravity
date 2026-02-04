@@ -700,6 +700,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     guestTimer: '訪客倒數',
     pendingAccessRequest: '存取權限申請',
     pendingAccessRequestDesc: '有新使用者申請加入系統，請前往審核。',
+    // Card Order
+    allowInspectorCustomizeCardOrder: '自訂卡片順序',
+    allowInspectorCustomizeCardOrderDesc: '允許巡檢員自訂儀錶板卡片顯示順序',
+    sectionCardOrder: '卡片順序設定',
+    cardOrderDesc: '拖曳卡片以調整顯示順序',
+    resetCardOrder: '重置為預設順序',
+    saveCardOrder: '儲存順序',
   },
   'en': {
     welcome: 'Welcome Back',
@@ -1309,6 +1316,13 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     photoLoadFailed: 'Photo Load Failed',
     checkLinkValidity: 'Please check link validity',
     lights: 'Lights',
+    // Card Order
+    allowInspectorCustomizeCardOrder: 'Customize Card Order',
+    allowInspectorCustomizeCardOrderDesc: 'Allow inspectors to customize dashboard card display order',
+    sectionCardOrder: 'Card Order Settings',
+    cardOrderDesc: 'Drag cards to adjust display order',
+    resetCardOrder: 'Reset to Default Order',
+    saveCardOrder: 'Save Order',
   },
   'ko': {
     welcome: '환영합니다',
@@ -1718,6 +1732,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorQuickSearchDesc: '검사원이 상단 검색창과 QR 스캐너를 사용할 수 있도록 허용합니다',
     allowInspectorStartInspection: '점검 시작 기능',
     allowInspectorStartInspectionDesc: '검사원이 "점검 시작"을 클릭하고 워크플로에 진입할 수 있도록 허용합니다',
+    sectionCardOrder: '카드 순서',
+    allowInspectorCustomizeCardOrder: '검사원 카드 순서 사용자 지정 허용',
+    allowInspectorCustomizeCardOrderDesc: '검사원이 자신의 대시보드 카드 순서를 자유롭게 재정렬할 수 있도록 허용합니다',
+    cardOrderDesc: '표시 순서 설정',
+    resetCardOrder: '기본값으로 재설정',
+    saveCardOrder: '순서 저장',
+    confirmResetCardOrder: '기본 순서로 재설정하시겠습니까?',
+    dragToReorder: '드래그 앤 드롭으로 재정렬',
 
 
     uploadGenericError: '업로드 실패',
@@ -2144,6 +2166,14 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorQuickSearchDesc: '点検員がトップ検索バーとQRスキャナーを使用できるようにします',
     allowInspectorStartInspection: '点検開始機能',
     allowInspectorStartInspectionDesc: '点検員が「点検開始」をクリックしてワークフローに入ることができるようにします',
+    sectionCardOrder: 'カード順序',
+    allowInspectorCustomizeCardOrder: '検査員のカード順序カスタマイズを許可',
+    allowInspectorCustomizeCardOrderDesc: '検査員が自分のダッシュボードカード順序を自由に並べ替えられるようにします',
+    cardOrderDesc: '表示順序を設定',
+    resetCardOrder: 'デフォルトに戻す',
+    saveCardOrder: '順序を保存',
+    confirmResetCardOrder: 'デフォルトの順序に戻してもよろしいですか？',
+    dragToReorder: 'ドラッグ＆ドロップで並べ替え',
 
 
     uploadGenericError: 'アップロード失敗',

@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import {
     InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, EquipmentType, HealthIndicator,
-    HealthHistoryRecord, UserProfile, LanguageCode, SystemSettings
+    HealthHistoryRecord, UserProfile, LanguageCode, SystemSettings, DashboardCardId
 } from '../types';
 import { StorageService } from '../services/storageService';
 // Fix: Use modular imports from firebase/auth
@@ -23,6 +23,7 @@ import CustomAlertModal from './CustomAlertModal';
 import { NotificationBell } from './NotificationBell';
 import { OrganizationManager } from './OrganizationManager';
 import EquipmentMapEditor from './EquipmentMapEditor'; // Import EquipmentMapEditor
+import CardOrderModal from './CardOrderModal';
 
 
 import { RegulationFeed } from './RegulationFeed';
@@ -177,6 +178,102 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isEquipmentMapOpen, setIsEquipmentMapOpen] = useState(false); // Added
     const [selectedMap, setSelectedMap] = useState<EquipmentMap | null>(null); // Added
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false); // Added for separate permissions modal
+
+    // Card Order State
+    const [cardOrder, setCardOrder] = useState<DashboardCardId[]>([]);
+    const [isCardOrderModalOpen, setIsCardOrderModalOpen] = useState(false);
+
+    // Load Card Order
+    useEffect(() => {
+        const loadCardOrder = async () => {
+            // 如果檢查員有權限,優先使用個人化順序
+            if (!isAdmin && systemSettingsFromProps?.allowInspectorCustomizeCardOrder) {
+                const personalOrder = await StorageService.getUserCardOrder(user.uid);
+                if (personalOrder) {
+                    setCardOrder(personalOrder);
+                    return;
+                }
+            }
+
+            // 使用全域預設順序
+            if (systemSettingsFromProps?.defaultCardOrder && systemSettingsFromProps.defaultCardOrder.length > 0) {
+                setCardOrder(systemSettingsFromProps.defaultCardOrder);
+            } else {
+                // 預設順序
+                setCardOrder([
+                    'startInspection',
+                    'abnormalRecheck',
+                    'history',
+                    'myEquipment',
+                    'mapEditor',
+                    'addEquipment',
+                    'healthIndicators',
+                    'addNameList',
+                    'equipmentOverview'
+                ]);
+            }
+        };
+        loadCardOrder();
+    }, [systemSettingsFromProps, user.uid, isAdmin]);
+
+    const handleSaveCardOrder = async (newOrder: DashboardCardId[]) => {
+        if (isAdmin) {
+            // Admin saves global default
+            if (window.confirm('是否要將此順序設為系統預設值? (所有未自訂順序的使用者將套用此順序)')) {
+                const newSettings = systemSettingsFromProps ? { ...systemSettingsFromProps, defaultCardOrder: newOrder } : { allowGuestView: false, defaultCardOrder: newOrder };
+                await StorageService.saveSystemSettings(newSettings);
+                // Assume parent updates props or we update local cache if needed, but props should update
+            }
+            // Admin also updates local view
+            setCardOrder(newOrder);
+            setIsCardOrderModalOpen(false);
+        } else {
+            // User saves personal order
+            await StorageService.saveUserCardOrder(user.uid, newOrder);
+            setCardOrder(newOrder);
+            setIsCardOrderModalOpen(false);
+        }
+    };
+
+    const handleResetCardOrder = async () => {
+        if (window.confirm(t('confirmResetCardOrder') || '確定要重置為預設順序嗎?')) {
+            if (isAdmin) {
+                // Admin resets global default to hardcoded default? Or just clears it?
+                // Let's just reset to the hardcoded list
+                const defaultList: DashboardCardId[] = [
+                    'startInspection',
+                    'abnormalRecheck',
+                    'history',
+                    'myEquipment',
+                    'mapEditor',
+                    'addEquipment',
+                    'healthIndicators',
+                    'addNameList',
+                    'equipmentOverview'
+                ];
+                setCardOrder(defaultList);
+            } else {
+                // User clears personal order
+                await StorageService.saveUserCardOrder(user.uid, []);
+                // Reload will fetch global default, or we can just set it to global default now
+                if (systemSettingsFromProps?.defaultCardOrder && systemSettingsFromProps.defaultCardOrder.length > 0) {
+                    setCardOrder(systemSettingsFromProps.defaultCardOrder);
+                } else {
+                    setCardOrder([
+                        'startInspection',
+                        'abnormalRecheck',
+                        'history',
+                        'myEquipment',
+                        'mapEditor',
+                        'addEquipment',
+                        'healthIndicators',
+                        'addNameList',
+                        'equipmentOverview'
+                    ]);
+                }
+            }
+        }
+    };
 
     // Guest Timer Logic
     const [timeLeft, setTimeLeft] = useState<string>('');
@@ -1400,8 +1497,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     )` : `linear-gradient(135deg, ${THEME_COLORS.primary}, ${THEME_COLORS.secondary})`,
                                     padding: '3px'
                                 }}
-                                title={user.isGuest ? `訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}\n4. 歷史: ${systemSettings?.allowGuestHistory ? '開啟' : '關閉'}` : t('settings')}
-                                onClick={() => !user.isGuest && setIsSettingsOpen(true)}
+                                title={user.isGuest ? `訪客權限狀態:\n1. 檢視: ${systemSettings?.allowGuestView ? '開啟' : '關閉'}\n2. 複檢: ${systemSettings?.allowGuestRecheck ? '開啟' : '關閉'}\n3. 概覽: ${systemSettings?.allowGuestEquipmentOverview ? '開啟' : '關閉'}\n4. 歷史: ${systemSettings?.allowGuestHistory ? '開啟' : '關閉'}` : t('sectionCardOrder')}
+                                onClick={() => !user.isGuest && setIsCardOrderModalOpen(true)}
                             >
                                 <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
                                     <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
@@ -1589,171 +1686,187 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         </div>
                     )}
 
-                    {/* Main Actions Grid */}
+                    {/* Main Actions Grid (Dynamic Order) */}
                     <div className={`grid gap-3 ${user.isGuest
                         ? 'grid-cols-2'
                         : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                         }`}>
-                        {/* Start Inspection */}
-                        {(!user.isGuest ? (isAdmin || (systemSettings?.allowInspectorStartInspection !== false && (systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false))) : systemSettings?.allowGuestStartInspection === true) && (
-                            <button
-                                onClick={() => setIsInspectionModeOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <ClipboardCheck className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl w-fit mb-3 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                                    <ClipboardCheck className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionTitle')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
-                            </button>
-                        )}
+                        {cardOrder.map(cardId => {
+                            switch (cardId) {
+                                case 'startInspection':
+                                    return (!user.isGuest ? (isAdmin || (systemSettings?.allowInspectorStartInspection !== false && (systemSettings?.allowInspectorListInspection !== false || systemSettings?.allowInspectorMapInspection !== false))) : systemSettings?.allowGuestStartInspection === true) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={() => setIsInspectionModeOpen(true)}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <ClipboardCheck className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl w-fit mb-3 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                                                <ClipboardCheck className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionTitle')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
+                                        </button>
+                                    );
 
-                        {/* Abnormal Recheck */}
-                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestRecheck)) && (isAdmin || systemSettings?.allowInspectorAbnormalRecheck !== false) && (
-                            <button
-                                onClick={() => setShowAbnormalRecheck(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <AlertOctagon className="w-24 h-24 text-amber-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                                    <AlertOctagon className="w-5 h-5 text-white" />
-                                    {abnormalCount > 0 && (
-                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
-                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
-                                        </span>
-                                    )}
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('abnormalRecheck')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                    {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
-                                </p>
-                            </button>
-                        )}
+                                case 'abnormalRecheck':
+                                    return (!user.isGuest || (user.isGuest && systemSettings?.allowGuestRecheck)) && (isAdmin || systemSettings?.allowInspectorAbnormalRecheck !== false) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={() => setShowAbnormalRecheck(true)}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <AlertOctagon className="w-24 h-24 text-amber-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
+                                                <AlertOctagon className="w-5 h-5 text-white" />
+                                                {abnormalCount > 0 && (
+                                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('abnormalRecheck')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
+                                            </p>
+                                        </button>
+                                    );
 
-                        {/* My Equipment */}
-                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorMyEquipment !== false) && (
-                            <button
-                                onClick={() => onMyEquipment()}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <Building className="w-24 h-24 text-cyan-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl w-fit mb-3 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
-                                    <Building className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipment')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipmentDesc')}</p>
-                            </button>
-                        )}
+                                case 'history':
+                                    return (!user.isGuest || (user.isGuest && systemSettings?.allowGuestHistory)) && (isAdmin || systemSettings?.allowInspectorHistory !== false) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={scrollToHistory}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <ScrollText className="w-24 h-24 text-indigo-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl w-fit mb-3 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                                                <ScrollText className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('history')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{flattenedHistory.length} {t('historyRecordsCount')}</p>
+                                        </button>
+                                    );
 
-                        {/* Map Editor */}
-                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorMyMap !== false) && (
-                            <button
-                                onClick={() => setIsEquipmentMapOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <MapPinned className="w-24 h-24 text-purple-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl w-fit mb-3 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
-                                    <MapPinned className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditor')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditorDesc')}</p>
-                            </button>
-                        )}
+                                case 'myEquipment':
+                                    return !user.isGuest && (isAdmin || systemSettings?.allowInspectorMyEquipment !== false) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={() => onMyEquipment()}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <Building className="w-24 h-24 text-cyan-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl w-fit mb-3 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
+                                                <Building className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipment')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipmentDesc')}</p>
+                                        </button>
+                                    );
 
-                        {/* History */}
-                        {(!user.isGuest || (user.isGuest && systemSettings?.allowGuestHistory)) && (isAdmin || systemSettings?.allowInspectorHistory !== false) && (
-                            <button
-                                onClick={scrollToHistory}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <ScrollText className="w-24 h-24 text-indigo-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl w-fit mb-3 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                                    <ScrollText className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('history')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{flattenedHistory.length} {t('historyRecordsCount')}</p>
-                            </button>
-                        )}
+                                case 'mapEditor':
+                                    return !user.isGuest && (isAdmin || systemSettings?.allowInspectorMyMap !== false) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={() => setIsEquipmentMapOpen(true)}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <MapPinned className="w-24 h-24 text-purple-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl w-fit mb-3 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
+                                                <MapPinned className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditor')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditorDesc')}</p>
+                                        </button>
+                                    );
 
-                        {/* Equipment Overview */}
-                        {(!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (isAdmin || systemSettings?.allowInspectorEquipmentOverview !== false) && (
-                            <button
-                                onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                                className={`group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <PieChart className="w-24 h-24 text-slate-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl w-fit mb-3 shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform">
-                                    <PieChart className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
-                            </button>
-                        )}
+                                case 'addEquipment':
+                                    return !user.isGuest && (isAdmin || systemSettings?.allowInspectorAddEquipment === true) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={onAddEquipment}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <PlusCircle className="w-24 h-24 text-emerald-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl w-fit mb-3 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                                                <PlusCircle className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipment')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
+                                        </button>
+                                    );
 
-                        {/* Health Indicators */}
-                        {(!user.isGuest) && (isAdmin || systemSettings?.allowInspectorHealthIndicators !== false) && (
-                            <button
-                                onClick={() => setIsHealthModalOpen(true)}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <Activity className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl w-fit mb-3 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
-                                    <Activity className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('healthIndicators')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
-                            </button>
-                        )}
+                                case 'healthIndicators':
+                                    return (!user.isGuest) && (isAdmin || systemSettings?.allowInspectorHealthIndicators !== false) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={() => setIsHealthModalOpen(true)}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <Activity className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl w-fit mb-3 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
+                                                <Activity className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('healthIndicators')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
+                                        </button>
+                                    );
 
-                        {/* Add Equipment */}
-                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorAddEquipment === true) && (
-                            <button
-                                onClick={onAddEquipment}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <PlusCircle className="w-24 h-24 text-emerald-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl w-fit mb-3 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                                    <PlusCircle className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipment')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
-                            </button>
-                        )}
+                                case 'addNameList':
+                                    return !user.isGuest && (isAdmin || systemSettings?.allowInspectorManageHierarchy === true) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={onManageHierarchy}
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <ListPlus className="w-24 h-24 text-orange-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl w-fit mb-3 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
+                                                <ListPlus className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameList')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameListDescShort')}</p>
+                                        </button>
+                                    );
 
-                        {/* Add Name List */}
-                        {!user.isGuest && (isAdmin || systemSettings?.allowInspectorManageHierarchy === true) && (
-                            <button
-                                onClick={onManageHierarchy}
-                                className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
-                            >
-                                <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                    <ListPlus className="w-24 h-24 text-orange-600 -mr-8 -mt-8 rotate-12" />
-                                </div>
-                                <div className="p-2.5 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl w-fit mb-3 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
-                                    <ListPlus className="w-5 h-5 text-white" />
-                                </div>
-                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameList')}</h3>
-                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameListDescShort')}</p>
-                            </button>
-                        )}
+                                case 'equipmentOverview':
+                                    return (!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (isAdmin || systemSettings?.allowInspectorEquipmentOverview !== false) && (
+                                        <button
+                                            key={cardId}
+                                            onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
+                                            className={`group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
+                                        >
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                                <PieChart className="w-24 h-24 text-slate-600 -mr-8 -mt-8 rotate-12" />
+                                            </div>
+                                            <div className="p-2.5 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl w-fit mb-3 shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform">
+                                                <PieChart className="w-5 h-5 text-white" />
+                                            </div>
+                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
+                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
+                                        </button>
+                                    );
+
+                                default:
+                                    return null;
+                            }
+                        })}
                     </div>
 
                     {/* Equipment Overview Stats (Expanded) */}
@@ -3449,6 +3562,44 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         </div>
 
+                                        {/* (1.5) 卡片順序設定 (Card Order Settings) Block */}
+                                        <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                                            <label className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-2 px-1">
+                                                <LayoutGrid className="w-3.5 h-3.5" />
+                                                {t('sectionCardOrder')}
+                                            </label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-indigo-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorCustomizeCardOrder')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorCustomizeCardOrderDesc')}</div>
+                                                    </div>
+                                                    {isAdmin && (
+                                                        <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={systemSettings?.allowInspectorCustomizeCardOrder ?? false}
+                                                                onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorCustomizeCardOrder: e.target.checked })}
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                        </label>
+                                                    )}
+                                                </div>
+
+                                                {/* Button to open Card Order Modal */}
+                                                {(isAdmin || systemSettings?.allowInspectorCustomizeCardOrder) && (
+                                                    <button
+                                                        onClick={() => setIsCardOrderModalOpen(true)}
+                                                        className="w-full flex items-center justify-center gap-2 p-3 bg-white border border-dashed border-indigo-300 text-indigo-600 rounded-xl hover:bg-indigo-50 font-bold text-sm transition-all group"
+                                                    >
+                                                        <LayoutGrid className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                        {t('cardOrderDesc') || '設定顯示順序'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         {/* (2) 開始檢查 (Start Inspection) Block */}
                                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
                                             <label className="text-xs font-bold text-red-600 uppercase tracking-wider flex items-center gap-2 px-1">
@@ -3832,6 +3983,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     }}
                 />
             )}
+
+            {/* Card Order Modal */}
+            <CardOrderModal
+                isOpen={isCardOrderModalOpen}
+                onClose={() => setIsCardOrderModalOpen(false)}
+                currentOrder={cardOrder}
+                onSave={handleSaveCardOrder}
+                onReset={handleResetCardOrder}
+            />
         </div>
     );
 };

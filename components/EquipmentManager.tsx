@@ -475,7 +475,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
       }
 
       // Close and trigger refresh
-      if (onSaved) onSaved();
+      // Fix: Do not auto-navigate. Let the Success Modal handle the flow ("Continue" or "Back")
+      // if (onSaved) onSaved();
 
     } catch (err: any) {
       console.error('[EquipmentManager] Save failed:', err);

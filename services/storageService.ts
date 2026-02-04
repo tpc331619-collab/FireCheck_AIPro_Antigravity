@@ -1,4 +1,4 @@
-import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings, Organization, OrganizationMember, OrganizationRole } from '../types';
+import { InspectionReport, InspectionItem, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, HealthIndicator, HealthHistoryRecord, SystemSettings, Organization, OrganizationMember, OrganizationRole, DashboardCardId } from '../types';
 import { db, auth, storage } from './firebase';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, deleteDoc, setDoc, getDoc, writeBatch, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject, listAll, getMetadata } from 'firebase/storage';
@@ -2268,6 +2268,33 @@ export const StorageService = {
       }
     } catch (e) {
       console.error('Delete whitelist error', e);
+      throw e;
+    }
+  },
+
+  // 卡片順序管理
+  async getUserCardOrder(userId: string): Promise<DashboardCardId[] | null> {
+    if (!db) return null;
+    try {
+      const docRef = doc(db, 'settings', `cardOrder_${userId}`);
+      const snapshot = await getDoc(docRef);
+      if (snapshot.exists()) {
+        return snapshot.data().order as DashboardCardId[];
+      }
+      return null;
+    } catch (e) {
+      console.error("Get user card order error", e);
+      return null;
+    }
+  },
+
+  async saveUserCardOrder(userId: string, order: DashboardCardId[]): Promise<void> {
+    if (!db) return;
+    try {
+      const docRef = doc(db, 'settings', `cardOrder_${userId}`);
+      await setDoc(docRef, { order, updatedAt: Date.now() });
+    } catch (e) {
+      console.error("Save user card order error", e);
       throw e;
     }
   }

@@ -1,3 +1,15 @@
+// Dashboard Card IDs
+export type DashboardCardId =
+  | 'startInspection'
+  | 'abnormalRecheck'
+  | 'myEquipment'
+  | 'mapEditor'
+  | 'history'
+  | 'equipmentOverview'
+  | 'healthIndicators'
+  | 'addEquipment'
+  | 'addNameList';
+
 export enum EquipmentType {
   Extinguisher = '滅火器',
   Hydrant = '室內消防栓',
@@ -268,6 +280,9 @@ export interface SystemSettings {
   allowInspectorHistory?: boolean;
   allowInspectorEquipmentOverview?: boolean;
   allowInspectorHealthIndicators?: boolean;
+  // Card Order Customization
+  allowInspectorCustomizeCardOrder?: boolean; // 允許檢查員自訂卡片順序
+  defaultCardOrder?: DashboardCardId[]; // 全域預設卡片順序
   // End Granular Permissions
   publicDataUserId?: string; // ID of the user whose public data is public
 }
