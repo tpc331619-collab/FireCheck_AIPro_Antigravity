@@ -1,4 +1,5 @@
 import { EquipmentDefinition, LightSettings } from '../types';
+import { calculateNextInspectionDate } from './dateUtils';
 
 export const getCycleDays = (freq?: string): number => {
     if (!freq) return 30; // Default
@@ -13,13 +14,12 @@ export const getCycleDays = (freq?: string): number => {
 };
 
 export const getNextInspectionDate = (item: EquipmentDefinition): number => {
-    const lastDate = item.lastInspectedDate || item.createdAt || 0;
-    if (!lastDate) return 0; // Due immediately
-
-    const daysToAdd = getCycleDays(item.checkFrequency);
-    const nextDate = new Date(lastDate);
-    nextDate.setDate(nextDate.getDate() + daysToAdd);
-    return nextDate.getTime();
+    const nextDate = calculateNextInspectionDate(
+        item.checkStartDate || item.createdAt || 0,
+        item.checkFrequency || 'monthly',
+        item.lastInspectedDate
+    );
+    return nextDate ? nextDate.getTime() : 0;
 };
 
 export const getFrequencyStatus = (item: EquipmentDefinition, settings?: LightSettings): 'COMPLETED' | 'PENDING' | 'UNNECESSARY' | 'CAN_INSPECT' => {

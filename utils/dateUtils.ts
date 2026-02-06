@@ -12,11 +12,13 @@ export const calculateNextInspectionDate = (start: number, frequency: string, la
             return { value: 0, unit: 'date' };
         }
 
-        // Legacy format removed - conflicts with custom days input
-        // Old: if (['6', '12', '24', '36', '120'].includes(freq)) {
-        // Old:     return { value: parseInt(freq), unit: 'month' };
-        // Old: }
+        // 優先處理常見 UI 文字選項
+        if (freq === 'weekly') return { value: 7, unit: 'day' };
+        if (freq === 'monthly') return { value: 1, unit: 'month' };
+        if (freq === 'quarterly') return { value: 3, unit: 'month' };
+        if (freq === 'yearly') return { value: 1, unit: 'year' };
 
+        // 處理特殊文字格式 (e.g. "2years")
         const num = parseInt(freq);
         if (isNaN(num)) return null;
 
@@ -24,11 +26,7 @@ export const calculateNextInspectionDate = (start: number, frequency: string, la
         if (freq.includes('month')) return { value: num, unit: 'month' };
         if (freq.includes('year')) return { value: num * (freq.startsWith('2') ? 2 : freq.startsWith('3') ? 3 : 1), unit: 'year' }; // 處理 2years, 3years 等預設值
 
-        // 額外處理常見 UI 選項
-        if (freq === 'weekly') return { value: 7, unit: 'day' };
-        if (freq === 'monthly') return { value: 1, unit: 'month' };
-        if (freq === 'quarterly') return { value: 3, unit: 'month' };
-        if (freq === 'yearly') return { value: 1, unit: 'year' };
+        // 額外處理常見 UI 選項 (legacy checks for 2years etc if they fall through)
         if (freq === '2years') return { value: 2, unit: 'year' };
         if (freq === '3years') return { value: 3, unit: 'year' };
         if (freq === '10years') return { value: 10, unit: 'year' };
