@@ -247,6 +247,105 @@ export const StorageService = {
     }
   },
 
+  async deleteReport(reportId: string, date: number | string, userId: string, organizationId?: string | null): Promise<void> {
+    if (this.isGuest || !db) {
+      const dataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!dataStr) return;
+      let reports: InspectionReport[] = JSON.parse(dataStr);
+      reports = reports.filter(r => r.id !== reportId);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
+    } else {
+      try {
+        const year = new Date(date).getFullYear();
+        const collectionName = `reports_${year}`;
+        const reportRef = doc(db, collectionName, reportId);
+
+        // 1. Delete items subcollection manually
+        const itemsSnap = await getDocs(collection(db, collectionName, reportId, 'items'));
+        if (!itemsSnap.empty) {
+          const batch = writeBatch(db);
+          itemsSnap.docs.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+
+        // 2. Delete main document
+        await deleteDoc(reportRef);
+      } catch (e) {
+        console.error("Firebase delete report error", e);
+        throw e;
+      }
+    }
+  },
+
+  async deleteInspectionItem(reportId: string, date: number | string, userId: string, equipmentId: string): Promise<void> {
+    const cleanId = reportId.trim();
+    if (!cleanId) throw new Error("Report ID is required");
+
+    if (this.isGuest || !db) {
+      // Local Storage Logic
+      const dataStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (!dataStr) return;
+      let reports: InspectionReport[] = JSON.parse(dataStr);
+
+      const reportIndex = reports.findIndex(r => r.id === cleanId);
+      if (reportIndex === -1) return;
+
+      const report = reports[reportIndex];
+      if (!report.items) return;
+
+      // Filter out the item
+      // Note: In local storage, we might check both id and equipmentId
+      report.items = report.items.filter(i => (i.equipmentId !== equipmentId));
+
+      // Recalculate stats
+      const stats = {
+        total: report.items.length,
+        passed: report.items.filter(i => i.status === InspectionStatus.Normal).length,
+        failed: report.items.filter(i => i.status === InspectionStatus.Abnormal).length,
+        fixed: report.items.filter(i => i.status === InspectionStatus.Fixed).length,
+        others: report.items.filter(i => i.status !== InspectionStatus.Normal && i.status !== InspectionStatus.Abnormal && i.status !== InspectionStatus.Fixed).length
+      };
+      report.stats = stats;
+
+      reports[reportIndex] = report;
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
+      return;
+    } else {
+      try {
+        const year = new Date(date).getFullYear();
+        const collectionName = `reports_${year}`;
+
+        // 1. Delete the item from subcollection
+        // In saveReport, we used: doc(collection(db, collectionName, id, 'items'), item.equipmentId);
+        // So the document ID is the equipmentId.
+        const itemRef = doc(db, collectionName, cleanId, 'items', equipmentId);
+        await deleteDoc(itemRef);
+
+        // 2. Update Stats
+        // Fetch all remaining items to be accurate
+        const itemsSnap = await getDocs(collection(db, collectionName, cleanId, 'items'));
+        const items = itemsSnap.docs.map(d => d.data() as InspectionItem);
+
+        const stats = {
+          total: items.length,
+          passed: items.filter(i => i.status === InspectionStatus.Normal).length,
+          failed: items.filter(i => i.status === InspectionStatus.Abnormal).length,
+          fixed: items.filter(i => i.status === InspectionStatus.Fixed).length,
+          others: items.filter(i => i.status !== InspectionStatus.Normal && i.status !== InspectionStatus.Abnormal && i.status !== InspectionStatus.Fixed).length
+        };
+
+        // Update parent
+        const reportRef = doc(db, collectionName, cleanId);
+        await updateDoc(reportRef, { stats });
+
+        console.log(`[StorageService] Deleted item ${equipmentId} from report ${cleanId}`);
+      } catch (e) {
+        console.error("deleteInspectionItem error", e);
+        throw e;
+      }
+    }
+  },
+
   async updateReport(report: InspectionReport): Promise<void> {
     const { id, items, ...reportData } = report;
 

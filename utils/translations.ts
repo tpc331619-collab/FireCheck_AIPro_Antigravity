@@ -265,6 +265,8 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowInspectorMyMapDesc: '允許巡檢員查看與編輯設備地圖',
     allowInspectorHistory: '歷史資料功能',
     allowInspectorHistoryDesc: '允許巡檢員查看歷史檢查紀錄',
+    allowInspectorDeleteHistory: '刪除功能 (歷史資料)',
+    allowInspectorDeleteHistoryDesc: '允許巡檢員刪除歷史檢查紀錄 (請謹慎授權)',
     allowInspectorEquipmentOverview: '設備概覽功能',
     allowInspectorEquipmentOverviewDesc: '允許巡檢員查看設備統計與分布',
     allowInspectorHealthIndicators: '健康指標功能',

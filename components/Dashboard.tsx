@@ -777,6 +777,37 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         setShowArchived(true); // Open history table directly
     };
 
+    const handleDeleteReport = async (item: any) => {
+        if (!user.uid) return;
+
+        try {
+            // Delete specific item from storage/database
+            // Use equipmentId as the key as per StorageService logic
+            const targetId = item.equipmentId || item.id;
+
+            await StorageService.deleteInspectionItem(item.reportId, item.date, user.uid, targetId);
+
+            // Update local state
+            setReports(prev => prev.map(r => {
+                if (r.id === item.reportId) {
+                    const updatedItems = r.items?.filter(i => (i.equipmentId || i.id) !== targetId) || [];
+
+                    // Optional: Update stats locally for immediate UI reflection if needed
+                    // But flattenedHistory only depends on items array, so this is sufficient for the table.
+                    return {
+                        ...r,
+                        items: updatedItems
+                    };
+                }
+                return r;
+            }));
+
+        } catch (error) {
+            console.error('Failed to delete item:', error);
+            alert(t('deleteFailed') || '刪除失敗');
+        }
+    };
+
     useEffect(() => {
         console.log('[Dashboard] initial render');
     }, []);
@@ -2189,6 +2220,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         visibleColumns={visibleColumns}
                                         systemSettings={systemSettings}
                                         isAdmin={isAdmin}
+                                        onDelete={handleDeleteReport}
                                     />
                                 </div>
                             </div>
@@ -3770,6 +3802,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             type="checkbox"
                                                             checked={systemSettings?.allowInspectorHistory ?? true}
                                                             onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorHistory: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                    </label>
+                                                </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-indigo-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorDeleteHistory')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorDeleteHistoryDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorDeleteHistory ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorDeleteHistory: e.target.checked })}
                                                             className="sr-only peer"
                                                         />
                                                         <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>

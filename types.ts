@@ -278,6 +278,7 @@ export interface SystemSettings {
   allowInspectorMyEquipment?: boolean;
   allowInspectorMyMap?: boolean;
   allowInspectorHistory?: boolean;
+  allowInspectorDeleteHistory?: boolean;
   allowInspectorEquipmentOverview?: boolean;
   allowInspectorHealthIndicators?: boolean;
   // Card Order Customization
