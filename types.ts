@@ -281,6 +281,7 @@ export interface SystemSettings {
   allowInspectorDeleteHistory?: boolean;
   allowInspectorEquipmentOverview?: boolean;
   allowInspectorHealthIndicators?: boolean;
+  allowInspectorDeleteAbnormal?: boolean;
   // Card Order Customization
   allowInspectorCustomizeCardOrder?: boolean; // 允許檢查員自訂卡片順序
   defaultCardOrder?: DashboardCardId[]; // 全域預設卡片順序

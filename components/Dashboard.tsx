@@ -3700,6 +3700,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
                                                     </label>
                                                 </div>
+                                                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-orange-200">
+                                                    <div>
+                                                        <div className="font-bold text-slate-700 text-sm">{t('allowInspectorDeleteAbnormal')}</div>
+                                                        <div className="text-[10px] text-slate-400 mt-0.5">{t('allowInspectorDeleteAbnormalDesc')}</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer ml-4">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={systemSettings?.allowInspectorDeleteAbnormal ?? false}
+                                                            onChange={(e) => handleSaveSystemSettings({ ...systemSettings, allowInspectorDeleteAbnormal: e.target.checked })}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText, Clock, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText, Clock, CheckCircle2, Trash2 } from 'lucide-react';
 import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -127,6 +127,21 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
     const handlePrint = () => {
         window.print();
+    };
+
+    const handleDelete = async (record: AbnormalRecord, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm('確定要刪除此筆紀錄嗎?\n(此動作無法復原)')) {
+            try {
+                await StorageService.deleteAbnormalRecord(record.id);
+                // Refresh records
+                fetchRecords();
+                onRecordsUpdated?.();
+            } catch (err) {
+                console.error('Delete error:', err);
+                alert(t('saveFailed'));
+            }
+        }
     };
 
     const handleQuickTextSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -790,8 +805,17 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex flex-col gap-2 shrink-0 self-center">
+                                                        <div className="flex flex-col gap-2 shrink-0 self-center items-center">
                                                             <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-orange-500 transition-colors" />
+                                                            {(user.role === 'admin' || systemSettings?.allowInspectorDeleteAbnormal) && (
+                                                                <button
+                                                                    onClick={(e) => handleDelete(record, e)}
+                                                                    className="p-2 -m-2 mt-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                                                    title="刪除"
+                                                                >
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
