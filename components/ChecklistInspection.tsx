@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag, Clock } from 'lucide-react';
+import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag, Clock, Box } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -25,11 +25,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     // Selection State
     const [selectedSite, setSelectedSite] = useState<string>('');
     const [selectedBuilding, setSelectedBuilding] = useState<string>('');
+    const [selectedEquipmentName, setSelectedEquipmentName] = useState<string>('ALL_EQUIPMENT');
 
     // Data State
     const [allEquipment, setAllEquipment] = useState<EquipmentDefinition[]>([]);
     const [sites, setSites] = useState<string[]>([]);
     const [buildings, setBuildings] = useState<string[]>([]);
+    const [equipmentNames, setEquipmentNames] = useState<string[]>([]);
     const { data: lightSettings } = useLightSettings(user);
 
     // Filtered Data for current view
@@ -134,6 +136,28 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         }
     }, [selectedSite, allEquipment]);
 
+    // Update Equipment Names based on Site and Building
+    useEffect(() => {
+        if (!selectedSite) {
+            setEquipmentNames([]);
+            setSelectedEquipmentName('ALL_EQUIPMENT');
+            return;
+        }
+
+        let filtered = allEquipment.filter(e => e.siteName === selectedSite);
+        if (selectedBuilding && selectedBuilding !== 'ALL_BUILDINGS') {
+            filtered = filtered.filter(e => e.buildingName === selectedBuilding);
+        }
+
+        const names = Array.from(new Set(filtered.map(e => e.name))).filter(Boolean).sort();
+        setEquipmentNames(names);
+
+        // Reset if current selection is invalid
+        if (selectedEquipmentName !== 'ALL_EQUIPMENT' && !names.includes(selectedEquipmentName)) {
+            setSelectedEquipmentName('ALL_EQUIPMENT');
+        }
+    }, [selectedSite, selectedBuilding, allEquipment]);
+
     // Load Inspection Report if Building is selected
     useEffect(() => {
         const loadReportAndEquipment = async () => {
@@ -141,13 +165,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 setLoading(true);
                 try {
                     // 1. Filter Equipment List
-                    let targetEquipment: EquipmentDefinition[] = [];
-                    if (selectedBuilding === 'ALL_BUILDINGS') {
-                        targetEquipment = allEquipment.filter(e => e.siteName === selectedSite);
-                    } else {
-                        targetEquipment = allEquipment.filter(
-                            e => e.siteName === selectedSite && e.buildingName === selectedBuilding
-                        );
+                    let targetEquipment: EquipmentDefinition[] = allEquipment.filter(e => e.siteName === selectedSite);
+
+                    if (selectedBuilding !== 'ALL_BUILDINGS') {
+                        targetEquipment = targetEquipment.filter(e => e.buildingName === selectedBuilding);
+                    }
+
+                    if (selectedEquipmentName && selectedEquipmentName !== 'ALL_EQUIPMENT') {
+                        targetEquipment = targetEquipment.filter(e => e.name === selectedEquipmentName);
                     }
                     setFilteredEquipment(targetEquipment);
 
@@ -245,7 +270,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         };
 
         loadReportAndEquipment();
-    }, [selectedSite, selectedBuilding, allEquipment, user.uid]); // Re-run if selection changes
+    }, [selectedSite, selectedBuilding, selectedEquipmentName, allEquipment, user.uid]); // Re-run if selection changes
 
 
     // Local helpers removed, using imported utils
@@ -579,7 +604,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 <div className="max-w-3xl mx-auto space-y-6">
 
                     {/* Filter Section */}
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
                                 <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectLocation')}
@@ -606,6 +631,20 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 <option value="">{t('pleaseSelect')}</option>
                                 <option value="ALL_BUILDINGS">全部</option>
                                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
+                                <Box className="w-3.5 h-3.5 mr-1.5" /> {t('equipmentName')}
+                            </label>
+                            <select
+                                value={selectedEquipmentName}
+                                onChange={(e) => setSelectedEquipmentName(e.target.value)}
+                                disabled={!selectedSite}
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                            >
+                                <option value="ALL_EQUIPMENT">全部</option>
+                                {equipmentNames.map(n => <option key={n} value={n}>{n}</option>)}
                             </select>
                         </div>
                     </div>
