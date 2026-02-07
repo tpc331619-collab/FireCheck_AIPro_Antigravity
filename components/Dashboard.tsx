@@ -106,7 +106,9 @@ import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useUpdateLightSettings, useLightSettings } from '../hooks/useSystemData';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUpdateLightSettings, useLightSettings, useEquipment, useHistoryReports, HISTORY_KEYS } from '../hooks/useSystemData';
+import { EquipmentStatsExpanded } from './dashboard/EquipmentStatsExpanded';
 
 interface DashboardProps {
     user: UserProfile;
@@ -150,10 +152,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const [activeModal, setActiveModal] = useState<{ type: 'INSPECTION' | 'RECHECK', item: any } | null>(null);
     const { user: userFromContext } = useTheme(); // Access user from context if needed for role checks
-    const [reports, setReports] = useState<InspectionReport[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient();
+
+
+
+    // const [reports, setReports] = useState<InspectionReport[]>([]); // Removed: Handled by React Query
+    // const [loading, setLoading] = useState(true); // Removed: Handled by React Query as isReportsLoading
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
     const [isSearchActive, setIsSearchActive] = useState(!!searchParams.get('q'));
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [showArchived, setShowArchived] = useState(false); // Toggle for archived reports
+    const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
+
+    // Reports Fetching (React Query)
+    const { data: reports = [], isLoading: isReportsLoading, refetch: refetchReports } = useHistoryReports(user, selectedYear, {
+        enabled: !!user.uid && (showArchived || !!searchTerm.trim())
+    });
     const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; title?: string; message: string; type?: 'alert' | 'confirm' | 'success'; onConfirm?: () => void } | null>(null);
 
     // Sync isSearchActive with URL q parameter
@@ -358,10 +372,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isUpdating, setIsUpdating] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // Equipment Stats State
-    const [equipmentMap, setEquipmentMap] = useState<Record<string, { name: string, barcode: string, checkFrequency: string }>>({});
-    // Fix: Change equipmentStats to array to support the new compact view data structure
-    const [equipmentStats, setEquipmentStats] = useState<any[]>([]);
     const [isEquipmentExpanded, setIsEquipmentExpanded] = useState(false);
+    const { data: equipment = [] } = useEquipment(user);
+    const nameCount = equipment.length;
     const [isHealthExpanded, setIsHealthExpanded] = useState(false);
 
     // Expose Admin Dashboard open function to window for NotificationBell
@@ -380,18 +393,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [historyData, setHistoryData] = useState<HealthHistoryRecord[]>([]);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
     const [historyCounts, setHistoryCounts] = useState<Record<string, number>>({});
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
 
 
-    const [nameCount, setNameCount] = useState(0);
+
+
 
     const [isInspectionModeOpen, setIsInspectionModeOpen] = useState(false);
     const [isQuickScanOpen, setIsQuickScanOpen] = useState(false);
     const [isAddEquipmentModeOpen, setIsAddEquipmentModeOpen] = useState(false);
-    const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
+    // const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false); // Moved to top
     const [isMapViewInspectionOpen, setIsMapViewInspectionOpen] = useState(false);
-    const [showArchived, setShowArchived] = useState(false); // Toggle for archived reports
+    // const [showArchived, setShowArchived] = useState(false); // Moved to top
     const [abnormalCount, setAbnormalCount] = useState(0); // Count of pending abnormal records
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
 
@@ -687,59 +700,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
-    useEffect(() => {
-        const fetchEquipment = async () => {
-            if (user?.uid) {
-                try {
-                    const equipment = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
 
-                    const map: Record<string, any> = {};
-                    equipment.forEach(eq => {
-                        map[eq.id] = {
-                            name: eq.name || '未命名',
-                            barcode: eq.barcode || '',
-                            checkFrequency: eq.checkFrequency || ''
-                        };
-                    });
-                    setEquipmentMap(map);
-                    setNameCount(equipment.length);
-
-                    const statsMap: Record<string, { siteName: string; buildingName: string; equipmentName: string; count: number }> = {};
-
-                    equipment.forEach(eq => {
-                        const sName = eq.siteName || '預設場所';
-                        const bName = eq.buildingName || '預設建築';
-                        const eName = eq.name || '未命名設備';
-                        const key = `${sName}|${bName}|${eName}`;
-
-                        if (statsMap[key]) {
-                            statsMap[key].count++;
-                        } else {
-                            statsMap[key] = {
-                                siteName: sName,
-                                buildingName: bName,
-                                equipmentName: eName,
-                                count: 1
-                            };
-                        }
-                    });
-
-                    const statsArray = Object.values(statsMap).sort((a, b) => {
-                        if (a.siteName !== b.siteName) return a.siteName.localeCompare(b.siteName);
-                        if (a.buildingName !== b.buildingName) return a.buildingName.localeCompare(b.buildingName);
-                        return a.equipmentName.localeCompare(b.equipmentName);
-                    });
-
-                    setEquipmentStats(statsArray);
-                } catch (error) {
-                    console.error("Failed to fetch equipment:", error);
-                }
-            } else {
-                // No user.uid, skipping fetch
-            }
-        };
-        fetchEquipment();
-    }, [user?.uid, user?.currentOrganizationId]);
 
     const handleInspectionModeSelect = (mode: 'CHECKLIST' | 'MAP_VIEW' | 'RECHECK') => {
         console.log('[Dashboard] handleInspectionModeSelect called with mode:', mode);
@@ -782,25 +743,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
         try {
             // Delete specific item from storage/database
-            // Use equipmentId as the key as per StorageService logic
             const targetId = item.equipmentId || item.id;
-
             await StorageService.deleteInspectionItem(item.reportId, item.date, user.uid, targetId);
 
-            // Update local state
-            setReports(prev => prev.map(r => {
-                if (r.id === item.reportId) {
-                    const updatedItems = r.items?.filter(i => (i.equipmentId || i.id) !== targetId) || [];
-
-                    // Optional: Update stats locally for immediate UI reflection if needed
-                    // But flattenedHistory only depends on items array, so this is sufficient for the table.
-                    return {
-                        ...r,
-                        items: updatedItems
-                    };
-                }
-                return r;
-            }));
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, selectedYear) });
+            // Also invalidate equipment overview if needed, though history table is primary concern here
+            queryClient.invalidateQueries({ queryKey: ['equipment', user.uid] }); // Optional: refresh equipment if status changed
 
         } catch (error) {
             console.error('Failed to delete item:', error);
@@ -1011,35 +960,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [countdownDays, user?.uid, declarationDeadline]);
 
 
-    const fetchReports = async () => {
-        setLoading(true);
-        try {
-            const data = await StorageService.getReports(user.uid, selectedYear, true, user.currentOrganizationId);
-            setReports(data);
-        } catch (error) {
-            console.error("Failed to load reports", error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Loading state alias for backward compatibility logic (if any)
+    const loading = isReportsLoading; // Use derived loading state
 
     useEffect(() => {
-        // Fetch reports if either archived view is on OR if there is a search active
-        if (user?.uid && (showArchived || searchTerm.trim())) {
-            fetchReports();
+        // Re-fetch reports when returning from Abnormal Recheck view to ensure updates are visible
+        if (!showAbnormalRecheck && (showArchived || searchTerm.trim())) {
+            refetchReports();
         }
-    }, [selectedYear, showArchived, searchTerm, user?.uid, user?.currentOrganizationId]);
+    }, [showAbnormalRecheck, showArchived, searchTerm, refetchReports]);
 
-
-
-
-
-    // Re-fetch reports when returning from Abnormal Recheck view to ensure updates are visible
-    useEffect(() => {
-        if (!showAbnormalRecheck) {
-            fetchReports();
-        }
-    }, [showAbnormalRecheck]);
 
     // Fetch and update abnormal count
     const fetchAbnormalCount = React.useCallback(async () => {
@@ -1137,9 +1067,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     (item.tags && item.tags.some(tag => tag.toLowerCase().includes(itemKeywordSearch)));
 
                 const matchesStatus = filterStatus === 'ALL' ||
-                    (item.status === filterStatus) ||
-                    (filterStatus === 'Pass' && (item.status === 'OK' || item.status === 'Normal' || item.status === '正常')) ||
-                    (filterStatus === 'Fail' && (item.status === 'Abnormal' || item.status === '異常'));
+                    ((item.status as any) === filterStatus) ||
+                    (filterStatus === 'Pass' && ((item.status as string) === 'OK' || (item.status as string) === 'Normal' || item.status === InspectionStatus.Normal)) ||
+                    (filterStatus === 'Fail' && ((item.status as string) === 'Abnormal' || item.status === InspectionStatus.Abnormal));
 
                 if (matchesHeaderSearch && matchesNameFilter && matchesKeyword && matchesStatus) {
                     const flattenedItem = {
@@ -1152,7 +1082,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     };
 
                     // Debug logging for abnormal/fixed items
-                    if (item.status === 'Abnormal' || item.status === '異常' || item.status === 'Fixed' || item.status === '已改善') {
+                    if ((item.status as string) === 'Abnormal' || item.status === InspectionStatus.Abnormal || (item.status as string) === 'Fixed' || item.status === InspectionStatus.Fixed) {
                         console.log(`[Dashboard flattenedHistory] Item: ${item.name}, Status: ${item.status}, RepairDate: ${item.repairDate}, RepairNotes: ${item.repairNotes ? 'Yes' : 'No'}`);
                     }
 
@@ -1905,51 +1835,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     </div>
 
                     {/* Equipment Overview Stats (Expanded) */}
-                    {isEquipmentExpanded && (!user.isGuest || systemSettings?.allowGuestEquipmentOverview) && (
-                        <div className="mt-4 p-4 bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/60 shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                            {equipmentStats.length === 0 ? (
-                                <div className="text-center py-4 text-slate-400 text-sm">
-                                    {t('noEquipmentData')}
-                                </div>
-                            ) : (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-slate-200">
-                                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">場所</th>
-                                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">建築物</th>
-                                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">設備名稱</th>
-                                                <th className="text-right py-3 px-4 font-bold text-slate-700 bg-slate-50/50">數量</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {equipmentStats.map((stat: any, index: number) => (
-                                                <tr
-                                                    key={index}
-                                                    className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer"
-                                                    onClick={() => onMyEquipment(stat.equipmentName)}
-                                                >
-                                                    <td className="py-3 px-4 text-slate-600">{stat.siteName}</td>
-                                                    <td className="py-3 px-4 text-slate-600">{stat.buildingName}</td>
-                                                    <td className="py-3 px-4 font-medium text-slate-800 flex items-center gap-2">
-                                                        <div className="p-1.5 bg-slate-100 rounded-lg">
-                                                            {getEquipmentIcon(stat.equipmentName)}
-                                                        </div>
-                                                        {stat.equipmentName}
-                                                    </td>
-                                                    <td className="py-3 px-4 text-right">
-                                                        <span className="inline-flex items-center justify-center min-w-[2rem] px-2 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg text-sm">
-                                                            {stat.count}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <EquipmentStatsExpanded
+                        user={user}
+                        systemSettings={systemSettings}
+                        onMyEquipment={onMyEquipment}
+                        isOpen={isEquipmentExpanded}
+                    />
 
                     {(showArchived || (isSearchActive && searchTerm.trim())) && (
                         <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
@@ -3307,7 +3198,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         isOpen={isMapViewInspectionOpen}
                         onClose={() => {
                             setIsMapViewInspectionOpen(false);
-                            fetchReports(); // Refresh data when map view closes
+                            refetchReports(); // Refresh data when map view closes
                         }}
                     />
 

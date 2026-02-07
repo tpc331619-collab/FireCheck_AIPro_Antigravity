@@ -294,8 +294,7 @@ export const StorageService = {
       if (!report.items) return;
 
       // Filter out the item
-      // Note: In local storage, we might check both id and equipmentId
-      report.items = report.items.filter(i => (i.equipmentId !== equipmentId));
+      report.items = report.items.filter(i => (i.equipmentId !== equipmentId && i.id !== equipmentId));
 
       // Recalculate stats
       const stats = {
@@ -315,16 +314,32 @@ export const StorageService = {
         const year = new Date(date).getFullYear();
         const collectionName = `reports_${year}`;
 
-        // 1. Delete the item from subcollection
-        // In saveReport, we used: doc(collection(db, collectionName, id, 'items'), item.equipmentId);
-        // So the document ID is the equipmentId.
-        const itemRef = doc(db, collectionName, cleanId, 'items', equipmentId);
-        await deleteDoc(itemRef);
+        // 1. Find the item(s) in subcollection
+        // Since saveReport uses auto-generated IDs, we must query by contents
+        const itemsRef = collection(db, collectionName, cleanId, 'items');
+        // Try querying by equipmentId or id
+        // We grab all and filter because typical report items count is small (<500) and it's safer/easier than composite indexes
+        const itemsSnap = await getDocs(itemsRef);
+
+        const batch = writeBatch(db);
+        let deletedCount = 0;
+
+        itemsSnap.docs.forEach(doc => {
+          const data = doc.data() as any;
+          if (data.equipmentId === equipmentId || data.id === equipmentId) {
+            batch.delete(doc.ref);
+            deletedCount++;
+          }
+        });
+
+        if (deletedCount > 0) {
+          await batch.commit();
+        }
 
         // 2. Update Stats
-        // Fetch all remaining items to be accurate
-        const itemsSnap = await getDocs(collection(db, collectionName, cleanId, 'items'));
-        const items = itemsSnap.docs.map(d => d.data() as InspectionItem);
+        // Fetch remaining items
+        const remainingSnap = await getDocs(itemsRef);
+        const items = remainingSnap.docs.map(d => d.data() as InspectionItem);
 
         const stats = {
           total: items.length,

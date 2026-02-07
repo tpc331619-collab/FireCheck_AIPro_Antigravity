@@ -14,12 +14,39 @@ export const SETTINGS_KEYS = {
 };
 
 // 1. Equipment Hook
-export function useEquipment(user: UserProfile) {
+export function useEquipment(user: UserProfile, orgIdOverride?: string | null, options?: { enabled?: boolean }) {
+    const orgId = orgIdOverride !== undefined ? orgIdOverride : user.currentOrganizationId;
     return useQuery({
-        queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId),
-        queryFn: () => StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId),
+        queryKey: EQUIPMENT_KEYS.all(user.uid, orgId),
+        queryFn: () => StorageService.getEquipmentDefinitions(user.uid, orgId),
         staleTime: 1000 * 60 * 5, // 5 minutes fresh
-        enabled: !!user.uid, // Only fetch if user ID exists
+        enabled: options?.enabled !== false && !!user.uid, // Only fetch if user ID exists
+    });
+}
+
+export const ABNORMAL_KEYS = {
+    all: (userId: string, orgId?: string | null) => ['abnormal_records', userId, orgId || 'PERSONAL'] as const,
+};
+
+export function useAbnormalRecords(user: UserProfile) {
+    return useQuery({
+        queryKey: ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId),
+        queryFn: () => StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId),
+        staleTime: 1000 * 60 * 5,
+        enabled: !!user.uid
+    });
+}
+
+export const HISTORY_KEYS = {
+    all: (userId: string, orgId?: string | null, year?: number) => ['history', userId, orgId || 'PERSONAL', year] as const,
+};
+
+export function useHistoryReports(user: UserProfile, year: number, options?: { enabled?: boolean }) {
+    return useQuery({
+        queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, year),
+        queryFn: () => StorageService.getReports(user.uid, year, true, user.currentOrganizationId),
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        enabled: options?.enabled !== false && !!user.uid
     });
 }
 

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText, Clock, CheckCircle2, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query'; // Import queryClient
 import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAbnormalRecords, useEquipment, ABNORMAL_KEYS, EQUIPMENT_KEYS } from '../hooks/useSystemData';
 
 interface AbnormalRecheckListProps {
     user: UserProfile;
@@ -35,13 +37,46 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
     systemSettings
 }) => {
     const { t, language } = useLanguage();
-    const [loading, setLoading] = useState(true);
-    const [records, setRecords] = useState<AbnormalRecord[]>([]);
+    const queryClient = useQueryClient(); // Initialize queryClient
+    // const [loading, setLoading] = useState(true); // Removed manual loading
+    // const [records, setRecords] = useState<AbnormalRecord[]>([]); // Removed manual records state
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRecord, setSelectedRecord] = useState<AbnormalRecord | null>(null);
-    const [equipmentPhotoMap, setEquipmentPhotoMap] = useState<Record<string, string>>({});
-    const [equipmentTagMap, setEquipmentTagMap] = useState<Record<string, string[]>>({});
-    const [viewMode, setViewMode] = useState<'pending' | 'fixed'>('pending'); // 切換待複檢/已完成
+    // const [equipmentPhotoMap, setEquipmentPhotoMap] = useState<Record<string, string>>({}); // Derived from equipmentData
+    // const [equipmentTagMap, setEquipmentTagMap] = useState<Record<string, string[]>>({}); // Derived from equipmentData
+    const [viewMode, setViewMode] = useState<'pending' | 'fixed'>('pending');
+
+    // 1. Fetch Abnormal Records using Hook
+    const { data: allRecords = [], isLoading: isLoadingRecords } = useAbnormalRecords(user);
+
+    // 2. Derive Effective Organization ID (Guest Mode Logic)
+    const effectiveOrgId = useMemo(() => {
+        if (user.currentOrganizationId) return user.currentOrganizationId;
+        if (allRecords.length > 0) {
+            return allRecords.find(r => r.organizationId)?.organizationId || null;
+        }
+        return null;
+    }, [user.currentOrganizationId, allRecords]);
+
+    // 3. Fetch Equipment using Hook
+    const { data: equipmentData = [], isLoading: isLoadingEquipment } = useEquipment(user, effectiveOrgId, { enabled: !!effectiveOrgId || !!user.currentOrganizationId });
+
+    // 4. Derive Maps from Equipment Data
+    const { equipmentPhotoMap, equipmentTagMap } = useMemo(() => {
+        const photoMap: Record<string, string> = {};
+        const tagMap: Record<string, string[]> = {};
+        equipmentData.forEach(e => {
+            if (e.photoUrl) photoMap[e.id] = e.photoUrl;
+            if (e.tags && e.tags.length > 0) tagMap[e.id] = e.tags;
+        });
+        return { equipmentPhotoMap: photoMap, equipmentTagMap: tagMap };
+    }, [equipmentData]);
+
+    const records = useMemo(() => {
+        return allRecords.filter(r => r.status === viewMode);
+    }, [allRecords, viewMode]);
+
+    const loading = isLoadingRecords; // || isLoadingEquipment; // Optional: Wait for equipment? Records are primary.
 
     const ticketNo = useMemo(() => {
         if (!selectedRecord) return '00000';
@@ -55,60 +90,13 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
         const random5 = (numericHash % 90000) + 10000;
         return random5.toString();
     }, [selectedRecord]);
+
     // 修復表單狀態
     const [fixedDate, setFixedDate] = useState('');
     const [fixedNotes, setFixedNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const printRef = useRef<HTMLDivElement>(null);
-
-    const fetchRecords = async () => {
-        setLoading(true);
-        try {
-            // 1. Fetch Records first to determine context (especially for Guest)
-            const recordsData = await StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId);
-            setRecords(recordsData.filter(r => r.status === viewMode));
-
-            // 2. Determine correct Organization ID for Equipment Fetch
-            // If Guest and we have records with orgId, verify against those
-            let effectiveOrgId = user.currentOrganizationId;
-            if (!effectiveOrgId && recordsData.length > 0) {
-                // Try to find a frequent orgId or just take the first one
-                const firstOrgId = recordsData.find(r => r.organizationId)?.organizationId;
-                if (firstOrgId) {
-                    console.log("[AbnormalRecheckList] Guest Mode detected Organization ID from records:", firstOrgId);
-                    effectiveOrgId = firstOrgId;
-                }
-            }
-
-            // 3. Fetch Equipment with the derived ID
-            const equipmentData = await StorageService.getEquipmentDefinitions(user.uid, effectiveOrgId);
-
-            // Build Photo and Tag Maps
-            console.log("[AbnormalRecheckList] Equipment Data Fetched:", equipmentData.length);
-            const photoMap: Record<string, string> = {};
-            const tagMap: Record<string, string[]> = {};
-            equipmentData.forEach(e => {
-                if (e.photoUrl) {
-                    photoMap[e.id] = e.photoUrl;
-                }
-                if (e.tags && e.tags.length > 0) {
-                    tagMap[e.id] = e.tags;
-                }
-            });
-            console.log("[AbnormalRecheckList] Photo Map Size:", Object.keys(photoMap).length);
-            setEquipmentPhotoMap(photoMap);
-            setEquipmentTagMap(tagMap);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchRecords();
-    }, [user.uid, user.currentOrganizationId, viewMode]); // 當 viewMode 或組織改變時重新載入
 
     // 初始化修復表單
     useEffect(() => {
@@ -135,7 +123,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
             try {
                 await StorageService.deleteAbnormalRecord(record.id);
                 // Refresh records
-                fetchRecords();
+                queryClient.invalidateQueries({ queryKey: ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId) });
                 onRecordsUpdated?.();
             } catch (err) {
                 console.error('Delete error:', err);
@@ -329,7 +317,9 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
             alert(t('saveSuccess'));
             setSelectedRecord(null);
-            fetchRecords();
+            // fetchRecords(); // Handled by invalidation
+            queryClient.invalidateQueries({ queryKey: ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId) });
+            queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, effectiveOrgId) }); // Equipment lastInspectedDate changed
             onRecordsUpdated?.(); // Notify parent to refresh count
         } catch (e) {
             console.error('Submit error:', e);

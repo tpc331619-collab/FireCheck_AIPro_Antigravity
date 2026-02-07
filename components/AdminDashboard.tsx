@@ -5,10 +5,32 @@ import { Organization, OrganizationRole } from '../types';
 import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2, ChevronRight, Info } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
+
 interface AdminDashboardProps {
     currentUser: { email: string; uid: string };
     onClose: () => void;
 }
+
+const UserAvatar = ({ photoURL, name, size = 'md' }: { photoURL?: string | null, name?: string | null, size?: 'sm' | 'md' | 'lg' }) => {
+    const [error, setError] = useState(false);
+
+    if (error || !photoURL) {
+        return (
+            <div className={`rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 transition-all group-hover/avatar:scale-105 ${size === 'lg' ? 'w-12 h-12' : 'w-11 h-11'}`}>
+                <User className={`${size === 'lg' ? 'w-6 h-6' : 'w-6 h-6'}`} />
+            </div>
+        );
+    }
+
+    return (
+        <img
+            src={photoURL}
+            alt={name || 'User'}
+            onError={() => setError(true)}
+            className={`rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200 transition-all group-hover/avatar:scale-105 ${size === 'lg' ? 'w-12 h-12' : 'w-11 h-11'}`}
+        />
+    );
+};
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose }) => {
     const [users, setUsers] = useState<WhitelistEntry[]>([]);
@@ -245,13 +267,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                         title={expandedEmails.has(user.email) ? '點擊收合詳情' : '點擊展開詳情'}
                                                     >
                                                         <div className="relative">
-                                                            {user.photoURL ? (
-                                                                <img src={user.photoURL} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200 transition-all group-hover/avatar:scale-105" />
-                                                            ) : (
-                                                                <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200 transition-all group-hover/avatar:scale-105">
-                                                                    <User className="w-6 h-6" />
-                                                                </div>
-                                                            )}
+                                                            <UserAvatar photoURL={user.photoURL} name={user.name} />
                                                             <div className={`absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center transition-all ${expandedEmails.has(user.email) ? 'bg-blue-50 border-blue-200 rotate-90' : ''}`}>
                                                                 <ChevronRight className={`w-3.5 h-3.5 text-slate-400 ${expandedEmails.has(user.email) ? 'text-blue-500' : ''}`} />
                                                             </div>
@@ -417,13 +433,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                         {/* Mobile Header: Avatar, Info, Status */}
                                         <div className="flex items-start justify-between gap-3 mb-4">
                                             <div className="flex items-center gap-3">
-                                                {user.photoURL ? (
-                                                    <img src={user.photoURL} alt="" className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm ring-1 ring-slate-200" />
-                                                ) : (
-                                                    <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
-                                                        <User className="w-6 h-6" />
-                                                    </div>
-                                                )}
+                                                <UserAvatar photoURL={user.photoURL} name={user.name} size="lg" />
                                                 <div>
                                                     <div className="font-bold text-slate-800 text-base">{user.name || 'Unknown User'}</div>
                                                     <div className="text-xs text-slate-500 font-mono break-all">{user.email}</div>
