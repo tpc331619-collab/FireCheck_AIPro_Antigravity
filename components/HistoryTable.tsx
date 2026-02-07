@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ClipboardList, AlertTriangle, CheckCircle, Calendar, MapPin, Box, Hash, User, FileText, ChevronsUpDown, ChevronUp, ChevronDown, Wrench, Trash2 } from 'lucide-react';
+import { ClipboardList, AlertTriangle, CheckCircle, Calendar, MapPin, Box, Hash, User, FileText, ChevronsUpDown, ChevronUp, ChevronDown, Wrench, Trash2, CheckSquare, Square } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface HistoryItem {
@@ -22,6 +22,7 @@ interface HistoryTableProps {
     onViewDetails: (item: HistoryItem) => void;
     onViewRecheck: (item: HistoryItem) => void;
     onDelete?: (item: HistoryItem) => void;
+    onBatchDelete?: (items: HistoryItem[]) => void;
     visibleColumns: {
         index: boolean;
         date: boolean;
@@ -43,6 +44,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     onViewDetails,
     onViewRecheck,
     onDelete,
+    onBatchDelete,
     visibleColumns,
     columnOrder = ['index', 'date', 'building', 'equipment', 'barcode', 'result', 'notes', 'inspector', 'actions'],
     systemSettings,
@@ -52,6 +54,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
     // Sorting State
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+    // Selection State
+    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
     // Sort Handler
     const handleSort = (key: string) => {
@@ -102,6 +107,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     // Reset pagination when data changes
     useEffect(() => {
         setCurrentPage(1);
+        setSelectedItems(new Set()); // Reset selection when data changes
     }, [data.length]);
 
     const totalPages = Math.ceil(sortedData.length / itemsPerPage);
@@ -110,15 +116,41 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     const startItem = (currentPage - 1) * itemsPerPage + 1;
     const endItem = Math.min(currentPage * itemsPerPage, sortedData.length);
 
+    // Batch Selection Handlers
+    const toggleSelectAll = () => {
+        if (selectedItems.size === paginatedData.length) {
+            setSelectedItems(new Set());
+        } else {
+            const newSelected = new Set(paginatedData.map(item => item.equipmentId));
+            setSelectedItems(newSelected);
+        }
+    };
+
+    const toggleSelectItem = (id: string) => {
+        const newSelected = new Set(selectedItems);
+        if (newSelected.has(id)) {
+            newSelected.delete(id);
+        } else {
+            newSelected.add(id);
+        }
+        setSelectedItems(newSelected);
+    };
+
+    const handleBatchDeleteClick = () => {
+        if (!onBatchDelete) return;
+
+        const itemsToDelete = data.filter(item => selectedItems.has(item.equipmentId));
+
+        if (window.confirm(`確定要刪除選取的 ${itemsToDelete.length} 筆紀錄嗎?\n(此動作無法復原)`)) {
+            onBatchDelete(itemsToDelete);
+            setSelectedItems(new Set());
+        }
+    };
+
     // Helper to render status badge
     const renderStatusBadge = (item: HistoryItem) => {
         const { status, repairDate } = item;
         const isFixed = repairDate || status === 'Fixed' || status === '已改善';
-
-        // Debug logging for abnormal/fixed items
-        if (status === 'Abnormal' || status === '異常' || status === 'Fixed' || status === '已改善' || repairDate) {
-            console.log(`[HistoryTable] Item: ${item.name}, Status: ${status}, RepairDate: ${repairDate}, IsFixed: ${isFixed}`);
-        }
 
         if (isFixed) {
             return (
@@ -168,6 +200,23 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             ? (sortConfig.direction === 'asc' ? ChevronUp : ChevronDown)
             : ChevronsUpDown;
 
+        if (key === 'index' && isAdmin && onBatchDelete) {
+            return (
+                <th key="select-all" className="px-4 py-3 w-16 text-center">
+                    <button
+                        onClick={toggleSelectAll}
+                        className="p-1 hover:bg-slate-200 rounded transition-colors text-slate-500"
+                    >
+                        {selectedItems.size > 0 && selectedItems.size === paginatedData.length ? (
+                            <CheckSquare className="w-5 h-5 text-blue-600" />
+                        ) : (
+                            <Square className="w-5 h-5" />
+                        )}
+                    </button>
+                </th>
+            );
+        }
+
         return (
             <th
                 key={key}
@@ -184,7 +233,24 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
     const renderCell = (key: string, row: HistoryItem, index: number) => {
         switch (key) {
-            case 'index': return <td key={key} className="px-4 py-3 text-center text-slate-700 font-bold">{(currentPage - 1) * itemsPerPage + index + 1}</td>;
+            case 'index':
+                if (isAdmin && onBatchDelete) {
+                    return (
+                        <td key={`select-${row.equipmentId}`} className="px-4 py-3 text-center">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); toggleSelectItem(row.equipmentId); }}
+                                className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                                {selectedItems.has(row.equipmentId) ? (
+                                    <CheckSquare className="w-5 h-5 text-blue-600" />
+                                ) : (
+                                    <Square className="w-5 h-5" />
+                                )}
+                            </button>
+                        </td>
+                    );
+                }
+                return <td key={key} className="px-4 py-3 text-center text-slate-700 font-bold">{(currentPage - 1) * itemsPerPage + index + 1}</td>;
             case 'date': return <td key={key} className="px-4 py-3 text-slate-900 font-medium">{renderDate(row.date)}</td>;
             case 'building': return <td key={key} className="px-4 py-3 text-slate-900">{row.buildingName || '-'}</td>;
             case 'equipment': return <td key={key} className="px-4 py-3 text-slate-900 font-bold">{row.name || '未命名項目'}</td>;
@@ -240,6 +306,23 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
     return (
         <div className="space-y-4">
 
+            {/* Batch Actions Toolbar */}
+            {selectedItems.size > 0 && isAdmin && onBatchDelete && (
+                <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center justify-between mb-4 animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-2 text-red-700 font-bold px-2">
+                        <CheckSquare className="w-5 h-5" />
+                        <span>已選取 {selectedItems.size} 項目</span>
+                    </div>
+                    <button
+                        onClick={handleBatchDeleteClick}
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-colors flex items-center gap-2"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        刪除所選項目
+                    </button>
+                </div>
+            )}
+
             {/* Desktop Table View (Hidden on Mobile) */}
             <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -253,7 +336,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {paginatedData.map((row, index) => (
-                                <tr key={`${row.reportId}-${index}`} className="hover:bg-slate-50 transition-colors">
+                                <tr key={`${row.reportId}-${index}`} className={`transition-colors ${selectedItems.has(row.equipmentId) ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}>
                                     {columnOrder.map(key =>
                                         visibleColumns[key as keyof typeof visibleColumns] ? renderCell(key, row, index) : null
                                     )}
@@ -274,7 +357,23 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             {/* Mobile Card View (Visible on Mobile) */}
             <div className="md:hidden space-y-4">
                 {paginatedData.map((row, index) => (
-                    <div key={`${row.reportId}-${index}-mobile`} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div key={`${row.reportId}-${index}-mobile`} className={`bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden ${selectedItems.has(row.equipmentId) ? 'ring-2 ring-blue-500' : ''}`}>
+                        {/* Selection Overlay for Mobile */}
+                        {isAdmin && onBatchDelete && (
+                            <div className="absolute top-4 right-4 z-10">
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); toggleSelectItem(row.equipmentId); }}
+                                    className="p-2 bg-white/80 backdrop-blur rounded-full shadow-sm"
+                                >
+                                    {selectedItems.has(row.equipmentId) ? (
+                                        <CheckSquare className="w-6 h-6 text-blue-600" />
+                                    ) : (
+                                        <Square className="w-6 h-6 text-slate-400" />
+                                    )}
+                                </button>
+                            </div>
+                        )}
+
                         {/* Card Header */}
                         <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -284,7 +383,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                     {renderDate(row.date)}
                                 </div>
                             </div>
-                            {renderStatusBadge(row.status)}
+                            {renderStatusBadge(row)}
                         </div>
 
                         {/* Card Body */}

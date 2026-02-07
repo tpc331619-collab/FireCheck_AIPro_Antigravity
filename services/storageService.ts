@@ -25,14 +25,13 @@ export const StorageService = {
           const settingsSnap = await getDoc(settingsRef);
           if (settingsSnap.exists()) {
             const settings = settingsSnap.data() as SystemSettings;
-            if (settings.allowGuestView && settings.publicDataUserId) {
-              console.log("[StorageService] Guest Mode: Fetching public data for user", settings.publicDataUserId);
-              // Recursively call getting data using the PUBLIC USER ID, but bypassing the isGuest check
-              // We can temporarily set isGuest false locally or just copy logic?
-              // Safer to just call logic directly
-              return this._fetchFirestoreReports(settings.publicDataUserId, year, withItems);
+            if (settings.allowGuestView && settings.guestOrganizationId) {
+              console.log("[StorageService] Guest Mode: Fetching public data for Organization", settings.guestOrganizationId);
+              // Recursively call getting data using the PUBLIC ORGANIZATION ID
+              // We pass the organizationId explicitly
+              return this._fetchFirestoreReports('', year, withItems, settings.guestOrganizationId);
             } else {
-              console.log("[StorageService] Guest Mode: Guest View NOT allowed or Public ID missing", settings);
+              console.log("[StorageService] Guest Mode: Guest View NOT allowed or Organization ID missing", settings);
             }
           }
         } catch (e) {
@@ -582,15 +581,14 @@ export const StorageService = {
 
     // Check for Public Guest Access
     // If organizationId is present, we skip this guest check logic as we want explicitly org data
-    console.log(`[StorageService] getEquipDefs: orgId=${organizationId}, isGuest=${this.isGuest}`);
+    console.log(`[StorageService] getEquipmentDefinitions: orgId=${organizationId}, isGuest=${this.isGuest}`);
 
-    if (!organizationId && this.isGuest && db) {
+    if (this.isGuest && db) {
       const settings = await this.getSystemSettings();
-      console.log(`[StorageService] getEquipDefs Check: allowView=${settings?.allowGuestView}, allowRecheck=${settings?.allowGuestRecheck}, publicID=${settings?.publicDataUserId}`);
-
-      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.publicDataUserId) {
-        console.log("[StorageService] Guest Access (EquipDefs): Switching to Public User ID", settings.publicDataUserId);
-        targetUserId = settings.publicDataUserId;
+      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.guestOrganizationId) {
+        console.log("[StorageService] Guest Access (EquipDefs): Switching to Public Organization ID", settings.guestOrganizationId);
+        // Force organization query
+        organizationId = settings.guestOrganizationId;
         useCloud = true;
         fetchedPublicData = true;
       } else {
@@ -886,6 +884,19 @@ export const StorageService = {
   // --- Equipment Map Methods ---
 
   async getEquipmentMaps(userId: string, organizationId?: string | null): Promise<EquipmentMap[]> {
+    // Check for Public Guest Access
+    // If organizationId is present, we skip this guest check logic
+    console.log(`[StorageService] getEquipmentMaps: orgId=${organizationId}, isGuest=${this.isGuest}`);
+
+    if (this.isGuest && db) {
+      const settings = await this.getSystemSettings();
+      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.guestOrganizationId) {
+        console.log("[StorageService] Guest Access (Map): Switching to Public Organization ID", settings.guestOrganizationId);
+        // Force organization query
+        organizationId = settings.guestOrganizationId;
+      }
+    }
+
     const KEY = `maps_${userId}`;
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
@@ -911,8 +922,12 @@ export const StorageService = {
         return results;
       } catch (e) {
         console.error("Fetch maps error", e);
-        const data = localStorage.getItem(KEY);
-        return data ? JSON.parse(data) : [];
+        // Fallback to local only if NOT searching for specific organization
+        if (!organizationId) {
+          const data = localStorage.getItem(KEY);
+          return data ? JSON.parse(data) : [];
+        }
+        return [];
       }
     }
   },

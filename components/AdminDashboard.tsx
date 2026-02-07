@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { StorageService, WhitelistEntry } from '../services/storageService';
-import { Organization, OrganizationRole } from '../types';
-import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2, ChevronRight, Info } from 'lucide-react';
+import { Organization, OrganizationRole, SystemSettings } from '../types';
+import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2, ChevronRight, Info, Settings } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 
@@ -36,8 +35,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
     const [users, setUsers] = useState<WhitelistEntry[]>([]);
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked'>('all');
+    const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked' | 'settings'>('all');
     const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+    const [systemSettings, setSystemSettings] = useState<SystemSettings>({ allowGuestView: false });
     const initialLoadRef = React.useRef(true);
 
     const toggleExpand = (email: string) => {
@@ -91,10 +91,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
             const adminOrgs = await StorageService.getUserOrganizations(currentUser.uid);
             setOrganizations(adminOrgs);
 
+            await loadSystemSettings();
+
         } catch (error) {
             console.error("Failed to load admin data", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadSystemSettings = async () => {
+        const settings = await StorageService.getSystemSettings();
+        if (settings) {
+            setSystemSettings(settings);
+        }
+    };
+
+    const handleUpdateSystemSettings = async (key: keyof SystemSettings, value: any) => {
+        const newSettings = { ...systemSettings, [key]: value };
+        setSystemSettings(newSettings);
+        try {
+            await StorageService.saveSystemSettings(newSettings);
+        } catch (error) {
+            console.error("Failed to save system settings", error);
+            // Revert on error
+            setSystemSettings(systemSettings);
+            alert(t('saveFailed') || '儲存失敗');
+        }
+    };
+
+    const handleUpdateGuestOrganization = async (orgId: string) => {
+        const org = organizations.find(o => o.id === orgId);
+        const newSettings = {
+            ...systemSettings,
+            guestOrganizationId: orgId,
+            guestOrganizationName: org?.name || ''
+        };
+        setSystemSettings(newSettings);
+        try {
+            await StorageService.saveSystemSettings(newSettings);
+        } catch (error) {
+            console.error("Failed to save system settings", error);
+            setSystemSettings(systemSettings);
+            alert(t('saveFailed') || '儲存失敗');
         }
     };
 
@@ -219,132 +258,381 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                     </div>
                 </div>
 
-                {/* User List - Mobile Cards & Desktop Table */}
-                <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl shadow-blue-900/5 border border-white/50 overflow-hidden relative z-10">
+                {/* Tabs */}
+                <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl shadow-blue-900/5 border border-white/50 overflow-hidden relative z-10 mb-6">
+                    <div className="flex border-b border-slate-200">
+                        <button
+                            onClick={() => setFilterStatus('all')} // Reset filter when switching tabs
+                            className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${filterStatus !== 'settings'
+                                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                                }`}
+                            style={{ fontFamily: "'Outfit', sans-serif" }}
+                        >
+                            <Users className="w-4 h-4" />
+                            {t('userManagement') || '用戶管理'}
+                        </button>
+                        <button
+                            onClick={() => setFilterStatus('settings')}
+                            className={`flex-1 py-4 text-sm font-bold border-b-2 transition-colors flex items-center justify-center gap-2 ${filterStatus === 'settings'
+                                ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                                : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                                }`}
+                            style={{ fontFamily: "'Outfit', sans-serif" }}
+                        >
+                            <Settings className="w-4 h-4" />
+                            {t('globalSettings') || '全域設定'}
+                        </button>
+                    </div>
+                </div>
 
-                    {/* Desktop Table View (Hidden on Mobile) */}
-                    <div className="hidden md:block overflow-x-auto">
-                        <table className="w-full text-left text-sm border-collapse">
-                            <thead>
-                                <tr className="bg-slate-900/[0.02] border-b border-slate-100">
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm min-w-[120px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('user') || '使用者'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('status') || '狀態'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('rolePermission') || '身分 / 權限'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowCreateOrg') || '建立組織'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowPersonalWorkspace') || '個人空間'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('assignOrg') || '指派組織'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('applyTime') || '申請時間'}</th>
-                                    <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-right" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('operation') || '操作'}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-50">
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-medium">
-                                            <div className="flex flex-col items-center justify-center gap-2">
-                                                <RefreshCw className="w-8 h-8 animate-spin text-blue-500 opacity-50" />
-                                                <span>{t('loading') || '載入中...'}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : filteredUsers.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={8} className="px-6 py-16 text-center text-slate-400">
-                                            <div className="flex flex-col items-center justify-center gap-2">
-                                                <User className="w-12 h-12 text-slate-200" />
-                                                <span className="font-medium">{t('noMatchingUsers') || '沒有找到符合的用戶'}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredUsers.map(user => (
-                                        <tr key={user.email} className="hover:bg-blue-50/20 transition-colors group">
-                                            <td className={`px-4 py-2.5 transition-all duration-300 ${expandedEmails.has(user.email) ? 'min-w-[200px]' : 'w-[80px]'}`}>
-                                                <div className="flex items-center gap-3">
-                                                    <div
-                                                        className="relative cursor-pointer group/avatar shrink-0"
-                                                        onClick={() => toggleExpand(user.email)}
-                                                        title={expandedEmails.has(user.email) ? '點擊收合詳情' : '點擊展開詳情'}
-                                                    >
-                                                        <div className="relative">
-                                                            <UserAvatar photoURL={user.photoURL} name={user.name} />
-                                                            <div className={`absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center transition-all ${expandedEmails.has(user.email) ? 'bg-blue-50 border-blue-200 rotate-90' : ''}`}>
-                                                                <ChevronRight className={`w-3.5 h-3.5 text-slate-400 ${expandedEmails.has(user.email) ? 'text-blue-500' : ''}`} />
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                {filterStatus === 'settings' ? (
+                    <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl shadow-blue-900/5 border border-white/50 overflow-hidden relative z-10 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                            <Settings className="w-6 h-6 text-slate-600" />
+                            {t('guestModeSettings') || '訪客模式設定'}
+                        </h2>
 
-                                                    <div className={`flex flex-col transition-all duration-300 ease-in-out ${expandedEmails.has(user.email) ? 'max-w-md opacity-100 ml-1' : 'max-w-0 opacity-0 overflow-hidden'}`}>
-                                                        <div className="font-bold text-slate-800 text-sm leading-tight whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{user.name || 'Unknown User'}</div>
-                                                        <div className="text-[12px] text-slate-400 font-medium font-mono opacity-80 whitespace-nowrap">{user.email}</div>
-                                                    </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-slate-800">{t('allowGuestView') || '允許訪客瀏覽'}</h3>
+                                            <p className="text-sm text-slate-500 mt-1">{t('allowGuestViewDesc') || '啟用後，未登入的訪客可以查看公開資料。'}</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={systemSettings.allowGuestView}
+                                                onChange={(e) => handleUpdateSystemSettings('allowGuestView', e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
+                                    <h3 className="text-lg font-bold text-slate-800 mb-4">{t('guestOrganization') || '訪客公開組織'}</h3>
+                                    <p className="text-sm text-slate-500 mb-4">{t('guestOrganizationDesc') || '選擇一個組織，訪客模式將會顯示該組織的資料。'}</p>
+                                    <div className="relative">
+                                        <select
+                                            value={systemSettings.guestOrganizationId || ''}
+                                            onChange={(e) => handleUpdateGuestOrganization(e.target.value)}
+                                            className="appearance-none w-full px-4 py-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-slate-700 cursor-pointer"
+                                        >
+                                            <option value="">{t('selectOrganization') || '請選擇組織...'}</option>
+                                            {organizations.map(org => (
+                                                <option key={org.id} value={org.id}>
+                                                    {org.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                            <Building2 className="h-5 w-5" />
+                                        </div>
+                                    </div>
+                                    {systemSettings.guestOrganizationId && (
+                                        <div className="mt-3 flex items-center gap-2 text-xs text-blue-600 font-medium bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+                                            <Info className="w-4 h-4" />
+                                            <span>{t('currentPublicOrg') || '目前公開組織'}: {systemSettings.guestOrganizationName} ({systemSettings.guestOrganizationId})</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* User List - Mobile Cards & Desktop Table */
+                    <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl shadow-blue-900/5 border border-white/50 overflow-hidden relative z-10">
+
+                        {/* Desktop Table View (Hidden on Mobile) */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left text-sm border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-900/[0.02] border-b border-slate-100">
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm min-w-[120px]" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('user') || '使用者'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('status') || '狀態'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('rolePermission') || '身分 / 權限'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowCreateOrg') || '建立組織'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-center" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('allowPersonalWorkspace') || '個人空間'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('assignOrg') || '指派組織'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('applyTime') || '申請時間'}</th>
+                                        <th className="px-6 py-4 font-semibold text-slate-500 uppercase tracking-[0.05em] text-sm whitespace-nowrap text-right" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('operation') || '操作'}</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {loading ? (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-500 font-medium">
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <RefreshCw className="w-8 h-8 animate-spin text-blue-500 opacity-50" />
+                                                    <span>{t('loading') || '載入中...'}</span>
                                                 </div>
                                             </td>
+                                        </tr>
+                                    ) : filteredUsers.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-16 text-center text-slate-400">
+                                                <div className="flex flex-col items-center justify-center gap-2">
+                                                    <User className="w-12 h-12 text-slate-200" />
+                                                    <span className="font-medium">{t('noMatchingUsers') || '沒有找到符合的用戶'}</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredUsers.map(user => (
+                                            <tr key={user.email} className="hover:bg-blue-50/20 transition-colors group">
+                                                <td className={`px-4 py-2.5 transition-all duration-300 ${expandedEmails.has(user.email) ? 'min-w-[200px]' : 'w-[80px]'}`}>
+                                                    <div className="flex items-center gap-3">
+                                                        <div
+                                                            className="relative cursor-pointer group/avatar shrink-0"
+                                                            onClick={() => toggleExpand(user.email)}
+                                                            title={expandedEmails.has(user.email) ? '點擊收合詳情' : '點擊展開詳情'}
+                                                        >
+                                                            <div className="relative">
+                                                                <UserAvatar photoURL={user.photoURL} name={user.name} />
+                                                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center transition-all ${expandedEmails.has(user.email) ? 'bg-blue-50 border-blue-200 rotate-90' : ''}`}>
+                                                                    <ChevronRight className={`w-3.5 h-3.5 text-slate-400 ${expandedEmails.has(user.email) ? 'text-blue-500' : ''}`} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
 
-                                            <td className="px-4 py-2.5 overflow-hidden">
-                                                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${user.status === 'approved' ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50' :
-                                                    user.status === 'pending' ? 'bg-amber-100/50 text-amber-700 border-amber-200/50 shadow-sm shadow-amber-100 anime-pulse' :
-                                                        'bg-red-100/50 text-red-700 border-red-200/50'
-                                                    }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                                    <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${user.status === 'approved' ? 'bg-emerald-500' : user.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
+                                                        <div className={`flex flex-col transition-all duration-300 ease-in-out ${expandedEmails.has(user.email) ? 'max-w-md opacity-100 ml-1' : 'max-w-0 opacity-0 overflow-hidden'}`}>
+                                                            <div className="font-bold text-slate-800 text-sm leading-tight whitespace-nowrap" style={{ fontFamily: "'Outfit', sans-serif" }}>{user.name || 'Unknown User'}</div>
+                                                            <div className="text-[12px] text-slate-400 font-medium font-mono opacity-80 whitespace-nowrap">{user.email}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td className="px-4 py-2.5 overflow-hidden">
+                                                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${user.status === 'approved' ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200/50' :
+                                                        user.status === 'pending' ? 'bg-amber-100/50 text-amber-700 border-amber-200/50 shadow-sm shadow-amber-100 anime-pulse' :
+                                                            'bg-red-100/50 text-red-700 border-red-200/50'
+                                                        }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                        <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${user.status === 'approved' ? 'bg-emerald-500' : user.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
+                                                        {user.status === 'approved' && (t('statusApproved') || '已核准')}
+                                                        {user.status === 'pending' && (t('statusPending') || '待審核')}
+                                                        {user.status === 'blocked' && (t('statusBlocked') || '已停用')}
+                                                    </span>
+                                                </td>
+
+                                                <td className="px-4 py-2.5">
+                                                    <div className="flex bg-slate-200/40 backdrop-blur-sm rounded-xl p-1 w-fit border border-slate-200/50 shadow-inner">
+                                                        <button
+                                                            onClick={() => handleUpdateRole(user.email, 'user')}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${user.role !== 'admin'
+                                                                ? 'bg-white text-slate-900 shadow-md shadow-slate-200/30 ring-1 ring-slate-100'
+                                                                : 'text-slate-400 hover:text-slate-600'
+                                                                }`}
+                                                            style={{ fontFamily: "'Outfit', sans-serif" }}
+                                                        >
+                                                            <Users className={`w-3.5 h-3.5 ${user.role !== 'admin' ? 'text-blue-500' : 'text-slate-400'}`} />
+                                                            {t('roleMember') || '檢查員'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateRole(user.email, 'admin')}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${user.role === 'admin'
+                                                                ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-100'
+                                                                : 'text-slate-400 hover:text-slate-600'
+                                                                }`}
+                                                            style={{ fontFamily: "'Outfit', sans-serif" }}
+                                                        >
+                                                            <ShieldCheck className={`w-3.5 h-3.5 ${user.role === 'admin' ? 'text-white' : 'text-slate-400'}`} />
+                                                            {t('roleAdmin') || '管理員'}
+                                                        </button>
+                                                    </div>
+                                                </td>
+
+                                                <td className="px-4 py-2.5 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
+                                                        disabled={user.role === 'admin'}
+                                                        onChange={(e) => handleUpdatePermission(user.email, 'allowCreateOrg', e.target.checked)}
+                                                        className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    />
+                                                </td>
+                                                <td className="px-4 py-2.5 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
+                                                        disabled={user.role === 'admin'}
+                                                        onChange={(e) => handleUpdatePermission(user.email, 'allowPersonalWorkspace', e.target.checked)}
+                                                        className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    />
+                                                </td>
+
+                                                <td className="px-4 py-2.5">
+                                                    <div className="relative">
+                                                        <select
+                                                            value={user.orgId || ''}
+                                                            onChange={(e) => handleAssignOrg(user.email, e.target.value)}
+                                                            className="appearance-none bg-slate-50 border border-slate-200 hover:border-blue-400 text-slate-700 text-sm font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-2.5 transition-colors cursor-pointer"
+                                                        >
+                                                            <option value="">{t('unassigned') || '(未指派)'}</option>
+                                                            {organizations.map(org => (
+                                                                <option key={org.id} value={org.id}>
+                                                                    {org.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                                                            <Building className="h-4 w-4" />
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td className="px-4 py-2.5 text-sm font-medium text-slate-500">
+                                                    <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1.5 rounded w-fit text-slate-600 whitespace-nowrap border border-slate-100">
+                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                        {new Date(user.requestedAt).toLocaleDateString()}
+                                                    </div>
+                                                </td>
+
+                                                <td className="px-4 py-2.5 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {user.status === 'pending' && (
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(user.email, 'approved')}
+                                                                className="flex items-center justify-center w-9 h-9 bg-emerald-50 text-emerald-600 font-bold rounded-lg hover:bg-emerald-100 hover:shadow-sm transition-all border border-emerald-200 active:scale-95"
+                                                                title={t('approve') || "核准"}
+                                                            >
+                                                                <Check className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+
+                                                        {user.status !== 'blocked' && (
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(user.email, 'blocked')}
+                                                                className="flex items-center justify-center w-9 h-9 bg-rose-50 text-rose-600 font-bold rounded-lg hover:bg-rose-100 hover:shadow-sm transition-all border border-rose-200 active:scale-95"
+                                                                title={t('block') || "拒絕"}
+                                                            >
+                                                                <X className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+
+                                                        {user.status === 'blocked' && (
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(user.email, 'approved')}
+                                                                className="flex items-center justify-center w-9 h-9 bg-slate-50 text-slate-600 font-bold rounded-lg hover:bg-slate-100 hover:shadow-sm transition-all border border-slate-200 active:scale-95"
+                                                                title={t('reactivate') || "重新啟用"}
+                                                            >
+                                                                <RefreshCw className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+
+                                                        <button
+                                                            onClick={() => handleDeleteUser(user.email)}
+                                                            className="flex items-center justify-center w-9 h-9 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-slate-200 hover:border-red-200 active:scale-95"
+                                                            title={t('delete') || "刪除"}
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile Card View (Visible on Mobile) */}
+                        <div className="block md:hidden bg-transparent p-4 space-y-4">
+                            {loading ? (
+                                <div className="text-center py-12 text-slate-500">
+                                    <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-2 opacity-50" />
+                                    <span style={{ fontFamily: "'Outfit', sans-serif" }}>{t('loading') || '載入中...'}</span>
+                                </div>
+                            ) : filteredUsers.length === 0 ? (
+                                <div className="text-center py-16 text-slate-400">
+                                    <User className="w-12 h-12 mx-auto mb-2 text-slate-100" />
+                                    <span className="font-medium" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('noMatchingUsers') || '沒有找到符合的用戶'}</span>
+                                </div>
+                            ) : (
+                                filteredUsers.map(user => (
+                                    <div key={user.email} className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg shadow-blue-900/5 border border-white/50 overflow-hidden active:scale-[0.98] transition-all">
+                                        <div className="p-4">
+                                            {/* Mobile Header: Avatar, Info, Status */}
+                                            <div className="flex items-start justify-between gap-3 mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <UserAvatar photoURL={user.photoURL} name={user.name} size="lg" />
+                                                    <div>
+                                                        <div className="font-bold text-slate-800 text-base">{user.name || 'Unknown User'}</div>
+                                                        <div className="text-xs text-slate-500 font-mono break-all">{user.email}</div>
+                                                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
+                                                            <Clock className="w-3 h-3" />
+                                                            {new Date(user.requestedAt).toLocaleDateString()}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${user.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' :
+                                                    user.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
+                                                        'bg-red-100 text-red-700 border-red-200'
+                                                    }`}>
                                                     {user.status === 'approved' && (t('statusApproved') || '已核准')}
                                                     {user.status === 'pending' && (t('statusPending') || '待審核')}
                                                     {user.status === 'blocked' && (t('statusBlocked') || '已停用')}
                                                 </span>
-                                            </td>
+                                            </div>
 
-                                            <td className="px-4 py-2.5">
-                                                <div className="flex bg-slate-200/40 backdrop-blur-sm rounded-xl p-1 w-fit border border-slate-200/50 shadow-inner">
-                                                    <button
-                                                        onClick={() => handleUpdateRole(user.email, 'user')}
-                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${user.role !== 'admin'
-                                                            ? 'bg-white text-slate-900 shadow-md shadow-slate-200/30 ring-1 ring-slate-100'
-                                                            : 'text-slate-400 hover:text-slate-600'
-                                                            }`}
-                                                        style={{ fontFamily: "'Outfit', sans-serif" }}
-                                                    >
-                                                        <Users className={`w-3.5 h-3.5 ${user.role !== 'admin' ? 'text-blue-500' : 'text-slate-400'}`} />
-                                                        {t('roleMember') || '檢查員'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleUpdateRole(user.email, 'admin')}
-                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${user.role === 'admin'
-                                                            ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-md shadow-indigo-100'
-                                                            : 'text-slate-400 hover:text-slate-600'
-                                                            }`}
-                                                        style={{ fontFamily: "'Outfit', sans-serif" }}
-                                                    >
-                                                        <ShieldCheck className={`w-3.5 h-3.5 ${user.role === 'admin' ? 'text-white' : 'text-slate-400'}`} />
-                                                        {t('roleAdmin') || '管理員'}
-                                                    </button>
+                                            {/* Mobile Body: Role & Org */}
+                                            <div className="grid grid-cols-1 gap-4 mb-4">
+                                                {/* Role & Permissions */}
+                                                <div className="space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                                                    <div className="flex bg-white rounded-lg p-1 border border-slate-200 w-full shadow-sm">
+                                                        <button
+                                                            onClick={() => handleUpdateRole(user.email, 'user')}
+                                                            className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${user.role !== 'admin'
+                                                                ? 'bg-slate-100 text-slate-800 shadow-inner'
+                                                                : 'text-slate-500 hover:text-slate-700'
+                                                                }`}
+                                                        >
+                                                            {t('roleMember') || '成員'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleUpdateRole(user.email, 'admin')}
+                                                            className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${user.role === 'admin'
+                                                                ? 'bg-indigo-50 text-indigo-700 shadow-inner'
+                                                                : 'text-slate-500 hover:text-slate-700'
+                                                                }`}
+                                                        >
+                                                            {t('roleAdmin') || '管理員'}
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <label className={`flex items-center gap-2 text-xs font-bold text-slate-700 select-none ${user.role === 'admin' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
+                                                                disabled={user.role === 'admin'}
+                                                                onChange={(e) => handleUpdatePermission(user.email, 'allowCreateOrg', e.target.checked)}
+                                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 shadow-sm"
+                                                            />
+                                                            {t('allowCreateOrg') || '建立組織'}
+                                                        </label>
+                                                        <label className={`flex items-center gap-2 text-xs font-bold text-slate-700 select-none ${user.role === 'admin' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
+                                                                disabled={user.role === 'admin'}
+                                                                onChange={(e) => handleUpdatePermission(user.email, 'allowPersonalWorkspace', e.target.checked)}
+                                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 shadow-sm"
+                                                            />
+                                                            {t('allowPersonalWorkspace') || '個人空間'}
+                                                        </label>
+                                                    </div>
                                                 </div>
-                                            </td>
 
-                                            <td className="px-4 py-2.5 text-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
-                                                    disabled={user.role === 'admin'}
-                                                    onChange={(e) => handleUpdatePermission(user.email, 'allowCreateOrg', e.target.checked)}
-                                                    className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                />
-                                            </td>
-                                            <td className="px-4 py-2.5 text-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
-                                                    disabled={user.role === 'admin'}
-                                                    onChange={(e) => handleUpdatePermission(user.email, 'allowPersonalWorkspace', e.target.checked)}
-                                                    className={`w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${user.role === 'admin' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                />
-                                            </td>
-
-                                            <td className="px-4 py-2.5">
+                                                {/* Org Dropdown */}
                                                 <div className="relative">
                                                     <select
                                                         value={user.orgId || ''}
                                                         onChange={(e) => handleAssignOrg(user.email, e.target.value)}
-                                                        className="appearance-none bg-slate-50 border border-slate-200 hover:border-blue-400 text-slate-700 text-sm font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-2.5 transition-colors cursor-pointer"
+                                                        className="appearance-none bg-slate-50 border border-slate-200 hover:border-blue-400 text-slate-700 text-sm font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-3 transition-colors cursor-pointer"
                                                     >
                                                         <option value="">{t('unassigned') || '(未指派)'}</option>
                                                         {organizations.map(org => (
@@ -353,229 +641,67 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                                             </option>
                                                         ))}
                                                     </select>
-                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-                                                        <Building className="h-4 w-4" />
-                                                    </div>
-                                                </div>
-                                            </td>
-
-                                            <td className="px-4 py-2.5 text-sm font-medium text-slate-500">
-                                                <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-1.5 rounded w-fit text-slate-600 whitespace-nowrap border border-slate-100">
-                                                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                                                    {new Date(user.requestedAt).toLocaleDateString()}
-                                                </div>
-                                            </td>
-
-                                            <td className="px-4 py-2.5 text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {user.status === 'pending' && (
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(user.email, 'approved')}
-                                                            className="flex items-center justify-center w-9 h-9 bg-emerald-50 text-emerald-600 font-bold rounded-lg hover:bg-emerald-100 hover:shadow-sm transition-all border border-emerald-200 active:scale-95"
-                                                            title={t('approve') || "核准"}
-                                                        >
-                                                            <Check className="w-5 h-5" />
-                                                        </button>
-                                                    )}
-
-                                                    {user.status !== 'blocked' && (
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(user.email, 'blocked')}
-                                                            className="flex items-center justify-center w-9 h-9 bg-rose-50 text-rose-600 font-bold rounded-lg hover:bg-rose-100 hover:shadow-sm transition-all border border-rose-200 active:scale-95"
-                                                            title={t('block') || "拒絕"}
-                                                        >
-                                                            <X className="w-5 h-5" />
-                                                        </button>
-                                                    )}
-
-                                                    {user.status === 'blocked' && (
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(user.email, 'approved')}
-                                                            className="flex items-center justify-center w-9 h-9 bg-slate-50 text-slate-600 font-bold rounded-lg hover:bg-slate-100 hover:shadow-sm transition-all border border-slate-200 active:scale-95"
-                                                            title={t('reactivate') || "重新啟用"}
-                                                        >
-                                                            <RefreshCw className="w-4 h-4" />
-                                                        </button>
-                                                    )}
-
-                                                    <button
-                                                        onClick={() => handleDeleteUser(user.email)}
-                                                        className="flex items-center justify-center w-9 h-9 bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-slate-200 hover:border-red-200 active:scale-95"
-                                                        title={t('delete') || "刪除"}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Mobile Card View (Visible on Mobile) */}
-                    <div className="block md:hidden bg-transparent p-4 space-y-4">
-                        {loading ? (
-                            <div className="text-center py-12 text-slate-500">
-                                <RefreshCw className="w-8 h-8 mx-auto animate-spin mb-2 opacity-50" />
-                                <span style={{ fontFamily: "'Outfit', sans-serif" }}>{t('loading') || '載入中...'}</span>
-                            </div>
-                        ) : filteredUsers.length === 0 ? (
-                            <div className="text-center py-16 text-slate-400">
-                                <User className="w-12 h-12 mx-auto mb-2 text-slate-100" />
-                                <span className="font-medium" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('noMatchingUsers') || '沒有找到符合的用戶'}</span>
-                            </div>
-                        ) : (
-                            filteredUsers.map(user => (
-                                <div key={user.email} className="bg-white/70 backdrop-blur-md rounded-2xl shadow-lg shadow-blue-900/5 border border-white/50 overflow-hidden active:scale-[0.98] transition-all">
-                                    <div className="p-4">
-                                        {/* Mobile Header: Avatar, Info, Status */}
-                                        <div className="flex items-start justify-between gap-3 mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <UserAvatar photoURL={user.photoURL} name={user.name} size="lg" />
-                                                <div>
-                                                    <div className="font-bold text-slate-800 text-base">{user.name || 'Unknown User'}</div>
-                                                    <div className="text-xs text-slate-500 font-mono break-all">{user.email}</div>
-                                                    <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
-                                                        <Clock className="w-3 h-3" />
-                                                        {new Date(user.requestedAt).toLocaleDateString()}
+                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                                        <Building2 className="h-4 w-4" />
                                                     </div>
                                                 </div>
                                             </div>
-                                            <span className={`flex-shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${user.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                user.status === 'pending' ? 'bg-amber-100 text-amber-700 border-amber-200 animate-pulse' :
-                                                    'bg-red-100 text-red-700 border-red-200'
-                                                }`}>
-                                                {user.status === 'approved' && (t('statusApproved') || '已核准')}
-                                                {user.status === 'pending' && (t('statusPending') || '待審核')}
-                                                {user.status === 'blocked' && (t('statusBlocked') || '已停用')}
-                                            </span>
-                                        </div>
 
-                                        {/* Mobile Body: Role & Org */}
-                                        <div className="grid grid-cols-1 gap-4 mb-4">
-                                            {/* Role & Permissions */}
-                                            <div className="space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                                                <div className="flex bg-white rounded-lg p-1 border border-slate-200 w-full shadow-sm">
+                                            {/* Mobile Footer: Action Buttons */}
+                                            <div className="flex gap-2 pt-3 border-t border-slate-100 mt-2">
+                                                {user.status === 'pending' && (
                                                     <button
-                                                        onClick={() => handleUpdateRole(user.email, 'user')}
-                                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${user.role !== 'admin'
-                                                            ? 'bg-slate-100 text-slate-800 shadow-inner'
-                                                            : 'text-slate-500 hover:text-slate-700'
-                                                            }`}
+                                                        onClick={() => handleUpdateStatus(user.email, 'approved')}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-100 text-green-700 font-bold text-sm rounded-lg hover:bg-green-200 border border-green-200 active:scale-95 transition-all"
                                                     >
-                                                        {t('roleMember') || '成員'}
+                                                        <Check className="w-4 h-4" />
+                                                        {t('approve') || '核准'}
                                                     </button>
+                                                )}
+
+                                                {user.status !== 'blocked' && (
                                                     <button
-                                                        onClick={() => handleUpdateRole(user.email, 'admin')}
-                                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all text-center ${user.role === 'admin'
-                                                            ? 'bg-indigo-50 text-indigo-700 shadow-inner'
-                                                            : 'text-slate-500 hover:text-slate-700'
-                                                            }`}
+                                                        onClick={() => handleUpdateStatus(user.email, 'blocked')}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 border border-red-200 active:scale-95 transition-all"
                                                     >
-                                                        {t('roleAdmin') || '管理員'}
+                                                        <X className="w-4 h-4" />
+                                                        {t('block') || '停用'}
                                                     </button>
-                                                </div>
+                                                )}
 
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <label className={`flex items-center gap-2 text-xs font-bold text-slate-700 select-none ${user.role === 'admin' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={user.role === 'admin' ? true : !!user.allowCreateOrg}
-                                                            disabled={user.role === 'admin'}
-                                                            onChange={(e) => handleUpdatePermission(user.email, 'allowCreateOrg', e.target.checked)}
-                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 shadow-sm"
-                                                        />
-                                                        {t('allowCreateOrg') || '建立組織'}
-                                                    </label>
-                                                    <label className={`flex items-center gap-2 text-xs font-bold text-slate-700 select-none ${user.role === 'admin' ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={user.role === 'admin' ? true : !!user.allowPersonalWorkspace}
-                                                            disabled={user.role === 'admin'}
-                                                            onChange={(e) => handleUpdatePermission(user.email, 'allowPersonalWorkspace', e.target.checked)}
-                                                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 shadow-sm"
-                                                        />
-                                                        {t('allowPersonalWorkspace') || '個人空間'}
-                                                    </label>
-                                                </div>
+                                                {user.status === 'blocked' && (
+                                                    <button
+                                                        onClick={() => handleUpdateStatus(user.email, 'approved')}
+                                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-sm rounded-lg hover:bg-slate-200 border border-slate-200 active:scale-95 transition-all"
+                                                    >
+                                                        <RefreshCw className="w-4 h-4" />
+                                                        {t('reactivate') || '重新啟用'}
+                                                    </button>
+                                                )}
+
+                                                <button
+                                                    onClick={() => handleDeleteUser(user.email)}
+                                                    className="flex items-center justify-center px-4 py-2.5 bg-slate-100 text-slate-500 font-bold text-sm rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 hover:border-red-200 active:scale-95 transition-all"
+                                                    title={t('delete') || "刪除"}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
-
-                                            {/* Org Dropdown */}
-                                            <div className="relative">
-                                                <select
-                                                    value={user.orgId || ''}
-                                                    onChange={(e) => handleAssignOrg(user.email, e.target.value)}
-                                                    className="appearance-none bg-slate-50 border border-slate-200 hover:border-blue-400 text-slate-700 text-sm font-medium rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full pl-3 pr-8 py-3 transition-colors cursor-pointer"
-                                                >
-                                                    <option value="">{t('unassigned') || '(未指派)'}</option>
-                                                    {organizations.map(org => (
-                                                        <option key={org.id} value={org.id}>
-                                                            {org.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                                                    <Building2 className="h-4 w-4" />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Mobile Footer: Action Buttons */}
-                                        <div className="flex gap-2 pt-3 border-t border-slate-100 mt-2">
-                                            {user.status === 'pending' && (
-                                                <button
-                                                    onClick={() => handleUpdateStatus(user.email, 'approved')}
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-100 text-green-700 font-bold text-sm rounded-lg hover:bg-green-200 border border-green-200 active:scale-95 transition-all"
-                                                >
-                                                    <Check className="w-4 h-4" />
-                                                    {t('approve') || '核准'}
-                                                </button>
-                                            )}
-
-                                            {user.status !== 'blocked' && (
-                                                <button
-                                                    onClick={() => handleUpdateStatus(user.email, 'blocked')}
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 border border-red-200 active:scale-95 transition-all"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                    {t('block') || '停用'}
-                                                </button>
-                                            )}
-
-                                            {user.status === 'blocked' && (
-                                                <button
-                                                    onClick={() => handleUpdateStatus(user.email, 'approved')}
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-sm rounded-lg hover:bg-slate-200 border border-slate-200 active:scale-95 transition-all"
-                                                >
-                                                    <RefreshCw className="w-4 h-4" />
-                                                    {t('reactivate') || '重新啟用'}
-                                                </button>
-                                            )}
-
-                                            <button
-                                                onClick={() => handleDeleteUser(user.email)}
-                                                className="flex items-center justify-center px-4 py-2.5 bg-slate-100 text-slate-500 font-bold text-sm rounded-lg hover:bg-red-100 hover:text-red-600 border border-slate-200 hover:border-red-200 active:scale-95 transition-all"
-                                                title={t('delete') || "刪除"}
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                                ))
+                            )}
+                        </div>
 
-                    <div className="px-6 py-4 bg-slate-900/[0.03] border-t border-slate-100 text-[10px] text-slate-500 font-bold uppercase tracking-wider flex justify-between items-center" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                        <div>{t('totalUsers', { count: filteredUsers.length.toString() }) || `總計 ${filteredUsers.length} 位用戶`}</div>
-                        <div className="hidden md:flex items-center gap-2">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                            {t('assignOrgNote') || '可指派組織必須先由管理員創建'}
+                        <div className="px-6 py-4 bg-slate-900/[0.03] border-t border-slate-100 text-[10px] text-slate-500 font-bold uppercase tracking-wider flex justify-between items-center" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            <div>{t('totalUsers', { count: filteredUsers.length.toString() }) || `總計 ${filteredUsers.length} 位用戶`}</div>
+                            <div className="hidden md:flex items-center gap-2">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                                {t('assignOrgNote') || '可指派組織必須先由管理員創建'}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </main>
         </div>
     );

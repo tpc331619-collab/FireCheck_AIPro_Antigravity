@@ -284,9 +284,9 @@ export interface SystemSettings {
   allowInspectorDeleteAbnormal?: boolean;
   // Card Order Customization
   allowInspectorCustomizeCardOrder?: boolean; // 允許檢查員自訂卡片順序
-  defaultCardOrder?: DashboardCardId[]; // 全域預設卡片順序
   // End Granular Permissions
-  publicDataUserId?: string; // ID of the user whose public data is public
+  guestOrganizationId?: string; // 訪客模式顯示的組織 ID
+  guestOrganizationName?: string; // 訪客模式顯示的組織名稱 (快取用)
 }
 
 // 組織管理
