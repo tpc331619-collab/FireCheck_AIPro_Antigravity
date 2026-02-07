@@ -113,7 +113,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     inputType: '輸入類型',
     typeBoolean: '正常/異常',
     typeNumber: '數值輸入',
-    unit: '單位 (選填)',
+    unit: '單位',
     saveEquipment: '儲存設備資料',
     updateEquipment: '更新設備資料',
     enterSiteName: '輸入場所名稱',
@@ -516,12 +516,17 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     // fillRequired: '請填寫以下必填欄位', // Duplicate
     // typeBoolean: '是否 (合格/不合格)', // Duplicate
     // typeNumber: '數值 (輸入數據)', // Duplicate
-    thresholdMode: '閾值判定',
+    thresholdMode: '範圍',
     // unit: '單位', // Duplicate
     min: '最小值',
     max: '最大值',
     value: '數值',
     custom: '自訂',
+    range: '介於',
+    greaterThan: '大於',
+    notLessThan: '不小於',
+    lessThan: '小於',
+    notGreaterThan: '不大於',
 
 
     // --- Health & Settings ---
@@ -1205,6 +1210,11 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     max: 'Max',
     value: 'Value',
     custom: 'Custom',
+    range: 'Range',
+    greaterThan: 'Greater Than',
+    notLessThan: 'Not Less Than',
+    lessThan: 'Less Than',
+    notGreaterThan: 'Not Greater Than',
 
 
     // --- Health & Settings ---

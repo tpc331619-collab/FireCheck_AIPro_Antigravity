@@ -629,11 +629,11 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
                           onChange={(e) => updateCheckItem(item.id, { thresholdMode: e.target.value as any })}
                           className="p-1.5 text-xs bg-slate-50 border border-slate-100 rounded text-slate-700 outline-none focus:border-blue-500 hover:border-blue-300 transition-colors"
                         >
-                          <option value="range">{t('range') || 'Range'} (Range)</option>
-                          <option value="gt">{t('greaterThan') || '>'} ({'>'})</option>
-                          <option value="gte">{t('notLessThan') || '>='} ({'>='})</option>
-                          <option value="lt">{t('lessThan') || '<'} ({'<'})</option>
-                          <option value="lte">{t('notGreaterThan') || '<='} ({'<='})</option>
+                          <option value="range">{t('range')} (Range)</option>
+                          <option value="gt">{t('greaterThan')} ({'>'})</option>
+                          <option value="gte">{t('notLessThan')} ({'>='})</option>
+                          <option value="lt">{t('lessThan')} ({'<'})</option>
+                          <option value="lte">{t('notGreaterThan')} ({'<='})</option>
                         </select>
 
                         <input
