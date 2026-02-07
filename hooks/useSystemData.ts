@@ -21,6 +21,7 @@ export function useEquipment(user: UserProfile, orgIdOverride?: string | null, o
         queryFn: () => StorageService.getEquipmentDefinitions(user.uid, orgId),
         staleTime: 1000 * 60 * 5, // 5 minutes fresh
         enabled: options?.enabled !== false && !!user.uid, // Only fetch if user ID exists
+        refetchInterval: user.isGuest ? 10000 : false, // Poll every 10s for guests
     });
 }
 
@@ -33,7 +34,8 @@ export function useAbnormalRecords(user: UserProfile) {
         queryKey: ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId),
         queryFn: () => StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId),
         staleTime: 1000 * 60 * 5,
-        enabled: !!user.uid
+        enabled: !!user.uid,
+        refetchInterval: user.isGuest ? 10000 : false,
     });
 }
 
@@ -46,7 +48,8 @@ export function useHistoryReports(user: UserProfile, year: number, options?: { e
         queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, year),
         queryFn: () => StorageService.getReports(user.uid, year, true, user.currentOrganizationId),
         staleTime: 1000 * 60 * 5, // 5 minutes
-        enabled: options?.enabled !== false && !!user.uid
+        enabled: options?.enabled !== false && !!user.uid,
+        refetchInterval: user.isGuest ? 10000 : false,
     });
 }
 

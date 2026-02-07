@@ -430,8 +430,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
         try {
             await StorageService.saveSystemSettings({
-                ...newSettings,
-                publicDataUserId: (newSettings.allowGuestView || newSettings.allowGuestRecheck) ? user.uid : null
+                ...newSettings
             });
             // Optional: Success feedback could be a toast instead of an alert to avoid blocking
             console.log('[Dashboard] System settings saved successfully');
@@ -442,6 +441,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         }
     };
     const [savingHealth, setSavingHealth] = useState(false);
+
+    // Effect: Invalidate queries when Guest Organization changes (Real-time update)
+    useEffect(() => {
+        if (user.isGuest && systemSettings?.guestOrganizationId) {
+            console.log('[Dashboard] Guest Organization changed, refreshing data...');
+            queryClient.invalidateQueries({ queryKey: ['history'] });
+            queryClient.invalidateQueries({ queryKey: ['equipment'] });
+            queryClient.invalidateQueries({ queryKey: ['abnormal_records'] });
+        }
+    }, [systemSettings?.guestOrganizationId, user.isGuest, queryClient]);
 
     // Check for expired health indicators requiring renewal
     useEffect(() => {
