@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown, Box } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, LightSettings, SystemSettings } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEquipment, useLightSettings, useSystemSettings, useDeleteEquipment, useSaveEquipment, useBatchUpdateEquipment, useBatchDeleteEquipment } from '../hooks/useSystemData';
@@ -63,6 +63,10 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const [buildings, setBuildings] = useState<string[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<EquipmentDefinition[]>([]);
 
+  // New Equipment Name Filter State
+  const [equipmentNames, setEquipmentNames] = useState<string[]>([]);
+  const [selectedEquipmentName, setSelectedEquipmentName] = useState<string>('');
+
   // UI State for QR Popup
   const [viewQr, setViewQr] = useState<{ url: string, name: string, barcode: string } | null>(null);
 
@@ -116,6 +120,26 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     }
   }, [selectedSite, allEquipment]);
 
+  // Update Equipment Names based on Site/Building
+  useEffect(() => {
+    if (selectedSite) {
+      let filtered = allEquipment.filter(e => e.siteName === selectedSite);
+      if (selectedBuilding) {
+        filtered = filtered.filter(e => e.buildingName === selectedBuilding);
+      }
+      const names = Array.from(new Set(filtered.map(e => e.name))).filter(Boolean).sort();
+      setEquipmentNames(names);
+
+      // Reset logic: if selected name is no longer valid, reset it
+      if (selectedEquipmentName && !names.includes(selectedEquipmentName)) {
+        setSelectedEquipmentName('');
+      }
+    } else {
+      setEquipmentNames([]);
+      setSelectedEquipmentName('');
+    }
+  }, [selectedSite, selectedBuilding, allEquipment]);
+
   // 當篩選條件或總表改變時，計算過濾後的列表
   useEffect(() => {
     // Safety check: ensure searchQuery is a string
@@ -131,7 +155,9 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       setFilteredEquipment(filtered);
     } else if (selectedSite) {
       const filtered = allEquipment.filter(
-        e => e.siteName === selectedSite && (!selectedBuilding || e.buildingName === selectedBuilding)
+        e => e.siteName === selectedSite &&
+          (!selectedBuilding || e.buildingName === selectedBuilding) &&
+          (!selectedEquipmentName || e.name === selectedEquipmentName)
       );
       setFilteredEquipment(filtered);
     } else {
@@ -142,7 +168,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     if (queryStr.trim() || selectedSite) {
       setFilteredEquipment(prev => [...prev].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
     }
-  }, [selectedSite, selectedBuilding, allEquipment, searchQuery]);
+  }, [selectedSite, selectedBuilding, selectedEquipmentName, allEquipment, searchQuery]);
 
 
   const handleShowQr = async (e: React.MouseEvent, item: EquipmentDefinition) => {
@@ -342,7 +368,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
                       <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectSite')}
@@ -369,6 +395,20 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                     >
                       <option value="">-- {t('all')} --</option>
                       {buildings.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
+                      <Box className="w-3.5 h-3.5 mr-1.5" /> {t('equipmentName') || '設備名稱'}
+                    </label>
+                    <select
+                      value={selectedEquipmentName}
+                      onChange={(e) => setSelectedEquipmentName(e.target.value)}
+                      disabled={!selectedSite || !!searchQuery}
+                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                    >
+                      <option value="">-- {t('all')} --</option>
+                      {equipmentNames.map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
                 </div>
