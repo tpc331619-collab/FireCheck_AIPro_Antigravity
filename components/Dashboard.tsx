@@ -24,6 +24,7 @@ import { NotificationBell } from './NotificationBell';
 import { OrganizationManager } from './OrganizationManager';
 import EquipmentMapEditor from './EquipmentMapEditor'; // Import EquipmentMapEditor
 import CardOrderModal from './CardOrderModal';
+import { SyncStatus } from './SyncStatus';
 
 
 import { RegulationFeed } from './RegulationFeed';
@@ -1408,6 +1409,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="hidden sm:block mr-2">
+                            <SyncStatus />
+                        </div>
                         {!user.isGuest && (
                             <>
 

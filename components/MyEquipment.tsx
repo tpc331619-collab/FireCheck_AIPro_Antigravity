@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown, Box } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown, Box, Printer } from 'lucide-react';
+import BarcodePrintModal from './BarcodePrintModal';
 import { EquipmentDefinition, UserProfile, LightSettings, SystemSettings } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEquipment, useLightSettings, useSystemSettings, useDeleteEquipment, useSaveEquipment, useBatchUpdateEquipment, useBatchDeleteEquipment } from '../hooks/useSystemData';
@@ -89,6 +90,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const [newFrequency, setNewFrequency] = useState('1_MONTH');
   const [moveSite, setMoveSite] = useState('');
   const [moveBuilding, setMoveBuilding] = useState('');
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMsg({ text, type });
@@ -830,6 +832,14 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setShowPrintModal(true)}
+                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-indigo-600 rounded-xl transition-all active:scale-95"
+                >
+                  <Printer className="w-5 h-5 mb-0.5" />
+                  <span className="text-[10px] font-bold transform scale-90 origin-top">列印</span>
+                </button>
+
+                <button
                   onClick={() => setBatchModal('move')}
                   className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-blue-600 rounded-xl transition-all active:scale-95"
                 >
@@ -1050,6 +1060,11 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
           </div>
         )
       }
+      <BarcodePrintModal
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        equipment={allEquipment.filter(e => selectedIds.has(e.id))}
+      />
     </div >
   );
 };

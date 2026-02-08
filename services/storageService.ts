@@ -11,9 +11,36 @@ const DB_COLLECTION = 'equipments';
 
 export const StorageService = {
   isGuest: false,
+  _pendingCount: 0,
+  _listeners: [] as ((count: number) => void)[],
 
   setGuestMode(enabled: boolean) {
     this.isGuest = enabled;
+  },
+
+  // --- Sync Status Tracking ---
+  subscribeToSyncStatus(callback: (count: number) => void): () => void {
+    this._listeners.push(callback);
+    callback(this._pendingCount);
+    return () => {
+      this._listeners = this._listeners.filter(l => l !== callback);
+    };
+  },
+
+  _notifyListeners() {
+    this._listeners.forEach(cb => cb(this._pendingCount));
+  },
+
+  async _trackOperation<T>(promise: Promise<T>): Promise<T> {
+    this._pendingCount++;
+    this._notifyListeners();
+    try {
+      const result = await promise;
+      return result;
+    } finally {
+      this._pendingCount = Math.max(0, this._pendingCount - 1);
+      this._notifyListeners();
+    }
   },
 
   async getReports(userId: string, year?: number, withItems: boolean = false, organizationId?: string | null): Promise<InspectionReport[]> {
@@ -133,25 +160,28 @@ export const StorageService = {
 
         // 1. Create Main Report Doc
         const reportRef = doc(collection(db, collectionName));
-        await setDoc(reportRef, firestoreReport);
 
-        // 2. Add Items to Subcollection (Batch Write)
-        if (items && items.length > 0) {
-          const BATCH_SIZE = 450; // Firestore limit is 500, keep safety margin
-          const chunks = [];
-          for (let i = 0; i < items.length; i += BATCH_SIZE) {
-            chunks.push(items.slice(i, i + BATCH_SIZE));
-          }
+        await this._trackOperation(async () => {
+          await setDoc(reportRef, firestoreReport);
 
-          for (const chunk of chunks) {
-            const batch = writeBatch(db);
-            chunk.forEach(item => {
-              const itemRef = doc(collection(db, collectionName, reportRef.id, 'items'));
-              batch.set(itemRef, item);
-            });
-            await batch.commit();
+          // 2. Add Items to Subcollection (Batch Write)
+          if (items && items.length > 0) {
+            const BATCH_SIZE = 450; // Firestore limit is 500, keep safety margin
+            const chunks = [];
+            for (let i = 0; i < items.length; i += BATCH_SIZE) {
+              chunks.push(items.slice(i, i + BATCH_SIZE));
+            }
+
+            for (const chunk of chunks) {
+              const batch = writeBatch(db);
+              chunk.forEach(item => {
+                const itemRef = doc(collection(db, collectionName, reportRef.id, 'items'));
+                batch.set(itemRef, item);
+              });
+              await batch.commit();
+            }
           }
-        }
+        });
 
         return reportRef.id;
       } catch (e) {
@@ -255,20 +285,22 @@ export const StorageService = {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
     } else {
       try {
-        const year = new Date(date).getFullYear();
-        const collectionName = `reports_${year}`;
-        const reportRef = doc(db, collectionName, reportId);
+        await this._trackOperation(async () => {
+          const year = new Date(date).getFullYear();
+          const collectionName = `reports_${year}`;
+          const reportRef = doc(db!, collectionName, reportId);
 
-        // 1. Delete items subcollection manually
-        const itemsSnap = await getDocs(collection(db, collectionName, reportId, 'items'));
-        if (!itemsSnap.empty) {
-          const batch = writeBatch(db);
-          itemsSnap.docs.forEach(d => batch.delete(d.ref));
-          await batch.commit();
-        }
+          // 1. Delete items subcollection manually
+          const itemsSnap = await getDocs(collection(db!, collectionName, reportId, 'items'));
+          if (!itemsSnap.empty) {
+            const batch = writeBatch(db!);
+            itemsSnap.docs.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
 
-        // 2. Delete main document
-        await deleteDoc(reportRef);
+          // 2. Delete main document
+          await deleteDoc(reportRef);
+        });
       } catch (e) {
         console.error("Firebase delete report error", e);
         throw e;
@@ -382,34 +414,36 @@ export const StorageService = {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
     } else {
       try {
-        // Determine the correct collection based on report date
-        const year = new Date(report.date).getFullYear();
-        const collectionName = `reports_${year}`;
+        await this._trackOperation(async () => {
+          // Determine the correct collection based on report date
+          const year = new Date(report.date).getFullYear();
+          const collectionName = `reports_${year}`;
 
-        const reportRef = doc(db, collectionName, id);
+          const reportRef = doc(db!, collectionName, id);
 
-        // Check if document exists first
-        const docSnap = await getDoc(reportRef);
-        if (!docSnap.exists()) {
-          console.error(`[updateReport] Document ${id} not found in ${collectionName}, attempting to create it`);
-          // If document doesn't exist, create it instead of updating
-          await setDoc(reportRef, { ...reportData, stats });
-        } else {
-          // Do NOT store items in the main doc, only stats
-          await updateDoc(reportRef, { ...reportData, stats });
-        }
+          // Check if document exists first
+          const docSnap = await getDoc(reportRef);
+          if (!docSnap.exists()) {
+            console.error(`[updateReport] Document ${id} not found in ${collectionName}, attempting to create it`);
+            // If document doesn't exist, create it instead of updating
+            await setDoc(reportRef, { ...reportData, stats });
+          } else {
+            // Do NOT store items in the main doc, only stats
+            await updateDoc(reportRef, { ...reportData, stats });
+          }
 
-        // Update items in subcollection
-        if (items && items.length > 0) {
-          const batch = writeBatch(db);
-          items.forEach(item => {
-            // Use equipmentId as secondary ID or just let Firebase generate IDs
-            // If we use equipmentId as ID, we only get one entry per equipment per report, which is correct.
-            const itemRef = doc(collection(db, collectionName, id, 'items'), item.equipmentId);
-            batch.set(itemRef, item, { merge: true });
-          });
-          await batch.commit();
-        }
+          // Update items in subcollection
+          if (items && items.length > 0) {
+            const batch = writeBatch(db!);
+            items.forEach(item => {
+              // Use equipmentId as secondary ID or just let Firebase generate IDs
+              // If we use equipmentId as ID, we only get one entry per equipment per report, which is correct.
+              const itemRef = doc(collection(db!, collectionName, id, 'items'), item.equipmentId);
+              batch.set(itemRef, item, { merge: true });
+            });
+            await batch.commit();
+          }
+        });
       } catch (e) {
         console.error("Firebase update error", e);
         throw e;
@@ -436,7 +470,19 @@ export const StorageService = {
       return localId;
     } else {
       try {
-        const docRef = await addDoc(collection(db, DB_COLLECTION), newDef);
+        await this._trackOperation(async () => {
+          await addDoc(collection(db!, DB_COLLECTION), newDef);
+        });
+        // We can't return the ID from addDoc effectively inside trackOperation without refactoring
+        // simpler to just blindly wrap the promise if we don't need the ID immediately for the UI to update pending count
+        // but here we return ID.
+        // Let's refactor slightly
+        /*
+         const result = await this._trackOperation(addDoc(collection(db!, DB_COLLECTION), newDef));
+         return result.id;
+         */
+        // Correct wrapper usage:
+        const docRef = await this._trackOperation(addDoc(collection(db!, DB_COLLECTION), newDef));
         return docRef.id;
       } catch (e) {
         console.error("Equipment save error", e);
@@ -457,8 +503,10 @@ export const StorageService = {
     } else {
       try {
         if (!db) throw new Error("Database not connected");
-        const equipRef = doc(db, DB_COLLECTION, id);
-        await setDoc(equipRef, dataToUpdate, { merge: true });
+        await this._trackOperation(async () => {
+          const equipRef = doc(db!, DB_COLLECTION, id);
+          await setDoc(equipRef, dataToUpdate, { merge: true });
+        });
       } catch (e) {
         console.error("Equipment update error", e);
         throw e;
@@ -486,23 +534,27 @@ export const StorageService = {
 
       if (!db) throw new Error("Firestore not initialized");
 
-      const docRef = doc(db, DB_COLLECTION, cleanId);
+      await this._trackOperation(async () => {
+        const docRef = doc(db!, DB_COLLECTION, cleanId);
 
-      // 1. Get the definition first to check for photoUrl
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data() as EquipmentDefinition;
-        if (data.photoUrl) {
-          try {
-            await this.deleteEquipmentPhoto(data.photoUrl);
-          } catch (err) {
-            console.warn("[StorageService] Failed to cleanup photo during delete:", err);
+        // 1. Get the definition first to check for photoUrl
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data() as EquipmentDefinition;
+          if (data.photoUrl) {
+            try {
+              // Photo delete takes time but might not block critical UI? 
+              // Let's include it in tracking.
+              await this.deleteEquipmentPhoto(data.photoUrl);
+            } catch (err) {
+              console.warn("[StorageService] Failed to cleanup photo during delete:", err);
+            }
           }
         }
-      }
 
-      // 2. Delete the document
-      await deleteDoc(docRef);
+        // 2. Delete the document
+        await deleteDoc(docRef);
+      });
 
       console.log(`[StorageService] Successfully deleted ${cleanId}.`);
     } catch (e) {
@@ -525,11 +577,13 @@ export const StorageService = {
 
     try {
       const batch = writeBatch(db);
-      updates.forEach(update => {
-        const equipRef = doc(db!, DB_COLLECTION, update.id);
-        batch.update(equipRef, { ...update.data, updatedAt: Date.now() });
+      await this._trackOperation(async () => {
+        updates.forEach(update => {
+          const equipRef = doc(db!, DB_COLLECTION, update.id);
+          batch.update(equipRef, { ...update.data, updatedAt: Date.now() });
+        });
+        await batch.commit();
       });
-      await batch.commit();
     } catch (e) {
       console.error("Batch update error", e);
       throw e;
@@ -548,26 +602,28 @@ export const StorageService = {
     }
 
     try {
-      const batch = writeBatch(db);
-      for (const id of ids) {
-        const equipRef = doc(db!, DB_COLLECTION, id);
+      await this._trackOperation(async () => {
+        const batch = writeBatch(db!);
+        for (const id of ids) {
+          const equipRef = doc(db!, DB_COLLECTION, id);
 
-        // Cleanup photo if exists
-        const snap = await getDoc(equipRef);
-        if (snap.exists()) {
-          const data = snap.data() as EquipmentDefinition;
-          if (data.photoUrl) {
-            try {
-              await this.deleteEquipmentPhoto(data.photoUrl);
-            } catch (err) {
-              console.warn("[StorageService] Failed to cleanup photo during batch delete:", err);
+          // Cleanup photo if exists
+          const snap = await getDoc(equipRef);
+          if (snap.exists()) {
+            const data = snap.data() as EquipmentDefinition;
+            if (data.photoUrl) {
+              try {
+                await this.deleteEquipmentPhoto(data.photoUrl);
+              } catch (err) {
+                console.warn("[StorageService] Failed to cleanup photo during batch delete:", err);
+              }
             }
           }
-        }
 
-        batch.delete(equipRef);
-      }
-      await batch.commit();
+          batch.delete(equipRef);
+        }
+        await batch.commit();
+      });
     } catch (e) {
       console.error("Batch delete error", e);
       throw e;
