@@ -523,12 +523,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div>{t('discoveryDate')}</div>
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Dated</div>
                                         </td>
-                                        <td className="value-cell" style={{ width: '35%' }}>{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</td>
+                                        <td className="value-cell text-red-600 font-bold" style={{ width: '35%' }}>{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</td>
                                         <td className="label-cell" style={{ width: '15%' }}>
                                             <div>{t('abnormalCategory')}</div>
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Category</div>
                                         </td>
-                                        <td className="value-cell">{selectedRecord.abnormalItems?.join(', ') || 'General'}</td>
+                                        <td className="value-cell text-red-600 font-bold">{selectedRecord.abnormalItems?.join(', ') || 'General'}</td>
                                     </tr>
                                     <tr>
                                         <td className="label-cell">
@@ -536,8 +536,38 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Result</div>
                                         </td>
                                         <td className="value-cell font-bold text-red-600" colSpan={3}>
-                                            {selectedRecord.abnormalValue || 'FAIL'}
-                                            {selectedRecord.thresholdMode && <span className="text-[10px] ml-1 font-normal text-gray-400">({selectedRecord.thresholdMode})</span>}
+                                            <div className="flex flex-col">
+                                                <span className="text-red-600 font-bold">
+                                                    {selectedRecord.abnormalValue || 'FAIL'}
+                                                    {(() => {
+                                                        const equipment = equipmentData.find(e => e.id === selectedRecord.equipmentId);
+                                                        const checkItem = equipment?.checkItems?.find(item => selectedRecord.abnormalItems?.includes(item.name));
+                                                        if (checkItem) {
+                                                            let specText = '';
+                                                            if (checkItem.inputType === 'number') {
+                                                                const unit = checkItem.unit || '';
+                                                                if (checkItem.thresholdMode === 'range') {
+                                                                    specText = `(標準: ${checkItem.val1}~${checkItem.val2} ${unit})`;
+                                                                } else if (checkItem.thresholdMode === 'gt') {
+                                                                    specText = `(標準: > ${checkItem.val1} ${unit})`;
+                                                                } else if (checkItem.thresholdMode === 'gte') {
+                                                                    specText = `(標準: ≥ ${checkItem.val1} ${unit})`;
+                                                                } else if (checkItem.thresholdMode === 'lt') {
+                                                                    specText = `(標準: < ${checkItem.val1} ${unit})`;
+                                                                } else if (checkItem.thresholdMode === 'lte') {
+                                                                    specText = `(標準: ≤ ${checkItem.val1} ${unit})`;
+                                                                }
+                                                                // Also append unit to the value if not already present (optional, but requested unit display)
+                                                                // The user screenshot shows "異常, 5.8 kgf/cm² (gt)" but wants spec range.
+                                                                // Let's just append the spec text.
+                                                            }
+                                                            return specText && <span className="ml-2 text-red-600 font-bold">{specText}</span>;
+                                                        }
+                                                        // Fallback for thresholdMode if no checkItem found (legacy behavior)
+                                                        return selectedRecord.thresholdMode && <span className="text-[10px] ml-1 font-bold text-red-600">({selectedRecord.thresholdMode})</span>;
+                                                    })()}
+                                                </span>
+                                            </div>
                                         </td>
                                     </tr>
 
@@ -548,7 +578,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td colSpan={4} className="h-12 align-top p-4 leading-relaxed whitespace-pre-wrap">
+                                        <td colSpan={4} className="h-12 align-top p-4 leading-relaxed whitespace-pre-wrap text-red-600 font-bold">
                                             {selectedRecord.abnormalReason}
                                         </td>
                                     </tr>

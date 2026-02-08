@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StorageService } from '../services/storageService';
 import { UserProfile, EquipmentDefinition, LightSettings, SystemSettings } from '../types';
@@ -30,13 +31,37 @@ export const ABNORMAL_KEYS = {
 };
 
 export function useAbnormalRecords(user: UserProfile) {
-    return useQuery({
-        queryKey: ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId),
+    const queryClient = useQueryClient();
+    const queryKey = ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId);
+
+    // Initial fetch + Cache management
+    const queryResult = useQuery({
+        queryKey: queryKey,
         queryFn: () => StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId),
-        staleTime: 1000 * 60 * 5,
+        staleTime: Infinity, // Rely on subscription for updates
         enabled: !!user.uid,
-        refetchInterval: user.isGuest ? 10000 : false,
+        refetchOnWindowFocus: false, // Prevent redundant fetches
     });
+
+    // Real-time subscription
+    useEffect(() => {
+        if (!user.uid) return;
+
+        const unsubscribe = StorageService.subscribeToAbnormalRecords(
+            user.uid,
+            user.currentOrganizationId,
+            (records) => {
+                console.log('[useAbnormalRecords] Real-time update received:', records.length);
+                queryClient.setQueryData(queryKey, records);
+            }
+        );
+
+        return () => {
+            unsubscribe();
+        };
+    }, [user.uid, user.currentOrganizationId, queryClient]); // Re-subscribe if user/org changes
+
+    return queryResult;
 }
 
 export const HISTORY_KEYS = {

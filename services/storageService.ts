@@ -1567,6 +1567,99 @@ export const StorageService = {
     }
   },
 
+  // Add subscription method for real-time updates
+  subscribeToAbnormalRecords(userId: string, organizationId: string | null | undefined, callback: (records: AbnormalRecord[]) => void): () => void {
+    if (!db) return () => { };
+
+    let targetUserId = userId;
+    let useCloud = !this.isGuest && !!db;
+    let fetchedPublicData = false;
+
+    // Check for Public Guest Access (async needed? getSystemSettings is likely async but we are in sync method)
+    // Subscription setup usually needs to be sync or handle async init.
+    // For simplicity, we can assume system settings are loaded or fetch them inside.
+    // But onSnapshot is immediate. Let's do a quick async check wrapper or just assume standard flow.
+    // Actually, getSystemSettings is async. We might need to handle this.
+    // However, for now, let's implement the standard flow and basic guest check.
+    // If complex guest logic is needed, we might need a different approach or just polling for guest.
+    // The user request implies they want real-time.
+    // Let's try to support the guest logic if possible.
+
+    // Using an async IIFE to handle the setup if needed, but returning a cleanup function is tricky.
+    // Instead, let's just implement the core logic.
+    // If it's guest mode, we might need to rely on the caller to provide the correct targetUserId/OrgId
+    // OR we can fetch settings.
+
+    // Let's implement a robust version that handles the async settings check if needed.
+    // BUT, `useSystemData` calls this. `useSystemData` should probably resolve the ID first?
+    // `useAbnormalRecords` just passes `user.uid`.
+    // Let's look at `getAbnormalRecords` again. It fetches settings internally.
+
+    // To support async settings fetch in a sync subscription return, we can use a placeholder cleanup
+    // that gets replaced.
+    let unsubscribe: () => void = () => { };
+
+    const setupSubscription = async () => {
+      try {
+        // Guest Logic matching getAbnormalRecords
+        if (!organizationId && this.isGuest && db) {
+          const settings = await this.getSystemSettings();
+          if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.publicDataUserId) {
+            console.log('[StorageService] Guest Access (Subscribe): Using Public Data ID:', settings.publicDataUserId);
+            targetUserId = settings.publicDataUserId;
+            fetchedPublicData = true; // Mark as public data
+          }
+        }
+
+        let q;
+        if (organizationId && organizationId !== '') {
+          q = query(collection(db, 'abnormalRecords'), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
+        }
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
+
+          // Client-side filtering (Matching getAbnormalRecords)
+          // Identify if we are viewing public data as guest
+          const currentAuthId = auth?.currentUser?.uid;
+          // Logic: If we fetched public data (fetchedPublicData is true), OR if we are guest and target != user
+          // But here in subscription, we might not have updated 'userId' param to be 'targetUserId' in the scope?
+          // Actually targetUserId is local var.
+          // Let's use the same logic:
+          const isGuestPublicAccess = !organizationId && this.isGuest && targetUserId !== userId;
+
+          // Double check with fetchedPublicData flag which is more explicit from our async block
+          const shouldBypassFilter = isGuestPublicAccess || fetchedPublicData;
+
+          if (!shouldBypassFilter) {
+            if (!organizationId || organizationId === '') {
+              records = records.filter(r => !r.organizationId);
+            } else {
+              records = records.filter(r => r.organizationId === organizationId);
+            }
+          }
+
+          const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
+          callback(sorted);
+        }, (error) => {
+          console.error("Abnormal records subscription error", error);
+        });
+
+      } catch (err) {
+        console.error("Error setting up abnormal records subscription", err);
+      }
+    };
+
+    setupSubscription();
+
+    // Return a cleanup function that calls the actual unsubscribe
+    return () => {
+      unsubscribe();
+    };
+  },
+
   async getAbnormalRecords(userId: string, organizationId?: string | null): Promise<AbnormalRecord[]> {
     console.log('[StorageService] getAbnormalRecords called', { userId, organizationId });
     let targetUserId = userId;
