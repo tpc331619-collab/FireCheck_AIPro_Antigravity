@@ -812,55 +812,58 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       {/* Floating Batch Action Bar */}
       {
         canBatch && selectedIds.size > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500 w-[85%] sm:w-auto max-w-sm">
-            <div className="bg-white/95 backdrop-blur-xl border border-slate-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rounded-2xl p-1 flex items-center gap-1 ring-1 ring-slate-100">
-              {/* Counter Section - Minimalist */}
-              <div className="flex items-center justify-center px-2 border-r border-slate-100">
-                <div className="w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
-                  <span className="text-slate-900 font-extrabold text-xs leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500 w-[90%] sm:w-auto max-w-sm sm:max-w-2xl">
+            <div className="bg-white/95 backdrop-blur-xl border border-slate-200/50 shadow-[0_8px_30px_rgba(0,0,0,0.12)] rounded-2xl p-1.5 flex items-center gap-1 sm:gap-2 ring-1 ring-slate-100">
+              {/* Counter Section */}
+              <div className="flex items-center justify-center px-3 border-r border-slate-100">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-yellow-400 rounded-full flex items-center justify-center shadow-sm">
+                  <span className="text-slate-900 font-extrabold text-xs sm:text-sm leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>{selectedIds.size}</span>
                 </div>
               </div>
 
-              {/* Actions Section - Uniform Buttons */}
-              <div className="flex items-center gap-1 flex-1">
+              {/* Actions Section */}
+              <div className="flex items-center gap-1 sm:gap-3 flex-1">
                 <button
                   onClick={() => setBatchModal('frequency')}
-                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-emerald-600 rounded-xl transition-all active:scale-95"
+                  className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center py-1.5 sm:py-2 px-1 sm:px-4 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-emerald-600 rounded-xl transition-all active:scale-95 gap-1"
                 >
-                  <CalendarClock className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-bold transform scale-90 origin-top">頻率</span>
+                  <CalendarClock className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-sm font-bold sm:font-medium transform scale-90 sm:scale-100 origin-top">頻率</span>
                 </button>
 
                 <button
                   onClick={() => setShowPrintModal(true)}
-                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-indigo-600 rounded-xl transition-all active:scale-95"
+                  className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center py-1.5 sm:py-2 px-1 sm:px-4 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-indigo-600 rounded-xl transition-all active:scale-95 gap-1"
                 >
-                  <Printer className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-bold transform scale-90 origin-top">列印</span>
+                  <Printer className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-sm font-bold sm:font-medium transform scale-90 sm:scale-100 origin-top">列印</span>
                 </button>
 
                 <button
                   onClick={() => setBatchModal('move')}
-                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-blue-600 rounded-xl transition-all active:scale-95"
+                  className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center py-1.5 sm:py-2 px-1 sm:px-4 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-blue-600 rounded-xl transition-all active:scale-95 gap-1"
                 >
-                  <MapPin className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-bold transform scale-90 origin-top">移動</span>
+                  <MapPin className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-sm font-bold sm:font-medium transform scale-90 sm:scale-100 origin-top">移動</span>
                 </button>
 
                 <button
                   onClick={() => setBatchModal('delete')}
-                  className="flex-1 flex flex-col items-center justify-center py-1.5 px-1 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-rose-600 rounded-xl transition-all active:scale-95"
+                  className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center py-1.5 sm:py-2 px-1 sm:px-4 bg-transparent hover:bg-slate-50 text-slate-500 hover:text-rose-600 rounded-xl transition-all active:scale-95 gap-1"
                 >
-                  <Trash2 className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-bold transform scale-90 origin-top">刪除</span>
+                  <Trash2 className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-sm font-bold sm:font-medium transform scale-90 sm:scale-100 origin-top">刪除</span>
                 </button>
+
+                <div className="w-px h-8 bg-slate-100 mx-1 hidden sm:block"></div>
 
                 <button
                   onClick={() => setSelectedIds(new Set())}
-                  className="w-10 flex flex-col items-center justify-center py-1.5 px-1 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all active:scale-90"
+                  className="w-10 sm:w-auto flex flex-col sm:flex-row items-center justify-center py-1.5 sm:py-2 px-1 sm:px-3 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all active:scale-90 gap-1"
                 >
-                  <X className="w-5 h-5 mb-0.5" />
-                  <span className="text-[10px] font-bold transform scale-90 origin-top">取消</span>
+                  <X className="w-5 h-5 sm:w-4 sm:h-4" />
+                  <span className="text-[10px] sm:text-sm font-bold sm:font-medium transform scale-90 sm:scale-100 origin-top block sm:hidden">取消</span>
+                  <span className="text-sm font-medium hidden sm:block">取消選取</span>
                 </button>
               </div>
             </div>
