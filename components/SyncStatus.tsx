@@ -34,3 +34,29 @@ export const SyncStatus: React.FC = () => {
         </div>
     );
 };
+
+export const SyncStatusBadge: React.FC<{ className?: string }> = ({ className = '' }) => {
+    const { isOnline, pendingCount } = useSyncStatus();
+
+    if (!isOnline) {
+        return (
+            <div className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center border-2 border-slate-50 shadow-sm ${className}`} title="離線模式">
+                <WifiOff size={8} strokeWidth={3} />
+            </div>
+        );
+    }
+
+    if (pendingCount > 0) {
+        return (
+            <div className={`absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center border-2 border-slate-50 shadow-sm animate-pulse ${className}`} title={`同步中 ${pendingCount}`}>
+                <CloudUpload size={8} strokeWidth={3} />
+            </div>
+        );
+    }
+
+    // Optional: Show green dot for online, or nothing to reduce clutter
+    // User asked to see status, so a small green dot might be reassuring
+    return (
+        <div className={`absolute top-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-slate-50 shadow-sm ${className}`} title="已同步"></div>
+    );
+};

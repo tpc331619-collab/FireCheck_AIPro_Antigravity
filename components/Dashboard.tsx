@@ -24,7 +24,7 @@ import { NotificationBell } from './NotificationBell';
 import { OrganizationManager } from './OrganizationManager';
 import EquipmentMapEditor from './EquipmentMapEditor'; // Import EquipmentMapEditor
 import CardOrderModal from './CardOrderModal';
-import { SyncStatus } from './SyncStatus';
+import { SyncStatus, SyncStatusBadge } from './SyncStatus';
 
 
 import { RegulationFeed } from './RegulationFeed';
@@ -1481,6 +1481,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
                                     <img src={user.photoURL || CARTOON_AVATARS[0]} alt="Avatar" className="w-full h-full object-cover rounded-full" />
                                 </div>
+                                <SyncStatusBadge className="sm:hidden" />
                             </div>
                         </div>
 
