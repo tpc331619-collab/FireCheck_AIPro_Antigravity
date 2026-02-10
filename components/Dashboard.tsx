@@ -30,6 +30,7 @@ import { SyncStatus, SyncStatusBadge } from './SyncStatus';
 import { RegulationFeed } from './RegulationFeed';
 import { useTheme, ThemeType } from '../contexts/ThemeContext'; // Import Theme Hook
 import { exportToExcel, generateMonthlyReport } from '../utils/exportUtils';
+import { formatLifespan } from '../utils/dateUtils';
 import {
     Plus,
     FileText,
@@ -520,6 +521,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
             if (editingHealthIndicator.id) {
                 // Update
+                // Check if dates changed to record history
+                const original = healthIndicators.find(i => i.id === editingHealthIndicator.id);
+                if (original && (original.startDate !== editingHealthIndicator.startDate || original.endDate !== editingHealthIndicator.endDate)) {
+                    const historyRecord: Omit<HealthHistoryRecord, 'id' | 'updatedAt'> = {
+                        indicatorId: editingHealthIndicator.id,
+                        userId: user.uid,
+                        previousStartDate: original.startDate,
+                        previousEndDate: original.endDate,
+                        newStartDate: editingHealthIndicator.startDate,
+                        newEndDate: editingHealthIndicator.endDate,
+                        replacementDate: new Date().toISOString().split('T')[0] // Record change date
+                    };
+                    await StorageService.addHealthHistory(historyRecord, user.uid, user.currentOrganizationId);
+                    setHistoryCounts((prev) => ({
+                        ...prev,
+                        [editingHealthIndicator.id]: (prev[editingHealthIndicator.id] || 0) + 1
+                    }));
+                }
+
                 await StorageService.updateHealthIndicator(editingHealthIndicator.id, indicatorData, user.uid, user.currentOrganizationId);
                 setHealthIndicators(prev => prev.map(i => i.id === editingHealthIndicator.id ? { ...i, ...indicatorData } : i));
             } else {
@@ -2400,25 +2420,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         </div>
                                                     </div>
 
-                                                    {/* Calculation Preview */}
-                                                    {editingHealthIndicator.startDate && editingHealthIndicator.endDate && (
-                                                        <div className="mb-4 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between group hover:bg-indigo-50 transition-colors">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center border border-indigo-200">
-                                                                    <Clock className="w-5 h-5" />
-                                                                </div>
-                                                                <div>
-                                                                    <span className="text-xs font-bold text-indigo-400 block mb-0.5">{t('remainingDays')} ({t('totalDays')})</span>
-                                                                    <div className="flex items-baseline gap-1">
-                                                                        <span className="text-2xl font-black text-indigo-900 tracking-tight">
-                                                                            {Math.max(1, Math.ceil((new Date(editingHealthIndicator.endDate).getTime() - new Date(editingHealthIndicator.startDate).getTime()) / (1000 * 60 * 60 * 24)))}
-                                                                        </span>
-                                                                        <span className="text-sm font-bold text-indigo-600">{t('days')}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
+
 
                                                     <div className="flex justify-end gap-2">
                                                         <button
@@ -2473,6 +2475,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             const remainingDays = isNaN(remainingDaysValue) ? 0 : Math.ceil(remainingDaysValue / (1000 * 60 * 60 * 24));
                                                             const isExpired = remainingDays < 0;
 
+                                                            const cycleFormatted = formatLifespan(indicator.endDate, t, indicator.startDate);
+                                                            const remainingFormatted = formatLifespan(indicator.endDate, t);
+
                                                             return (
                                                                 <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
                                                                     <div className="flex-1 flex items-center gap-3 min-w-0">
@@ -2486,42 +2491,43 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                         </div>
                                                                     </div>
 
-                                                                    <div className="flex items-center gap-2 shrink-0">
-                                                                        <div className="flex flex-col items-end gap-1">
-                                                                            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter leading-none block">
-                                                                                {t('remainingDays')}
-                                                                            </div>
-                                                                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-colors ${isExpired ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
-                                                                                <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-red-500' : 'text-amber-500'}`} />
-                                                                                <div className="flex items-baseline gap-0.5">
-                                                                                    <span className={`font-black text-sm ${isExpired ? 'text-red-500' : 'text-slate-700'}`}>
-                                                                                        {isExpired ? t('expired') : remainingDays}
-                                                                                    </span>
-                                                                                    {!isExpired && <span className="text-[10px] font-bold text-slate-500">{t('days')}</span>}
-                                                                                </div>
+                                                                    <div className="flex flex-col gap-2 shrink-0 border-l border-slate-100 pl-3">
+                                                                        {/* Cycle */}
+                                                                        <div className="flex items-center justify-end gap-2">
+                                                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">{t('lifespanCycle')}</span>
+                                                                            <div className="px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 font-bold text-xs min-w-[80px] text-center border border-slate-100">
+                                                                                {cycleFormatted}
                                                                             </div>
                                                                         </div>
+                                                                        {/* Remaining Days */}
+                                                                        <div className="flex items-center justify-end gap-2">
+                                                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">{t('remainingDays')}</span>
+                                                                            <div className={`flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-md border text-xs font-black min-w-[80px] transition-colors ${isExpired ? 'bg-red-50 border-red-100 text-red-500' : 'bg-amber-50 border-amber-100 text-slate-700'}`}>
+                                                                                <Clock className={`w-3 h-3 ${isExpired ? 'text-red-500' : 'text-amber-500'}`} />
+                                                                                {remainingFormatted}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
 
-                                                                        <div className="flex items-center gap-0.5 border-l border-slate-100 pl-1.5 ml-0.5">
-                                                                            {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
-                                                                                <button
-                                                                                    onClick={() => setEditingHealthIndicator(indicator)}
-                                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                                                    title="編輯"
-                                                                                >
-                                                                                    <Edit2 className="w-4 h-4" />
-                                                                                </button>
-                                                                            )}
-                                                                            {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
-                                                                                <button
-                                                                                    onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                                                    title={t('delete')}
-                                                                                >
-                                                                                    <Trash2 className="w-4 h-4" />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
+                                                                    <div className="flex items-center gap-0.5 border-l border-slate-100 pl-1.5 ml-0.5">
+                                                                        {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
+                                                                            <button
+                                                                                onClick={() => setEditingHealthIndicator(indicator)}
+                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                                title="編輯"
+                                                                            >
+                                                                                <Edit2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                        {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
+                                                                            <button
+                                                                                onClick={() => handleDeleteHealthIndicator(indicator.id)}
+                                                                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                                title={t('delete')}
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             );

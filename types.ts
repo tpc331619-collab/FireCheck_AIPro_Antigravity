@@ -206,6 +206,8 @@ export interface HealthIndicator {
   equipmentName: string;
   updatedAt: number;
   replacementDate?: string;
+  startDate?: string;
+  endDate: string;
   lastPromptDismissed?: number;
 }
 

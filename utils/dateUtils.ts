@@ -55,17 +55,13 @@ export const calculateNextInspectionDate = (start: number, frequency: string, la
         return newDate;
     };
 
-    // 如果沒有檢查紀錄，下一次檢查日 = 起算日 + 頻率
-    let nextDate = addPeriod(startDate, freqConfig);
-
-    // 如果有檢查紀錄，則找尋下一個大於最近一次檢查日的排程日期
+    // 如果有檢查紀錄，則下次檢查日 = 上次檢查日 + 頻率 (動態週期)
     if (lastInspected) {
-        while (nextDate.getTime() <= lastInspected) {
-            nextDate = addPeriod(nextDate, freqConfig);
-        }
+        return addPeriod(new Date(lastInspected), freqConfig);
     }
 
-    return nextDate;
+    // 如果沒有檢查紀錄，下一次檢查日 = 起算日 + 頻率
+    return addPeriod(startDate, freqConfig);
 };
 
 export type InspectionStatusLight = 'RED' | 'YELLOW' | 'GREEN';
@@ -102,27 +98,81 @@ export const calculateExpiryDate = (start: number, lifespan: string, customLifes
     }
 
     const startDate = new Date(start);
-    let value = 0;
-    let unit: 'day' | 'month' | 'year' = 'year';
+    const parseLifespan = (life: string): { value: number; unit: 'year' | 'month' } | null => {
+        if (!life) return null;
+        if (life === '10years') return { value: 10, unit: 'year' };
+        if (life === '20years') return { value: 20, unit: 'year' };
+        if (life === '3years') return { value: 3, unit: 'year' }; // Common for fire equipment
 
-    if (lifespan === 'custom' && customLifespan) {
-        const num = parseInt(customLifespan);
-        if (isNaN(num)) return null;
-        value = num;
-        // 簡單判斷自定義中的單位，預設為月 (符合 user: "設定壽命以「月」為單位統一計算")
-        unit = customLifespan.includes('年') || customLifespan.includes('y') ? 'year' : 'month';
-        if (customLifespan.includes('天') || customLifespan.includes('d')) unit = 'day';
+        // Try parsing number
+        const num = parseInt(life);
+        if (!isNaN(num)) {
+            if (life.includes('month')) return { value: num, unit: 'month' };
+            if (life.includes('year')) return { value: num, unit: 'year' };
+            // Default to year if just number (safest assumption for lifespan)
+            return { value: num, unit: 'year' };
+        }
+        return null;
+    };
+
+    const config = parseLifespan(lifespan);
+    if (!config) return null;
+
+    const expiry = new Date(startDate);
+    if (config.unit === 'year') {
+        expiry.setFullYear(expiry.getFullYear() + config.value);
     } else {
-        const num = parseInt(lifespan);
-        if (isNaN(num)) return null;
-        value = num;
-        unit = lifespan.includes('m') ? 'month' : 'year';
+        expiry.setMonth(expiry.getMonth() + config.value);
+    }
+    return expiry;
+};
+
+// New Helper: Format Remaining Time in Y M D
+export const formatLifespan = (endDateStr: string, t: (key: string) => string, fromDateStr?: string): string => {
+    if (!endDateStr) return '-';
+
+    let now = new Date();
+    if (fromDateStr) {
+        now = new Date(fromDateStr);
+    }
+    // Reset time to start of day for accurate day calculation
+    now.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDateStr);
+    // Reset time to start of day
+    end.setHours(0, 0, 0, 0);
+
+    // If using current date (Remaining) and expired, return "Expired"
+    // If using custom start date (Total), we show the duration even if passed, unless end < start
+    if (!fromDateStr && end < now) {
+        return t('expired'); // "已過期"
     }
 
-    const expiryDate = new Date(startDate);
-    if (unit === 'day') expiryDate.setDate(expiryDate.getDate() + value);
-    else if (unit === 'month') expiryDate.setMonth(expiryDate.getMonth() + value);
-    else if (unit === 'year') expiryDate.setFullYear(expiryDate.getFullYear() + value);
+    let years = end.getFullYear() - now.getFullYear();
+    let months = end.getMonth() - now.getMonth();
+    let days = end.getDate() - now.getDate();
 
-    return expiryDate;
+    // Adjust for negative days
+    if (days < 0) {
+        months--;
+        // Get days in previous month
+        const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+        days += prevMonth.getDate();
+    }
+
+    // Adjust for negative months
+    if (months < 0) {
+        years--;
+        months += 12;
+    }
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}${t('yearShort') || '年'}`);
+    if (months > 0 || (years > 0 && days > 0)) parts.push(`${months}${t('monthShort') || '個月'}`);
+    if (days > 0 || (years === 0 && months === 0)) parts.push(`${days}${t('dayShort') || '天'}`);
+
+    // Fallback for 0 days
+    if (parts.length === 0) return `0${t('dayShort') || '天'}`;
+
+    return parts.join(' ');
 };
