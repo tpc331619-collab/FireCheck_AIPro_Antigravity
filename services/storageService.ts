@@ -125,6 +125,48 @@ export const StorageService = {
     }
   },
 
+  // Real-time subscription for Reports
+  subscribeToReports(userId: string, year: number | undefined, callback: (reports: InspectionReport[]) => void, organizationId?: string | null): () => void {
+    if (!db) return () => { };
+
+    const targetYear = year || new Date().getFullYear();
+    const collectionName = `reports_${targetYear}`;
+    let q;
+
+    if (organizationId && organizationId !== '') {
+      q = query(collection(db, collectionName), where('organizationId', '==', organizationId));
+    } else {
+      q = query(collection(db, collectionName), where('userId', '==', userId));
+    }
+
+    return onSnapshot(q, async (snapshot) => {
+      let reports = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as InspectionReport));
+
+      // Client-side filtering
+      const currentAuthId = auth?.currentUser?.uid;
+      const isGuestPublicAccess = !organizationId && userId !== currentAuthId;
+
+      if (!isGuestPublicAccess) {
+        if (!organizationId || organizationId === '') {
+          reports = reports.filter(r => !r.organizationId);
+        } else {
+          reports = reports.filter(r => r.organizationId === organizationId);
+        }
+      }
+
+      // Fetch items for each report
+      await Promise.all(reports.map(async (report) => {
+        const itemsSnap = await getDocs(collection(db, collectionName, report.id, 'items'));
+        report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
+      }));
+
+      callback(reports.sort((a, b) => b.date - a.date));
+
+    }, (error) => {
+      console.error("Reports subscription error", error);
+    });
+  },
+
   async saveReport(report: Omit<InspectionReport, 'id'>, userId: string, organizationId?: string | null): Promise<string> {
     // Separate items from report data
     const { items, ...reportData } = report;

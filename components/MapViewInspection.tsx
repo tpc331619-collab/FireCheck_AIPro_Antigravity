@@ -317,8 +317,11 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             // Immediately update reports state locally
             setReports(prev => {
                 const today = new Date().setHours(0, 0, 0, 0);
+                // Use equipment's building name, fallback to map name
+                const targetBuildingName = currentEquipment?.buildingName || currentMap.name;
+
                 const existingReportIndex = prev.findIndex(r =>
-                    r.buildingName === currentMap.name && r.date >= today
+                    r.buildingName === targetBuildingName && r.date >= today
                 );
 
                 if (existingReportIndex >= 0) {
@@ -339,7 +342,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 } else {
                     return [...prev, {
                         id: `temp_report_${now}`,
-                        buildingName: currentMap.name,
+                        buildingName: targetBuildingName,
                         inspectorName: user.displayName || 'Guest',
                         date: now,
                         items: [inspectionItem],
@@ -358,12 +361,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
             // 5. ASYNC SAVING (Firebase)
             // Find or create actual report for storage
-            let report = reports.find(r => r.buildingName === currentMap.name && r.date >= new Date().setHours(0, 0, 0, 0));
+            const targetBuildingName = currentEquipment?.buildingName || currentMap.name;
+            let report = reports.find(r => r.buildingName === targetBuildingName && r.date >= new Date().setHours(0, 0, 0, 0));
             if (!report) {
                 report = {
                     id: `report_${now}`,
                     userId: user.uid,
-                    buildingName: currentMap.name,
+                    buildingName: targetBuildingName,
                     inspectorName: user.displayName || 'Guest',
                     date: now,
                     items: [],

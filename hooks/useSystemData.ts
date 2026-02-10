@@ -69,13 +69,36 @@ export const HISTORY_KEYS = {
 };
 
 export function useHistoryReports(user: UserProfile, year: number, options?: { enabled?: boolean }) {
-    return useQuery({
-        queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, year),
+    const queryClient = useQueryClient();
+    const queryKey = HISTORY_KEYS.all(user.uid, user.currentOrganizationId, year);
+
+    const queryResult = useQuery({
+        queryKey: queryKey,
         queryFn: () => StorageService.getReports(user.uid, year, true, user.currentOrganizationId),
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: Infinity, // Rely on subscription for updates
         enabled: options?.enabled !== false && !!user.uid,
-        refetchInterval: user.isGuest ? 10000 : false,
+        refetchOnWindowFocus: false,
     });
+
+    useEffect(() => {
+        if (options?.enabled === false || !user.uid) return;
+
+        // Only subscribe if not Guest (or handle Guest subscription if supported)
+        // StorageService.subscribeToReports handles "if (!db) return" check internally
+        const unsubscribe = StorageService.subscribeToReports(
+            user.uid,
+            year,
+            (reports) => {
+                console.log('[useHistoryReports] Real-time update:', reports.length);
+                queryClient.setQueryData(queryKey, reports);
+            },
+            user.currentOrganizationId
+        );
+
+        return () => unsubscribe();
+    }, [user.uid, user.currentOrganizationId, year, options?.enabled, queryClient]);
+
+    return queryResult;
 }
 
 // 2. System Settings Hook

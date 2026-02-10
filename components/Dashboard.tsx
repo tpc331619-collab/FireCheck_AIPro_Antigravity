@@ -108,7 +108,7 @@ import { auth, storage } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUpdateLightSettings, useLightSettings, useEquipment, useHistoryReports, HISTORY_KEYS } from '../hooks/useSystemData';
+import { useUpdateLightSettings, useLightSettings, useEquipment, useHistoryReports, HISTORY_KEYS, useAbnormalRecords } from '../hooks/useSystemData';
 import { EquipmentStatsExpanded } from './dashboard/EquipmentStatsExpanded';
 
 interface DashboardProps {
@@ -167,8 +167,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Reports Fetching (React Query)
     const { data: reports = [], isLoading: isReportsLoading, refetch: refetchReports } = useHistoryReports(user, selectedYear, {
-        enabled: !!user.uid && (showArchived || !!searchTerm.trim())
+        enabled: !!user.uid
     });
+
+    // Real-time Abnormal Records Hook
+    const { data: abnormalRecords = [] } = useAbnormalRecords(user);
+    // Calculate count of pending records locally
+    const abnormalCount = abnormalRecords.filter(r => r.status === 'pending' && !r.fixedDate).length;
     const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; title?: string; message: string; type?: 'alert' | 'confirm' | 'success'; onConfirm?: () => void } | null>(null);
 
     // Sync isSearchActive with URL q parameter
@@ -406,7 +411,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false); // Moved to top
     const [isMapViewInspectionOpen, setIsMapViewInspectionOpen] = useState(false);
     // const [showArchived, setShowArchived] = useState(false); // Moved to top
-    const [abnormalCount, setAbnormalCount] = useState(0); // Count of pending abnormal records
+    // const [abnormalCount, setAbnormalCount] = useState(0); // Removed: Handled by Hook above
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
 
     // Enhanced Filter States (Phase 2)
@@ -981,39 +986,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [showAbnormalRecheck, showArchived, searchTerm, refetchReports]);
 
 
-    // Fetch and update abnormal count
-    const fetchAbnormalCount = React.useCallback(async () => {
-        if (user?.uid) {
-            try {
-                const records = await StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId);
-                const pendingRecords = records.filter(r => r.status === 'pending' && !r.fixedDate);
-                const pendingCount = pendingRecords.length;
 
-                // Check for new abnormal records
-                const storageKey = `abnormal_count_${user.uid}_${user.currentOrganizationId || 'personal'}`;
-                const previousCount = parseInt(localStorage.getItem(storageKey) || '0');
-
-                // Update storage immediately to prevent race conditions
-                localStorage.setItem(storageKey, pendingCount.toString());
-
-                if (pendingCount > previousCount) {
-                    const newCount = pendingCount - previousCount;
-                    await addNotification(
-                        'abnormal',
-                        '新的異常複檢',
-                        `有 ${newCount} 筆新的異常項目需要處理`
-                    );
-                }
-                setAbnormalCount(pendingCount);
-            } catch (error) {
-                console.error('Failed to fetch abnormal count:', error);
-            }
-        }
-    }, [user?.uid, user?.currentOrganizationId]);
-
+    // Real-time Notification for New Abnormal Records
     useEffect(() => {
-        fetchAbnormalCount();
-    }, [fetchAbnormalCount, showAbnormalRecheck]);
+        if (!user?.uid) return;
+
+        const storageKey = `abnormal_count_${user.uid}_${user.currentOrganizationId || 'personal'}`;
+        const previousCount = parseInt(localStorage.getItem(storageKey) || '0');
+
+        if (abnormalCount > previousCount) {
+            const newCount = abnormalCount - previousCount;
+            addNotification(
+                'abnormal',
+                '新的異常複檢',
+                `有 ${newCount} 筆新的異常項目需要處理`
+            );
+        }
+        localStorage.setItem(storageKey, abnormalCount.toString());
+    }, [abnormalCount, user?.uid, user?.currentOrganizationId]);
 
     // Update avatar state if user changes (e.g. after update)
     useEffect(() => {
@@ -1363,7 +1353,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             user={user}
             onBack={() => setShowAbnormalRecheck(false)}
             lightSettings={currentLightSettings}
-            onRecordsUpdated={fetchAbnormalCount}
+            onRecordsUpdated={undefined}
             systemSettings={systemSettings}
         />;
     }
