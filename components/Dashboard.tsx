@@ -2485,7 +2485,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             </div>
                                                         </div>
 
-                                                        {healthIndicators.map(indicator => {
+                                                        {healthIndicators.map((indicator, index) => {
                                                             const endDate = new Date(indicator.endDate);
                                                             const remainingDaysValue = endDate.getTime() - new Date().getTime();
                                                             const remainingDays = isNaN(remainingDaysValue) ? 0 : Math.ceil(remainingDaysValue / (1000 * 60 * 60 * 24));
@@ -2496,13 +2496,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                             return (
                                                                 <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
-                                                                    <div className="flex-1 flex items-center gap-3 min-w-0">
-                                                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 text-blue-500">
-                                                                            <Database className="w-4 h-4" />
+                                                                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                                                                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 font-black text-xs border border-slate-200">
+                                                                            {index + 1}
                                                                         </div>
                                                                         <div className="min-w-0 flex-1">
-                                                                            <div className="font-bold text-slate-700 truncate text-sm">
-                                                                                {indicator.buildingName} <span className="text-slate-300 font-normal">|</span> {indicator.equipmentName}
+                                                                            <div className="font-bold text-slate-700 text-sm leading-tight">
+                                                                                <div className="truncate">{indicator.buildingName}</div>
+                                                                                <div className="truncate text-slate-400 text-[11px] font-medium">{indicator.equipmentName}</div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
