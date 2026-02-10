@@ -1390,6 +1390,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         }
     };
 
+    const handleRestoreGooglePhoto = () => {
+        if (!auth?.currentUser) return;
+
+        // Find Google provider data
+        const googleProvider = auth.currentUser.providerData.find(p => p.providerId === 'google.com' || p.photoURL);
+
+        if (googleProvider?.photoURL) {
+            setSelectedAvatar(googleProvider.photoURL);
+            alert('已恢復預設大頭照 (點擊儲存變更後生效)');
+        } else {
+            alert('找不到原始照片 (可能非 Google 登入或帳號本身無照片)');
+        }
+    };
+
     // Render Abnormal Recheck Logic (early return - after all hooks)
     console.log('[Dashboard] showAbnormalRecheck:', showAbnormalRecheck);
     if (showAbnormalRecheck) {
@@ -2817,7 +2831,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         ))}
                                                     </div>
                                                     {!user.isGuest && (
-                                                        <div className="pt-1">
+                                                        <div className="pt-1 flex gap-2">
                                                             <input
                                                                 type="file"
                                                                 ref={fileInputRef}
@@ -2828,10 +2842,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <button
                                                                 onClick={() => fileInputRef.current?.click()}
                                                                 disabled={isUpdating}
-                                                                className="w-full py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2 group"
+                                                                className="flex-1 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2 group"
                                                             >
                                                                 <UploadCloud className="w-4 h-4 group-hover:scale-110 transition-transform" />
                                                                 {t('uploadPhoto')}
+                                                            </button>
+                                                            <button
+                                                                onClick={handleRestoreGooglePhoto}
+                                                                disabled={isUpdating}
+                                                                className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center justify-center gap-2 group"
+                                                                title="恢復成原始照片"
+                                                            >
+                                                                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                                                                原始照片
                                                             </button>
                                                         </div>
                                                     )}
