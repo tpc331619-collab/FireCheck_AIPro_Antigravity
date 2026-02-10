@@ -5,6 +5,8 @@ import { ArrowLeft, Save, Sparkles, AlertCircle, Check, Camera, Trash2, Cpu, Plu
 import { GeminiService } from '../services/geminiService';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { HISTORY_KEYS } from '../hooks/useSystemData';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface InspectionFormProps {
   report?: InspectionReport;
@@ -15,6 +17,7 @@ interface InspectionFormProps {
 
 const InspectionForm: React.FC<InspectionFormProps> = ({ report: initialReport, user, onBack, onSaved }) => {
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
   const [buildingName, setBuildingName] = useState(initialReport?.buildingName || '');
   const [items, setItems] = useState<InspectionItem[]>(initialReport?.items || []);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -97,6 +100,9 @@ const InspectionForm: React.FC<InspectionFormProps> = ({ report: initialReport, 
       } else {
         await StorageService.saveReport(reportData, user.uid, user.currentOrganizationId);
       }
+      // Invalidate history queries to update Dashboard stats
+      queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
+
       onSaved();
     } catch (e) {
       console.error(e);

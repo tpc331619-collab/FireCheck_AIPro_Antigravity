@@ -5,8 +5,9 @@ import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useLightSettings } from '../hooks/useSystemData';
+import { useLightSettings, HISTORY_KEYS, EQUIPMENT_KEYS } from '../hooks/useSystemData';
 import CustomAlertModal from './CustomAlertModal';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface MapViewInspectionProps {
     user: UserProfile;
@@ -16,6 +17,7 @@ interface MapViewInspectionProps {
 
 const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onClose }) => {
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
     // Map Selection State
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
@@ -383,8 +385,12 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 // If it's a temp ID or a new report ID, use saveReport
                 const newId = await StorageService.saveReport(report, user.uid, user.currentOrganizationId);
                 report.id = newId;
+                // Invalidate history queries to update Dashboard stats
+                queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
             } else {
                 await StorageService.updateReport(report);
+                // Invalidate history queries to update Dashboard stats
+                queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
             }
 
             // Final tag check: Capture what is in the input box if not empty
@@ -404,6 +410,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 lastInspectedDate: now,
                 updatedAt: now
             });
+            // Invalidate equipment query to ensure consistency
+            queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId) });
 
             // Handle Abnormal Records
             if (status === InspectionStatus.Abnormal) {

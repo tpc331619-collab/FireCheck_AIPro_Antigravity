@@ -161,28 +161,32 @@ export const StorageService = {
         // 1. Create Main Report Doc
         const reportRef = doc(collection(db, collectionName));
 
-        await this._trackOperation(async () => {
-          await setDoc(reportRef, firestoreReport);
+        console.log('[StorageService] Saving report to:', collectionName, 'with', items?.length || 0, 'items');
 
-          // 2. Add Items to Subcollection (Batch Write)
-          if (items && items.length > 0) {
-            const BATCH_SIZE = 450; // Firestore limit is 500, keep safety margin
-            const chunks = [];
-            for (let i = 0; i < items.length; i += BATCH_SIZE) {
-              chunks.push(items.slice(i, i + BATCH_SIZE));
-            }
+        // Save main report document
+        await this._trackOperation(setDoc(reportRef, firestoreReport));
+        console.log('[StorageService] Report document saved:', reportRef.id);
 
-            for (const chunk of chunks) {
-              const batch = writeBatch(db);
-              chunk.forEach(item => {
-                const itemRef = doc(collection(db, collectionName, reportRef.id, 'items'));
-                batch.set(itemRef, item);
-              });
-              await batch.commit();
-            }
+        // 2. Add Items to Subcollection (Batch Write)
+        if (items && items.length > 0) {
+          const BATCH_SIZE = 450; // Firestore limit is 500, keep safety margin
+          const chunks = [];
+          for (let i = 0; i < items.length; i += BATCH_SIZE) {
+            chunks.push(items.slice(i, i + BATCH_SIZE));
           }
-        });
 
+          for (const chunk of chunks) {
+            const batch = writeBatch(db);
+            chunk.forEach(item => {
+              const itemRef = doc(collection(db, collectionName, reportRef.id, 'items'));
+              batch.set(itemRef, item);
+            });
+            await this._trackOperation(batch.commit());
+          }
+          console.log('[StorageService] Report items saved:', items.length, 'items');
+        }
+
+        console.log('[StorageService] Report saved successfully:', reportRef.id);
         return reportRef.id;
       } catch (e) {
         console.error("Firebase save error", e);
@@ -285,22 +289,20 @@ export const StorageService = {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
     } else {
       try {
-        await this._trackOperation(async () => {
-          const year = new Date(date).getFullYear();
-          const collectionName = `reports_${year}`;
-          const reportRef = doc(db!, collectionName, reportId);
+        const year = new Date(date).getFullYear();
+        const collectionName = `reports_${year}`;
+        const reportRef = doc(db!, collectionName, reportId);
 
-          // 1. Delete items subcollection manually
-          const itemsSnap = await getDocs(collection(db!, collectionName, reportId, 'items'));
-          if (!itemsSnap.empty) {
-            const batch = writeBatch(db!);
-            itemsSnap.docs.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-          }
+        // 1. Delete items subcollection manually
+        const itemsSnap = await getDocs(collection(db!, collectionName, reportId, 'items'));
+        if (!itemsSnap.empty) {
+          const batch = writeBatch(db!);
+          itemsSnap.docs.forEach(d => batch.delete(d.ref));
+          await this._trackOperation(batch.commit());
+        }
 
-          // 2. Delete main document
-          await deleteDoc(reportRef);
-        });
+        // 2. Delete main document
+        await this._trackOperation(deleteDoc(reportRef));
       } catch (e) {
         console.error("Firebase delete report error", e);
         throw e;
@@ -414,36 +416,34 @@ export const StorageService = {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
     } else {
       try {
-        await this._trackOperation(async () => {
-          // Determine the correct collection based on report date
-          const year = new Date(report.date).getFullYear();
-          const collectionName = `reports_${year}`;
+        // Determine the correct collection based on report date
+        const year = new Date(report.date).getFullYear();
+        const collectionName = `reports_${year}`;
 
-          const reportRef = doc(db!, collectionName, id);
+        const reportRef = doc(db!, collectionName, id);
 
-          // Check if document exists first
-          const docSnap = await getDoc(reportRef);
-          if (!docSnap.exists()) {
-            console.error(`[updateReport] Document ${id} not found in ${collectionName}, attempting to create it`);
-            // If document doesn't exist, create it instead of updating
-            await setDoc(reportRef, { ...reportData, stats });
-          } else {
-            // Do NOT store items in the main doc, only stats
-            await updateDoc(reportRef, { ...reportData, stats });
-          }
+        // Check if document exists first
+        const docSnap = await getDoc(reportRef);
+        if (!docSnap.exists()) {
+          console.error(`[updateReport] Document ${id} not found in ${collectionName}, attempting to create it`);
+          // If document doesn't exist, create it instead of updating
+          await this._trackOperation(setDoc(reportRef, { ...reportData, stats }));
+        } else {
+          // Do NOT store items in the main doc, only stats
+          await this._trackOperation(updateDoc(reportRef, { ...reportData, stats }));
+        }
 
-          // Update items in subcollection
-          if (items && items.length > 0) {
-            const batch = writeBatch(db!);
-            items.forEach(item => {
-              // Use equipmentId as secondary ID or just let Firebase generate IDs
-              // If we use equipmentId as ID, we only get one entry per equipment per report, which is correct.
-              const itemRef = doc(collection(db!, collectionName, id, 'items'), item.equipmentId);
-              batch.set(itemRef, item, { merge: true });
-            });
-            await batch.commit();
-          }
-        });
+        // Update items in subcollection
+        if (items && items.length > 0) {
+          const batch = writeBatch(db!);
+          items.forEach(item => {
+            // Use equipmentId as secondary ID or just let Firebase generate IDs
+            // If we use equipmentId as ID, we only get one entry per equipment per report, which is correct.
+            const itemRef = doc(collection(db!, collectionName, id, 'items'), item.equipmentId);
+            batch.set(itemRef, item, { merge: true });
+          });
+          await this._trackOperation(batch.commit());
+        }
       } catch (e) {
         console.error("Firebase update error", e);
         throw e;
@@ -470,18 +470,6 @@ export const StorageService = {
       return localId;
     } else {
       try {
-        await this._trackOperation(async () => {
-          await addDoc(collection(db!, DB_COLLECTION), newDef);
-        });
-        // We can't return the ID from addDoc effectively inside trackOperation without refactoring
-        // simpler to just blindly wrap the promise if we don't need the ID immediately for the UI to update pending count
-        // but here we return ID.
-        // Let's refactor slightly
-        /*
-         const result = await this._trackOperation(addDoc(collection(db!, DB_COLLECTION), newDef));
-         return result.id;
-         */
-        // Correct wrapper usage:
         const docRef = await this._trackOperation(addDoc(collection(db!, DB_COLLECTION), newDef));
         return docRef.id;
       } catch (e) {
@@ -581,13 +569,11 @@ export const StorageService = {
 
     try {
       const batch = writeBatch(db);
-      await this._trackOperation(async () => {
-        updates.forEach(update => {
-          const equipRef = doc(db!, DB_COLLECTION, update.id);
-          batch.update(equipRef, { ...update.data, updatedAt: Date.now() });
-        });
-        await batch.commit();
+      updates.forEach(update => {
+        const equipRef = doc(db!, DB_COLLECTION, update.id);
+        batch.update(equipRef, { ...update.data, updatedAt: Date.now() });
       });
+      await this._trackOperation(batch.commit());
     } catch (e) {
       console.error("Batch update error", e);
       throw e;
@@ -606,28 +592,26 @@ export const StorageService = {
     }
 
     try {
-      await this._trackOperation(async () => {
-        const batch = writeBatch(db!);
-        for (const id of ids) {
-          const equipRef = doc(db!, DB_COLLECTION, id);
+      const batch = writeBatch(db!);
+      for (const id of ids) {
+        const equipRef = doc(db!, DB_COLLECTION, id);
 
-          // Cleanup photo if exists
-          const snap = await getDoc(equipRef);
-          if (snap.exists()) {
-            const data = snap.data() as EquipmentDefinition;
-            if (data.photoUrl) {
-              try {
-                await this.deleteEquipmentPhoto(data.photoUrl);
-              } catch (err) {
-                console.warn("[StorageService] Failed to cleanup photo during batch delete:", err);
-              }
+        // Cleanup photo if exists
+        const snap = await getDoc(equipRef);
+        if (snap.exists()) {
+          const data = snap.data() as EquipmentDefinition;
+          if (data.photoUrl) {
+            try {
+              await this.deleteEquipmentPhoto(data.photoUrl);
+            } catch (err) {
+              console.warn("[StorageService] Failed to cleanup photo during batch delete:", err);
             }
           }
-
-          batch.delete(equipRef);
         }
-        await batch.commit();
-      });
+
+        batch.delete(equipRef);
+      }
+      await this._trackOperation(batch.commit());
     } catch (e) {
       console.error("Batch delete error", e);
       throw e;

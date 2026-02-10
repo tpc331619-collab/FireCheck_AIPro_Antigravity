@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'; // Import queryClient
 import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useAbnormalRecords, useEquipment, ABNORMAL_KEYS, EQUIPMENT_KEYS } from '../hooks/useSystemData';
+import { useAbnormalRecords, useEquipment, ABNORMAL_KEYS, EQUIPMENT_KEYS, HISTORY_KEYS } from '../hooks/useSystemData';
 
 interface AbnormalRecheckListProps {
     user: UserProfile;
@@ -269,6 +269,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                     };
 
                     await StorageService.updateReport(updatedReport);
+                    // Invalidate history query to update dashboard stats
+                    queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
                     console.log('[AbnormalRecheck] Updated original report:', originalReport.id);
                 } else {
                     console.warn('[AbnormalRecheck] Original report not found, creating new one');
@@ -310,6 +312,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                         archived: true
                     };
                     await StorageService.saveReport(newReport, user.uid, user.currentOrganizationId);
+                    // Invalidate history query to update dashboard stats
+                    queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
                 }
             } catch (e) {
                 console.error('Failed to update history report:', e);

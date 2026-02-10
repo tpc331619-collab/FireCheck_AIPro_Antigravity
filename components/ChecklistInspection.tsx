@@ -6,10 +6,11 @@ import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { getFrequencyStatus, getNextInspectionDate, getCycleDays } from '../utils/inspectionUtils';
 import { THEME_COLORS } from '../constants';
-import { useLightSettings } from '../hooks/useSystemData';
+import { useLightSettings, HISTORY_KEYS, EQUIPMENT_KEYS } from '../hooks/useSystemData';
 import InspectionForm from './InspectionForm'; // We might reuse or partial reuse, but for now let's build the list logic first
 import BarcodeScanner from './BarcodeScanner';
 import CustomAlertModal from './CustomAlertModal';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ChecklistInspectionProps {
     user: UserProfile;
@@ -20,6 +21,7 @@ interface ChecklistInspectionProps {
 
 const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack }) => {
     const { t } = useLanguage();
+    const queryClient = useQueryClient();
     const [loading, setLoading] = useState(true);
 
     // Selection State
@@ -496,8 +498,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             if (isDraft) {
                 const newId = await StorageService.saveReport(cleanedReport, user.uid, user.currentOrganizationId);
                 reportTarget.id = newId;
+                // Invalidate history queries to update Dashboard stats
+                queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
+                // Invalidate equipment queries to update status in other views
+                queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId) });
             } else {
                 await StorageService.updateReport(cleanedReport);
+                // Invalidate history queries to update Dashboard stats
+                queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, new Date().getFullYear()) });
+                // Invalidate equipment queries to update status in other views
+                queryClient.invalidateQueries({ queryKey: EQUIPMENT_KEYS.all(user.uid, user.currentOrganizationId) });
             }
 
             // Handle Abnormal Records
