@@ -639,7 +639,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
                             >
                                 <option value="">{t('pleaseSelect')}</option>
-                                <option value="ALL_BUILDINGS">全部</option>
+                                <option value="ALL_BUILDINGS">{t('all')}</option>
                                 {buildings.map(b => <option key={b} value={b}>{b}</option>)}
                             </select>
                         </div>
@@ -653,7 +653,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                 disabled={!selectedSite}
                                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
                             >
-                                <option value="ALL_EQUIPMENT">全部</option>
+                                <option value="ALL_EQUIPMENT">{t('all')}</option>
                                 {equipmentNames.map(n => <option key={n} value={n}>{n}</option>)}
                             </select>
                         </div>
@@ -699,7 +699,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                     borderColor: `${lightSettings?.red?.color || '#ef4444'}33`
                                                 }}>
                                                 <p className="text-xs font-bold uppercase tracking-wider mb-1"
-                                                    style={{ color: lightSettings?.red?.color || '#ef4444' }}>需檢查</p>
+                                                    style={{ color: lightSettings?.red?.color || '#ef4444' }}>{t('needInspection')}</p>
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.red?.color || '#ef4444' }}>{needInspectionCount}</p>
                                             </div>
@@ -709,7 +709,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                     borderColor: `${lightSettings?.completed?.color || '#10b981'}33`
                                                 }}>
                                                 <p className="text-xs font-bold uppercase tracking-wider mb-1"
-                                                    style={{ color: lightSettings?.completed?.color || '#10b981' }}>已完成</p>
+                                                    style={{ color: lightSettings?.completed?.color || '#10b981' }}>{t('completed')}</p>
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.completed?.color || '#10b981' }}>{completedNormalCount}</p>
                                             </div>
@@ -719,7 +719,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                     borderColor: `${lightSettings?.abnormal?.color || '#f97316'}33`
                                                 }}>
                                                 <p className="text-xs font-bold uppercase tracking-wider mb-1"
-                                                    style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>異常</p>
+                                                    style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{t('abnormal')}</p>
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{abnormalCount}</p>
                                             </div>
@@ -728,7 +728,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                     backgroundColor: `${lightSettings?.green?.color || '#10b981'}15`,
                                                     borderColor: `${lightSettings?.green?.color || '#10b981'}33`
                                                 }}>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">不需檢查</p>
+                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t('notNeeded')}</p>
                                                 <p className="text-2xl font-black text-slate-700">{notNeededCount}</p>
                                             </div>
                                         </div>
@@ -742,7 +742,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     {selectedSite && selectedBuilding && (
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
                             <h3 className="font-bold text-slate-700 flex items-center">
-                                <Search className="w-4 h-4 mr-2" /> 快速查找設備
+                                <Search className="w-4 h-4 mr-2" /> {t('quickSearchTitle')}
                             </h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -752,7 +752,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg active:scale-95"
                                 >
                                     <ScanBarcode className="w-5 h-5" />
-                                    <span className="font-bold">掃描條碼</span>
+                                    <span className="font-bold">{t('scanBarcode')}</span>
                                 </button>
 
                                 {/* Manual Input */}
@@ -762,7 +762,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         value={manualInput}
                                         onChange={(e) => setManualInput(e.target.value.toUpperCase())}
                                         onKeyPress={(e) => e.key === 'Enter' && handleManualSearch()}
-                                        placeholder="輸入設備編號"
+                                        placeholder={t('enterBarcodePlaceholder')}
                                         className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium text-slate-900 focus:border-blue-500 focus:outline-none transition-colors uppercase"
                                         style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     />
@@ -772,7 +772,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         className="px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                     >
                                         <Search className="w-4 h-4" />
-                                        <span className="font-bold hidden sm:inline">搜尋</span>
+                                        <span className="font-bold hidden sm:inline">{t('search')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -783,11 +783,11 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     {selectedSite && selectedBuilding ? (
                         <div className="space-y-3">
                             <h3 className="font-bold text-slate-700 ml-1 flex items-center">
-                                <LayoutGrid className="w-4 h-4 mr-2" /> 設備清單
+                                <LayoutGrid className="w-4 h-4 mr-2" /> {t('equipmentList')}
                             </h3>
                             {filteredEquipment.length === 0 ? (
                                 <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">
-                                    無對應設備
+                                    {t('noMatchingEquipment')}
                                 </div>
                             ) : (
                                 // 按燈號排序: 紅色 (PENDING) → 橙色 (CAN_INSPECT) → 綠色 (UNNECESSARY) → 已完成 (COMPLETED)

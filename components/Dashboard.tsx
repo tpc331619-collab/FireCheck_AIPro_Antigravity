@@ -1398,9 +1398,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
         if (googleProvider?.photoURL) {
             setSelectedAvatar(googleProvider.photoURL);
-            alert('已恢復預設大頭照 (點擊儲存變更後生效)');
+            alert(t('originalPhotoRestored'));
         } else {
-            alert('找不到原始照片 (可能非 Google 登入或帳號本身無照片)');
+            alert(t('originalPhotoNotFound'));
         }
     };
 
@@ -1606,7 +1606,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {!user.isGuest && (
                         <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
-                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-blue-200 group">
+                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-blue-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
                                     <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('totalEquipment')}</p>
                                     <p className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight truncate leading-none mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{nameCount}</p>
@@ -1617,7 +1617,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Abnormal Pending */}
-                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-red-200 group">
+                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-red-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
                                     <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('pendingAbnormal')}</p>
                                     <p className={`text-2xl sm:text-3xl font-bold tracking-tight truncate leading-none mb-1 ${abnormalCount > 0 ? 'text-red-500 underline decoration-2 decoration-red-200 underline-offset-4' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>{abnormalCount}</p>
@@ -1628,7 +1628,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Declaration Countdown */}
-                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-amber-200 group">
+                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-amber-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
                                     <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('declarationCountdown')}</p>
                                     <div className="flex items-baseline gap-1 min-w-0 mb-1">
@@ -1655,7 +1655,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         setSettingsModalMode('focused');
                                         setIsSettingsOpen(true);
                                     }}
-                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-orange-200 group overflow-hidden"
+                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-orange-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('lightSettings')}</p>
@@ -1673,7 +1673,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-blue-200 group overflow-hidden"
+                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-blue-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('permissions')}</p>
@@ -2625,8 +2625,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     )}
                                 </div>
                             </div>
-                        )
-                    }
+                        )}
 
                     {/* History Modal */}
                     {viewingHistory && (
@@ -2845,10 +2844,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 onClick={handleRestoreGooglePhoto}
                                                                 disabled={isUpdating}
                                                                 className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center justify-center gap-2 group"
-                                                                title="恢復成原始照片"
+                                                                title={t('restoreOriginalPhoto')}
                                                             >
                                                                 <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-                                                                原始照片
+                                                                {t('originalPhoto')}
                                                             </button>
                                                         </div>
                                                     )}
@@ -3942,7 +3941,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
                                             <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2 px-1">
                                                 <PieChart className="w-3.5 h-3.5" />
-                                                設備概覽
+                                                {t('sectionEquipmentOverview')}
                                             </label>
                                             <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-200">
                                                 <div>

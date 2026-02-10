@@ -33,9 +33,9 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
         const statsMap: Record<string, { siteName: string; buildingName: string; equipmentName: string; count: number }> = {};
 
         equipment.forEach(eq => {
-            const sName = eq.siteName || '預設場所';
-            const bName = eq.buildingName || '預設建築';
-            const eName = eq.name || '未命名設備';
+            const sName = eq.siteName || t('unnamed');
+            const bName = eq.buildingName || t('unnamed');
+            const eName = eq.name || t('unnamed');
             const key = `${sName}|${bName}|${eName}`;
 
             if (statsMap[key]) {
@@ -73,10 +73,10 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-slate-200">
-                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">場所</th>
-                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">建築物</th>
-                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">設備名稱</th>
-                                <th className="text-right py-3 px-4 font-bold text-slate-700 bg-slate-50/50">數量</th>
+                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">{t('siteName')}</th>
+                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">{t('buildings')}</th>
+                                <th className="text-left py-3 px-4 font-bold text-slate-700 bg-slate-50/50">{t('equipmentName')}</th>
+                                <th className="text-right py-3 px-4 font-bold text-slate-700 bg-slate-50/50">{t('quantity')}</th>
                             </tr>
                         </thead>
                         <tbody>

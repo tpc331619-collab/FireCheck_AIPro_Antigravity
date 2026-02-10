@@ -608,8 +608,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 <div className="flex-1 overflow-y-auto p-4">
                     {maps.length === 0 ? (
                         <div className="text-center py-12 text-slate-400">
-                            <p>尚無地圖</p>
-                            <p className="text-sm mt-2">請先在地圖編輯器中創建地圖</p>
+                            <p>{t('noMapsAvailable')}</p>
+                            <p className="text-sm mt-2">{t('createMapInEditorFirst')}</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
@@ -651,7 +651,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             <div className="bg-white border-b p-4 flex items-center justify-between z-10 relative shadow-sm">
                 <button onClick={() => setViewMode('SELECT')} className="p-2 hover:bg-slate-100 rounded-full transition-colors font-bold text-slate-600 flex items-center gap-2">
                     <ArrowLeft className="w-6 h-6" />
-                    <span className="text-sm">返回列表</span>
+                    <span className="text-sm">{t('backToList')}</span>
                 </button>
                 <h2 className="text-lg font-bold truncate max-w-[200px] text-slate-900">{currentMap?.name}</h2>
                 <div className="w-10"></div> {/* Spacer for center alignment balance */}
@@ -752,7 +752,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 <button
                     onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
                     className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
-                    title="縮小"
+                    title={t('zoomOut')}
                 >
                     <ZoomOut className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
@@ -764,7 +764,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 <button
                     onClick={() => setZoom(z => Math.min(4, z + 0.25))}
                     className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
-                    title="放大"
+                    title={t('zoomIn')}
                 >
                     <ZoomIn className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
@@ -772,7 +772,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 <button
                     onClick={() => setRotation(r => (r + 90) % 360)}
                     className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
-                    title="旋轉"
+                    title={t('rotate')}
                 >
                     <RotateCw className="w-6 h-6 sm:w-5 sm:h-5" />
                 </button>
@@ -781,7 +781,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     onClick={handleResetView}
                     className="px-4 py-2 sm:px-3 sm:py-1.5 bg-slate-100 hover:bg-slate-200 rounded-full text-sm sm:text-xs font-bold text-slate-600 transition-colors shrink-0"
                 >
-                    重置
+                    {t('resetView')}
                 </button>
             </div>
 
