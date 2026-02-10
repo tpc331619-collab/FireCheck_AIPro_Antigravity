@@ -2524,14 +2524,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                             return (
                                                                 <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
-                                                                    <div className="flex-1 flex items-center gap-2 min-w-0">
-                                                                        <div className="w-6 h-6 rounded-md bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 font-black text-xs border border-slate-200">
+                                                                    <div className="flex-1 flex items-start gap-3 min-w-0">
+                                                                        <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 font-black text-sm border border-slate-200 mt-0.5">
                                                                             {index + 1}
                                                                         </div>
                                                                         <div className="min-w-0 flex-1">
-                                                                            <div className="font-bold text-slate-700 text-sm leading-tight">
-                                                                                <div className="truncate">{indicator.buildingName}</div>
-                                                                                <div className="truncate text-slate-400 text-[11px] font-medium">{indicator.equipmentName}</div>
+                                                                            <div className="flex flex-col">
+                                                                                <div className="font-black text-slate-800 text-base leading-tight truncate">
+                                                                                    {indicator.buildingName}
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1.5 mt-1">
+                                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></div>
+                                                                                    <div className="truncate text-slate-500 text-sm font-bold">
+                                                                                        {indicator.equipmentName}
+                                                                                    </div>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
