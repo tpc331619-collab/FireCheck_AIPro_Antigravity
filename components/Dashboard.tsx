@@ -2538,38 +2538,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                             return (
                                                                 <div key={indicator.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3 group hover:border-indigo-200 hover:shadow-md transition-all">
-                                                                    <div className="flex-1 flex items-start gap-3 min-w-0">
-                                                                        <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 font-black text-sm border border-slate-200 mt-0.5">
-                                                                            {index + 1}
-                                                                        </div>
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="flex flex-col">
-                                                                                <div className="font-black text-slate-800 text-base leading-tight truncate">
+                                                                    <div className="flex-1 flex flex-col gap-2.5 min-w-0 pr-2">
+                                                                        {/* Line 1: Names */}
+                                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                                            <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 text-slate-500 font-black text-[11px] border border-slate-200">
+                                                                                {index + 1}
+                                                                            </div>
+                                                                            <div className="flex items-baseline gap-2 min-w-0">
+                                                                                <span className="font-black text-slate-800 text-sm leading-tight truncate">
                                                                                     {indicator.buildingName}
-                                                                                </div>
-                                                                                <div className="flex items-center gap-1.5 mt-1">
-                                                                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0"></div>
-                                                                                    <div className="truncate text-slate-500 text-sm font-bold">
-                                                                                        {indicator.equipmentName}
-                                                                                    </div>
-                                                                                </div>
+                                                                                </span>
+                                                                                <span className="text-slate-300 shrink-0 text-xs font-bold">/</span>
+                                                                                <span className="truncate text-slate-500 text-xs font-bold">
+                                                                                    {indicator.equipmentName}
+                                                                                </span>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
 
-                                                                    <div className="flex flex-col gap-2 shrink-0 border-l border-slate-100 pl-3">
-                                                                        {/* Cycle */}
-                                                                        <div className="flex items-center justify-end gap-2">
-                                                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">{t('lifespanCycle')}</span>
-                                                                            <div className="px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 font-bold text-xs min-w-[80px] text-center border border-slate-100">
-                                                                                {cycleFormatted}
+                                                                        {/* Line 2: Stats */}
+                                                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 ml-8">
+                                                                            <div className="flex items-center gap-1.5 ring-1 ring-slate-100 bg-slate-50/50 px-2 py-0.5 rounded-md">
+                                                                                <span className="text-[9px] text-slate-400 uppercase font-black tracking-wider leading-none">{t('lifespanCycle')}</span>
+                                                                                <span className="text-[11px] font-bold text-slate-600">{cycleFormatted}</span>
                                                                             </div>
-                                                                        </div>
-                                                                        {/* Remaining Days */}
-                                                                        <div className="flex items-center justify-end gap-2">
-                                                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">{t('remainingDays')}</span>
-                                                                            <div className={`flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-md border text-xs font-black min-w-[80px] transition-colors ${isExpired ? 'bg-red-50 border-red-100 text-red-500' : 'bg-amber-50 border-amber-100 text-slate-700'}`}>
+                                                                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[11px] font-black transition-colors ${isExpired ? 'bg-red-50 border-red-100 text-red-500' : 'bg-amber-50 border-amber-100 text-slate-700'}`}>
                                                                                 <Clock className={`w-3 h-3 ${isExpired ? 'text-red-500' : 'text-amber-500'}`} />
+                                                                                <span className="text-[9px] text-slate-400 uppercase mr-0.5">{t('remainingDays')}</span>
                                                                                 {remainingFormatted}
                                                                             </div>
                                                                         </div>
