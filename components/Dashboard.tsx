@@ -1772,10 +1772,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                 case 'addEquipment':
                                     return !user.isGuest && (isAdmin || systemSettings?.allowInspectorAddEquipment === true) && (
-                                        <button
+                                        <div
                                             key={cardId}
                                             onClick={onAddEquipment}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <PlusCircle className="w-24 h-24 text-emerald-600 -mr-8 -mt-8 rotate-12" />
@@ -1785,7 +1785,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipment')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
-                                        </button>
+                                        </div>
                                     );
 
                                 case 'healthIndicators':

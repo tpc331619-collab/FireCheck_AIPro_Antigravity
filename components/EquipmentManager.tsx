@@ -394,8 +394,8 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
 
 
     setIsSaving(true);
-    const definition: EquipmentDefinition = {
-      id: initialData?.id || Date.now().toString(),
+    const definition: Partial<EquipmentDefinition> & Omit<EquipmentDefinition, 'id'> = {
+      ...(initialData?.id ? { id: initialData.id } : {}), // Only include id if editing existing equipment
       userId: user.uid,
       organizationId: user.currentOrganizationId,
       siteName,
@@ -418,8 +418,10 @@ const EquipmentManager: React.FC<EquipmentManagerProps> = ({ user, initialData, 
     };
 
     try {
+      console.log('[EquipmentManager] 準備儲存設備:', definition);
       // Use React Query mutation instead of direct StorageService calls
-      await saveMutation.mutateAsync(definition);
+      const result = await saveMutation.mutateAsync(definition as EquipmentDefinition);
+      console.log('[EquipmentManager] 儲存完成,返回 ID:', result);
 
       // Handle barcode/name change sync logic if needed
       if (initialData && (initialData.barcode !== barcode || initialData.name !== name)) {

@@ -194,6 +194,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   };
 
   const handleDeleteClick = (e: React.MouseEvent, item: EquipmentDefinition) => {
+    console.log('[MyEquipment] Delete button clicked:', item.id, item.name);
     e.preventDefault();
     e.stopPropagation();
     setDeleteConfirm({ id: item.id, name: item.name });
@@ -228,9 +229,9 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    const newItem: EquipmentDefinition = {
+    const newItem: Partial<EquipmentDefinition> = {
       ...item,
-      id: Date.now().toString(),
+      // Don't set id - let Firestore generate it
       name: `${item.name}${t('copiedSuffix')}`,
       barcode: `${item.barcode}-COPY`,
       updatedAt: Date.now(),
@@ -244,10 +245,11 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
       notificationEmails: undefined, // Reset notification emails for copy
     };
 
-    // Remove undefined fields to prevent Firestore errors
+    // Remove id and undefined fields to prevent Firestore errors
+    const { id, ...itemWithoutId } = newItem;
     const cleanItem = Object.fromEntries(
-      Object.entries(newItem).filter(([_, v]) => v !== undefined)
-    ) as EquipmentDefinition;
+      Object.entries(itemWithoutId).filter(([_, v]) => v !== undefined)
+    ) as unknown as EquipmentDefinition;
 
     try {
       console.log('[MyEquipment] Copying item:', item.barcode, '-> New:', cleanItem.barcode);

@@ -493,6 +493,7 @@ export const StorageService = {
 
   async updateEquipmentDefinition(def: Partial<EquipmentDefinition> & { id: string }): Promise<void> {
     const { id, ...dataToUpdate } = def;
+    console.log('[StorageService] updateEquipmentDefinition called:', id, dataToUpdate);
 
     if (this.isGuest || !db) {
       const dataStr = localStorage.getItem(EQUIP_STORAGE_KEY);
@@ -503,10 +504,10 @@ export const StorageService = {
     } else {
       try {
         if (!db) throw new Error("Database not connected");
-        await this._trackOperation(async () => {
-          const equipRef = doc(db!, DB_COLLECTION, id);
-          await setDoc(equipRef, dataToUpdate, { merge: true });
-        });
+        const equipRef = doc(db!, DB_COLLECTION, id);
+        console.log('[StorageService] Updating document:', DB_COLLECTION, id);
+        await this._trackOperation(setDoc(equipRef, dataToUpdate, { merge: true }));
+        console.log('[StorageService] Update completed successfully');
       } catch (e) {
         console.error("Equipment update error", e);
         throw e;
@@ -517,6 +518,7 @@ export const StorageService = {
   async deleteEquipmentDefinition(id: string): Promise<void> {
     const cleanId = id.trim();
     if (!cleanId) throw new Error("ID is required");
+    console.log('[StorageService] deleteEquipmentDefinition called:', cleanId);
 
     if (this.isGuest || !db) {
       // Local Storage Logic
@@ -534,27 +536,29 @@ export const StorageService = {
 
       if (!db) throw new Error("Firestore not initialized");
 
-      await this._trackOperation(async () => {
-        const docRef = doc(db!, DB_COLLECTION, cleanId);
+      const docRef = doc(db!, DB_COLLECTION, cleanId);
 
-        // 1. Get the definition first to check for photoUrl
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = snap.data() as EquipmentDefinition;
-          if (data.photoUrl) {
-            try {
-              // Photo delete takes time but might not block critical UI? 
-              // Let's include it in tracking.
-              await this.deleteEquipmentPhoto(data.photoUrl);
-            } catch (err) {
-              console.warn("[StorageService] Failed to cleanup photo during delete:", err);
-            }
+      // 1. Get the definition first to check for photoUrl
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        console.log('[StorageService] Document found, deleting...');
+        const data = snap.data() as EquipmentDefinition;
+        if (data.photoUrl) {
+          try {
+            // Photo delete takes time but might not block critical UI? 
+            // Let's include it in tracking.
+            await this.deleteEquipmentPhoto(data.photoUrl);
+          } catch (err) {
+            console.warn("[StorageService] Failed to cleanup photo during delete:", err);
           }
         }
+      } else {
+        console.warn('[StorageService] Document not found:', cleanId);
+      }
 
-        // 2. Delete the document
-        await deleteDoc(docRef);
-      });
+      // 2. Delete the document
+      await this._trackOperation(deleteDoc(docRef));
+      console.log('[StorageService] Delete completed successfully');
 
       console.log(`[StorageService] Successfully deleted ${cleanId}.`);
     } catch (e) {
