@@ -56,6 +56,7 @@ import {
     X,
     Trash2,
     AlertCircle,
+    Loader2,
     LogOut,
     Shield,
     ShieldCheck,
@@ -476,7 +477,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 return isExpired && !isDismissedRecently;
             });
 
-            if (target) {
+            if (target && renewalTarget?.id !== target.id) {
                 setRenewalTarget(target);
             }
         };
@@ -507,7 +508,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const handleSaveHealthIndicator = async () => {
         if (!user?.uid || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
-            alert('請填寫完整資料');
+            alert(t('fillAllFields'));
             return;
         }
 
@@ -521,23 +522,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
             if (editingHealthIndicator.id) {
                 // Update
-                // Check if dates changed to record history
-                const original = healthIndicators.find(i => i.id === editingHealthIndicator.id);
-                if (original && (original.startDate !== editingHealthIndicator.startDate || original.endDate !== editingHealthIndicator.endDate)) {
-                    const historyRecord: Omit<HealthHistoryRecord, 'id' | 'updatedAt'> = {
-                        indicatorId: editingHealthIndicator.id,
-                        userId: user.uid,
-                        previousStartDate: original.startDate,
-                        previousEndDate: original.endDate,
-                        newStartDate: editingHealthIndicator.startDate,
-                        newEndDate: editingHealthIndicator.endDate,
-                        replacementDate: new Date().toISOString().split('T')[0] // Record change date
-                    };
-                    await StorageService.addHealthHistory(historyRecord, user.uid, user.currentOrganizationId);
-                    setHistoryCounts((prev) => ({
-                        ...prev,
-                        [editingHealthIndicator.id]: (prev[editingHealthIndicator.id] || 0) + 1
-                    }));
+                // Check if replacement date is provided to record history
+                if (editingHealthIndicator.replacementDate) {
+                    const original = healthIndicators.find(i => i.id === editingHealthIndicator.id);
+                    if (original) {
+                        const historyRecord: Omit<HealthHistoryRecord, 'id' | 'updatedAt'> = {
+                            indicatorId: editingHealthIndicator.id,
+                            userId: user.uid,
+                            previousStartDate: original.startDate || '',
+                            previousEndDate: original.endDate,
+                            newStartDate: editingHealthIndicator.startDate || '',
+                            newEndDate: editingHealthIndicator.endDate,
+                            replacementDate: editingHealthIndicator.replacementDate
+                        };
+                        await StorageService.addHealthHistory(historyRecord, user.uid, user.currentOrganizationId);
+                        setHistoryCounts((prev) => ({
+                            ...prev,
+                            [editingHealthIndicator.id]: (prev[editingHealthIndicator.id] || 0) + 1
+                        }));
+                    }
+                    // Clear replacement date after saving to avoid carrying it over
+                    delete indicatorData.replacementDate;
                 }
 
                 await StorageService.updateHealthIndicator(editingHealthIndicator.id, indicatorData, user.uid, user.currentOrganizationId);
@@ -553,14 +558,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             // Add notification
             await addNotification(
                 'health',
-                '健康指標已更新',
-                `「${indicatorData.equipmentName || '設備'}」的健康指標已更新`
+                t('healthIndicatorUpdated'),
+                `「${indicatorData.equipmentName || t('equipment')}」${t('healthIndicatorUpdatedDesc')}`
             );
 
-            alert('指標已儲存');
+            alert(t('saveSuccess'));
         } catch (error) {
             console.error('Failed to save health indicator:', error);
-            alert('儲存失敗');
+            alert(t('saveFailed'));
         } finally {
             setSavingHealth(false);
         }
@@ -2418,6 +2423,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
                                                             />
                                                         </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-xs font-bold text-slate-500">{t('replacementDate')} ({t('optional')})</label>
+                                                            <input
+                                                                type="date"
+                                                                value={editingHealthIndicator.replacementDate || ''}
+                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, replacementDate: e.target.value }))}
+                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-bold text-slate-700"
+                                                                placeholder={t('leaveBlankIfNoReplacement')}
+                                                            />
+                                                        </div>
+
                                                     </div>
 
 
@@ -2511,13 +2527,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                                     <div className="flex items-center gap-0.5 border-l border-slate-100 pl-1.5 ml-0.5">
                                                                         {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
-                                                                            <button
-                                                                                onClick={() => setEditingHealthIndicator(indicator)}
-                                                                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                                                title="編輯"
-                                                                            >
-                                                                                <Edit2 className="w-4 h-4" />
-                                                                            </button>
+                                                                            <>
+                                                                                <button
+                                                                                    onClick={() => handleViewHistory(indicator)}
+                                                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors relative"
+                                                                                    title={t('viewHistory')}
+                                                                                >
+                                                                                    <History className="w-4 h-4" />
+                                                                                    {historyCounts[indicator.id] > 0 && (
+                                                                                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-[8px] text-white flex items-center justify-center border border-white">
+                                                                                            {historyCounts[indicator.id]}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => setEditingHealthIndicator(indicator)}
+                                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                                    title={t('edit')}
+                                                                                >
+                                                                                    <Edit2 className="w-4 h-4" />
+                                                                                </button>
+                                                                            </>
                                                                         )}
                                                                         {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
                                                                             <button
@@ -2553,6 +2583,103 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         )
                     }
+
+                    {/* History Modal */}
+                    {viewingHistory && (
+                        <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                                {/* Header */}
+                                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                    <div className="flex flex-col">
+                                        <h3 className="font-bold text-lg text-slate-800 flex items-center">
+                                            <History className="w-5 h-5 mr-2 text-indigo-500" />
+                                            {t('replacementHistory')}
+                                        </h3>
+                                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                                            <span className="font-bold bg-slate-200 px-1.5 py-0.5 rounded text-slate-700">{viewingHistory.buildingName}</span>
+                                            <span className="text-slate-300">/</span>
+                                            <span className="font-bold bg-slate-200 px-1.5 py-0.5 rounded text-slate-700">{viewingHistory.equipmentName}</span>
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setViewingHistory(null)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
+                                        <X className="w-5 h-5 text-slate-500" />
+                                    </button>
+                                </div>
+
+                                {/* Content */}
+                                <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                                    {isHistoryLoading ? (
+                                        <div className="flex flex-col items-center justify-center h-40">
+                                            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
+                                            <span className="text-sm text-slate-400">{t('loading')}</span>
+                                        </div>
+                                    ) : historyData.length === 0 ? (
+                                        <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+                                            <History className="w-12 h-12 mb-3 opacity-20" />
+                                            <p>{t('noHistoryRecords')}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-slate-100">
+                                            {historyData.slice().sort((a, b) => new Date(b.replacementDate).getTime() - new Date(a.replacementDate).getTime()).map((record, index) => (
+                                                <div key={record.id} className="p-4 hover:bg-slate-50 transition-colors group">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="flex flex-col items-center gap-1 shrink-0 pt-1">
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs ring-4 ring-white shadow-sm border border-indigo-100">
+                                                                {historyData.length - index}
+                                                            </div>
+                                                            <div className={`w-0.5 h-full bg-slate-100 ${index === historyData.length - 1 ? 'hidden' : ''}`}></div>
+                                                        </div>
+                                                        <div className="flex-1 space-y-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-bold">
+                                                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                                    {t('replacementDate')}: {record.replacementDate}
+                                                                </span>
+                                                                {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (confirm(t('confirmDelete'))) {
+                                                                                await StorageService.deleteHealthHistory(record.id, user.uid, user.currentOrganizationId);
+                                                                                setHistoryData(prev => prev.filter(r => r.id !== record.id));
+                                                                                setHistoryCounts(prev => ({
+                                                                                    ...prev,
+                                                                                    [record.indicatorId]: Math.max(0, (prev[record.indicatorId] || 1) - 1)
+                                                                                }));
+                                                                            }
+                                                                        }}
+                                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                                        title={t('delete')}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-3 text-sm">
+                                                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">{t('previousPeriod')}</div>
+                                                                    <div className="font-mono text-slate-600 font-bold">
+                                                                        {record.previousStartDate || '?'} <span className="text-slate-300 mx-1">→</span> {record.previousEndDate}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+                                                                    <div className="text-[10px] text-emerald-600/60 uppercase font-bold tracking-wider mb-1">{t('newPeriod')}</div>
+                                                                    <div className="font-mono text-emerald-700 font-bold">
+                                                                        {record.newStartDate} <span className="text-emerald-300 mx-1">→</span> {record.newEndDate}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {
                         isSettingsOpen && (
                             <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">

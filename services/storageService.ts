@@ -1458,101 +1458,7 @@ export const StorageService = {
     }
   },
 
-  async addHealthHistory(record: Omit<HealthHistoryRecord, 'id' | 'updatedAt'>, userId: string, organizationId?: string | null): Promise<string> {
-    const KEY = `health_history_${userId}`;
-    if (this.isGuest || !db) {
-      const data = localStorage.getItem(KEY);
-      const history: HealthHistoryRecord[] = data ? JSON.parse(data) : [];
-      const newId = Date.now().toString();
-      history.push({ ...record, id: newId, userId, updatedAt: Date.now() });
-      localStorage.setItem(KEY, JSON.stringify(history));
-      return newId;
-    } else {
-      try {
-        const docRef = await addDoc(collection(db, 'healthHistory'), {
-          ...record,
-          userId,
-          organizationId: organizationId || null,
-          updatedAt: Date.now()
-        });
-        return docRef.id;
-      } catch (e: any) {
-        console.error("Add health history error", e);
-        if (e.code === 'permission-denied') {
-          // Fallback local
-          const data = localStorage.getItem(KEY);
-          const history: HealthHistoryRecord[] = data ? JSON.parse(data) : [];
-          const newId = Date.now().toString();
-          history.push({ ...record, id: newId, userId, updatedAt: Date.now() });
-          localStorage.setItem(KEY, JSON.stringify(history));
-          return newId;
-        }
-        throw e;
-      }
-    }
-  },
 
-  async getHealthHistory(indicatorId: string, userId: string, organizationId?: string | null): Promise<HealthHistoryRecord[]> {
-    const KEY = `health_history_${userId}`;
-    if (this.isGuest || !db) {
-      const data = localStorage.getItem(KEY);
-      if (!data) return [];
-      const history: HealthHistoryRecord[] = JSON.parse(data);
-      return history.filter(h => h.indicatorId === indicatorId).sort((a, b) => b.updatedAt - a.updatedAt);
-    } else {
-      try {
-        let q;
-        if (organizationId) {
-          q = query(
-            collection(db, 'healthHistory'),
-            where('organizationId', '==', organizationId),
-            where('indicatorId', '==', indicatorId)
-          );
-        } else {
-          q = query(
-            collection(db, 'healthHistory'),
-            where('userId', '==', userId),
-            where('indicatorId', '==', indicatorId)
-          );
-        }
-        const snapshot = await getDocs(q);
-        const records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as HealthHistoryRecord));
-        return records
-          .sort((a, b) => b.updatedAt - a.updatedAt);
-      } catch (e) {
-        console.error("Fetch health history error", e);
-        return [];
-      }
-    }
-  },
-
-  async getAllHealthHistory(userId: string, organizationId?: string | null): Promise<HealthHistoryRecord[]> {
-    const KEY = organizationId ? `health_history_${organizationId}` : `health_history_${userId}`;
-    if (this.isGuest || !db) {
-      const data = localStorage.getItem(KEY);
-      return data ? JSON.parse(data) : [];
-    } else {
-      try {
-        let q;
-        if (organizationId) {
-          q = query(
-            collection(db, 'healthHistory'),
-            where('organizationId', '==', organizationId)
-          );
-        } else {
-          q = query(
-            collection(db, 'healthHistory'),
-            where('userId', '==', userId)
-          );
-        }
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as HealthHistoryRecord));
-      } catch (e) {
-        console.error("Fetch all health history error", e);
-        return [];
-      }
-    }
-  },
 
   async getHealthIndicators(userId: string, organizationId?: string | null): Promise<HealthIndicator[]> {
     const KEY = `health_${userId}`;
@@ -2623,6 +2529,95 @@ export const StorageService = {
       await setDoc(docRef, { order, updatedAt: Date.now() });
     } catch (e) {
       console.error("Save user card order error", e);
+      throw e;
+    }
+  }
+  ,
+
+  // Health History
+  async getHealthHistory(indicatorId: string, userId?: string, orgId?: string): Promise<HealthHistoryRecord[]> {
+    if (this.isGuest || !db) {
+      if (!userId) return [];
+      const data = localStorage.getItem(`health_history_${userId}`);
+      if (!data) return [];
+      const history: HealthHistoryRecord[] = JSON.parse(data);
+      return history.filter(h => h.indicatorId === indicatorId).sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+    try {
+      const q = query(
+        collection(db, 'healthHistory'),
+        where('indicatorId', '==', indicatorId)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs
+        .map(d => ({ ...(d.data() as any), id: d.id }))
+        .sort((a: any, b: any) => b.updatedAt - a.updatedAt);
+    } catch (e) {
+      console.error('[StorageService] Get health history error', e);
+      return [];
+    }
+  },
+
+  async getAllHealthHistory(userId: string, orgId?: string): Promise<HealthHistoryRecord[]> {
+    if (this.isGuest || !db) {
+      const data = localStorage.getItem(`health_history_${userId}`);
+      return data ? JSON.parse(data) : [];
+    }
+    try {
+      let q;
+      if (orgId) {
+        q = query(collection(db, 'healthHistory'), where('organizationId', '==', orgId));
+      } else {
+        q = query(collection(db, 'healthHistory'), where('userId', '==', userId));
+      }
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as HealthHistoryRecord));
+    } catch (e) {
+      console.error("[StorageService] Fetch all health history error", e);
+      return [];
+    }
+  },
+
+  async addHealthHistory(record: Omit<HealthHistoryRecord, 'id' | 'updatedAt'>, userId?: string, orgId?: string): Promise<string> {
+    if (this.isGuest || !db) {
+      if (!userId) throw new Error('User ID required for local storage');
+      const KEY = `health_history_${userId}`;
+      const data = localStorage.getItem(KEY);
+      const history: HealthHistoryRecord[] = data ? JSON.parse(data) : [];
+      const newId = Date.now().toString();
+      history.push({ ...record, id: newId, updatedAt: Date.now() } as any);
+      localStorage.setItem(KEY, JSON.stringify(history));
+      return newId;
+    }
+    try {
+      const docRef = await addDoc(collection(db, 'healthHistory'), {
+        ...record,
+        userId: userId || null,
+        organizationId: orgId || null,
+        updatedAt: Date.now()
+      });
+      return docRef.id;
+    } catch (e) {
+      console.error('[StorageService] Add health history error', e);
+      throw e;
+    }
+  },
+
+  async deleteHealthHistory(historyId: string, userId?: string, orgId?: string): Promise<void> {
+    if (this.isGuest || !db) {
+      if (!userId) return;
+      const KEY = `health_history_${userId}`;
+      const data = localStorage.getItem(KEY);
+      if (!data) return;
+      let history: HealthHistoryRecord[] = JSON.parse(data);
+      history = history.filter(h => h.id !== historyId);
+      localStorage.setItem(KEY, JSON.stringify(history));
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'healthHistory', historyId));
+    } catch (e) {
+      console.error('[StorageService] Delete health history error', e);
       throw e;
     }
   }
