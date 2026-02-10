@@ -426,10 +426,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
     const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
 
-    // Health Indicator State
     const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
     const [editingHealthIndicator, setEditingHealthIndicator] = useState<HealthIndicator | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const systemSettings = systemSettingsFromProps || { allowGuestView: false };
+
+    const handleManualRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            // Invalidate all queries to force refetch
+            await queryClient.invalidateQueries();
+            // Also manually refresh some local states that aren't managed by React Query yet
+            if (user?.uid) {
+                await fetchHistoryCounts();
+                const indicators = await StorageService.getHealthIndicators(user.uid, user.currentOrganizationId);
+                setHealthIndicators(indicators);
+            }
+            // Add a small delay for the animation to be visible
+            await new Promise(resolve => setTimeout(resolve, 800));
+        } catch (error) {
+            console.error('[Dashboard] Manual refresh failed:', error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
 
     const handleSaveSystemSettings = async (newSettings: SystemSettings) => {
         if (!user.uid) return;
@@ -1424,6 +1444,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )}
                     </div>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleManualRefresh}
+                            className={`p-2 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm ${isRefreshing ? 'opacity-50' : ''}`}
+                            disabled={isRefreshing}
+                            title={t('refresh') || '重新整理'}
+                        >
+                            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        </button>
                         <div className="hidden sm:block mr-2">
                             <SyncStatus />
                         </div>

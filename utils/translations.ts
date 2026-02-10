@@ -98,6 +98,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     customDays: '自訂天數',
     // Time units
     month: '月',
+    refresh: '重新整理',
     months: '個月',
     season: '季',
     year: '年',
@@ -610,7 +611,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     cloudStorageManager: '雲端圖庫管理',
     searchFileName: '搜尋檔案名稱...',
     fileCount: '個檔案',
-    refresh: '重新整理',
     loadingFiles: '正在讀取雲端檔案...',
     noFilesFound: '沒有找到相關檔案',
     tryKeywords: '試著更換關鍵字或上傳新圖片',
@@ -840,6 +840,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     customDays: 'Custom Days',
     // Time units
     month: 'Month',
+    refresh: 'Refresh',
     months: 'Months',
     season: 'Season',
     year: 'Year',
