@@ -3,7 +3,6 @@ import React, { useMemo } from 'react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useEquipment } from '../../hooks/useSystemData';
 import { UserProfile, SystemSettings } from '../../types';
-import { ArrowBigDownDash, Box, Flame, BellRing, Droplets, BatteryCharging, Lightbulb, DoorOpen } from 'lucide-react';
 
 interface EquipmentStatsExpandedProps {
     user: UserProfile;
@@ -12,16 +11,7 @@ interface EquipmentStatsExpandedProps {
     isOpen: boolean;
 }
 
-const getEquipmentIcon = (name: string) => {
-    if (!name) return <Box className="w-5 h-5 text-slate-400" />;
-    if (name.includes('滅火')) return <Flame className="w-5 h-5 text-orange-500" />;
-    if (name.includes('警報') || name.includes('廣播')) return <BellRing className="w-5 h-5 text-red-500" />;
-    if (name.includes('栓') || name.includes('水')) return <Droplets className="w-5 h-5 text-blue-500" />;
-    if (name.includes('電')) return <BatteryCharging className="w-5 h-5 text-yellow-500" />;
-    if (name.includes('燈') || name.includes('照明')) return <Lightbulb className="w-5 h-5 text-amber-500" />;
-    if (name.includes('出口') || name.includes('門')) return <DoorOpen className="w-5 h-5 text-green-500" />;
-    return <Box className="w-5 h-5 text-slate-400" />;
-};
+
 
 export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ user, systemSettings, onMyEquipment, isOpen }) => {
     const { t } = useLanguage();
@@ -88,10 +78,7 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                                 >
                                     <td className="py-3 px-4 text-slate-600">{stat.siteName}</td>
                                     <td className="py-3 px-4 text-slate-600">{stat.buildingName}</td>
-                                    <td className="py-3 px-4 font-medium text-slate-800 flex items-center gap-2">
-                                        <div className="p-1.5 bg-slate-100 rounded-lg">
-                                            {getEquipmentIcon(stat.equipmentName)}
-                                        </div>
+                                    <td className="py-3 px-4 font-medium text-slate-800">
                                         {stat.equipmentName}
                                     </td>
                                     <td className="py-3 px-4 text-right">
