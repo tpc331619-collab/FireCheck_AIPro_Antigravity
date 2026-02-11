@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag, Clock, Box } from 'lucide-react';
+import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag, Clock, Box, ChevronDown, ClipboardList } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -52,6 +52,11 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     // Barcode Scanner State
     const [scannerOpen, setScannerOpen] = useState(false);
     const [manualInput, setManualInput] = useState('');
+
+    // Completed Records Modal State
+    const [showCompletedModal, setShowCompletedModal] = useState(false);
+    const [showAbnormalModal, setShowAbnormalModal] = useState(false);
+    const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
     const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
 
@@ -703,7 +708,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.red?.color || '#ef4444' }}>{needInspectionCount}</p>
                                             </div>
-                                            <div className="p-4 rounded-xl border text-center"
+                                            <div
+                                                onClick={() => setShowCompletedModal(true)}
+                                                className="p-4 rounded-xl border text-center cursor-pointer hover:shadow-md transition-all"
                                                 style={{
                                                     backgroundColor: `${lightSettings?.completed?.color || '#10b981'}15`,
                                                     borderColor: `${lightSettings?.completed?.color || '#10b981'}33`
@@ -713,7 +720,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.completed?.color || '#10b981' }}>{completedNormalCount}</p>
                                             </div>
-                                            <div className="p-4 rounded-xl border text-center"
+                                            <div
+                                                onClick={() => setShowAbnormalModal(true)}
+                                                className="p-4 rounded-xl border text-center cursor-pointer hover:shadow-md transition-all"
                                                 style={{
                                                     backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}15`,
                                                     borderColor: `${lightSettings?.abnormal?.color || '#f97316'}33`
@@ -1383,6 +1392,370 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     </div>
                 )
             }
+
+            {/* Completed Records Modal */}
+            {showCompletedModal && (() => {
+                // Filter completed items and deduplicate by equipmentId
+                const itemsMap = new Map();
+                (currentReport?.items || []).forEach((item: any) => {
+                    if (item.status === InspectionStatus.Normal) {
+                        // Keep the latest record for each equipment
+                        const existing = itemsMap.get(item.equipmentId);
+                        if (!existing || (item.lastUpdated || 0) > (existing.lastUpdated || 0)) {
+                            const equipment = filteredEquipment.find(e => e.id === item.equipmentId);
+                            itemsMap.set(item.equipmentId, { ...item, equipment });
+                        }
+                    }
+                });
+                const completedItems = Array.from(itemsMap.values());
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95">
+                            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-emerald-50 rounded-t-2xl">
+                                <div>
+                                    <h3 className="font-bold text-lg text-emerald-800 flex items-center gap-2">
+                                        <CheckCircle className="w-5 h-5" />
+                                        {t('completed')} ({completedItems.length})
+                                    </h3>
+                                    <p className="text-xs text-emerald-600 mt-1">本次檢查階段已完成的項目</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowCompletedModal(false)}
+                                    className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 p-2 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                                {completedItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+                                        <CheckCircle className="w-12 h-12 mb-3 opacity-20" />
+                                        <p>尚無已完成的檢查紀錄</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-slate-100">
+                                        {completedItems.map((item: any, idx: number) => {
+                                            const itemId = item.equipmentId || `item-${idx}`;
+                                            const isExpanded = expandedItems.has(itemId);
+
+                                            const toggleExpand = () => {
+                                                setExpandedItems(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (newSet.has(itemId)) {
+                                                        newSet.delete(itemId);
+                                                    } else {
+                                                        newSet.add(itemId);
+                                                    }
+                                                    return newSet;
+                                                });
+                                            };
+
+                                            return (
+                                                <div key={itemId} className="transition-colors">
+                                                    {/* Main Row - Clickable */}
+                                                    <div
+                                                        onClick={toggleExpand}
+                                                        className="p-4 hover:bg-slate-50 cursor-pointer"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <span className="text-slate-400 font-bold text-sm">{idx + 1}.</span>
+                                                                    <h4 className="font-bold text-slate-800">{item.name}</h4>
+                                                                    {item.barcode && (
+                                                                        <span className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                                            {item.barcode}
+                                                                        </span>
+                                                                    )}
+                                                                    {/* Expand Indicator */}
+                                                                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                </div>
+                                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 ml-6">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                                        <span>檢查時間: {new Date(item.lastUpdated || Date.now()).toLocaleString()}</span>
+                                                                    </div>
+                                                                    {item.equipment?.buildingName && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                                                            <span>{item.equipment.buildingName}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <CheckCircle className="w-5 h-5 text-emerald-500" />
+                                                                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-200">
+                                                                    正常
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expanded Details */}
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 bg-slate-50/50 animate-in slide-in-from-top-2 duration-200">
+                                                            <div className="ml-6 space-y-3">
+                                                                {/* Check Results */}
+                                                                {item.checkResults && item.checkResults.length > 0 && (
+                                                                    <div className="bg-white rounded-lg p-3 border border-slate-200">
+                                                                        <h5 className="text-xs font-bold text-slate-600 uppercase mb-2 flex items-center gap-1">
+                                                                            <ClipboardList className="w-3.5 h-3.5" />
+                                                                            檢查項目
+                                                                        </h5>
+                                                                        <div className="space-y-2">
+                                                                            {item.checkResults.map((result: any, ridx: number) => (
+                                                                                <div key={ridx} className="flex items-center justify-between text-sm">
+                                                                                    <span className="text-slate-700 font-medium">{result.name}</span>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        {typeof result.value === 'boolean' ? (
+                                                                                            result.value ? (
+                                                                                                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                                                    正常
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span className="text-red-600 font-bold flex items-center gap-1">
+                                                                                                    <X className="w-3.5 h-3.5" />
+                                                                                                    異常
+                                                                                                </span>
+                                                                                            )
+                                                                                        ) : (
+                                                                                            <span className="font-bold text-slate-800">
+                                                                                                {result.value} {result.unit || ''}
+                                                                                                {result.threshold && (
+                                                                                                    <span className="text-xs text-slate-500 ml-1">
+                                                                                                        ({result.threshold})
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Notes */}
+                                                                {item.notes && (
+                                                                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                                                        <h5 className="text-xs font-bold text-blue-700 uppercase mb-1 flex items-center gap-1">
+                                                                            <FileText className="w-3.5 h-3.5" />
+                                                                            備註
+                                                                        </h5>
+                                                                        <p className="text-sm text-slate-700">{item.notes}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                                <button
+                                    onClick={() => setShowCompletedModal(false)}
+                                    className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all shadow-lg shadow-slate-200"
+                                >
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Abnormal Records Modal */}
+            {showAbnormalModal && (() => {
+                // Filter abnormal items and deduplicate by equipmentId
+                const itemsMap = new Map();
+                (currentReport?.items || []).forEach((item: any) => {
+                    if (item.status === InspectionStatus.Abnormal) {
+                        // Keep the latest record for each equipment
+                        const existing = itemsMap.get(item.equipmentId);
+                        if (!existing || (item.lastUpdated || 0) > (existing.lastUpdated || 0)) {
+                            const equipment = filteredEquipment.find(e => e.id === item.equipmentId);
+                            itemsMap.set(item.equipmentId, { ...item, equipment });
+                        }
+                    }
+                });
+                const abnormalItems = Array.from(itemsMap.values());
+
+                return (
+                    <div className="fixed inset-0 bg-slate-900/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
+                        <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95">
+                            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-orange-50 rounded-t-2xl">
+                                <div>
+                                    <h3 className="font-bold text-lg text-orange-800 flex items-center gap-2">
+                                        <AlertTriangle className="w-5 h-5" />
+                                        {t('abnormal')} ({abnormalItems.length})
+                                    </h3>
+                                    <p className="text-xs text-orange-600 mt-1">本次檢查階段發現異常的項目</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setShowAbnormalModal(false);
+                                        setExpandedItems(new Set());
+                                    }}
+                                    className="text-orange-600 hover:text-orange-800 hover:bg-orange-100 p-2 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                                {abnormalItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-48 text-slate-400">
+                                        <AlertTriangle className="w-12 h-12 mb-3 opacity-20" />
+                                        <p>尚無異常的檢查紀錄</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-slate-100">
+                                        {abnormalItems.map((item: any, idx: number) => {
+                                            const itemId = item.equipmentId || `abnormal-${idx}`;
+                                            const isExpanded = expandedItems.has(itemId);
+
+                                            const toggleExpand = () => {
+                                                setExpandedItems(prev => {
+                                                    const newSet = new Set(prev);
+                                                    if (newSet.has(itemId)) {
+                                                        newSet.delete(itemId);
+                                                    } else {
+                                                        newSet.add(itemId);
+                                                    }
+                                                    return newSet;
+                                                });
+                                            };
+
+                                            return (
+                                                <div key={itemId} className="transition-colors">
+                                                    {/* Main Row - Clickable */}
+                                                    <div
+                                                        onClick={toggleExpand}
+                                                        className="p-4 hover:bg-slate-50 cursor-pointer"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex-1">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <span className="text-slate-400 font-bold text-sm">{idx + 1}.</span>
+                                                                    <h4 className="font-bold text-slate-800">{item.name}</h4>
+                                                                    {item.barcode && (
+                                                                        <span className="text-xs text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                                            {item.barcode}
+                                                                        </span>
+                                                                    )}
+                                                                    {/* Expand Indicator */}
+                                                                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                                                </div>
+                                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 ml-6">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                                                                        <span>檢查時間: {new Date(item.lastUpdated || Date.now()).toLocaleString()}</span>
+                                                                    </div>
+                                                                    {item.equipment?.buildingName && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                                                            <span>{item.equipment.buildingName}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                                                                <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold border border-orange-200">
+                                                                    異常
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expanded Details */}
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 bg-slate-50/50 animate-in slide-in-from-top-2 duration-200">
+                                                            <div className="ml-6 space-y-3">
+                                                                {/* Check Results */}
+                                                                {item.checkResults && item.checkResults.length > 0 && (
+                                                                    <div className="bg-white rounded-lg p-3 border border-slate-200">
+                                                                        <h5 className="text-xs font-bold text-slate-600 uppercase mb-2 flex items-center gap-1">
+                                                                            <ClipboardList className="w-3.5 h-3.5" />
+                                                                            檢查項目
+                                                                        </h5>
+                                                                        <div className="space-y-2">
+                                                                            {item.checkResults.map((result: any, ridx: number) => (
+                                                                                <div key={ridx} className="flex items-center justify-between text-sm">
+                                                                                    <span className="text-slate-700 font-medium">{result.name}</span>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        {typeof result.value === 'boolean' ? (
+                                                                                            result.value ? (
+                                                                                                <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                                                                                    <CheckCircle className="w-3.5 h-3.5" />
+                                                                                                    正常
+                                                                                                </span>
+                                                                                            ) : (
+                                                                                                <span className="text-red-600 font-bold flex items-center gap-1">
+                                                                                                    <X className="w-3.5 h-3.5" />
+                                                                                                    異常
+                                                                                                </span>
+                                                                                            )
+                                                                                        ) : (
+                                                                                            <span className="font-bold text-slate-800">
+                                                                                                {result.value} {result.unit || ''}
+                                                                                                {result.threshold && (
+                                                                                                    <span className="text-xs text-slate-500 ml-1">
+                                                                                                        ({result.threshold})
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Notes */}
+                                                                {item.notes && (
+                                                                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                                                        <h5 className="text-xs font-bold text-blue-700 uppercase mb-1 flex items-center gap-1">
+                                                                            <FileText className="w-3.5 h-3.5" />
+                                                                            備註
+                                                                        </h5>
+                                                                        <p className="text-sm text-slate-700">{item.notes}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end shrink-0">
+                                <button
+                                    onClick={() => {
+                                        setShowAbnormalModal(false);
+                                        setExpandedItems(new Set());
+                                    }}
+                                    className="px-6 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-700 active:scale-95 transition-all shadow-lg shadow-slate-200"
+                                >
+                                    關閉
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Custom Alert Modal for Checklist */}
             <CustomAlertModal
