@@ -802,8 +802,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (!user.uid) return;
 
         try {
-            // Delete entire report from storage/database
-            await StorageService.deleteReport(item.reportId, item.date, user.uid, user.currentOrganizationId);
+            // Delete specific item from storage/database
+            const targetId = item.equipmentId || item.id;
+            await StorageService.deleteInspectionItem(item.reportId, item.date, user.uid, targetId);
 
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, selectedYear) });
@@ -811,7 +812,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             queryClient.invalidateQueries({ queryKey: ['equipment', user.uid] }); // Optional: refresh equipment if status changed
 
         } catch (error) {
-            console.error('Failed to delete report:', error);
+            console.error('Failed to delete item:', error);
             alert(t('deleteFailed') || '刪除失敗');
         }
     };
@@ -1156,7 +1157,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         });
 
         const deduplicated = Object.values(deduplicatedMap);
-        console.log(`[Dashboard] Flattened: ${flattened.length}, Deduplicated: ${deduplicated.length}`);
+
 
         // 3. Return deduplicated array (sorting handled by DataTables)
         return deduplicated;
@@ -1404,9 +1405,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     };
 
     // Render Abnormal Recheck Logic (early return - after all hooks)
-    console.log('[Dashboard] showAbnormalRecheck:', showAbnormalRecheck);
     if (showAbnormalRecheck) {
-        console.log('[Dashboard] Rendering AbnormalRecheckList');
         return <AbnormalRecheckList
             user={user}
             onBack={() => setShowAbnormalRecheck(false)}

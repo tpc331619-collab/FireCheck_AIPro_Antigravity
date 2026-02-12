@@ -371,6 +371,13 @@ export const StorageService = {
       // Filter out the item
       report.items = report.items.filter(i => (i.equipmentId !== equipmentId && i.id !== equipmentId));
 
+      // If no items left, delete the entire report
+      if (report.items.length === 0) {
+        reports = reports.filter(r => r.id !== cleanId);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(reports));
+        return;
+      }
+
       // Recalculate stats
       const stats = {
         total: report.items.length,
@@ -411,11 +418,19 @@ export const StorageService = {
           await batch.commit();
         }
 
-        // 2. Update Stats
-        // Fetch remaining items
+        // 2. Check remaining items
         const remainingSnap = await getDocs(itemsRef);
         const items = remainingSnap.docs.map(d => d.data() as InspectionItem);
 
+        // If no items left, delete the entire report
+        if (items.length === 0) {
+          const reportRef = doc(db, collectionName, cleanId);
+          await deleteDoc(reportRef);
+          console.log(`[StorageService] Deleted empty report ${cleanId}`);
+          return;
+        }
+
+        // 3. Update Stats if items remain
         const stats = {
           total: items.length,
           passed: items.filter(i => i.status === InspectionStatus.Normal).length,
