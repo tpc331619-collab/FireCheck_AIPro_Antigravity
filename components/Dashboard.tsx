@@ -802,9 +802,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (!user.uid) return;
 
         try {
-            // Delete specific item from storage/database
-            const targetId = item.equipmentId || item.id;
-            await StorageService.deleteInspectionItem(item.reportId, item.date, user.uid, targetId);
+            // Delete entire report from storage/database
+            await StorageService.deleteReport(item.reportId, item.date, user.uid, user.currentOrganizationId);
 
             // Invalidate queries to refresh data
             queryClient.invalidateQueries({ queryKey: HISTORY_KEYS.all(user.uid, user.currentOrganizationId, selectedYear) });
@@ -812,7 +811,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             queryClient.invalidateQueries({ queryKey: ['equipment', user.uid] }); // Optional: refresh equipment if status changed
 
         } catch (error) {
-            console.error('Failed to delete item:', error);
+            console.error('Failed to delete report:', error);
             alert(t('deleteFailed') || '刪除失敗');
         }
     };
@@ -833,10 +832,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     }, [user?.uid, user?.currentOrganizationId]);
 
     useEffect(() => {
-        if (isSettingsOpen && settingsTab === 'LIGHTS' && currentLightSettings) {
+        if (isSettingsOpen && settingsTab === 'LIGHTS' && currentLightSettings && !lightSettings) {
             setLightSettings(JSON.parse(JSON.stringify(currentLightSettings)));
         }
-    }, [isSettingsOpen, settingsTab, currentLightSettings]);
+    }, [isSettingsOpen, settingsTab, currentLightSettings, lightSettings]);
 
     const handleSaveLightSettings = async () => {
         if (!lightSettings) return;
