@@ -3080,7 +3080,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     <span className="text-xs text-slate-600 font-medium">{t('remainingDaysLe')}</span>
                                                                     <input type="number" value={lightSettings.yellow.days} onChange={e => setLightSettings({ ...lightSettings, yellow: { ...lightSettings.yellow, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-amber-200 rounded text-center font-bold text-amber-700 focus:outline-none focus:border-amber-500" />
                                                                     <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
-                                                                    <span className="text-xs text-slate-400">({t('andGt')} {lightSettings.red.days})</span>
                                                                 </div>
                                                             </div>
 
@@ -3097,7 +3096,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     <span className="text-xs text-slate-600 font-medium">{t('remainingDaysGe')}</span>
                                                                     <input type="number" value={lightSettings.green.days} onChange={e => setLightSettings({ ...lightSettings, green: { ...lightSettings.green, days: parseInt(e.target.value) || 0 } })} className="w-16 px-2 py-1 text-sm bg-white border border-emerald-200 rounded text-center font-bold text-emerald-700 focus:outline-none focus:border-emerald-500" />
                                                                     <span className="text-xs text-slate-600 font-medium">{t('days')}</span>
-                                                                    <span className="text-xs text-slate-400">({t('systemJudgedGt')} {lightSettings.yellow.days})</span>
                                                                 </div>
                                                             </div>
 
