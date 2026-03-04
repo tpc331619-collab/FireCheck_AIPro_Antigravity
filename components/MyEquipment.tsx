@@ -69,7 +69,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const [selectedEquipmentName, setSelectedEquipmentName] = useState<string>('');
 
   // UI State for QR Popup
-  const [viewQr, setViewQr] = useState<{ url: string, name: string, barcode: string } | null>(null);
+  const [viewQr, setViewQr] = useState<{ url: string, name: string, barcode: string, buildingName?: string, siteName?: string } | null>(null);
 
   // UI State for Photo Popup
   const [viewPhoto, setViewPhoto] = useState<{ url: string, name: string } | null>(null);
@@ -177,8 +177,14 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
     e.preventDefault();
     e.stopPropagation();
     try {
-      const url = await QRCode.toDataURL(item.barcode, { width: 400, margin: 2 });
-      setViewQr({ url, name: item.name, barcode: item.barcode });
+      const url = await QRCode.toDataURL(item.barcode, { width: 600, margin: 2 });
+      setViewQr({
+        url,
+        name: item.name,
+        barcode: item.barcode,
+        buildingName: item.buildingName,
+        siteName: item.siteName
+      });
     } catch (err) {
       console.error(err);
     }
@@ -691,16 +697,68 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
               <button
                 onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = viewQr.url;
-                  link.download = `QR_${viewQr.barcode}.png`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx || !viewQr) return;
+
+                  // Define dimensions for a high-quality label image
+                  const width = 800;
+                  const height = 1000;
+                  canvas.width = width;
+                  canvas.height = height;
+
+                  // 1. Background
+                  ctx.fillStyle = '#ffffff';
+                  ctx.fillRect(0, 0, width, height);
+
+                  // Setup Text Base
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+
+                  // 2. Equipment Name (Top)
+                  ctx.fillStyle = '#0f172a'; // slate-900
+                  ctx.font = 'bold 50px "Outfit", sans-serif';
+                  ctx.fillText(viewQr.name, width / 2, 100);
+
+                  // Load QR Code Image
+                  const img = new window.Image();
+                  img.crossOrigin = 'anonymous';
+                  img.src = viewQr.url;
+                  img.onload = () => {
+                    // 3. QR Code (Middle)
+                    const qrSize = 550;
+                    ctx.drawImage(img, (width - qrSize) / 2, 180, qrSize, qrSize);
+
+                    // 4. Barcode (Below QR)
+                    // Gray background for barcode
+                    ctx.fillStyle = '#f1f5f9'; // slate-100
+                    const barHeight = 80;
+                    const barWidth = 650;
+                    ctx.fillRect((width - barWidth) / 2, 750, barWidth, barHeight);
+
+                    ctx.fillStyle = '#334155'; // slate-700
+                    ctx.font = 'bold 45px monospace';
+                    ctx.fillText(viewQr.barcode, width / 2, 750 + barHeight / 2);
+
+                    // 5. Location Text (Bottom)
+                    ctx.fillStyle = '#64748b'; // slate-500
+                    ctx.font = 'bold 36px "Outfit", sans-serif';
+                    const locationText = `${viewQr.buildingName || ''} ${viewQr.siteName ? `- ${viewQr.siteName}` : ''}`;
+                    ctx.fillText(locationText, width / 2, 900);
+
+                    // Final Download Trigger
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = dataUrl;
+                    link.download = `QR_${viewQr.barcode}_Label.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  };
                 }}
                 className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl active:scale-95"
               >
-                <Download className="w-5 h-5" /> {t('downloadQrCode')}
+                <Download className="w-5 h-5" /> {t('downloadQrCodeLabel') || '下載 QR Code 標籤'}
               </button>
             </div>
           </div>

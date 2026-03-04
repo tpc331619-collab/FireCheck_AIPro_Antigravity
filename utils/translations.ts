@@ -164,6 +164,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     equipmentUpdated: '設備資料已更新',
     fillRequired: '請填寫所有必填欄位',
     downloadQrCode: '下載 QR Code',
+    downloadQrCodeLabel: '下載 QR Code 標籤',
     qrCodePreview: '條碼預覽',
     saveSuccess: '新增成功',
     updateSuccess: '更新成功',
