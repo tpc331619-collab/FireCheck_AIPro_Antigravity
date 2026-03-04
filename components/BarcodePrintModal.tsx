@@ -87,10 +87,10 @@ const BarcodePrintModal: React.FC<BarcodePrintModalProps> = ({ isOpen, onClose, 
                                     </div>
                                 )}
 
-                                <div className="text-xs font-mono font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded w-full print:text-[10px] print:bg-transparent">
+                                <div className="text-[15px] font-mono font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded w-full print:text-[18px] print:text-black print:font-bold print:bg-transparent">
                                     {item.barcode}
                                 </div>
-                                <div className="text-xs text-slate-400 truncate w-full px-2 print:text-[10px]">
+                                <div className="text-sm font-bold text-slate-800 truncate w-full px-2 print:text-xs print:text-black">
                                     {item.buildingName} {item.siteName ? `- ${item.siteName}` : ''}
                                 </div>
                             </div>

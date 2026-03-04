@@ -131,6 +131,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     customDays: '自訂天數',
     // Time units
     month: '月',
+    allMonths: '所有月份',
     refresh: '重新整理',
     months: '個月',
     season: '季',

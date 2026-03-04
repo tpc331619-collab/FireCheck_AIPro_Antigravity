@@ -164,6 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
     const [isSearchActive, setIsSearchActive] = useState(!!searchParams.get('q'));
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState<number | ''>('');
     const [showArchived, setShowArchived] = useState(false); // Toggle for archived reports
     const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
 
@@ -1070,6 +1071,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         // Status filter (Optional optimization: if report status exists, can check here)
         // But for exact item filtering, we do it at the item level below.
 
+        // Month filter
+        if (selectedMonth !== '') {
+            const reportDate = new Date(r.date);
+            if (reportDate.getMonth() + 1 !== selectedMonth) return false;
+        }
+
         // Date range filter
         if (dateRange.start && r.date < new Date(dateRange.start).getTime()) return false;
         if (dateRange.end) {
@@ -1136,31 +1143,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             });
         });
 
-        // 2. Deduplicate by equipmentId - keep only the latest/most complete record
-        const deduplicatedMap: Record<string, any> = {};
-        flattened.forEach(item => {
-            const key = item.equipmentId || `${item.name}_${item.barcode}`;
-            const existing = deduplicatedMap[key];
-
-            if (!existing) {
-                deduplicatedMap[key] = item;
-            } else {
-                // Keep the record with repairDate (fixed), or the latest one
-                const shouldReplace =
-                    (item.repairDate && !existing.repairDate) || // Prefer fixed over unfixed
-                    (item.date > existing.date); // Or prefer newer
-
-                if (shouldReplace) {
-                    deduplicatedMap[key] = item;
-                }
-            }
-        });
-
-        const deduplicated = Object.values(deduplicatedMap);
-
-
-        // 3. Return deduplicated array (sorting handled by DataTables)
-        return deduplicated;
+        // Return flattened array directly since this is "History" and we want to see all records
+        return flattened;
 
     }, [filteredReports, searchTerm, locationFilter, keywordSearch, filterStatus]);
 
@@ -1931,10 +1915,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <select
                                             value={selectedYear}
                                             onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-24"
                                         >
                                             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
                                                 <option key={year} value={year}>{year}年</option>
+                                            ))}
+                                        </select>
+
+                                        {/* Month Selector */}
+                                        <select
+                                            value={selectedMonth}
+                                            onChange={(e) => setSelectedMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                                        >
+                                            <option value="">{t('allMonths') || '全年'}</option>
+                                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                                                <option key={month} value={month}>{month}月</option>
                                             ))}
                                         </select>
 
