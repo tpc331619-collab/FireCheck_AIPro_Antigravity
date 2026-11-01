@@ -425,6 +425,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [locationFilter, setLocationFilter] = useState('');
     const [keywordSearch, setKeywordSearch] = useState('');
     const [showFilters, setShowFilters] = useState(false); // Control filter panel visibility
+    const [showExportMenu, setShowExportMenu] = useState(false);
     const [loadingReports, setLoadingReports] = useState<Set<string>>(new Set());
 
     const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
@@ -1147,6 +1148,72 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         return flattened;
 
     }, [filteredReports, searchTerm, locationFilter, keywordSearch, filterStatus]);
+
+    const handleExportFiltered = () => {
+        if (!flattenedHistory || flattenedHistory.length === 0) {
+            alert('目前篩選條件下無任何紀錄可供匯出！');
+            return;
+        }
+        const filterParts: string[] = [];
+        if (selectedYear) filterParts.push(`${selectedYear}年`);
+        if (selectedMonth !== '') filterParts.push(`${selectedMonth}月`);
+        if (locationFilter) filterParts.push(locationFilter);
+        if (keywordSearch) filterParts.push(keywordSearch);
+        if (dateRange.start || dateRange.end) {
+            filterParts.push(`${dateRange.start || '起'}~${dateRange.end || '迄'}`);
+        }
+        const filterDesc = filterParts.length > 0 ? `_${filterParts.join('_')}` : '';
+        const now = new Date();
+        const dateStamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        const fileName = `歷史紀錄_篩選結果${filterDesc}_共${flattenedHistory.length}筆_${dateStamp}`;
+        exportToExcel(flattenedHistory, fileName, visibleColumns, columnOrder);
+        setShowExportMenu(false);
+    };
+
+    const handleExportAll = () => {
+        const allReportsFlattened: any[] = [];
+        reports.forEach(report => {
+            if (!report.items || report.items.length === 0) return;
+            report.items.forEach(item => {
+                allReportsFlattened.push({
+                    ...item,
+                    reportId: report.id,
+                    date: report.date,
+                    buildingName: report.buildingName,
+                    inspectorName: report.inspectorName,
+                    overallStatus: report.overallStatus
+                });
+            });
+        });
+        if (allReportsFlattened.length === 0) {
+            alert('目前年度無任何紀錄可供匯出！');
+            return;
+        }
+        const now = new Date();
+        const dateStamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+        const fileName = `歷史紀錄_${selectedYear}年度全資料_共${allReportsFlattened.length}筆_${dateStamp}`;
+        exportToExcel(allReportsFlattened, fileName, visibleColumns, columnOrder);
+        setShowExportMenu(false);
+    };
+
+    const handleExportMonthly = () => {
+        const allReportsFlattened: any[] = [];
+        reports.forEach(report => {
+            if (!report.items || report.items.length === 0) return;
+            report.items.forEach(item => {
+                allReportsFlattened.push({
+                    ...item,
+                    reportId: report.id,
+                    date: report.date,
+                    buildingName: report.buildingName,
+                    inspectorName: report.inspectorName,
+                    overallStatus: report.overallStatus
+                });
+            });
+        });
+        generateMonthlyReport(allReportsFlattened);
+        setShowExportMenu(false);
+    };
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -1990,57 +2057,85 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                         {/* Export Buttons */}
                                         <div className="flex items-center gap-2">
-                                            <div className="relative group">
+                                            <div className="relative">
                                                 <button
-                                                    className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors whitespace-nowrap text-sm shadow-md shadow-emerald-100"
+                                                    onClick={() => setShowExportMenu(!showExportMenu)}
+                                                    className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl font-bold transition-all whitespace-nowrap text-sm shadow-md shadow-emerald-200"
+                                                    title="點選展開匯出選項"
                                                 >
                                                     <FileDown className="w-4 h-4" />
-                                                    {t('export')}
+                                                    <span>{t('export')}</span>
+                                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
                                                 </button>
+
+                                                {/* Backdrop for click outside */}
+                                                {showExportMenu && (
+                                                    <div
+                                                        className="fixed inset-0 z-40"
+                                                        onClick={() => setShowExportMenu(false)}
+                                                    />
+                                                )}
+
                                                 {/* Dropdown Menu */}
-                                                <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-52 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-left sm:origin-top-right">
-                                                    <div className="p-1.5 space-y-1">
-                                                        <button
-                                                            onClick={() => exportToExcel(flattenedHistory, `Export_${formatDateTime(new Date()).replace(/\//g, '-')}`)}
-                                                            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-bold text-slate-800 hover:bg-slate-100 rounded-lg transition-colors text-left"
-                                                        >
-                                                            <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                                                            {t('exportExcel')}
-                                                        </button>
-                                                        <div className="border-t border-slate-100"></div>
-                                                        <button
-                                                            onClick={() => {
-                                                                // Helper to flatten reports without UI date filter
-                                                                const allReportsFlattened: any[] = [];
-                                                                console.log(`[Export Debug] Total Data loaded: ${reports.length} reports`);
+                                                {showExportMenu && (
+                                                    <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                                                        <div className="p-2 space-y-1.5">
+                                                            {/* Option 1: Export Filtered (Highlighted) */}
+                                                            <button
+                                                                onClick={handleExportFiltered}
+                                                                className="flex flex-col w-full p-2.5 bg-emerald-50/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 rounded-xl transition-colors text-left border border-emerald-200/70 dark:border-emerald-700/60 group"
+                                                            >
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300 text-sm">
+                                                                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                                        <span>匯出篩選結果</span>
+                                                                    </div>
+                                                                    <span className="px-2 py-0.5 text-xs font-black bg-emerald-600 text-white rounded-full">
+                                                                        {flattenedHistory.length} 筆
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 pl-6">
+                                                                    只匯出目前符合條件之資料（含自訂欄位過濾）
+                                                                </p>
+                                                            </button>
 
-                                                                reports.forEach(report => {
-                                                                    if (!report.items || report.items.length === 0) return;
-                                                                    report.items.forEach(item => {
-                                                                        const flattenedItem = {
-                                                                            ...item,
-                                                                            reportId: report.id,
-                                                                            date: report.date,
-                                                                            buildingName: report.buildingName,
-                                                                            inspectorName: report.inspectorName,
-                                                                            overallStatus: report.overallStatus
-                                                                        };
-                                                                        allReportsFlattened.push(flattenedItem);
-                                                                    });
-                                                                });
+                                                            {/* Option 2: Export All in Year */}
+                                                            <button
+                                                                onClick={handleExportAll}
+                                                                className="flex flex-col w-full p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-left group"
+                                                            >
+                                                                <div className="flex items-center justify-between w-full">
+                                                                    <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 text-sm">
+                                                                        <Database className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                                                        <span>匯出全年度全部資料</span>
+                                                                    </div>
+                                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-full">
+                                                                        {reports.reduce((acc, r) => acc + (r.items?.length || 0), 0)} 筆
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-6">
+                                                                    {selectedYear} 年度所有巡檢資料（不限篩選）
+                                                                </p>
+                                                            </button>
 
-                                                                console.log(`[Export Debug] Flattened ${allReportsFlattened.length} items. Sample date: ${allReportsFlattened[0]?.date ? new Date(allReportsFlattened[0].date).toLocaleDateString() : 'N/A'}`);
+                                                            <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
-                                                                // Pass raw flattened data, generateMonthlyReport handles the date filtering for the current month internally
-                                                                generateMonthlyReport(allReportsFlattened);
-                                                            }}
-                                                            className="flex items-center gap-3 w-full px-3 py-2.5 text-sm font-bold text-blue-800 hover:bg-blue-50 rounded-lg transition-colors text-left"
-                                                        >
-                                                            <Calendar className="w-5 h-5 text-blue-600" />
-                                                            {t('monthlyReport')} (Excel)
-                                                        </button>
+                                                            {/* Option 3: Official Monthly Report */}
+                                                            <button
+                                                                onClick={handleExportMonthly}
+                                                                className="flex flex-col w-full p-2.5 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-xl transition-colors text-left group"
+                                                            >
+                                                                <div className="flex items-center gap-2 font-bold text-blue-800 dark:text-blue-300 text-sm">
+                                                                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                                    <span>本月官方月報 (Excel)</span>
+                                                                </div>
+                                                                <p className="text-[11px] text-blue-600/70 dark:text-blue-400/70 mt-1 pl-6">
+                                                                    標準格式月度巡檢統計與報表
+                                                                </p>
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
                                             </div>
                                         </div>
 
@@ -2119,22 +2214,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
                                         </div>
 
-                                        {/* Clear Filters Button */}
-                                        {(dateRange.start || dateRange.end || locationFilter || keywordSearch) && (
-                                            <div className="mt-4 flex justify-end">
+                                        {/* Bottom Action Bar: Filter Stats + Clear Button + Export Filtered Button */}
+                                        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                                            <div className="text-xs text-slate-600 dark:text-slate-400 font-medium flex items-center gap-2">
+                                                <span>當前篩選結果：</span>
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300">
+                                                    共 {flattenedHistory.length} 筆
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {(dateRange.start || dateRange.end || locationFilter || keywordSearch) && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setDateRange({ start: '', end: '' });
+                                                            setLocationFilter('');
+                                                            setKeywordSearch('');
+                                                        }}
+                                                        className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                        {t('clearFilters')}
+                                                    </button>
+                                                )}
                                                 <button
-                                                    onClick={() => {
-                                                        setDateRange({ start: '', end: '' });
-                                                        setLocationFilter('');
-                                                        setKeywordSearch('');
-                                                    }}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors"
+                                                    onClick={handleExportFiltered}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-200 dark:shadow-none"
+                                                    title="只匯出目前篩選之紀錄"
                                                 >
-                                                    <X className="w-4 h-4" />
-                                                    {t('clearFilters')}
+                                                    <FileSpreadsheet className="w-4 h-4" />
+                                                    <span>匯出篩選結果 (共 {flattenedHistory.length} 筆)</span>
                                                 </button>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 )}
 
