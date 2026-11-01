@@ -48,6 +48,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const [inspectingTags, setInspectingTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [showTagInput, setShowTagInput] = useState(false);
+    const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
     // Barcode Scanner State
     const [scannerOpen, setScannerOpen] = useState(false);
@@ -1035,7 +1036,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         </div>
 
                         <div className="p-6 overflow-y-auto space-y-6">
-                            {/* Tag Management */}
+                            {/* Tag Management & Equipment Photo Row */}
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 space-y-3">
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
@@ -1110,6 +1113,29 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                                             <span className="text-[10px] font-bold text-slate-300 mr-1">{t('enterToSubmit')}</span>
                                         </div>
+                                    </div>
+                                )}
+                            </div>
+                                </div>
+
+                                {/* 設備照片縮圖（若有照片則顯示於此，點選可放大） */}
+                                {inspectingItem.photoUrl && (
+                                    <div className="shrink-0 flex flex-col items-center">
+                                        <div
+                                            onClick={() => setPreviewPhotoUrl(inspectingItem.photoUrl!)}
+                                            className="relative group cursor-pointer w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-200 hover:border-blue-500 shadow-sm transition-all bg-slate-100"
+                                            title="點擊放大查看設備照片"
+                                        >
+                                            <img
+                                                src={inspectingItem.photoUrl}
+                                                alt={inspectingItem.name}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                            />
+                                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1">
+                                                <Eye className="w-4 h-4" />
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 mt-1 font-medium">點選放大</span>
                                     </div>
                                 )}
                             </div>
@@ -1766,6 +1792,48 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 onConfirm={alertConfig.onConfirm}
                 onCancel={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
             />
+
+            {/* 設備照片放大預覽燈箱 (Lightbox) */}
+            {previewPhotoUrl && (
+                <div
+                    onClick={() => setPreviewPhotoUrl(null)}
+                    className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-200"
+                    >
+                        <div className="p-3 bg-slate-900 text-white flex items-center justify-between">
+                            <span className="text-sm font-bold flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4 text-blue-400" />
+                                {inspectingItem?.name} ({inspectingItem?.barcode}) - 設備實體照片
+                            </span>
+                            <button
+                                onClick={() => setPreviewPhotoUrl(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-3 bg-slate-950 flex items-center justify-center max-h-[75vh] overflow-auto">
+                            <img
+                                src={previewPhotoUrl}
+                                alt="設備照片放大"
+                                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md"
+                            />
+                        </div>
+                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+                            <span>點擊背景或右上角 ✕ 關閉</span>
+                            <button
+                                onClick={() => setPreviewPhotoUrl(null)}
+                                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
+                            >
+                                關閉
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

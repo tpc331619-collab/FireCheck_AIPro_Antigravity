@@ -1895,6 +1895,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         isOpen={isEquipmentExpanded}
                     />
 
+                    {/* 底部版權與版本資訊 (Footer) */}
+                    <footer className="mt-12 pt-6 pb-4 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 select-none">
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-600 tracking-wide">FSIPPRO</span>
+                            <span className="px-1.5 py-0.5 bg-slate-200/70 text-slate-600 rounded text-[10px] font-mono font-semibold">
+                                v2.4.0 Pro
+                            </span>
+                            <span className="hidden sm:inline text-slate-300">|</span>
+                            <span>智慧消防查檢資訊管理平台</span>
+                        </div>
+                        <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
+                            <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>雲端即時同步</span>
+                            </div>
+                            <span className="text-slate-300">|</span>
+                            <span className="text-slate-500 font-medium">
+                                © 2026 北部儲運中心 · FSIPPRO Team. All Rights Reserved.
+                            </span>
+                        </div>
+                    </footer>
+
                     {(showArchived || (isSearchActive && searchTerm.trim())) && (
                         <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
                             <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">

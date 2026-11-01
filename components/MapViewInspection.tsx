@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge } from 'lucide-react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -37,6 +37,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [inspectingTags, setInspectingTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
     const [showTagInput, setShowTagInput] = useState(false);
+    const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
 
     const handleAddTag = (inputVal?: string) => {
         const val = (inputVal || tagInput).trim();
@@ -872,8 +873,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                 </div>
                             ))}
 
-                            {/* Tag Management */}
-                            <div className="space-y-3">
+                            {/* Tag Management & Equipment Photo Row */}
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 space-y-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-slate-700 flex items-center">
                                         <Tag className="w-4 h-4 mr-2" /> 設備標籤
@@ -945,6 +947,28 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                         </div>
                                     </div>
                                 )}
+                                </div>
+
+                                {/* 設備照片縮圖（點選可放大） */}
+                                {currentEquipment?.photoUrl && (
+                                    <div className="shrink-0 flex flex-col items-center">
+                                        <div
+                                            onClick={() => setPreviewPhotoUrl(currentEquipment.photoUrl!)}
+                                            className="relative group cursor-pointer w-20 h-20 rounded-xl overflow-hidden border-2 border-slate-200 hover:border-purple-500 shadow-sm transition-all bg-slate-100"
+                                            title="點擊放大查看設備照片"
+                                        >
+                                            <img
+                                                src={currentEquipment.photoUrl}
+                                                alt={currentEquipment.name}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                            />
+                                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1">
+                                                <Eye className="w-4 h-4 text-white" />
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 mt-1 font-medium">點選放大</span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Notes */}
@@ -998,6 +1022,48 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     <div className={`${toastMsg.type === 'error' ? 'bg-red-600' : 'bg-slate-800'} text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
                         {toastMsg.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5 text-emerald-400" />}
                         <span className="font-bold text-sm tracking-wide">{toastMsg.text}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* 設備照片放大預覽燈箱 (Lightbox) */}
+            {previewPhotoUrl && (
+                <div
+                    onClick={() => setPreviewPhotoUrl(null)}
+                    className="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="relative max-w-2xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-200"
+                    >
+                        <div className="p-3 bg-slate-900 text-white flex items-center justify-between">
+                            <span className="text-sm font-bold flex items-center gap-2">
+                                <ImageIcon className="w-4 h-4 text-purple-400" />
+                                {currentEquipment?.name} ({currentEquipment?.barcode}) - 設備實體照片
+                            </span>
+                            <button
+                                onClick={() => setPreviewPhotoUrl(null)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-3 bg-slate-950 flex items-center justify-center max-h-[75vh] overflow-auto">
+                            <img
+                                src={previewPhotoUrl}
+                                alt="設備照片放大"
+                                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-md"
+                            />
+                        </div>
+                        <div className="p-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+                            <span>點擊背景或右上角 ✕ 關閉</span>
+                            <button
+                                onClick={() => setPreviewPhotoUrl(null)}
+                                className="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-colors"
+                            >
+                                關閉
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
