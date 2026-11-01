@@ -130,6 +130,19 @@ export interface EquipmentDefinition {
 // 設備階層結構: Category -> Type[] (2 levels)
 export type EquipmentHierarchy = Record<string, string[]>;
 
+// 歷次申報真正日期紀錄
+export interface DeclarationRecord {
+  id: string;
+  periodLabel: string;      // 例如 "2026年度" 或 "2026年 下半年"
+  targetDeadline: string;   // 預定截止基準日 "2026-10-31"
+  actualDate: string;       // 真正申報完成日期 "2026-10-25"
+  inspectorAgency?: string; // 檢修專技機構或專業人員
+  docNumber?: string;       // 消防機關備查公文字號
+  status?: 'COMPLETED' | 'PENDING' | 'OVERDUE';
+  notes?: string;
+  createdAt?: number;
+}
+
 // 消防申報設定
 export interface DeclarationSettings {
   nextDate: string;
@@ -137,6 +150,7 @@ export interface DeclarationSettings {
   lastModified: number;
   emailNotificationsEnabled: boolean;
   emailRecipients: string[];
+  records?: DeclarationRecord[]; // 歷次真正申報紀錄
 }
 
 export interface NotificationSettings {

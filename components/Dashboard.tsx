@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
-    InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, EquipmentMap, AbnormalRecord, InspectionStatus, EquipmentType, HealthIndicator,
+    InspectionReport, EquipmentDefinition, EquipmentHierarchy, DeclarationSettings, DeclarationRecord, EquipmentMap, AbnormalRecord, InspectionStatus, EquipmentType, HealthIndicator,
     HealthHistoryRecord, UserProfile, LanguageCode, SystemSettings, DashboardCardId
 } from '../types';
 import { StorageService } from '../services/storageService';
@@ -864,6 +864,111 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
+    // Declaration Records State & Handlers
+    const [isAddingRecord, setIsAddingRecord] = useState(false);
+    const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+    const [recordForm, setRecordForm] = useState<{
+        periodLabel: string;
+        targetDeadline: string;
+        actualDate: string;
+        inspectorAgency: string;
+        docNumber: string;
+        notes: string;
+    }>({
+        periodLabel: '',
+        targetDeadline: '',
+        actualDate: new Date().toISOString().slice(0, 10),
+        inspectorAgency: '',
+        docNumber: '',
+        notes: ''
+    });
+
+    const handleOpenAddRecord = (defaultPeriod?: string, defaultDeadline?: string) => {
+        const currentYear = new Date().getFullYear();
+        const isHalfYear = declarationSettings?.cycle === '6_MONTHS';
+        const defaultLabel = defaultPeriod || (isHalfYear ? `${currentYear}年 下半年` : `${currentYear}年度`);
+        setRecordForm({
+            periodLabel: defaultLabel,
+            targetDeadline: defaultDeadline || declarationSettings?.nextDate || `${currentYear}-10-31`,
+            actualDate: new Date().toISOString().slice(0, 10),
+            inspectorAgency: '',
+            docNumber: '',
+            notes: ''
+        });
+        setEditingRecordId(null);
+        setIsAddingRecord(true);
+    };
+
+    const handleEditRecord = (record: DeclarationRecord) => {
+        setRecordForm({
+            periodLabel: record.periodLabel,
+            targetDeadline: record.targetDeadline,
+            actualDate: record.actualDate,
+            inspectorAgency: record.inspectorAgency || '',
+            docNumber: record.docNumber || '',
+            notes: record.notes || ''
+        });
+        setEditingRecordId(record.id);
+        setIsAddingRecord(true);
+    };
+
+    const handleSaveRecord = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!recordForm.actualDate) {
+            alert('請輸入真正的申報完成日期！');
+            return;
+        }
+        const currentRecords = declarationSettings?.records || [];
+        let updatedRecords: DeclarationRecord[];
+        if (editingRecordId) {
+            updatedRecords = currentRecords.map(r => r.id === editingRecordId ? {
+                ...r,
+                periodLabel: recordForm.periodLabel || r.periodLabel,
+                targetDeadline: recordForm.targetDeadline || r.targetDeadline,
+                actualDate: recordForm.actualDate,
+                inspectorAgency: recordForm.inspectorAgency,
+                docNumber: recordForm.docNumber,
+                notes: recordForm.notes,
+                status: 'COMPLETED'
+            } : r);
+        } else {
+            const newRecord: DeclarationRecord = {
+                id: `dec_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                periodLabel: recordForm.periodLabel || `${new Date(recordForm.actualDate).getFullYear()}年度`,
+                targetDeadline: recordForm.targetDeadline || declarationSettings?.nextDate || recordForm.actualDate,
+                actualDate: recordForm.actualDate,
+                inspectorAgency: recordForm.inspectorAgency,
+                docNumber: recordForm.docNumber,
+                notes: recordForm.notes,
+                status: 'COMPLETED',
+                createdAt: Date.now()
+            };
+            updatedRecords = [newRecord, ...currentRecords];
+        }
+        updatedRecords.sort((a, b) => new Date(b.actualDate).getTime() - new Date(a.actualDate).getTime());
+
+        const newSettings: DeclarationSettings = {
+            ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+            records: updatedRecords,
+            lastModified: Date.now()
+        };
+        handleSaveSettings(newSettings);
+        setIsAddingRecord(false);
+        setEditingRecordId(null);
+    };
+
+    const handleDeleteRecord = (recordId: string) => {
+        if (!confirm('確定要刪除此筆申報紀錄嗎？')) return;
+        const currentRecords = declarationSettings?.records || [];
+        const updatedRecords = currentRecords.filter(r => r.id !== recordId);
+        const newSettings: DeclarationSettings = {
+            ...declarationSettings || { nextDate: '', lastModified: Date.now(), emailNotificationsEnabled: false, emailRecipients: [] },
+            records: updatedRecords,
+            lastModified: Date.now()
+        };
+        handleSaveSettings(newSettings);
+    };
+
     const handleSaveSettings = async (settings: DeclarationSettings) => {
         if (user?.uid) {
             try {
@@ -1533,7 +1638,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </button>
                                 {/* Management Button Removed */}
                                 {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
-                                    <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
+                                    <button onClick={() => { setSettingsModalMode('full'); setSettingsTab('PROFILE'); setIsSettingsOpen(true); }} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
                                         <Settings className="w-5 h-5" />
                                     </button>
                                 )}
@@ -1676,25 +1781,50 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 </div>
                             </div>
 
-                            {/* Declaration Countdown */}
-                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-amber-200 group">
+                            {/* Declaration Countdown & Cycle Quick Access */}
+                            <button
+                                onClick={() => {
+                                    if (!user.isGuest && (isAdmin || systemSettings?.allowInspectorDeclaration !== false)) {
+                                        setSettingsTab('DECLARATION');
+                                        setSettingsModalMode('focused');
+                                        setIsSettingsOpen(true);
+                                    }
+                                }}
+                                disabled={user.isGuest || (!isAdmin && systemSettings?.allowInspectorDeclaration === false)}
+                                className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-amber-300 hover:bg-white text-left group cursor-pointer disabled:cursor-default"
+                                title={!user.isGuest && (isAdmin || systemSettings?.allowInspectorDeclaration !== false) ? "點擊設定申報週期與基準日" : undefined}
+                            >
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
-                                    <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('declarationCountdown')}</p>
-                                    <div className="flex items-baseline gap-1 min-w-0 mb-1">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                            {t('declarationCountdown')}
+                                        </p>
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-100/90 text-amber-800 border border-amber-200/60">
+                                            {declarationSettings?.cycle === '6_MONTHS' ? '每半年' : '每年'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-baseline gap-1 min-w-0 my-0.5">
                                         {countdownDays !== null ? (
                                             <>
-                                                <span className={`text-2xl sm:text-3xl font-bold tracking-tight truncate leading-none ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>{countdownDays}</span>
+                                                <span className={`text-2xl sm:text-3xl font-bold tracking-tight truncate leading-none ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                    {countdownDays}
+                                                </span>
                                                 <span className="text-[10px] font-bold text-slate-600 shrink-0 uppercase tracking-wider">{t('days')}</span>
                                             </>
                                         ) : (
                                             <span className="text-2xl sm:text-3xl font-bold text-slate-200 tracking-tight italic" style={{ fontFamily: "'Outfit', sans-serif" }}>--</span>
                                         )}
                                     </div>
+                                    <p className="text-[10px] text-slate-400 group-hover:text-amber-600 transition-colors truncate">
+                                        {declarationSettings?.records && declarationSettings.records.length > 0
+                                            ? `上次申報: ${declarationSettings.records[0].actualDate.replace(/-/g, '/')} (${declarationSettings.records[0].periodLabel})`
+                                            : (declarationDeadline ? `下次截止: ${declarationDeadline.replace(/-/g, '/')}` : '點此設定申報日')}
+                                    </p>
                                 </div>
-                                <div className={`p-3 rounded-xl shadow-inner shrink-0 transition-all ${countdownDays !== null && countdownDays <= 30 ? 'bg-gradient-to-br from-amber-50 to-white group-hover:bg-amber-100' : 'bg-gradient-to-br from-slate-50 to-white group-hover:bg-slate-100'}`}>
-                                    <Calendar className={`w-5 h-5 transition-transform group-hover:scale-110 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500'}`} />
+                                <div className={`p-3 rounded-xl shadow-inner shrink-0 transition-all ${countdownDays !== null && countdownDays <= 30 ? 'bg-gradient-to-br from-amber-50 to-white group-hover:bg-amber-100' : 'bg-gradient-to-br from-slate-50 to-white group-hover:bg-amber-50'}`}>
+                                    <Calendar className={`w-5 h-5 transition-transform group-hover:scale-110 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-slate-500 group-hover:text-amber-600'}`} />
                                 </div>
-                            </div>
+                            </button>
 
                             {/* Light Settings Card */}
                             {!user.isGuest && (isAdmin || systemSettings?.allowInspectorLightSettings) && (
@@ -2320,7 +2450,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {
                         activeModal && (
                             <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-                                <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
+                                <div className={`bg-white rounded-3xl w-full ${settingsTab === 'DECLARATION' ? 'max-w-2xl' : 'max-w-lg'} shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[88vh]`}>
                                     {/* Modal Header */}
                                     <div className={`p-6 border-b flex justify-between items-center shrink-0 ${activeModal.type === 'INSPECTION' ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'}`}>
                                         <h3 className={`font-bold text-lg flex items-center gap-2 ${activeModal.type === 'INSPECTION' ? 'text-blue-800' : 'text-red-800'}`}>
@@ -2842,8 +2972,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     {/* Header */}
                                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                                         <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                            <Settings className="w-5 h-5 mr-2" />
-                                            {t('systemSettings')}
+                                            {settingsModalMode === 'focused' && settingsTab === 'DECLARATION' ? (
+                                                <>
+                                                    <Calendar className="w-5 h-5 mr-2 text-amber-600" />
+                                                    申報週期與基準日設定
+                                                </>
+                                            ) : settingsModalMode === 'focused' && settingsTab === 'LIGHTS' ? (
+                                                <>
+                                                    <Zap className="w-5 h-5 mr-2 text-orange-600" />
+                                                    {t('lightSettings')}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Settings className="w-5 h-5 mr-2" />
+                                                    {t('systemSettings')}
+                                                </>
+                                            )}
                                         </h3>
                                         <button onClick={() => { setIsSettingsOpen(false); setSettingsModalMode('full'); }} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
                                             <X className="w-5 h-5 text-slate-500" />
@@ -2880,24 +3024,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </button>
                                             )}
 
-                                            {(isAdmin || systemSettings?.allowInspectorDeclaration !== false) && (
-                                                <button
-                                                    onClick={() => setSettingsTab('DECLARATION')}
-                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'DECLARATION' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                                >
-                                                    <Calendar className="w-4 h-4 mr-2" /> {t('declaration')}
-                                                </button>
-                                            )}
 
-                                            {/* Lights tab is usually for admins but we show it if they can see it */}
-                                            {(isAdmin || systemSettings?.allowInspectorLightSettings) && (
-                                                <button
-                                                    onClick={() => setSettingsTab('LIGHTS')}
-                                                    className={`flex-1 min-w-[100px] py-3 text-sm font-bold border-b-2 transition-colors flex items-center justify-center ${settingsTab === 'LIGHTS' ? 'border-red-600 text-red-600' : 'border-transparent text-slate-500 hover:text-slate-800'} `}
-                                                >
-                                                    <Zap className="w-4 h-4 mr-2" /> {t('lights')}
-                                                </button>
-                                            )}
+
+
 
                                         </div>
                                     )}
@@ -3105,7 +3234,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 key={item.id}
                                                                 onClick={() => {
                                                                     setTheme(item.id as ThemeType);
-                                                                    addNotification('profile', t('themeChanged'), t('themeChangedDesc', { theme: item.label }));
                                                                 }}
                                                                 className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
                                                                 title={item.label}
@@ -3369,19 +3497,181 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                                    <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm border border-slate-100">
-                                                        <History className="w-5 h-5 text-slate-400" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-xs font-bold text-slate-400">
-                                                            {t('lastUpdated')}
+                                                {/* 歷次申報真正日期紀錄 */}
+                                                <div className="pt-4 border-t border-slate-200/80 space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                                <ClipboardList className="w-4 h-4 text-emerald-600" />
+                                                                歷次申報真正日期紀錄
+                                                            </h4>
+                                                            <p className="text-[11px] text-slate-500">
+                                                                留存每年度／每半年向消防機關申報備查之實際日期
+                                                            </p>
                                                         </div>
-                                                        <div className="text-sm font-bold text-slate-700">
-                                                            {declarationSettings?.lastModified ? new Date(declarationSettings.lastModified).toLocaleString('zh-TW') : t('notSet')}
-                                                        </div>
+                                                        {!isAddingRecord && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenAddRecord()}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-emerald-200"
+                                                            >
+                                                                <Plus className="w-3.5 h-3.5" />
+                                                                登記申報
+                                                            </button>
+                                                        )}
                                                     </div>
+
+                                                    {/* 登記 / 編輯表單 */}
+                                                    {isAddingRecord && (
+                                                        <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/90 space-y-3 animate-in fade-in duration-200">
+                                                            <div className="flex items-center justify-between border-b border-emerald-200/70 pb-2">
+                                                                <span className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
+                                                                    <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                                                                    {editingRecordId ? '編輯申報紀錄' : '登記真正申報完成紀錄'}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setIsAddingRecord(false); setEditingRecordId(null); }}
+                                                                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                                                <div>
+                                                                    <label className="font-bold text-slate-700 mb-1 block">申報期別 / 梯次 *</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="例如：2026年度 或 2026年 下半年"
+                                                                        value={recordForm.periodLabel}
+                                                                        onChange={(e) => setRecordForm({ ...recordForm, periodLabel: e.target.value })}
+                                                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-emerald-200 outline-none"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="font-bold text-emerald-800 mb-1 block">真正申報完成日期 *</label>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={recordForm.actualDate}
+                                                                        onChange={(e) => setRecordForm({ ...recordForm, actualDate: e.target.value })}
+                                                                        className="w-full p-2.5 bg-white border border-emerald-400 rounded-xl font-bold text-emerald-900 focus:ring-2 focus:ring-emerald-200 outline-none"
+                                                                        required
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="font-bold text-slate-700 mb-1 block">法定預定截止日</label>
+                                                                    <input
+                                                                        type="date"
+                                                                        value={recordForm.targetDeadline}
+                                                                        onChange={(e) => setRecordForm({ ...recordForm, targetDeadline: e.target.value })}
+                                                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-emerald-200 outline-none"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="font-bold text-slate-700 mb-1 block">檢修專技機構 / 人員</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="例如：安消消防設備師事務所"
+                                                                        value={recordForm.inspectorAgency}
+                                                                        onChange={(e) => setRecordForm({ ...recordForm, inspectorAgency: e.target.value })}
+                                                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-emerald-200 outline-none"
+                                                                    />
+                                                                </div>
+
+                                                                <div className="sm:col-span-2">
+                                                                    <label className="font-bold text-slate-700 mb-1 block">備註說明</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="選填備註事項..."
+                                                                        value={recordForm.notes}
+                                                                        onChange={(e) => setRecordForm({ ...recordForm, notes: e.target.value })}
+                                                                        className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-medium focus:ring-2 focus:ring-emerald-200 outline-none"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex justify-end gap-2 pt-2 border-t border-emerald-200/50">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { setIsAddingRecord(false); setEditingRecordId(null); }}
+                                                                    className="px-3.5 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors"
+                                                                >
+                                                                    取消
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleSaveRecord}
+                                                                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                                                                >
+                                                                    確認儲存紀錄
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* 歷次紀錄列表 */}
+                                                    {declarationSettings?.records && declarationSettings.records.length > 0 ? (
+                                                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                                            {declarationSettings.records.map((rec) => (
+                                                                <div
+                                                                    key={rec.id}
+                                                                    className="p-3 bg-white hover:bg-slate-50/90 rounded-2xl border border-slate-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm group"
+                                                                >
+                                                                    <div className="space-y-1.5 min-w-0">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                            <span className="font-black text-slate-800 text-xs px-2 py-0.5 bg-slate-100 rounded-lg">
+                                                                                {rec.periodLabel}
+                                                                            </span>
+                                                                            <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/70">
+                                                                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                                                                真正申報日：{rec.actualDate.replace(/-/g, '/')}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="text-[11px] text-slate-500 flex items-center gap-3 flex-wrap">
+                                                                            <span>預定截止：{rec.targetDeadline ? rec.targetDeadline.replace(/-/g, '/') : '未定'}</span>
+                                                                            {rec.inspectorAgency && <span>機構：{rec.inspectorAgency}</span>}
+                                                                            
+                                                                        </div>
+                                                                        {rec.notes && <p className="text-[11px] text-slate-400 italic">備註：{rec.notes}</p>}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1 shrink-0 self-end sm:self-center opacity-80 group-hover:opacity-100 transition-opacity">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleEditRecord(rec)}
+                                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                            title="編輯此紀錄"
+                                                                        >
+                                                                            <Edit2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDeleteRecord(rec.id)}
+                                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                            title="刪除"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="p-4 bg-slate-50/80 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
+                                                            <p className="text-xs text-slate-500 font-medium">
+                                                                目前尚未登錄歷史真正申報紀錄。
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleOpenAddRecord()}
+                                                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                                                            >
+                                                                <Plus className="w-3.5 h-3.5" />
+                                                                登記本次申報完成日期
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
+
+
 
                                                 <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                                                     <h5 className="font-bold text-yellow-800 text-sm mb-2 flex items-center gap-2">

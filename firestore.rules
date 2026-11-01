@@ -39,6 +39,11 @@ service cloud.firestore {
     match /settings/{settingId} {
       allow read, write: if request.auth != null;
     }
+
+    // 申報管理集合 (獨立第一層集合)
+    match /declarations/{declarationId} {
+      allow read, write: if request.auth != null;
+    }
     
     // 異常複檢記錄集合
     match /abnormalRecords/{recordId} {

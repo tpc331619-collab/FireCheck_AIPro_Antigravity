@@ -895,12 +895,30 @@ export const StorageService = {
     } else {
       try {
         const isPersonal = !organizationId || organizationId === '';
-        const docId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
-        const docRef = doc(db, 'settings', docId);
-        const snapshot = await getDoc(docRef);
-        if (snapshot.exists()) {
-          return snapshot.data() as DeclarationSettings;
+        const targetId = isPersonal ? userId : organizationId;
+
+        // 1. Read from dedicated root collection 'declarations'
+        const newDocRef = doc(db, 'declarations', targetId);
+        const newSnapshot = await getDoc(newDocRef);
+        if (newSnapshot.exists()) {
+          return newSnapshot.data() as DeclarationSettings;
         }
+
+        // 2. Fallback to old 'settings' collection for backward compatibility & auto-migration
+        const legacyDocId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
+        const legacyDocRef = doc(db, 'settings', legacyDocId);
+        const legacySnapshot = await getDoc(legacyDocRef);
+        if (legacySnapshot.exists()) {
+          const data = legacySnapshot.data() as DeclarationSettings;
+          // Auto migrate to new 'declarations' root collection
+          await setDoc(newDocRef, data);
+          // Clean up legacy doc
+          try {
+            await deleteDoc(legacyDocRef);
+          } catch {}
+          return data;
+        }
+
         return null;
       } catch (e: any) {
         if (e.code === 'permission-denied') {
@@ -923,18 +941,35 @@ export const StorageService = {
     } else {
       try {
         const isPersonal = !organizationId || organizationId === '';
-        const docId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
-        const docRef = doc(db, 'settings', docId);
+        const targetId = isPersonal ? userId : organizationId;
+
+        // Save directly to dedicated root collection 'declarations'
+        const docRef = doc(db, 'declarations', targetId);
         await setDoc(docRef, settings);
+
+        // Also clean up legacy document from 'settings' collection if present
+        const legacyDocId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
+        const legacyDocRef = doc(db, 'settings', legacyDocId);
+        try {
+          await deleteDoc(legacyDocRef);
+        } catch {
+          // Ignore if legacy delete fails
+        }
       } catch (e: any) {
         if (e.code === 'permission-denied') {
-          console.warn("Firestore permission denied, falling back to local storage");
-          if (!organizationId) {
+          console.warn("Firestore permission denied on declarations, falling back to settings collection");
+          try {
+            const isPersonal = !organizationId || organizationId === '';
+            const legacyDocId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
+            const legacyDocRef = doc(db, 'settings', legacyDocId);
+            await setDoc(legacyDocRef, settings);
+            console.log("Successfully saved to settings fallback");
+            return;
+          } catch (fallbackErr) {
+            console.error("Fallback to settings also failed, writing to localStorage", fallbackErr);
             localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-          } else {
-            throw e;
+            return;
           }
-          return;
         }
         console.error("Save declaration settings error", e);
         throw e;
