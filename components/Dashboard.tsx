@@ -2198,97 +2198,113 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showExportMenu ? 'rotate-180' : ''}`} />
                                                 </button>
 
-                                                {/* Backdrop for click outside */}
+                                                {/* Export Options Modal (Centered) */}
                                                 {showExportMenu && (
                                                     <div
-                                                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:bg-transparent"
+                                                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
                                                         onClick={() => setShowExportMenu(false)}
-                                                    />
-                                                )}
-
-                                                {/* Dropdown Menu (Mobile Bottom Sheet / Desktop Dropdown) */}
-                                                {showExportMenu && (
-                                                    <div className="fixed inset-x-3 bottom-6 sm:bottom-auto sm:top-full sm:mt-2 sm:inset-x-auto sm:right-0 sm:left-auto sm:absolute sm:w-80 bg-white dark:bg-slate-800 rounded-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
-                                                        {/* Mobile Header indicator */}
-                                                        <div className="sm:hidden flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700">
-                                                            <div className="flex items-center gap-2">
-                                                                <FileDown className="w-4 h-4 text-emerald-600" />
-                                                                <span className="text-sm font-bold text-slate-800 dark:text-white">選擇匯出格式</span>
+                                                    >
+                                                        <div
+                                                            className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden transform animate-in zoom-in-95 duration-150"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            {/* Modal Header */}
+                                                            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/70">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-400">
+                                                                        <FileDown className="w-5 h-5" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <h3 className="font-bold text-base text-slate-800 dark:text-white">選擇匯出格式</h3>
+                                                                        <p className="text-xs text-slate-500 dark:text-slate-400">請點選欲下載的資料範圍</p>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowExportMenu(false)}
+                                                                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 dark:hover:bg-slate-700 transition-colors"
+                                                                >
+                                                                    <X className="w-5 h-5" />
+                                                                </button>
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setShowExportMenu(false)}
-                                                                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                                            >
-                                                                <X className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
 
-                                                        <div className="p-2 space-y-1.5">
-                                                            {/* Option 1: Export Filtered (Highlighted) */}
-                                                            <button
-                                                                onClick={handleExportFiltered}
-                                                                className="flex flex-col w-full p-3 bg-emerald-50/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 rounded-2xl sm:rounded-xl transition-colors text-left border border-emerald-200/70 dark:border-emerald-700/60 group"
-                                                            >
-                                                                <div className="flex items-center justify-between w-full">
-                                                                    <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300 text-sm">
-                                                                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                                                                        <span>匯出篩選結果</span>
+                                                            {/* Options List */}
+                                                            <div className="p-4 space-y-2.5">
+                                                                {/* Option 1: Export Filtered (Highlighted) */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleExportFiltered();
+                                                                    }}
+                                                                    className="flex flex-col w-full p-3.5 bg-emerald-50/80 hover:bg-emerald-100 active:scale-[0.98] dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 rounded-2xl transition-all text-left border-2 border-emerald-300 dark:border-emerald-700/60 shadow-xs cursor-pointer"
+                                                                >
+                                                                    <div className="flex items-center justify-between w-full">
+                                                                        <div className="flex items-center gap-2 font-bold text-emerald-900 dark:text-emerald-300 text-sm">
+                                                                            <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                                                            <span>匯出篩選結果</span>
+                                                                        </div>
+                                                                        <span className="px-2.5 py-0.5 text-xs font-black bg-emerald-600 text-white rounded-full">
+                                                                            {flattenedHistory.length} 筆
+                                                                        </span>
                                                                     </div>
-                                                                    <span className="px-2 py-0.5 text-xs font-black bg-emerald-600 text-white rounded-full">
-                                                                        {flattenedHistory.length} 筆
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[11px] text-emerald-700/80 dark:text-emerald-400/80 mt-1 pl-6">
-                                                                    只匯出目前符合條件之資料（含自訂欄位過濾）
-                                                                </p>
-                                                            </button>
+                                                                    <p className="text-xs text-emerald-700/90 dark:text-emerald-400/80 mt-1 pl-6">
+                                                                        只匯出目前符合條件之資料（含自訂欄位）
+                                                                    </p>
+                                                                </button>
 
-                                                            {/* Option 2: Export All in Year */}
-                                                            <button
-                                                                onClick={handleExportAll}
-                                                                className="flex flex-col w-full p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl sm:rounded-xl transition-colors text-left group"
-                                                            >
-                                                                <div className="flex items-center justify-between w-full">
-                                                                    <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 text-sm">
-                                                                        <Database className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
-                                                                        <span>匯出全年度全部資料</span>
+                                                                {/* Option 2: Export All in Year */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleExportAll();
+                                                                    }}
+                                                                    className="flex flex-col w-full p-3.5 bg-slate-50 hover:bg-slate-100 active:scale-[0.98] dark:bg-slate-700/50 dark:hover:bg-slate-700 rounded-2xl transition-all text-left border border-slate-200 dark:border-slate-600 cursor-pointer"
+                                                                >
+                                                                    <div className="flex items-center justify-between w-full">
+                                                                        <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 text-sm">
+                                                                            <Database className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                                                                            <span>匯出全年度全部資料</span>
+                                                                        </div>
+                                                                        <span className="px-2.5 py-0.5 text-xs font-semibold bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-full">
+                                                                            {reports.reduce((acc, r) => acc + (r.items?.length || 0), 0)} 筆
+                                                                        </span>
                                                                     </div>
-                                                                    <span className="px-2 py-0.5 text-xs font-semibold bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-full">
-                                                                        {reports.reduce((acc, r) => acc + (r.items?.length || 0), 0)} 筆
-                                                                    </span>
-                                                                </div>
-                                                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 pl-6">
-                                                                    {selectedYear} 年度所有巡檢資料（不限篩選）
-                                                                </p>
-                                                            </button>
+                                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 pl-6">
+                                                                        {selectedYear} 年度所有巡檢資料（不限篩選）
+                                                                    </p>
+                                                                </button>
 
-                                                            <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                                                                {/* Option 3: Official Monthly Report */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleExportMonthly();
+                                                                    }}
+                                                                    className="flex flex-col w-full p-3.5 bg-blue-50/70 hover:bg-blue-100/80 active:scale-[0.98] dark:bg-blue-950/40 dark:hover:bg-blue-900/50 rounded-2xl transition-all text-left border border-blue-200 dark:border-blue-800 cursor-pointer"
+                                                                >
+                                                                    <div className="flex items-center gap-2 font-bold text-blue-900 dark:text-blue-300 text-sm">
+                                                                        <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                                                                        <span>本月官方月報 (Excel)</span>
+                                                                    </div>
+                                                                    <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-1 pl-6">
+                                                                        標準格式月度巡檢統計與報表
+                                                                    </p>
+                                                                </button>
+                                                            </div>
 
-                                                            {/* Option 3: Official Monthly Report */}
-                                                            <button
-                                                                onClick={handleExportMonthly}
-                                                                className="flex flex-col w-full p-3 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-2xl sm:rounded-xl transition-colors text-left group"
-                                                            >
-                                                                <div className="flex items-center gap-2 font-bold text-blue-800 dark:text-blue-300 text-sm">
-                                                                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-                                                                    <span>本月官方月報 (Excel)</span>
-                                                                </div>
-                                                                <p className="text-[11px] text-blue-600/70 dark:text-blue-400/70 mt-1 pl-6">
-                                                                    標準格式月度巡檢統計與報表
-                                                                </p>
-                                                            </button>
-                                                        </div>
-
-                                                        {/* Mobile Cancel Button */}
-                                                        <div className="sm:hidden p-2 pt-0">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setShowExportMenu(false)}
-                                                                className="w-full py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold hover:bg-slate-200 transition-colors"
-                                                            >
-                                                                取消
-                                                            </button>
+                                                            {/* Cancel Button */}
+                                                            <div className="p-4 pt-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowExportMenu(false)}
+                                                                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-2xl text-sm font-bold transition-colors cursor-pointer"
+                                                                >
+                                                                    取消
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
