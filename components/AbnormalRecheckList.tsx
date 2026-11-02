@@ -425,10 +425,57 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                     <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-8 flex justify-center custom-scrollbar bg-slate-200">
                         {/* Paper Container */}
-                        <div ref={printRef} className="print-area w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-6 sm:p-12 text-black font-sans border border-gray-200">
+                        <div ref={printRef} className="print-area relative overflow-hidden w-full max-w-[210mm] min-h-[297mm] bg-white shadow-xl mx-auto p-6 sm:p-12 text-black font-sans border border-gray-200">
+
+                            {/* 已修復：紙張中央大型斜向防偽浮水印 + 右上工程驗收印鑑章 */}
+                            {selectedRecord.status === 'fixed' && (
+                                <>
+                                    {/* 背景大型斜向浮水印 */}
+                                    <div
+                                        aria-hidden="true"
+                                        className="pointer-events-none select-none absolute inset-0 flex items-center justify-center z-20"
+                                    >
+                                        <div className="-rotate-[28deg] text-emerald-600/[0.08] font-black tracking-[0.25em] text-[64px] sm:text-[96px] whitespace-nowrap border-y-8 border-emerald-600/[0.08] py-2 px-10">
+                                            已修復 RESOLVED
+                                        </div>
+                                    </div>
+
+                                    {/* 右上角斜向雙框工程驗收印鑑章 */}
+                                    <div
+                                        aria-hidden="true"
+                                        className="pointer-events-none select-none absolute top-5 right-5 sm:top-8 sm:right-12 z-20 -rotate-12"
+                                    >
+                                        <div className="border-[3px] border-emerald-600/85 rounded-lg p-1 text-emerald-600/90 shadow-sm bg-white/75">
+                                            <div className="border border-emerald-600/75 rounded px-3 py-1.5 text-center leading-none">
+                                                <div className="text-[9px] font-extrabold tracking-[0.2em] border-b border-emerald-600/50 pb-1 mb-1">
+                                                    FSIPPRO VERIFIED
+                                                </div>
+                                                <div className="text-xl sm:text-2xl font-black tracking-[0.25em] pl-1 my-0.5">
+                                                    已修復
+                                                </div>
+                                                <div className="text-[10px] font-mono font-bold border-t border-emerald-600/50 pt-1 mt-1 tracking-wider">
+                                                    {selectedRecord.fixedDate
+                                                        ? new Date(selectedRecord.fixedDate).toLocaleDateString('zh-TW')
+                                                        : fixedDate.replace(/-/g, '/')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             {/* Paper Title Section */}
-                            <div className="text-center mb-6">
+                            <div className="text-center mb-6 relative z-10">
+                                <div className="inline-flex items-center gap-2 mb-2">
+                                    <span className={`px-3 py-0.5 rounded-full text-xs font-bold border ${
+                                        selectedRecord.status === 'fixed'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                            : 'bg-red-50 text-red-700 border-red-300'
+                                    }`}>
+                                        {selectedRecord.status === 'fixed' ? '✓ 已完成修復結案' : '● 待複檢處理'}
+                                    </span>
+                                </div>
+                                <br />
                                 <h1 className="text-3xl font-bold border-b-2 border-black pb-2 inline-block px-10">
                                     {t('abnormalRecheckForm')}
                                 </h1>
@@ -590,7 +637,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                             </table>
 
                             {/* Section III: Repair report */}
-                            <table className="strict-table border-t-0">
+                            <table className="strict-table border-t-0 relative z-10">
                                 <thead>
                                     <tr>
                                         <td colSpan={2} className="section-header border-t-0">
@@ -606,13 +653,25 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Repair Date</div>
                                         </td>
                                         <td className="p-2">
-                                            <input
-                                                type="date"
-                                                value={fixedDate}
-                                                onChange={(e) => setFixedDate(e.target.value)}
-                                                disabled={selectedRecord.status === 'fixed'}
-                                                className="px-3 py-1 border-2 border-gray-200 rounded focus:border-black outline-none font-bold disabled:bg-white print:border-none"
-                                            />
+                                            {selectedRecord.status === 'fixed' ? (
+                                                <div className="flex items-center gap-3 px-2 py-1">
+                                                    <span className="font-bold text-emerald-700 text-base">
+                                                        {selectedRecord.fixedDate
+                                                            ? new Date(selectedRecord.fixedDate).toLocaleDateString('zh-TW')
+                                                            : fixedDate.replace(/-/g, '/')}
+                                                    </span>
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold">
+                                                        ✓ 複檢合格 (PASS)
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <input
+                                                    type="date"
+                                                    value={fixedDate}
+                                                    onChange={(e) => setFixedDate(e.target.value)}
+                                                    className="px-3 py-1 border-2 border-gray-200 rounded focus:border-black outline-none font-bold print:border-none"
+                                                />
+                                            )}
                                         </td>
                                     </tr>
                                     <tr>
@@ -621,26 +680,31 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Repair Notes</div>
                                         </td>
                                         <td className="p-2">
-                                            <textarea
-                                                value={fixedNotes}
-                                                onChange={(e) => setFixedNotes(e.target.value)}
-                                                placeholder={t('repairNotesPlaceholder')}
-                                                disabled={selectedRecord.status === 'fixed'}
-                                                className="w-full h-16 p-2 bg-gray-50 border border-gray-200 rounded focus:border-black outline-none resize-none disabled:bg-white print:border-none print:p-0 leading-relaxed"
-                                            />
-                                            {selectedRecord.status === 'pending' && (
-                                                <div className="flex justify-start mt-1 no-print">
-                                                    <select
-                                                        className="w-full text-[11px] border border-gray-300 rounded px-1 py-0.5 bg-gray-50 focus:border-black outline-none"
-                                                        onChange={handleQuickTextSelect}
-                                                        defaultValue=""
-                                                    >
-                                                        <option value="" disabled>{t('quickFixTemplate')}</option>
-                                                        {QUICK_FIX_TEMPLATES.map((tpl, i) => (
-                                                            <option key={i} value={tpl}>{tpl}</option>
-                                                        ))}
-                                                    </select>
+                                            {selectedRecord.status === 'fixed' ? (
+                                                <div className="px-2 py-2 min-h-[4rem] text-emerald-800 font-bold whitespace-pre-wrap leading-relaxed">
+                                                    {fixedNotes || selectedRecord.fixedNotes || '---'}
                                                 </div>
+                                            ) : (
+                                                <>
+                                                    <textarea
+                                                        value={fixedNotes}
+                                                        onChange={(e) => setFixedNotes(e.target.value)}
+                                                        placeholder={t('repairNotesPlaceholder')}
+                                                        className="w-full h-16 p-2 bg-gray-50 border border-gray-200 rounded focus:border-black outline-none resize-none print:border-none print:p-0 leading-relaxed"
+                                                    />
+                                                    <div className="flex justify-start mt-1 no-print">
+                                                        <select
+                                                            className="w-full text-[11px] border border-gray-300 rounded px-1 py-0.5 bg-gray-50 focus:border-black outline-none"
+                                                            onChange={handleQuickTextSelect}
+                                                            defaultValue=""
+                                                        >
+                                                            <option value="" disabled>{t('quickFixTemplate')}</option>
+                                                            {QUICK_FIX_TEMPLATES.map((tpl, i) => (
+                                                                <option key={i} value={tpl}>{tpl}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </>
                                             )}
                                         </td>
                                     </tr>
@@ -773,8 +837,21 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div
                                                 key={record.id}
                                                 onClick={() => setSelectedRecord(record)}
-                                                className="bg-white p-5 rounded-2xl border border-orange-200 hover:border-orange-400 hover:shadow-xl transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden"
+                                                className={`relative bg-white p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden ${
+                                                    viewMode === 'pending'
+                                                        ? 'border-orange-200 hover:border-orange-400 hover:shadow-xl'
+                                                        : 'border-emerald-200 hover:border-emerald-400 hover:shadow-xl'
+                                                }`}
                                             >
+                                                {/* 已完成卡片右上斜向微浮水印章 */}
+                                                {viewMode === 'fixed' && (
+                                                    <div
+                                                        aria-hidden="true"
+                                                        className="pointer-events-none select-none absolute top-3 right-12 -rotate-12 border-2 border-emerald-500/30 rounded px-2 py-0.5 text-emerald-600/35 font-black text-xs tracking-widest"
+                                                    >
+                                                        已修復
+                                                    </div>
+                                                )}
                                                 <div className="flex-1 flex flex-col">
                                                     <div className="flex items-start justify-between gap-4">
                                                         <div className="flex-1">
@@ -809,28 +886,52 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                                     <span className="bg-slate-100 px-1.5 rounded text-xs">{t('siteName')}</span>
                                                                     {record.siteName} / {record.buildingName}
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <Calendar className="w-4 h-4" />
-                                                                    {t('discoveryDate')}: {new Date(record.inspectionDate).toLocaleDateString(language)}
+                                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <Calendar className="w-4 h-4" />
+                                                                        {t('discoveryDate')}: {new Date(record.inspectionDate).toLocaleDateString(language)}
+                                                                    </div>
+                                                                    {viewMode === 'fixed' && record.fixedDate && (
+                                                                        <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+                                                                            <CheckCircle2 className="w-4 h-4" />
+                                                                            {t('repairDate')}: {new Date(record.fixedDate).toLocaleDateString(language)}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
-                                                            <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
-                                                                <div
-                                                                    className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5"
-                                                                    style={lightSettings?.abnormal?.color ? { backgroundColor: lightSettings.abnormal.color } : {}}
-                                                                />
-                                                                <div>
-                                                                    <p className="text-xs font-bold text-red-500 mb-1">
-                                                                        {t('abnormalReason')}
-                                                                    </p>
-                                                                    <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
+                                                            <div className={`grid gap-2 ${viewMode === 'fixed' ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                                                                <div className="bg-red-50 p-3 rounded-lg border border-red-100 flex items-start gap-3">
+                                                                    <div
+                                                                        className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-300 shrink-0 mt-0.5"
+                                                                        style={lightSettings?.abnormal?.color ? { backgroundColor: lightSettings.abnormal.color } : {}}
+                                                                    />
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-red-500 mb-1">
+                                                                            {t('abnormalReason')}
+                                                                        </p>
+                                                                        <p className="text-slate-700 font-medium line-clamp-2">{record.abnormalReason}</p>
+                                                                    </div>
                                                                 </div>
+
+                                                                {viewMode === 'fixed' && (
+                                                                    <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-200 flex items-start gap-3">
+                                                                        <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-200 shrink-0 mt-0.5">
+                                                                            <CheckCircle className="w-4 h-4" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs font-bold text-emerald-700 mb-1">
+                                                                                {t('repairNotes')}
+                                                                            </p>
+                                                                            <p className="text-slate-700 font-medium line-clamp-2">{record.fixedNotes || '已修復'}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
 
                                                         <div className="flex flex-col gap-2 shrink-0 self-center items-center">
-                                                            <ChevronRight className="w-6 h-6 text-slate-400 group-hover:text-orange-500 transition-colors" />
+                                                            <ChevronRight className={`w-6 h-6 text-slate-400 transition-colors ${viewMode === 'pending' ? 'group-hover:text-orange-500' : 'group-hover:text-emerald-500'}`} />
                                                             {(user.role === 'admin' || systemSettings?.allowInspectorDeleteAbnormal) && (
                                                                 <button
                                                                     onClick={(e) => handleDelete(record, e)}

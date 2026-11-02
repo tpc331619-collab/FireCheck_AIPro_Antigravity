@@ -79,7 +79,8 @@ const InspectionForm: React.FC<InspectionFormProps> = ({ report: initialReport, 
 
     // Auto-generate summary if fail
     let aiSummary = initialReport?.aiSummary;
-    if (overallStatus === 'Fail' && !aiSummary && process.env.API_KEY) {
+    // AI 改由伺服器端代理呼叫，前端不再持有 API Key；訪客（匿名）不呼叫 AI
+    if (overallStatus === 'Fail' && !aiSummary && !user.isGuest) {
       aiSummary = await GeminiService.generateReportSummary(items);
     }
 
