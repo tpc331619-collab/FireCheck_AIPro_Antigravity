@@ -2201,23 +2201,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {/* Backdrop for click outside */}
                                                 {showExportMenu && (
                                                     <div
-                                                        className="fixed inset-0 z-40"
+                                                        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs sm:bg-transparent"
                                                         onClick={() => setShowExportMenu(false)}
                                                     />
                                                 )}
 
-                                                {/* Dropdown Menu */}
+                                                {/* Dropdown Menu (Mobile Bottom Sheet / Desktop Dropdown) */}
                                                 {showExportMenu && (
-                                                    <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                                                    <div className="fixed inset-x-3 bottom-6 sm:bottom-auto sm:top-full sm:mt-2 sm:inset-x-auto sm:right-0 sm:left-auto sm:absolute sm:w-80 bg-white dark:bg-slate-800 rounded-3xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-5 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
+                                                        {/* Mobile Header indicator */}
+                                                        <div className="sm:hidden flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+                                                            <div className="flex items-center gap-2">
+                                                                <FileDown className="w-4 h-4 text-emerald-600" />
+                                                                <span className="text-sm font-bold text-slate-800 dark:text-white">選擇匯出格式</span>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowExportMenu(false)}
+                                                                className="p-1 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+
                                                         <div className="p-2 space-y-1.5">
                                                             {/* Option 1: Export Filtered (Highlighted) */}
                                                             <button
                                                                 onClick={handleExportFiltered}
-                                                                className="flex flex-col w-full p-2.5 bg-emerald-50/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 rounded-xl transition-colors text-left border border-emerald-200/70 dark:border-emerald-700/60 group"
+                                                                className="flex flex-col w-full p-3 bg-emerald-50/80 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 rounded-2xl sm:rounded-xl transition-colors text-left border border-emerald-200/70 dark:border-emerald-700/60 group"
                                                             >
                                                                 <div className="flex items-center justify-between w-full">
                                                                     <div className="flex items-center gap-2 font-bold text-emerald-800 dark:text-emerald-300 text-sm">
-                                                                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                                                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                                                         <span>匯出篩選結果</span>
                                                                     </div>
                                                                     <span className="px-2 py-0.5 text-xs font-black bg-emerald-600 text-white rounded-full">
@@ -2232,11 +2247,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             {/* Option 2: Export All in Year */}
                                                             <button
                                                                 onClick={handleExportAll}
-                                                                className="flex flex-col w-full p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors text-left group"
+                                                                className="flex flex-col w-full p-3 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-2xl sm:rounded-xl transition-colors text-left group"
                                                             >
                                                                 <div className="flex items-center justify-between w-full">
                                                                     <div className="flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 text-sm">
-                                                                        <Database className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                                                        <Database className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
                                                                         <span>匯出全年度全部資料</span>
                                                                     </div>
                                                                     <span className="px-2 py-0.5 text-xs font-semibold bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-full">
@@ -2253,15 +2268,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             {/* Option 3: Official Monthly Report */}
                                                             <button
                                                                 onClick={handleExportMonthly}
-                                                                className="flex flex-col w-full p-2.5 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-xl transition-colors text-left group"
+                                                                className="flex flex-col w-full p-3 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-2xl sm:rounded-xl transition-colors text-left group"
                                                             >
                                                                 <div className="flex items-center gap-2 font-bold text-blue-800 dark:text-blue-300 text-sm">
-                                                                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                                                    <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
                                                                     <span>本月官方月報 (Excel)</span>
                                                                 </div>
                                                                 <p className="text-[11px] text-blue-600/70 dark:text-blue-400/70 mt-1 pl-6">
                                                                     標準格式月度巡檢統計與報表
                                                                 </p>
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Mobile Cancel Button */}
+                                                        <div className="sm:hidden p-2 pt-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowExportMenu(false)}
+                                                                className="w-full py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-2xl text-xs font-bold hover:bg-slate-200 transition-colors"
+                                                            >
+                                                                取消
                                                             </button>
                                                         </div>
                                                     </div>
