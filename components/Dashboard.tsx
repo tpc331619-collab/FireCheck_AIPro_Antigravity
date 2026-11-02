@@ -2093,25 +2093,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     />
 
                     {/* 底部版權與版本資訊 (Footer) */}
-                    <footer className="mt-12 pt-6 pb-4 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 select-none">
-                        <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-600 tracking-wide">FSIPPRO</span>
-                            <span className="px-1.5 py-0.5 bg-slate-200/70 text-slate-600 rounded text-[10px] font-mono font-semibold">
-                                v2.4.0 Pro
-                            </span>
-                            <span className="hidden sm:inline text-slate-300">|</span>
-                            <span>智慧消防查檢資訊管理平台</span>
-                        </div>
-                        <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-end">
-                            <div className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span>雲端即時同步</span>
-                            </div>
-                            <span className="text-slate-300">|</span>
-                            <span className="text-slate-500 font-medium">
-                                © 2026 北部儲運中心 · FSIPPRO Team. All Rights Reserved.
-                            </span>
-                        </div>
+                    <footer className="mt-12 pt-6 pb-6 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-center gap-2 text-xs text-slate-400 select-none flex-wrap">
+                        <span className="font-bold text-slate-600 dark:text-slate-300 tracking-wide">FSIPPRO</span>
+                        <span className="px-1.5 py-0.5 bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded text-[10px] font-mono font-bold">
+                            v2.4.1 Pro
+                        </span>
+                        <span className="text-slate-300 dark:text-slate-600">·</span>
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">
+                            © 2026 {currentOrgName || '北部儲運中心'} · FSIPPRO Team. All Rights Reserved.
+                        </span>
                     </footer>
 
                     {(showArchived || (isSearchActive && searchTerm.trim())) && (

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, MapPin, Building2, Search, CheckCircle, AlertTriangle, X, Camera, Save, ClipboardCheck, ArrowLeft, Plus, Trash2, Edit2, RotateCw, Image as ImageIcon, Upload, Calendar, CalendarClock, Gauge, Eye, Play, Pause, FileText, ScanBarcode, Lock, Tag, Clock, Box, ChevronDown, ClipboardList } from 'lucide-react';
 import { EquipmentDefinition, UserProfile, InspectionReport, InspectionItem, InspectionStatus } from '../types';
 import { StorageService } from '../services/storageService';
@@ -42,6 +42,38 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     // Report State
     const [currentReport, setCurrentReport] = useState<InspectionReport | null>(null);
 
+    // Status Filter for Interactive Cards
+    type StatusFilterType = 'ALL' | 'PENDING' | 'COMPLETED_NORMAL' | 'ABNORMAL' | 'NOT_NEEDED';
+    const [statusFilter, setStatusFilter] = useState<StatusFilterType>('ALL');
+
+    const getItemCategory = (e: EquipmentDefinition): 'PENDING' | 'COMPLETED_NORMAL' | 'ABNORMAL' | 'NOT_NEEDED' => {
+        const inspectionItem = (currentReport?.items || []).find((i: any) => i.equipmentId === e.id);
+        const status = getFrequencyStatus(e, lightSettings);
+        const isCompleted = status === 'COMPLETED' || !!inspectionItem;
+
+        if (isCompleted) {
+            const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal || 
+                inspectionItem?.status === 'Abnormal' || 
+                inspectionItem?.status === '異常' || 
+                inspectionItem?.status === 'Fail';
+            if (isAbnormal) {
+                return 'ABNORMAL';
+            }
+            return 'COMPLETED_NORMAL';
+        }
+
+        if (status === 'PENDING') {
+            return 'PENDING';
+        }
+
+        return 'NOT_NEEDED';
+    };
+
+    const displayedEquipment = useMemo(() => {
+        if (statusFilter === 'ALL') return filteredEquipment;
+        return filteredEquipment.filter(e => getItemCategory(e) === statusFilter);
+    }, [filteredEquipment, statusFilter, currentReport, lightSettings]);
+
     // Inspection Modal State (To be implemented, maybe simplistic for now)
     const [inspectingItem, setInspectingItem] = useState<EquipmentDefinition | null>(null);
     const [activeInspectionItem, setActiveInspectionItem] = useState<InspectionItem | null>(null);
@@ -49,6 +81,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     const [tagInput, setTagInput] = useState('');
     const [showTagInput, setShowTagInput] = useState(false);
     const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+    const [isSavingInspection, setIsSavingInspection] = useState(false);
 
     // Barcode Scanner State
     const [scannerOpen, setScannerOpen] = useState(false);
@@ -149,6 +182,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         if (!selectedSite) {
             setEquipmentNames([]);
             setSelectedEquipmentName('ALL_EQUIPMENT');
+            setStatusFilter('ALL');
             return;
         }
 
@@ -208,7 +242,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                         const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
                         const existingReport = reports.find(r => {
-                            return r.buildingName === selectedBuilding && r.date >= startOfDay;
+                            return r.buildingName === selectedBuilding && (typeof r.date === 'number' ? r.date : new Date(r.date).getTime()) >= startOfDay;
                         });
 
                         if (existingReport) {
@@ -248,7 +282,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                         // Create a "Virtual" Combined Report for visualization
                         const siteReports = reports.filter(r =>
-                            r.items && r.items.length > 0 && r.date >= startOfDay
+                            r.items && r.items.length > 0 && (typeof r.date === 'number' ? r.date : new Date(r.date).getTime()) >= startOfDay
                             // && allEquipment.some(e => e.siteName === selectedSite && e.buildingName === r.buildingName) // Rough check
                         );
 
@@ -386,6 +420,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     };
 
     const handleSaveInspection = async () => {
+        if (isSavingInspection) return;
         if (!inspectingItem || !activeInspectionItem) return;
 
         // Ensure notes if abnormal
@@ -394,6 +429,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             return;
         }
 
+        setIsSavingInspection(true);
         const now = Date.now();
 
         // Final tag check: Capture what is in the input box if not empty
@@ -456,7 +492,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 const reports = await StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId);
                 const today = new Date();
                 const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-                let foundReport = reports.find(r => r.buildingName === itemBuilding && r.date >= startOfDay);
+                let foundReport = reports.find(r => r.buildingName === itemBuilding && (typeof r.date === 'number' ? r.date : new Date(r.date).getTime()) >= startOfDay);
                 if (!foundReport) {
                     foundReport = {
                         id: `draft_${itemBuilding}_${now}`,
@@ -574,9 +610,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 const eIdx = combined.findIndex((i: any) => i.equipmentId === inspectingItem.id);
                 if (eIdx >= 0) combined[eIdx] = { ...updatedItem, equipmentId: inspectingItem.id } as any;
                 else combined.push({ ...updatedItem, equipmentId: inspectingItem.id } as any);
-                setCurrentReport({ ...currentReport, items: combined, updatedAt: now });
+                setCurrentReport({ ...currentReport, items: combined, id: reportTarget.id, updatedAt: now });
             } else {
-                setCurrentReport({ ...cleanedReport, updatedAt: now });
+                setCurrentReport({ ...cleanedReport, id: reportTarget.id, updatedAt: now });
             }
 
             showToast(`✅ 檢查完成！\n設備：${inspectingItem.name}`);
@@ -588,6 +624,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         } catch (e: any) {
             console.error("Save failed:", e);
             showAlert(`儲存失敗：${e.message || '未知錯誤'}`);
+        } finally {
+            setIsSavingInspection(false);
         }
     };
 
@@ -698,48 +736,147 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                                 return (
                                     <>
-                                        <div className="grid grid-cols-4 gap-4">
-                                            <div className="p-4 rounded-xl border text-center"
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                                            {/* 1. 需檢查 (PENDING) */}
+                                            <div
+                                                onClick={() => setStatusFilter(prev => prev === 'PENDING' ? 'ALL' : 'PENDING')}
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                    statusFilter === 'PENDING'
+                                                        ? 'ring-2 ring-red-500 ring-offset-2 shadow-md scale-[1.02] border-red-500'
+                                                        : 'hover:border-red-300'
+                                                }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.red?.color || '#ef4444'}15`,
-                                                    borderColor: `${lightSettings?.red?.color || '#ef4444'}33`
-                                                }}>
-                                                <p className="text-xs font-bold uppercase tracking-wider mb-1"
-                                                    style={{ color: lightSettings?.red?.color || '#ef4444' }}>{t('needInspection')}</p>
+                                                    borderColor: statusFilter === 'PENDING' ? (lightSettings?.red?.color || '#ef4444') : `${lightSettings?.red?.color || '#ef4444'}33`
+                                                }}
+                                                title="點擊篩選需檢查設備（再點一次解除）"
+                                            >
+                                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                                    <p className="text-xs font-bold uppercase tracking-wider"
+                                                        style={{ color: lightSettings?.red?.color || '#ef4444' }}>{t('needInspection')}</p>
+                                                    {statusFilter === 'PENDING' && (
+                                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                                    )}
+                                                </div>
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.red?.color || '#ef4444' }}>{needInspectionCount}</p>
+                                                <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                                                    {statusFilter === 'PENDING' ? '已套用篩選 (點擊解除)' : '點擊過濾此項'}
+                                                </p>
                                             </div>
+
+                                            {/* 2. 已完成 (COMPLETED_NORMAL) */}
                                             <div
-                                                onClick={() => setShowCompletedModal(true)}
-                                                className="p-4 rounded-xl border text-center cursor-pointer hover:shadow-md transition-all"
+                                                onClick={() => setStatusFilter(prev => prev === 'COMPLETED_NORMAL' ? 'ALL' : 'COMPLETED_NORMAL')}
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                    statusFilter === 'COMPLETED_NORMAL'
+                                                        ? 'ring-2 ring-emerald-500 ring-offset-2 shadow-md scale-[1.02] border-emerald-500'
+                                                        : 'hover:border-emerald-300'
+                                                }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.completed?.color || '#10b981'}15`,
-                                                    borderColor: `${lightSettings?.completed?.color || '#10b981'}33`
-                                                }}>
-                                                <p className="text-xs font-bold uppercase tracking-wider mb-1"
-                                                    style={{ color: lightSettings?.completed?.color || '#10b981' }}>{t('completed')}</p>
+                                                    borderColor: statusFilter === 'COMPLETED_NORMAL' ? (lightSettings?.completed?.color || '#10b981') : `${lightSettings?.completed?.color || '#10b981'}33`
+                                                }}
+                                                title="點擊篩選已完成設備（再點一次解除）"
+                                            >
+                                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                                    <p className="text-xs font-bold uppercase tracking-wider"
+                                                        style={{ color: lightSettings?.completed?.color || '#10b981' }}>{t('completed')}</p>
+                                                    {statusFilter === 'COMPLETED_NORMAL' && (
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                    )}
+                                                </div>
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.completed?.color || '#10b981' }}>{completedNormalCount}</p>
+                                                <div className="flex items-center justify-center gap-2 mt-1">
+                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                        {statusFilter === 'COMPLETED_NORMAL' ? '已套用篩選' : '點擊過濾'}
+                                                    </span>
+                                                    {completedNormalCount > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowCompletedModal(true);
+                                                            }}
+                                                            className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold underline inline-flex items-center gap-0.5"
+                                                            title="彈窗查看已完成細項"
+                                                        >
+                                                            <span>明細</span>
+                                                            <Eye className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
+
+                                            {/* 3. 異常 (ABNORMAL) */}
                                             <div
-                                                onClick={() => setShowAbnormalModal(true)}
-                                                className="p-4 rounded-xl border text-center cursor-pointer hover:shadow-md transition-all"
+                                                onClick={() => setStatusFilter(prev => prev === 'ABNORMAL' ? 'ALL' : 'ABNORMAL')}
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                    statusFilter === 'ABNORMAL'
+                                                        ? 'ring-2 ring-orange-500 ring-offset-2 shadow-md scale-[1.02] border-orange-500'
+                                                        : 'hover:border-orange-300'
+                                                }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}15`,
-                                                    borderColor: `${lightSettings?.abnormal?.color || '#f97316'}33`
-                                                }}>
-                                                <p className="text-xs font-bold uppercase tracking-wider mb-1"
-                                                    style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{t('abnormal')}</p>
+                                                    borderColor: statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') : `${lightSettings?.abnormal?.color || '#f97316'}33`
+                                                }}
+                                                title="點擊篩選異常設備（再點一次解除）"
+                                            >
+                                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                                    <p className="text-xs font-bold uppercase tracking-wider"
+                                                        style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{t('abnormal')}</p>
+                                                    {statusFilter === 'ABNORMAL' && (
+                                                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                                                    )}
+                                                </div>
                                                 <p className="text-2xl font-black"
                                                     style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{abnormalCount}</p>
+                                                <div className="flex items-center justify-center gap-2 mt-1">
+                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                        {statusFilter === 'ABNORMAL' ? '已套用篩選' : '點擊過濾'}
+                                                    </span>
+                                                    {abnormalCount > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setShowAbnormalModal(true);
+                                                            }}
+                                                            className="text-[10px] text-orange-700 hover:text-orange-900 font-bold underline inline-flex items-center gap-0.5"
+                                                            title="彈窗查看異常細項"
+                                                        >
+                                                            <span>明細</span>
+                                                            <Eye className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="p-4 rounded-xl border text-center"
+
+                                            {/* 4. 不需檢查 (NOT_NEEDED) */}
+                                            <div
+                                                onClick={() => setStatusFilter(prev => prev === 'NOT_NEEDED' ? 'ALL' : 'NOT_NEEDED')}
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                    statusFilter === 'NOT_NEEDED'
+                                                        ? 'ring-2 ring-emerald-600 ring-offset-2 shadow-md scale-[1.02] border-emerald-600'
+                                                        : 'hover:border-slate-300'
+                                                }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.green?.color || '#10b981'}15`,
-                                                    borderColor: `${lightSettings?.green?.color || '#10b981'}33`
-                                                }}>
-                                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{t('notNeeded')}</p>
+                                                    borderColor: statusFilter === 'NOT_NEEDED' ? (lightSettings?.green?.color || '#10b981') : `${lightSettings?.green?.color || '#10b981'}33`
+                                                }}
+                                                title="點擊篩選不需檢查設備（再點一次解除）"
+                                            >
+                                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('notNeeded')}</p>
+                                                    {statusFilter === 'NOT_NEEDED' && (
+                                                        <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                                                    )}
+                                                </div>
                                                 <p className="text-2xl font-black text-slate-700">{notNeededCount}</p>
+                                                <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                                                    {statusFilter === 'NOT_NEEDED' ? '已套用篩選 (點擊解除)' : '點擊過濾此項'}
+                                                </p>
                                             </div>
                                         </div>
                                     </>
@@ -792,16 +929,73 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     {/* Equipment List */}
                     {selectedSite && selectedBuilding ? (
                         <div className="space-y-3">
-                            <h3 className="font-bold text-slate-700 ml-1 flex items-center">
-                                <LayoutGrid className="w-4 h-4 mr-2" /> {t('equipmentList')}
-                            </h3>
-                            {filteredEquipment.length === 0 ? (
-                                <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">
-                                    {t('noMatchingEquipment')}
+                            <div className="flex items-center justify-between ml-1">
+                                <h3 className="font-bold text-slate-700 flex items-center text-sm sm:text-base">
+                                    <LayoutGrid className="w-4 h-4 mr-2" /> {t('equipmentList')}
+                                    <span className="ml-2 text-xs font-semibold text-slate-500">
+                                        ({displayedEquipment.length} / {filteredEquipment.length} 具)
+                                    </span>
+                                </h3>
+                                {statusFilter !== 'ALL' && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setStatusFilter('ALL')}
+                                        className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                    >
+                                        <span>顯示全部</span>
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Active Filter Indicator Badge */}
+                            {statusFilter !== 'ALL' && (
+                                <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-slate-500">當前狀態過濾：</span>
+                                        <span className="px-2.5 py-0.5 rounded-full font-bold text-xs" style={{
+                                            backgroundColor: statusFilter === 'PENDING' ? `${lightSettings?.red?.color || '#ef4444'}20` :
+                                                statusFilter === 'COMPLETED_NORMAL' ? `${lightSettings?.completed?.color || '#10b981'}20` :
+                                                statusFilter === 'ABNORMAL' ? `${lightSettings?.abnormal?.color || '#f97316'}20` :
+                                                `${lightSettings?.green?.color || '#10b981'}20`,
+                                            color: statusFilter === 'PENDING' ? (lightSettings?.red?.color || '#ef4444') :
+                                                statusFilter === 'COMPLETED_NORMAL' ? (lightSettings?.completed?.color || '#10b981') :
+                                                statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') :
+                                                (lightSettings?.green?.color || '#10b981')
+                                        }}>
+                                            {statusFilter === 'PENDING' ? '🔴 需檢查' :
+                                             statusFilter === 'COMPLETED_NORMAL' ? '🔵 已完成 (正常)' :
+                                             statusFilter === 'ABNORMAL' ? '🟠 已檢查 (異常)' : '🟢 不需檢查'}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setStatusFilter('ALL')}
+                                        className="text-slate-400 hover:text-slate-700 underline text-xs font-medium cursor-pointer"
+                                    >
+                                        清除篩選
+                                    </button>
+                                </div>
+                            )}
+
+                            {displayedEquipment.length === 0 ? (
+                                <div className="text-center py-10 bg-white rounded-xl border border-dashed border-slate-300 text-slate-400 space-y-2">
+                                    <p className="text-sm font-medium">
+                                        {statusFilter !== 'ALL' ? '在此篩選分類下無符合設備' : t('noMatchingEquipment')}
+                                    </p>
+                                    {statusFilter !== 'ALL' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setStatusFilter('ALL')}
+                                            className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                        >
+                                            切換回顯示全部
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 // 按燈號排序: 紅色 (PENDING) → 橙色 (CAN_INSPECT) → 綠色 (UNNECESSARY) → 已完成 (COMPLETED)
-                                [...filteredEquipment].sort((a, b) => {
+                                [...displayedEquipment].sort((a, b) => {
                                     const statusA = getFrequencyStatus(a, lightSettings);
                                     const statusB = getFrequencyStatus(b, lightSettings);
 
@@ -1382,15 +1576,23 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             <button
                                 onClick={handleSaveInspection}
                                 disabled={
+                                    isSavingInspection ||
                                     (activeInspectionItem.status === InspectionStatus.Abnormal && !activeInspectionItem.notes.trim()) ||
                                     inspectingItem.checkItems.some(ci =>
                                         ci.inputType === 'number' &&
                                         (activeInspectionItem.checkPoints[ci.name] === '' || activeInspectionItem.checkPoints[ci.name] === undefined)
                                     )
                                 }
-                                className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-200 active:scale-95"
+                                className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-200 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                             >
-                                {activeInspectionItem.status === InspectionStatus.Abnormal ? '確認異常並送出' : '完成檢查'}
+                                {isSavingInspection ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                                        <span>儲存中...</span>
+                                    </>
+                                ) : (
+                                    activeInspectionItem.status === InspectionStatus.Abnormal ? '確認異常並送出' : '完成檢查'
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1424,7 +1626,12 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 // Filter completed items and deduplicate by equipmentId
                 const itemsMap = new Map();
                 (currentReport?.items || []).forEach((item: any) => {
-                    if (item.status === InspectionStatus.Normal) {
+                    const isNormal = item.status === InspectionStatus.Normal || 
+                        item.status === 'Normal' || 
+                        item.status === '正常' || 
+                        item.status === 'Pass' || 
+                        item.status === 'OK';
+                    if (isNormal) {
                         // Keep the latest record for each equipment
                         const existing = itemsMap.get(item.equipmentId);
                         if (!existing || (item.lastUpdated || 0) > (existing.lastUpdated || 0)) {
@@ -1603,7 +1810,11 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 // Filter abnormal items and deduplicate by equipmentId
                 const itemsMap = new Map();
                 (currentReport?.items || []).forEach((item: any) => {
-                    if (item.status === InspectionStatus.Abnormal) {
+                    const isAbnormal = item.status === InspectionStatus.Abnormal || 
+                        item.status === 'Abnormal' || 
+                        item.status === '異常' || 
+                        item.status === 'Fail';
+                    if (isAbnormal) {
                         // Keep the latest record for each equipment
                         const existing = itemsMap.get(item.equipmentId);
                         if (!existing || (item.lastUpdated || 0) > (existing.lastUpdated || 0)) {
