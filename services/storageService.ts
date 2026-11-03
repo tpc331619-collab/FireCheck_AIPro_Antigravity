@@ -1926,11 +1926,20 @@ export const StorageService = {
     if (this.isGuest || !db) {
       const data = localStorage.getItem(KEY);
       const notifications = data ? JSON.parse(data) : [];
+      const existing = notifications.find(
+        (n: any) => !n.read && n.type === newNotification.type && n.title === newNotification.title && n.message === newNotification.message
+      );
+      if (existing) return existing.id;
       notifications.unshift(newNotification);
       localStorage.setItem(KEY, JSON.stringify(notifications));
       return newNotification.id;
     } else {
       try {
+        const existingList = await this.getNotifications(userId, organizationId);
+        const existing = existingList.find(
+          (n: any) => !n.read && n.type === newNotification.type && n.title === newNotification.title && n.message === newNotification.message
+        );
+        if (existing) return existing.id;
         const docRef = await addDoc(collection(db, 'notifications'), newNotification);
         return docRef.id;
       } catch (e: any) {

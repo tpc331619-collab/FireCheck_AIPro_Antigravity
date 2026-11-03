@@ -7,7 +7,6 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { getFrequencyStatus, getNextInspectionDate, getCycleDays } from '../utils/inspectionUtils';
 import { THEME_COLORS } from '../constants';
 import { useLightSettings, HISTORY_KEYS, EQUIPMENT_KEYS } from '../hooks/useSystemData';
-import InspectionForm from './InspectionForm'; // We might reuse or partial reuse, but for now let's build the list logic first
 import BarcodeScanner from './BarcodeScanner';
 import CustomAlertModal from './CustomAlertModal';
 import { useQueryClient } from '@tanstack/react-query';

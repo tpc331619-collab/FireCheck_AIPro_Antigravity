@@ -1,4 +1,4 @@
-﻿
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -118,7 +118,6 @@ interface DashboardProps {
     onCreateNew: () => void;
     onAddEquipment: () => void;
     onMyEquipment: (filter?: string) => void;
-    onSelectReport: (report: InspectionReport) => void;
     onLogout: () => void;
     onUserUpdate: () => void;
     onManageHierarchy: () => void;
@@ -148,7 +147,7 @@ const getEquipmentIcon = (name: string) => {
     return <Box className="w-5 h-5 text-slate-400" />;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onSelectReport, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor, onOrgSwitch, guestExpiry, systemSettings: systemSettingsFromProps, onSystemSettingsUpdate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment, onMyEquipment, onLogout, onUserUpdate, onManageHierarchy, onOpenMapEditor, onOrgSwitch, guestExpiry, systemSettings: systemSettingsFromProps, onSystemSettingsUpdate }) => {
     const { t, language, setLanguage } = useLanguage();
     const { theme, setTheme, styles } = useTheme(); // Use Theme Hook
     const [searchParams, setSearchParams] = useSearchParams();
@@ -174,7 +173,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     });
 
     // Real-time Abnormal Records Hook
-    const { data: abnormalRecords = [] } = useAbnormalRecords(user);
+    const { data: abnormalRecords = [], isLoading: isAbnormalLoading, isFetched: isAbnormalFetched } = useAbnormalRecords(user);
     // Calculate count of pending records locally
     const abnormalCount = abnormalRecords.filter(r => r.status === 'pending' && !r.fixedDate).length;
     const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; title?: string; message: string; type?: 'alert' | 'confirm' | 'success'; onConfirm?: () => void } | null>(null);
@@ -1139,23 +1138,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
-    // Real-time Notification for New Abnormal Records
+    // Real-time Notification for New Abnormal Records (Deduplicated by Record ID)
     useEffect(() => {
-        if (!user?.uid) return;
+        if (!user?.uid || isAbnormalLoading || !isAbnormalFetched) return;
 
-        const storageKey = `abnormal_count_${user.uid}_${user.currentOrganizationId || 'personal'}`;
-        const previousCount = parseInt(localStorage.getItem(storageKey) || '0');
+        const storageKey = `notified_abnormal_ids_${user.uid}_${user.currentOrganizationId || 'personal'}`;
+        let notifiedIds: string[] = [];
+        try {
+            notifiedIds = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            if (!Array.isArray(notifiedIds)) notifiedIds = [];
+        } catch {
+            notifiedIds = [];
+        }
 
-        if (abnormalCount > previousCount) {
-            const newCount = abnormalCount - previousCount;
+        const pendingRecords = abnormalRecords.filter(r => r.status === 'pending' && !r.fixedDate);
+        const pendingIds = pendingRecords.map(r => r.id);
+        const newPendingIds = pendingIds.filter(id => !notifiedIds.includes(id));
+
+        if (newPendingIds.length > 0) {
             addNotification(
                 'abnormal',
                 '新的異常複檢',
-                `有 ${newCount} 筆新的異常項目需要處理`
+                `有 ${newPendingIds.length} 筆新的異常項目需要處理`
             );
         }
-        localStorage.setItem(storageKey, abnormalCount.toString());
-    }, [abnormalCount, user?.uid, user?.currentOrganizationId]);
+
+        // Keep only active pending IDs + newly notified IDs so resolved ones are cleaned up
+        localStorage.setItem(storageKey, JSON.stringify(pendingIds));
+    }, [abnormalRecords, isAbnormalLoading, isAbnormalFetched, user?.uid, user?.currentOrganizationId]);
 
     // Update avatar state if user changes (e.g. after update)
     useEffect(() => {

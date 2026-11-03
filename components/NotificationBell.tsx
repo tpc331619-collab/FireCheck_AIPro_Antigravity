@@ -21,6 +21,21 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
     const [loading, setLoading] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
 
+    const deduplicateNotifications = (list: Notification[]): Notification[] => {
+        const seen = new Set<string>();
+        const result: Notification[] = [];
+        // Assuming list is sorted newest-first; ensure sort just in case
+        const sorted = [...list].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        for (const item of sorted) {
+            const key = `${item.type}_${item.title}_${item.message}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                result.push(item);
+            }
+        }
+        return result;
+    };
+
     // Subscribe to notifications
     useEffect(() => {
         if (!userId) {
@@ -30,7 +45,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
 
         setLoading(true);
         const unsubscribe = StorageService.onNotificationsChange(userId, (updatedNotifications) => {
-            setNotifications(updatedNotifications);
+            setNotifications(deduplicateNotifications(updatedNotifications));
             setLoading(false);
         }, organizationId);
 
@@ -41,7 +56,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
     useEffect(() => {
         const handleNewNotification = async () => {
             const data = await StorageService.getNotifications(userId, organizationId);
-            setNotifications(data);
+            setNotifications(deduplicateNotifications(data));
         };
 
         window.addEventListener('notification-added', handleNewNotification);

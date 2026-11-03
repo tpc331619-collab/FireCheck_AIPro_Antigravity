@@ -4,7 +4,6 @@ import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearch
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 // Lazy load non-critical components
-const InspectionForm = lazy(() => import('./components/InspectionForm'));
 const EquipmentManager = lazy(() => import('./components/EquipmentManager'));
 const MyEquipment = lazy(() => import('./components/MyEquipment'));
 const ChecklistInspection = lazy(() => import('./components/ChecklistInspection'));
@@ -54,43 +53,6 @@ const EquipmentManagerRoute = ({ user, isAdmin, systemSettings }: { user: UserPr
     />
   );
 };
-
-const InspectionFormRoute = ({ user }: { user: UserProfile }) => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const [report, setReport] = useState<InspectionReport | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (id && user.uid) {
-      // Since we don't have getReportById, we fetch latest reports or implement a find.
-      // Ideally StorageService should have getReportById.
-      // For now, we rely on the fact that if we came from list, we might have it in cache or just fetch all?
-      // Fetching all is heavy. Let's try to assume we can just fetch recent ones or implement getReportById later.
-      // Workaround: Fetch all for now (as getReports does).
-      // Optimization TODO: Implement getReportById
-      StorageService.getReports(user.uid, undefined, true, user.currentOrganizationId)
-        .then(reports => {
-          const found = reports.find(r => r.id === id);
-          setReport(found);
-        })
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
-  }, [id, user.uid, user.currentOrganizationId]);
-
-  if (loading) return <div className="h-full flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div></div>;
-
-  return (
-    <InspectionForm
-      user={user}
-      report={report}
-      onBack={() => navigate('/')}
-      onSaved={() => navigate('/')}
-    />
-  );
-}
 
 const MyEquipmentRoute = ({ user, systemSettings }: { user: UserProfile, systemSettings?: SystemSettings }) => {
   const navigate = useNavigate();
@@ -397,7 +359,6 @@ const App: React.FC = () => {
                   navigate('/equipment')
                 }
               }}
-              onSelectReport={(report) => navigate(`/inspection/report/${report.id}`)}
               onLogout={handleLogout}
               onUserUpdate={handleUserUpdate}
               onManageHierarchy={() => navigate('/hierarchy')}
@@ -421,8 +382,6 @@ const App: React.FC = () => {
               onBack={() => navigate('/')}
             />
           } />
-
-          <Route path="/inspection/report/:id" element={<InspectionFormRoute user={user} />} />
 
           <Route path="/hierarchy" element={
             !user.isGuest ? (
