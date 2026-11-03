@@ -356,7 +356,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     searchAbnormalPlaceholder: '搜尋設備名稱、編號、場所...',
     recordsCountSuffix: ' 筆',
     selectSiteAndBuildingDesc: '系統將根據篩選條件為您列出對應設備清單',
-    markersCountSuffix: ' 個標註點',
     // History Table
     searchResults: '搜尋結果',
     historyRecords: '歷史紀錄',
@@ -389,7 +388,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     inspector: '檢查人員',
     checkItems: '檢查項目',
     // Inspection UI
-    pleaseSelect: '-- 請選擇 --',
     selectLocationAndBuilding: '請先選擇場所與查檢場所',
     updated: '更新',
     // Declaration Settings
@@ -444,7 +442,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
 
     // --- Common ---
     totalEquipment: '設備總數',
-    declarationCountdown: '申報倒數',
     declarationCountdown: '申報倒數',
     themeColor: '背景顏色',
     followSystemTheme: '跟隨系統',
@@ -649,7 +646,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectImageFile: '請選擇圖片檔案',
 
     // --- Scanner ---
-    scanBarcode: '掃描條碼',
     manualInput: '手動輸入',
     deviceVerification: '設備驗證',
     quickSearch: '快速查詢',
@@ -1001,7 +997,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     allowGuestQuickSearchDesc: 'Allow guest to use top search bar and QR scan',
     allowGuestStartInspection: 'Allow Guest Start Inspection',
     allowGuestStartInspectionDesc: 'Allow guest to enter inspection workflow (Local)',
-    completed: 'Completed',
     sectionSystemSettings: 'System Settings',
     sectionStartInspection: 'Start Inspection',
     sectionAbnormalRecheck: 'Abnormal Recheck',
@@ -1137,7 +1132,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     searchEquipmentPlaceholder: 'Search by equipment ID or name...',
     selectSiteAndBuildingHint: 'Please select site and building first',
     selectSiteAndBuildingDesc: 'The list will be generated based on your selection',
-    markersCountSuffix: ' Markers',
     // History Table
     searchResults: 'Search Results',
     historyRecords: 'History Records',
@@ -1908,7 +1902,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectImageFile: '이미지 파일을 선택하세요',
 
     // --- Scanner ---
-    scanBarcode: '바코드 스캔',
     manualInput: '수동 입력',
     deviceVerification: '장비 확인',
     quickSearch: '빠른 검색',
@@ -2375,7 +2368,6 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     selectImageFile: '画像ファイルを選択してください',
 
     // --- Scanner ---
-    scanBarcode: 'バーコードスキャン',
     manualInput: '手動入力',
     deviceVerification: 'デバイス確認',
     tags: 'タグ',

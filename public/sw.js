@@ -1,4 +1,4 @@
-const CACHE_NAME = 'firecheck-cache-v1';
+const CACHE_NAME = 'firecheck-cache-v2.5.0';
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
@@ -30,6 +30,11 @@ self.addEventListener('fetch', (event) => {
     // Skip Chrome extension requests or other protocols
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
+    // Skip Service Worker caching on localhost / Vite dev server to prevent stale code
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        return;
+    }
+
     // Firebase Data (Firestore) - Let Firebase SDK handle it
     if (url.hostname.includes('firestore.googleapis.com') ||
         url.hostname.includes('googleapis.com')) {
@@ -46,13 +51,11 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then((cache) => {
                 return cache.match(event.request).then((cachedResponse) => {
                     const fetchPromise = fetch(event.request).then((networkResponse) => {
-                        // Cloning only valid responses
                         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
                             cache.put(event.request, networkResponse.clone());
                         }
                         return networkResponse;
                     }).catch(() => {
-                        // Fetch failed (offline), return nothing (cachedResponse handles it)
                         return cachedResponse;
                     });
 

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, Suspense, lazy } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
@@ -13,21 +13,21 @@ import { Mail, Bell } from 'lucide-react';
 
 
 import InspectionModeModal from './InspectionModeModal';
-import AdminDashboard from './AdminDashboard';
-import MapViewInspection from "./MapViewInspection";
 import AddEquipmentModeModal from './AddEquipmentModeModal';
-import AbnormalRecheckList from './AbnormalRecheckList';
-import HistoryTable from './HistoryTable';
-import BarcodeInputModal from './BarcodeInputModal';
 import CustomAlertModal from './CustomAlertModal';
 import { NotificationBell } from './NotificationBell';
-import { OrganizationManager } from './OrganizationManager';
-import EquipmentMapEditor from './EquipmentMapEditor'; // Import EquipmentMapEditor
 import CardOrderModal from './CardOrderModal';
 import { SyncStatus, SyncStatusBadge } from './SyncStatus';
 
+// Lazy-loaded heavy sub-views & modals to shrink initial Dashboard bundle
+const BarcodeInputModal = lazy(() => import('./BarcodeInputModal'));
+const AdminDashboard = lazy(() => import('./AdminDashboard'));
+const MapViewInspection = lazy(() => import('./MapViewInspection'));
+const AbnormalRecheckList = lazy(() => import('./AbnormalRecheckList'));
+const HistoryTable = lazy(() => import('./HistoryTable'));
+const EquipmentMapEditor = lazy(() => import('./EquipmentMapEditor'));
+const OrganizationManager = lazy(() => import('./OrganizationManager').then(m => ({ default: m.OrganizationManager })));
 
-import { RegulationFeed } from './RegulationFeed';
 import { useTheme, ThemeType } from '../contexts/ThemeContext'; // Import Theme Hook
 import { exportToExcel, generateMonthlyReport } from '../utils/exportUtils';
 import { formatLifespan } from '../utils/dateUtils';
@@ -1572,13 +1572,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     // Render Abnormal Recheck Logic (early return - after all hooks)
     if (showAbnormalRecheck) {
-        return <AbnormalRecheckList
-            user={user}
-            onBack={() => setShowAbnormalRecheck(false)}
-            lightSettings={currentLightSettings}
-            onRecordsUpdated={undefined}
-            systemSettings={systemSettings}
-        />;
+        return (
+            <Suspense fallback={<div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div></div>}>
+                <AbnormalRecheckList
+                    user={user}
+                    onBack={() => setShowAbnormalRecheck(false)}
+                    lightSettings={currentLightSettings}
+                    onRecordsUpdated={undefined}
+                    systemSettings={systemSettings}
+                />
+            </Suspense>
+        );
     }
 
 
@@ -2103,16 +2107,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     />
 
                     {/* 底部版權與版本資訊 (Footer) */}
-                    <footer className="mt-12 pt-6 pb-6 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-center gap-2 text-xs text-slate-400 select-none flex-wrap">
-                        <span className="font-bold text-slate-600 dark:text-slate-300 tracking-wide">FSIPPRO</span>
-                        <span className="px-1.5 py-0.5 bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded text-[10px] font-mono font-bold">
-                            v2.4.1 Pro
-                        </span>
-                        <span className="text-slate-300 dark:text-slate-600">·</span>
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">
-                            © 2026 {currentOrgName || '北部儲運中心'} · FSIPPRO Team. All Rights Reserved.
-                        </span>
-                    </footer>
+                    {(() => {
+                        const isDarkBg = styles.bg !== 'bg-[#f3f3f3]';
+                        return (
+                            <footer className={`mt-12 pt-6 pb-6 border-t flex items-center justify-center gap-2 text-xs select-none flex-wrap ${
+                                isDarkBg ? 'border-white/25 text-white/90' : 'border-slate-300 text-slate-600'
+                            }`}>
+                                <span className={`font-bold tracking-wide ${
+                                    isDarkBg ? 'text-white' : 'text-slate-700'
+                                }`}>
+                                    FSIPPRO v2.5.0 Pro
+                                </span>
+                                <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
+                                <span className="font-medium tracking-wide">
+                                    © 2026 {currentOrgName || '北部儲運中心'} · FSIPPRO Team. All Rights Reserved.
+                                </span>
+                            </footer>
+                        );
+                    })()}
 
                     {(showArchived || (isSearchActive && searchTerm.trim())) && (
                         <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-900 overflow-y-auto animate-in fade-in duration-200">
@@ -2474,15 +2486,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                 {/* Table */}
                                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                    <HistoryTable
-                                        data={flattenedHistory}
-                                        onViewDetails={(item) => setActiveModal({ type: 'INSPECTION', item })}
-                                        onViewRecheck={(item) => setActiveModal({ type: 'RECHECK', item })}
-                                        visibleColumns={visibleColumns}
-                                        systemSettings={systemSettings}
-                                        isAdmin={isAdmin}
-                                        onDelete={handleDeleteReport}
-                                    />
+                                    <Suspense fallback={<div className="py-20 flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+                                        <HistoryTable
+                                            data={flattenedHistory}
+                                            onViewDetails={(item) => setActiveModal({ type: 'INSPECTION', item })}
+                                            onViewRecheck={(item) => setActiveModal({ type: 'RECHECK', item })}
+                                            visibleColumns={visibleColumns}
+                                            systemSettings={systemSettings}
+                                            isAdmin={isAdmin}
+                                            onDelete={handleDeleteReport}
+                                        />
+                                    </Suspense>
                                 </div>
                             </div>
                         </div>
@@ -3756,82 +3770,94 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     {/* Assuming EquipmentMapEditor is a new component to be added */}
                     {isEquipmentMapOpen && (
-                        <EquipmentMapEditor
-                            user={user}
-                            isOpen={isEquipmentMapOpen}
-                            onClose={() => setIsEquipmentMapOpen(false)}
-                            existingMap={selectedMap}
-                            systemSettings={systemSettings}
-                            isAdmin={isAdmin}
-                        />
+                        <Suspense fallback={null}>
+                            <EquipmentMapEditor
+                                user={user}
+                                isOpen={isEquipmentMapOpen}
+                                onClose={() => setIsEquipmentMapOpen(false)}
+                                existingMap={selectedMap}
+                                systemSettings={systemSettings}
+                                isAdmin={isAdmin}
+                            />
+                        </Suspense>
                     )}
 
                     {/* Admin Dashboard Overlay */}
                     {isAdminDashboardOpen && (user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com') && (
-                        <AdminDashboard
-                            currentUser={{ email: user.email!, uid: user.uid }}
-                            onClose={() => {
-                                setIsAdminDashboardOpen(false);
-                                // Reset search state when returning from admin dashboard
-                                setIsSearchActive(false);
-                                setSearchTerm('');
-                                setSearchParams({}, { replace: true });
-                            }}
-                        />
+                        <Suspense fallback={null}>
+                            <AdminDashboard
+                                currentUser={{ email: user.email!, uid: user.uid }}
+                                onClose={() => {
+                                    setIsAdminDashboardOpen(false);
+                                    // Reset search state when returning from admin dashboard
+                                    setIsSearchActive(false);
+                                    setSearchTerm('');
+                                    setSearchParams({}, { replace: true });
+                                }}
+                            />
+                        </Suspense>
                     )}
 
 
-                    <BarcodeInputModal
-                        isOpen={isQuickScanOpen}
-                        onScan={async (code) => {
-                            // Close the scanner modal FIRST to prevent backdrop conflicts
-                            setIsQuickScanOpen(false);
+                    {isQuickScanOpen && (
+                        <Suspense fallback={null}>
+                            <BarcodeInputModal
+                                isOpen={isQuickScanOpen}
+                                onScan={async (code) => {
+                                    // Close the scanner modal FIRST to prevent backdrop conflicts
+                                    setIsQuickScanOpen(false);
 
-                            // Check if equipment exists before activating search
-                            const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
-                            const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
+                                    // Check if equipment exists before activating search
+                                    const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
+                                    const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
 
-                            if (hasMatch) {
-                                setSearchParams({ q: code }, { replace: true });
-                            } else {
-                                // Small delay to let the scanner modal finish its closing animation/transition
-                                setTimeout(() => {
-                                    setAlertConfig({
-                                        isOpen: true,
-                                        title: t('searchFailed') || '搜尋失敗',
-                                        message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
-                                        onConfirm: () => {
-                                            console.log('[Scan Failed] Before state update');
-                                            console.log('[Scan Failed] Current URL:', window.location.href);
-                                            // 先設置狀態
-                                            setIsSearchActive(false);
-                                            setSearchTerm('');
-                                            setAlertConfig(null);
-                                            // 延遲清空 URL
-                                            setTimeout(() => {
-                                                console.log('[Scan Failed] Clearing searchParams');
-                                                setSearchParams({}, { replace: true });
-                                                console.log('[Scan Failed] After clearing, URL:', window.location.href);
-                                            }, 50);
-                                        }
-                                    });
-                                }, 100);
-                            }
-                        }}
-                        onCancel={() => setIsQuickScanOpen(false)}
-                    // No expectedBarcode provided implies Search Mode
-                    />
+                                    if (hasMatch) {
+                                        setSearchParams({ q: code }, { replace: true });
+                                    } else {
+                                        // Small delay to let the scanner modal finish its closing animation/transition
+                                        setTimeout(() => {
+                                            setAlertConfig({
+                                                isOpen: true,
+                                                title: t('searchFailed') || '搜尋失敗',
+                                                message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
+                                                onConfirm: () => {
+                                                    console.log('[Scan Failed] Before state update');
+                                                    console.log('[Scan Failed] Current URL:', window.location.href);
+                                                    // 先設置狀態
+                                                    setIsSearchActive(false);
+                                                    setSearchTerm('');
+                                                    setAlertConfig(null);
+                                                    // 延遲清空 URL
+                                                    setTimeout(() => {
+                                                        console.log('[Scan Failed] Clearing searchParams');
+                                                        setSearchParams({}, { replace: true });
+                                                        console.log('[Scan Failed] After clearing, URL:', window.location.href);
+                                                    }, 50);
+                                                }
+                                            });
+                                        }, 100);
+                                    }
+                                }}
+                                onCancel={() => setIsQuickScanOpen(false)}
+                            // No expectedBarcode provided implies Search Mode
+                            />
+                        </Suspense>
+                    )}
 
 
 
-                    <MapViewInspection
-                        user={user}
-                        isOpen={isMapViewInspectionOpen}
-                        onClose={() => {
-                            setIsMapViewInspectionOpen(false);
-                            refetchReports(); // Refresh data when map view closes
-                        }}
-                    />
+                    {isMapViewInspectionOpen && (
+                        <Suspense fallback={null}>
+                            <MapViewInspection
+                                user={user}
+                                isOpen={isMapViewInspectionOpen}
+                                onClose={() => {
+                                    setIsMapViewInspectionOpen(false);
+                                    refetchReports(); // Refresh data when map view closes
+                                }}
+                            />
+                        </Suspense>
+                    )}
 
                     {/* Forced Renewal Modal */}
                     {
@@ -4536,15 +4562,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             {/* Organization Manager Modal */}
             {
                 showOrgManager && (
-                    <OrganizationManager
-                        user={user}
-                        currentOrgId={user.currentOrganizationId || null}
-                        onClose={() => setShowOrgManager(false)}
-                        onOrgSwitch={(orgId) => {
-                            onOrgSwitch(orgId);
-                        }}
-                        systemSettings={systemSettings}
-                    />
+                    <Suspense fallback={null}>
+                        <OrganizationManager
+                            user={user}
+                            currentOrgId={user.currentOrganizationId || null}
+                            onClose={() => setShowOrgManager(false)}
+                            onOrgSwitch={(orgId) => {
+                                onOrgSwitch(orgId);
+                            }}
+                            systemSettings={systemSettings}
+                        />
+                    </Suspense>
                 )
             }
 

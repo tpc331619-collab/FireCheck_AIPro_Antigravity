@@ -102,74 +102,92 @@ const App: React.FC = () => {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
           const isGuest = firebaseUser.isAnonymous;
-          let userRole: 'admin' | 'user' = 'user';
+          const isSuperAdmin = firebaseUser.email?.toLowerCase() === 'b28803078@gmail.com';
+          const localAvatar = localStorage.getItem(`avatar_${firebaseUser.uid}`);
+          const lastOrgId = localStorage.getItem(`lastOrgId_${firebaseUser.uid}`);
+          const cachedRole = localStorage.getItem(`cached_role_${firebaseUser.uid}`) as 'admin' | 'user' | null;
+          const cachedAccess = localStorage.getItem(`cached_access_${firebaseUser.uid}`);
 
-          // Whitelist Check Logic
+          // Optimistic instant boot if user was already approved previously
+          if (isGuest || isSuperAdmin || cachedAccess === 'approved') {
+            setAccessStatus('approved');
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || (isGuest ? '訪客' : (firebaseUser.email?.split('@')[0] || 'User')),
+              photoURL: localAvatar || firebaseUser.photoURL,
+              isGuest,
+              role: isSuperAdmin ? 'admin' : (cachedRole || 'user'),
+              currentOrganizationId: lastOrgId || undefined
+            });
+            StorageService.setGuestMode(isGuest);
+            setInitializing(false);
+          }
+
+          let userRole: 'admin' | 'user' = isSuperAdmin ? 'admin' : (cachedRole || 'user');
+          let resolvedOrgId: string | undefined = lastOrgId || undefined;
+
           if (!isGuest) {
+            const whitelistTask = isSuperAdmin
+              ? Promise.resolve({ status: 'approved' as const, role: 'admin' as const })
+              : Promise.race([
+                  StorageService.checkWhitelist(firebaseUser.email || ''),
+                  new Promise<null>((_, reject) =>
+                    setTimeout(() => reject(new Error('Network timeout checking whitelist')), 8000)
+                  )
+                ]);
+
+            const orgsTask = StorageService.getUserOrganizations(firebaseUser.uid, firebaseUser.email).catch(e => {
+              console.error('[App] Organization init failed', e);
+              return [];
+            });
+
             try {
-              if (firebaseUser.email?.toLowerCase() === 'b28803078@gmail.com') {
-                setAccessStatus('approved');
-                userRole = 'admin';
+              const [whitelistEntry, orgs] = await Promise.all([whitelistTask, orgsTask]);
+
+              if (!whitelistEntry) {
+                localStorage.removeItem(`cached_access_${firebaseUser.uid}`);
+                setAccessStatus('unregistered');
+              } else if (whitelistEntry.status !== 'approved') {
+                localStorage.removeItem(`cached_access_${firebaseUser.uid}`);
+                setAccessStatus(whitelistEntry.status);
               } else {
-                setAccessStatus('checking');
-                const checkPromise = StorageService.checkWhitelist(firebaseUser.email || '');
-                const timeoutPromise = new Promise<null>((_, reject) =>
-                  setTimeout(() => reject(new Error('Network timeout checking whitelist')), 8000)
-                );
+                setAccessStatus('approved');
+                userRole = whitelistEntry.role === 'admin' ? 'admin' : 'user';
+                localStorage.setItem(`cached_access_${firebaseUser.uid}`, 'approved');
+                localStorage.setItem(`cached_role_${firebaseUser.uid}`, userRole);
+              }
 
-                let whitelistEntry = null;
-                try {
-                  whitelistEntry = await Promise.race([checkPromise, timeoutPromise]);
-                } catch (timeoutErr) {
-                  console.error(timeoutErr);
-                  throw timeoutErr; // Pass to outer catch
-                }
-
-                if (!whitelistEntry) {
-                  setAccessStatus('unregistered');
-                } else if (whitelistEntry.status !== 'approved') {
-                  setAccessStatus(whitelistEntry.status);
+              if (orgs.length > 0) {
+                if (lastOrgId && orgs.some(o => o.id === lastOrgId)) {
+                  resolvedOrgId = lastOrgId;
                 } else {
-                  setAccessStatus('approved');
-                  if (whitelistEntry.role === 'admin') userRole = 'admin';
+                  resolvedOrgId = orgs[0].id;
+                  localStorage.setItem(`lastOrgId_${firebaseUser.uid}`, resolvedOrgId);
                 }
               }
             } catch (error: any) {
               console.error(`[App] Whitelist check FAILED for ${firebaseUser.email}:`, error);
-              setAccessStatus('blocked');
-              if (error.code === 'permission-denied') {
-                alert('權限不足：請確認 Firestore Rules 是否已部署。');
+              if (cachedAccess !== 'approved') {
+                setAccessStatus('blocked');
+                if (error.code === 'permission-denied') {
+                  alert('權限不足：請確認 Firestore Rules 是否已部署。');
+                }
               }
             }
           } else {
             setAccessStatus('approved');
           }
 
-          const localAvatar = localStorage.getItem(`avatar_${firebaseUser.uid}`);
           const userProfile: UserProfile = {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName || (isGuest ? '訪客' : (firebaseUser.email?.split('@')[0] || 'User')),
             photoURL: localAvatar || firebaseUser.photoURL,
             isGuest: isGuest,
-            role: userRole
+            role: userRole,
+            currentOrganizationId: resolvedOrgId
           };
-
-          if (!isGuest) {
-            try {
-              const orgs = await StorageService.getUserOrganizations(firebaseUser.uid, firebaseUser.email);
-              if (orgs.length > 0) {
-                const lastOrgId = localStorage.getItem(`lastOrgId_${firebaseUser.uid}`);
-                if (lastOrgId && orgs.some(o => o.id === lastOrgId)) {
-                  userProfile.currentOrganizationId = lastOrgId;
-                } else if (orgs.length > 0) {
-                  userProfile.currentOrganizationId = orgs[0].id;
-                }
-              }
-            } catch (e) {
-              console.error('[App] Organization init failed', e);
-            }
-          }
 
           setUser(userProfile);
           StorageService.setGuestMode(isGuest);

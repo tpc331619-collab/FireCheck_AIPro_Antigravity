@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 // Font support for Chinese in PDF is limited without loading a custom font.
 // For now, we will use a basic setup. In a real production app, we would load a .ttf file.
 // We prioritize Excel for full data fidelity with CJK characters.
@@ -35,7 +33,7 @@ const formatDate = (timestamp: number) => {
     return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
 };
 
-export const exportToExcel = (
+export const exportToExcel = async (
     data: ExportItem[],
     fileName: string,
     visibleColumns?: {
@@ -50,6 +48,7 @@ export const exportToExcel = (
     },
     columnOrder?: string[]
 ) => {
+    const XLSX = await import('xlsx');
     const columnMap: Record<string, { title: string; getValue: (item: ExportItem, idx: number) => any; defaultWidth: number }> = {
         index: { title: '序號', getValue: (_, idx) => idx + 1, defaultWidth: 8 },
         date: { title: '檢查日期', getValue: (item) => formatDate(item.date), defaultWidth: 14 },

@@ -19,8 +19,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-          ui: ['lucide-react', '@tanstack/react-query'],
-          utils: ['xlsx']
+          ui: ['lucide-react', '@tanstack/react-query']
         }
       }
     }
