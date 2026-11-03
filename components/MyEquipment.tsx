@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Building2, MapPin, QrCode, Calendar, Search, X, Database, Edit2, Copy, Trash2, Download, CheckCircle, AlertCircle, Image, Globe, CalendarClock, ChevronDown, Box, Printer } from 'lucide-react';
 import BarcodePrintModal from './BarcodePrintModal';
+import EquipmentPassportModal from './EquipmentPassportModal';
 import { EquipmentDefinition, UserProfile, LightSettings, SystemSettings } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEquipment, useLightSettings, useSystemSettings, useDeleteEquipment, useSaveEquipment, useBatchUpdateEquipment, useBatchDeleteEquipment } from '../hooks/useSystemData';
@@ -91,6 +92,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   const [moveSite, setMoveSite] = useState('');
   const [moveBuilding, setMoveBuilding] = useState('');
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [passportEquipment, setPassportEquipment] = useState<EquipmentDefinition | null>(null);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMsg({ text, type });
@@ -480,12 +482,19 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                         return (
                           <div
                             key={item.id}
-                            className={`p-5 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 ${borderColorClass} shadow-sm mb-2 rounded-r-2xl relative overflow-hidden ${selectedIds.has(item.id) ? 'bg-indigo-50/40 border-r-indigo-100 ring-2 ring-indigo-500/20 translate-x-1' : 'border-transparent'}`}
-                            onClick={() => toggleSelect(item.id)}
+                            className={`p-5 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 ${borderColorClass} shadow-sm mb-2 rounded-r-2xl relative overflow-hidden cursor-pointer ${selectedIds.has(item.id) ? 'bg-indigo-50/40 border-r-indigo-100 ring-2 ring-indigo-500/20 translate-x-1' : 'border-transparent'}`}
+                            onClick={() => setPassportEquipment(item)}
+                            title="點擊查看設備近期巡檢與維修履歷"
                           >
                             {/* Selection Checkbox */}
                             {canBatch && (
-                              <div className="flex-shrink-0 cursor-pointer p-1">
+                              <div
+                                className="flex-shrink-0 cursor-pointer p-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSelect(item.id);
+                                }}
+                              >
                                 <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${selectedIds.has(item.id) ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-200 scale-110' : 'bg-white border-slate-200 group-hover:border-slate-300 opacity-60 group-hover:opacity-100'}`}>
                                   {selectedIds.has(item.id) && <CheckCircle className="w-4 h-4 text-white" />}
                                 </div>
@@ -1127,6 +1136,16 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
         isOpen={showPrintModal}
         onClose={() => setShowPrintModal(false)}
         equipment={allEquipment.filter(e => selectedIds.has(e.id))}
+      />
+
+      <EquipmentPassportModal
+        isOpen={!!passportEquipment}
+        onClose={() => setPassportEquipment(null)}
+        equipment={passportEquipment}
+        user={user}
+        lightSettings={lightSettings || undefined}
+        canEdit={canEdit}
+        onEditEquipment={(eq) => onEdit(eq)}
       />
     </div >
   );

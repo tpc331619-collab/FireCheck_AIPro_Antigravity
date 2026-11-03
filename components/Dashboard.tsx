@@ -21,6 +21,7 @@ import { SyncStatus, SyncStatusBadge } from './SyncStatus';
 
 // Lazy-loaded heavy sub-views & modals to shrink initial Dashboard bundle
 const BarcodeInputModal = lazy(() => import('./BarcodeInputModal'));
+const EquipmentPassportModal = lazy(() => import('./EquipmentPassportModal'));
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
 const MapViewInspection = lazy(() => import('./MapViewInspection'));
 const AbnormalRecheckList = lazy(() => import('./AbnormalRecheckList'));
@@ -200,6 +201,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [isEquipmentMapOpen, setIsEquipmentMapOpen] = useState(false); // Added
     const [selectedMap, setSelectedMap] = useState<EquipmentMap | null>(null); // Added
     const [isPermissionsModalOpen, setIsPermissionsModalOpen] = useState(false); // Added for separate permissions modal
+    const [passportEquipment, setPassportEquipment] = useState<EquipmentDefinition | null>(null);
 
     // Card Order State
     const [cardOrder, setCardOrder] = useState<DashboardCardId[]>([]);
@@ -1727,9 +1729,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         if (e.key === 'Enter' && searchTerm.trim()) {
                                             const code = searchTerm.trim();
                                             const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
-                                            const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
+                                            const exactMatch = definitions.find(d => d.barcode?.toUpperCase() === code.toUpperCase());
+                                            const matches = definitions.filter(d => d.barcode?.toUpperCase() === code.toUpperCase() || d.name.toUpperCase().includes(code.toUpperCase()));
 
-                                            if (hasMatch) {
+                                            if (exactMatch || matches.length === 1) {
+                                                setPassportEquipment(exactMatch || matches[0]);
+                                            } else if (matches.length > 1) {
                                                 setSearchParams({ q: code }, { replace: true });
                                             } else {
                                                 // Ensure any potential overlays are considered if this was triggered in a way that might conflict
@@ -1738,17 +1743,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     title: t('searchFailed') || '搜尋失敗',
                                                     message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                                     onConfirm: () => {
-                                                        console.log('[Search Failed] Before state update');
-                                                        console.log('[Search Failed] Current URL:', window.location.href);
-                                                        // 先設置狀態
                                                         setIsSearchActive(false);
                                                         setSearchTerm('');
                                                         setAlertConfig(null);
-                                                        // 延遲清空 URL,確保狀態更新完成
                                                         setTimeout(() => {
-                                                            console.log('[Search Failed] Clearing searchParams');
                                                             setSearchParams({}, { replace: true });
-                                                            console.log('[Search Failed] After clearing, URL:', window.location.href);
                                                         }, 50);
                                                     }
                                                 });
@@ -3809,9 +3808,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                     // Check if equipment exists before activating search
                                     const definitions = await StorageService.getEquipmentDefinitions(user.uid, user.currentOrganizationId);
-                                    const hasMatch = definitions.some(d => d.barcode === code || d.name.toUpperCase().includes(code.toUpperCase()));
+                                    const exactMatch = definitions.find(d => d.barcode?.toUpperCase() === code.toUpperCase());
+                                    const matches = definitions.filter(d => d.barcode?.toUpperCase() === code.toUpperCase() || d.name.toUpperCase().includes(code.toUpperCase()));
 
-                                    if (hasMatch) {
+                                    if (exactMatch || matches.length === 1) {
+                                        setPassportEquipment(exactMatch || matches[0]);
+                                    } else if (matches.length > 1) {
                                         setSearchParams({ q: code }, { replace: true });
                                     } else {
                                         // Small delay to let the scanner modal finish its closing animation/transition
@@ -3821,17 +3823,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 title: t('searchFailed') || '搜尋失敗',
                                                 message: `找不到設備編號「${code}」\n\n請確認:\n1. 設備編號是否正確\n2. 設備是否屬於目前選擇的場所和建築物`,
                                                 onConfirm: () => {
-                                                    console.log('[Scan Failed] Before state update');
-                                                    console.log('[Scan Failed] Current URL:', window.location.href);
-                                                    // 先設置狀態
                                                     setIsSearchActive(false);
                                                     setSearchTerm('');
                                                     setAlertConfig(null);
-                                                    // 延遲清空 URL
                                                     setTimeout(() => {
-                                                        console.log('[Scan Failed] Clearing searchParams');
                                                         setSearchParams({}, { replace: true });
-                                                        console.log('[Scan Failed] After clearing, URL:', window.location.href);
                                                     }, 50);
                                                 }
                                             });
@@ -4598,6 +4594,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         }
                     }}
                 />
+            )}
+
+            {/* Equipment Passport Quick Card Modal */}
+            {passportEquipment && (
+                <Suspense fallback={null}>
+                    <EquipmentPassportModal
+                        isOpen={!!passportEquipment}
+                        onClose={() => setPassportEquipment(null)}
+                        equipment={passportEquipment}
+                        user={user}
+                        lightSettings={currentLightSettings}
+                        onStartInspection={() => onCreateNew()}
+                        onViewFullHistory={(code) => {
+                            setSearchTerm(code.toUpperCase());
+                            setSearchParams({ q: code.toUpperCase() }, { replace: true });
+                        }}
+                    />
+                </Suspense>
             )}
 
             {/* Card Order Modal */}
