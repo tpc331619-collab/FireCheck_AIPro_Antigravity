@@ -335,7 +335,7 @@ export const translations: Record<LanguageCode, Record<string, string>> = {
     coreAdmin: '審核與指派',
     onOff: 'ON/OFF',
     noNotifications: '目前沒有通知',
-    quickSearchPlaceholder: '快速查詢 (關鍵字/條碼)...',
+    quickSearchPlaceholder: '快速查詢 (掃描條碼)...',
     startInspectionTitle: '開始檢查',
     startInspectionDesc: '點擊開始設備檢查流程',
     renew: '更新',

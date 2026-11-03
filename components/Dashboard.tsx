@@ -32,6 +32,7 @@ const OrganizationManager = lazy(() => import('./OrganizationManager').then(m =>
 import { useTheme, ThemeType } from '../contexts/ThemeContext'; // Import Theme Hook
 import { exportToExcel, generateMonthlyReport } from '../utils/exportUtils';
 import { formatLifespan } from '../utils/dateUtils';
+import { getFrequencyStatus } from '../utils/inspectionUtils';
 import {
     Plus,
     FileText,
@@ -386,6 +387,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const { data: equipment = [] } = useEquipment(user);
     const nameCount = equipment.length;
     const [isHealthExpanded, setIsHealthExpanded] = useState(false);
+
+    // Dynamic Inspection Progress Stats for "開始檢查" card
+    const inspectionProgress = React.useMemo(() => {
+        if (equipment.length === 0) {
+            return { pendingCount: 0, completedCount: 0, rate: 100 };
+        }
+        const pendingAbnormalIds = new Set(
+            abnormalRecords
+                .filter(r => r.status === 'pending' && !r.fixedDate)
+                .map(r => r.equipmentId)
+        );
+        let pendingCount = 0;
+        equipment.forEach(eq => {
+            if (!pendingAbnormalIds.has(eq.id)) {
+                const st = getFrequencyStatus(eq, currentLightSettings);
+                if (st === 'PENDING') pendingCount++;
+            }
+        });
+        const completedCount = equipment.length - pendingCount;
+        const rate = Math.round((completedCount / equipment.length) * 100);
+        return { pendingCount, completedCount, rate };
+    }, [equipment, abnormalRecords, currentLightSettings]);
 
     // Expose Admin Dashboard open function to window for NotificationBell
     useEffect(() => {
@@ -1666,6 +1689,23 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     systemSettings={systemSettings}
                                     isAdmin={isAdmin}
                                     pendingUsersCount={pendingUsersCount}
+                                    onNotificationNavigate={(type) => {
+                                        if (type === 'abnormal') {
+                                            setShowAbnormalRecheck(true);
+                                        } else if (type === 'health') {
+                                            setIsHealthModalOpen(true);
+                                        } else if (type === 'declaration') {
+                                            setSettingsModalMode('declaration');
+                                            setSettingsTab('DECLARATION');
+                                            setIsSettingsOpen(true);
+                                        } else if (type === 'lights') {
+                                            setSettingsModalMode('lights');
+                                            setSettingsTab('LIGHTS');
+                                            setIsSettingsOpen(true);
+                                        } else if (type === 'profile') {
+                                            setIsAdminDashboardOpen(true);
+                                        }
+                                    }}
                                 />
                             </>
                         )}
@@ -1931,11 +1971,48 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <ClipboardCheck className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl w-fit mb-3 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                                                <ClipboardCheck className="w-5 h-5 text-white" />
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="relative p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl w-fit shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
+                                                    <ClipboardCheck className="w-5 h-5 text-white" />
+                                                    {inspectionProgress.pendingCount > 0 && (
+                                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {nameCount > 0 && (
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                                        inspectionProgress.pendingCount > 0
+                                                            ? 'bg-red-50 text-red-600 border-red-200'
+                                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                    }`}>
+                                                        達成率 {inspectionProgress.rate}%
+                                                    </span>
+                                                )}
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionTitle')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
+                                            {nameCount > 0 ? (
+                                                <div className="space-y-1.5">
+                                                    <p className={`text-[11px] font-bold leading-tight tracking-tight ${
+                                                        inspectionProgress.pendingCount > 0 ? 'text-red-600' : 'text-emerald-600'
+                                                    }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                        {inspectionProgress.pendingCount > 0
+                                                            ? `尚有 ${inspectionProgress.pendingCount} 具設備需檢查`
+                                                            : `✓ 本期 ${nameCount} 具設備皆已定檢`}
+                                                    </p>
+                                                    <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                inspectionProgress.pendingCount > 0 ? 'bg-blue-500' : 'bg-emerald-500'
+                                                            }`}
+                                                            style={{ width: `${inspectionProgress.rate}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
+                                            )}
                                         </button>
                                     );
 

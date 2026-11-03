@@ -12,9 +12,10 @@ interface NotificationBellProps {
     systemSettings?: SystemSettings;
     isAdmin?: boolean;
     pendingUsersCount?: number;
+    onNotificationNavigate?: (type: NotificationType) => void;
 }
 
-export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName, systemSettings, isAdmin, pendingUsersCount = 0 }) => {
+export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, organizationId, className, iconClassName, systemSettings, isAdmin, pendingUsersCount = 0, onNotificationNavigate }) => {
     const { t } = useLanguage();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -217,7 +218,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
                                         }`}
                                     onClick={() => {
                                         if (!notification.read) handleMarkAsRead(notification.id);
-                                        if (notification.type === 'profile' && (window as any).openAdminDashboard) {
+                                        if (onNotificationNavigate) {
+                                            onNotificationNavigate(notification.type);
+                                            setIsOpen(false);
+                                        } else if (notification.type === 'profile' && (window as any).openAdminDashboard) {
                                             (window as any).openAdminDashboard();
                                             setIsOpen(false);
                                         }
