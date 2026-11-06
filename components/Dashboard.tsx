@@ -1982,11 +1982,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     )}
                                                 </div>
                                                 {nameCount > 0 && (
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                                                        inspectionProgress.pendingCount > 0
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${inspectionProgress.pendingCount > 0
                                                             ? 'bg-red-50 text-red-600 border-red-200'
                                                             : 'bg-emerald-50 text-emerald-600 border-emerald-200'
-                                                    }`}>
+                                                        }`}>
                                                         達成率 {inspectionProgress.rate}%
                                                     </span>
                                                 )}
@@ -1994,18 +1993,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionTitle')}</h3>
                                             {nameCount > 0 ? (
                                                 <div className="space-y-1.5">
-                                                    <p className={`text-[11px] font-bold leading-tight tracking-tight ${
-                                                        inspectionProgress.pendingCount > 0 ? 'text-red-600' : 'text-emerald-600'
-                                                    }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                    <p className={`text-[11px] font-bold leading-tight tracking-tight ${inspectionProgress.pendingCount > 0 ? 'text-red-600' : 'text-emerald-600'
+                                                        }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                         {inspectionProgress.pendingCount > 0
                                                             ? `尚有 ${inspectionProgress.pendingCount} 具設備需檢查`
                                                             : `✓ 本期 ${nameCount} 具設備皆已定檢`}
                                                     </p>
                                                     <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h-full rounded-full transition-all duration-500 ${
-                                                                inspectionProgress.pendingCount > 0 ? 'bg-blue-500' : 'bg-emerald-500'
-                                                            }`}
+                                                            className={`h-full rounded-full transition-all duration-500 ${inspectionProgress.pendingCount > 0 ? 'bg-blue-500' : 'bg-emerald-500'
+                                                                }`}
                                                             style={{ width: `${inspectionProgress.rate}%` }}
                                                         />
                                                     </div>
@@ -2186,12 +2183,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {(() => {
                         const isDarkBg = !!styles.isDark;
                         return (
-                            <footer className={`mt-12 pt-6 pb-6 border-t flex items-center justify-center gap-2 text-xs select-none flex-wrap ${
-                                isDarkBg ? 'border-white/25 text-white/90' : 'border-slate-300 text-slate-600'
-                            }`}>
-                                <span className={`font-bold tracking-wide ${
-                                    isDarkBg ? 'text-white' : 'text-slate-700'
+                            <footer className={`mt-12 pt-6 pb-6 border-t flex items-center justify-center gap-2 text-xs select-none flex-wrap ${isDarkBg ? 'border-white/25 text-white/90' : 'border-slate-300 text-slate-600'
                                 }`}>
+                                <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
+                                    }`}>
                                     FSIPPRO v2.5.0 Pro
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
@@ -3761,7 +3756,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                         <div className="text-[11px] text-slate-500 flex items-center gap-3 flex-wrap">
                                                                             <span>預定截止：{rec.targetDeadline ? rec.targetDeadline.replace(/-/g, '/') : '未定'}</span>
                                                                             {rec.inspectorAgency && <span>機構：{rec.inspectorAgency}</span>}
-                                                                            
+
                                                                         </div>
                                                                         {rec.notes && <p className="text-[11px] text-slate-400 italic">備註：{rec.notes}</p>}
                                                                     </div>
@@ -4682,11 +4677,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         equipment={passportEquipment}
                         user={user}
                         lightSettings={currentLightSettings}
-                        onStartInspection={() => onCreateNew()}
-                        onViewFullHistory={(code) => {
+                            onStartInspection = {(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorStartInspection !== false) : systemSettings?.allowGuestStartInspection === true) ? () => onCreateNew() : undefined
+                        }
+                        onViewFullHistory={(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorHistory !== false) : systemSettings?.allowGuestHistory !== false) ? (code) => {
                             setSearchTerm(code.toUpperCase());
                             setSearchParams({ q: code.toUpperCase() }, { replace: true });
-                        }}
+                        } : undefined}
                     />
                 </Suspense>
             )}
