@@ -2119,10 +2119,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                                <Activity className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
+                                                <Clock className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
                                             <div className="p-2.5 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl w-fit mb-3 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
-                                                <Activity className="w-5 h-5 text-white" />
+                                                <Clock className="w-5 h-5 text-white" />
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('healthIndicators')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
@@ -2783,7 +2783,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     {/* Header */}
                                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                                         <h3 className="font-bold text-lg text-slate-800 flex items-center">
-                                            <Activity className="w-5 h-5 mr-2 text-red-500" />
+                                            <Clock className="w-5 h-5 mr-2 text-pink-500" />
                                             {t('healthIndicatorSettings')}
                                         </h3>
                                         <button onClick={() => setIsHealthModalOpen(false)} className="p-1 hover:bg-slate-200 rounded-full transition-colors">
