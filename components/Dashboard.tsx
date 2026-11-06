@@ -1717,15 +1717,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 overflow-y-auto pb-24 custom-scrollbar bg-gradient-to-br from-slate-50 via-slate-100/50 to-slate-200/30">
+            <div className="flex-1 overflow-y-auto pb-24 custom-scrollbar transition-colors duration-300" style={styles.patternStyle}>
                 <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-4 sm:space-y-6">
 
                     {/* User Info & Quick Search Row */}
                     <div className="flex items-center justify-between gap-4 mb-3">
                         <div className="flex items-center gap-4">
                             <div>
-                                <p className="text-slate-700 text-sm font-bold">{getTimeGreeting()}，{user.displayName || t('guest')}</p>
-                                <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(currentDateTime)}</p>
+                                <p className={`text-sm font-bold transition-colors ${styles.isDark ? 'text-white drop-shadow-sm' : 'text-slate-800'}`}>{getTimeGreeting()}，{user.displayName || t('guest')}</p>
+                                <p className={`text-xs mt-0.5 transition-colors ${styles.isDark ? 'text-slate-300' : 'text-slate-500'}`}>{formatDateTime(currentDateTime)}</p>
                             </div>
                             <div
                                 className={`relative w-12 h-12 rounded-full p-[3px] shadow-md transition-all ${!user.isGuest ? 'hover:scale-105 cursor-pointer' : ''}`}
@@ -1813,7 +1813,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     {!user.isGuest && (
                         <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* Total Equipment */}
-                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-blue-200 group">
+                            <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-blue-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
                                     <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('totalEquipment')}</p>
                                     <p className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight truncate leading-none mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{nameCount}</p>
@@ -1824,7 +1824,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
 
                             {/* Abnormal Pending */}
-                            <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-red-200 group">
+                            <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-red-200 group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
                                     <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('pendingAbnormal')}</p>
                                     <p className={`text-2xl sm:text-3xl font-bold tracking-tight truncate leading-none mb-1 ${abnormalCount > 0 ? 'text-red-500 underline decoration-2 decoration-red-200 underline-offset-4' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>{abnormalCount}</p>
@@ -1844,7 +1844,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     }
                                 }}
                                 disabled={user.isGuest || (!isAdmin && systemSettings?.allowInspectorDeclaration === false)}
-                                className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-amber-300 hover:bg-white text-left group cursor-pointer disabled:cursor-default"
+                                className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-amber-300 hover:bg-white text-left group cursor-pointer disabled:cursor-default"
                                 title={!user.isGuest && (isAdmin || systemSettings?.allowInspectorDeclaration !== false) ? "點擊設定申報週期與基準日" : undefined}
                             >
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1">
@@ -1887,7 +1887,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         setSettingsModalMode('focused');
                                         setIsSettingsOpen(true);
                                     }}
-                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-orange-200 group overflow-hidden"
+                                    className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-orange-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('lightSettings')}</p>
@@ -1905,7 +1905,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-blue-200 group overflow-hidden"
+                                    className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between min-h-[6rem] py-4 h-auto transition-all duration-300 hover:shadow-lg hover:border-blue-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('permissions')}</p>
@@ -1930,7 +1930,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsAdminDashboardOpen(true)}
-                                    className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-red-200 group overflow-hidden"
+                                    className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-slate-200/60 shadow-sm flex items-center justify-between h-24 transition-all duration-300 hover:shadow-lg hover:border-red-200 group overflow-hidden"
                                 >
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1">
                                         <p className="text-[10px] sm:text-xs font-semibold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('systemManagement')}</p>
@@ -1966,7 +1966,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsInspectionModeOpen(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <ClipboardCheck className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
@@ -2021,7 +2021,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setShowAbnormalRecheck(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <AlertOctagon className="w-24 h-24 text-amber-600 -mr-8 -mt-8 rotate-12" />
@@ -2047,7 +2047,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={scrollToHistory}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <ScrollText className="w-24 h-24 text-indigo-600 -mr-8 -mt-8 rotate-12" />
@@ -2065,7 +2065,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => onMyEquipment()}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <Building className="w-24 h-24 text-cyan-600 -mr-8 -mt-8 rotate-12" />
@@ -2083,7 +2083,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsEquipmentMapOpen(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <MapPinned className="w-24 h-24 text-purple-600 -mr-8 -mt-8 rotate-12" />
@@ -2101,7 +2101,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <div
                                             key={cardId}
                                             onClick={onAddEquipment}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <PlusCircle className="w-24 h-24 text-emerald-600 -mr-8 -mt-8 rotate-12" />
@@ -2119,7 +2119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsHealthModalOpen(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <Activity className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
@@ -2137,7 +2137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={onManageHierarchy}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <ListPlus className="w-24 h-24 text-orange-600 -mr-8 -mt-8 rotate-12" />
@@ -2155,7 +2155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                                            className={`group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
+                                            className={`group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
                                         >
                                             <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                                                 <PieChart className="w-24 h-24 text-slate-600 -mr-8 -mt-8 rotate-12" />
@@ -2184,7 +2184,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     {/* 底部版權與版本資訊 (Footer) */}
                     {(() => {
-                        const isDarkBg = styles.bg !== 'bg-[#f3f3f3]';
+                        const isDarkBg = !!styles.isDark;
                         return (
                             <footer className={`mt-12 pt-6 pb-6 border-t flex items-center justify-center gap-2 text-xs select-none flex-wrap ${
                                 isDarkBg ? 'border-white/25 text-white/90' : 'border-slate-300 text-slate-600'
@@ -3353,14 +3353,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <label className="text-xs font-bold text-slate-500 uppercase">{t('themeColor')}</label>
                                                     <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                                                         {[
-                                                            { id: 'light', icon: <Sun className="w-4 h-4" />, label: 'Light+', color: 'bg-[#f3f3f3]' },
-                                                            { id: 'dark', icon: <Moon className="w-4 h-4" />, label: 'Dark+', color: 'bg-[#1e1e1e]' },
-                                                            { id: 'monokai', icon: <Palette className="w-4 h-4" />, label: 'Monokai', color: 'bg-[#272822]' },
-                                                            { id: 'solarized', icon: <Droplets className="w-4 h-4" />, label: 'Solarized', color: 'bg-[#002b36]' },
-                                                            { id: 'dracula', icon: <Sparkles className="w-4 h-4" />, label: 'Dracula', color: 'bg-[#282a36]' },
-                                                            { id: 'nord', icon: <Leaf className="w-4 h-4" />, label: 'Nord', color: 'bg-[#2e3440]' },
-                                                            { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: 'One Dark', color: 'bg-[#282c34]' },
-                                                            { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('followSystemTheme'), color: 'bg-gradient-to-br from-white to-slate-900' }
+                                                            { id: 'light', icon: <Sun className="w-4 h-4" />, label: '極簡點陣', color: 'bg-[#f8fafc] border border-slate-300', darkIcon: true },
+                                                            { id: 'nord', icon: <LayoutGrid className="w-4 h-4" />, label: '工程方格', color: 'bg-[#e2e8f0] border border-slate-300', darkIcon: true },
+                                                            { id: 'dracula', icon: <Ruler className="w-4 h-4" />, label: '暖白雙格', color: 'bg-[#f5f5f4] border border-stone-300', darkIcon: true },
+                                                            { id: 'monokai', icon: <Leaf className="w-4 h-4" />, label: '環安綠陣', color: 'bg-[#dcfce7] border border-emerald-300', darkIcon: true },
+                                                            { id: 'solarized', icon: <Droplets className="w-4 h-4" />, label: '建築藍圖', color: 'bg-[#0b213f]', darkIcon: false },
+                                                            { id: 'dark', icon: <Moon className="w-4 h-4" />, label: '戰情暗格', color: 'bg-[#0f172a]', darkIcon: false },
+                                                            { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: '鈦金點陣', color: 'bg-[#18181b]', darkIcon: false },
+                                                            { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('followSystemTheme'), color: 'bg-gradient-to-br from-slate-100 to-slate-800', darkIcon: false }
                                                         ].map((item) => (
                                                             <button
                                                                 key={item.id}
@@ -3370,12 +3370,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
                                                                 title={item.label}
                                                             >
-                                                                <div className={`w-8 h-8 rounded-xl shadow-sm border border-black/5 flex items-center justify-center ${item.color} ${theme === item.id ? '' : ''} `}>
+                                                                <div className={`w-8 h-8 rounded-xl shadow-sm flex items-center justify-center ${item.color}`}>
                                                                     {React.cloneElement(item.icon as React.ReactElement, {
-                                                                        className: `w-4 h-4 ${['light', 'system'].includes(item.id) && theme !== item.id ? 'text-slate-600' : 'text-white'}`
+                                                                        className: `w-4 h-4 ${item.darkIcon ? 'text-slate-700' : 'text-white'}`
                                                                     })}
                                                                 </div>
-                                                                <span className="text-[10px] font-bold text-slate-500 line-clamp-1 px-1">{item.label}</span>
+                                                                <span className="text-[10px] font-bold text-slate-600 line-clamp-1 px-1">{item.label}</span>
                                                             </button>
                                                         ))}
                                                     </div>

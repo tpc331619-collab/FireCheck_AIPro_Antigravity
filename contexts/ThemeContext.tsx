@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 export type ThemeType = 'light' | 'dark' | 'monokai' | 'solarized' | 'dracula' | 'nord' | 'onedark' | 'system';
 
-interface ThemeStyles {
+export interface ThemeStyles {
     bg: string;
     text: string;
     card: string;
@@ -11,97 +11,180 @@ interface ThemeStyles {
     secondary: string;
     highlight: string;
     buttonText: string;
+    isDark: boolean;
+    patternStyle: React.CSSProperties;
 }
 
-// Define the styles for each theme using Tailwind classes
+// 方向 B：建築／工業幾何微紋理主題 (Architectural Grid / Dot Matrix / CAD Blueprint)
 export const THEME_STYLES: Record<ThemeType, ThemeStyles> = {
-    // VS Code Light+ 風格
+    // 1. 精密點陣・極簡白 (Dot Matrix Light)
     light: {
-        bg: 'bg-[#f3f3f3]',
-        text: 'text-[#1e1e1e]',
+        bg: 'bg-[#f8fafc]',
+        text: 'text-slate-800',
         card: 'bg-white',
-        border: 'border-[#e5e5e5]',
-        primary: 'bg-[#007acc]',
-        secondary: 'bg-[#68217a]',
-        highlight: 'text-[#007acc]',
-        buttonText: 'text-white'
+        border: 'border-slate-200',
+        primary: 'bg-blue-600',
+        secondary: 'bg-indigo-600',
+        highlight: 'text-blue-600',
+        buttonText: 'text-white',
+        isDark: false,
+        patternStyle: {
+            backgroundColor: '#f8fafc',
+            backgroundImage: `
+                radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.07) 0px, transparent 50%),
+                radial-gradient(at 0% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
+                radial-gradient(rgba(100, 116, 139, 0.22) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 100% 100%, 20px 20px'
+        }
     },
-    // VS Code Dark+ 風格
-    dark: {
-        bg: 'bg-[#1e1e1e]',
-        text: 'text-[#d4d4d4]',
-        card: 'bg-[#252526]',
-        border: 'border-[#3e3e42]',
-        primary: 'bg-[#0e639c]',
-        secondary: 'bg-[#37373d]',
-        highlight: 'text-[#4fc1ff]',
-        buttonText: 'text-white'
-    },
-    // Monokai 風格
-    monokai: {
-        bg: 'bg-[#272822]',
-        text: 'text-[#f8f8f2]',
-        card: 'bg-[#3e3d32]',
-        border: 'border-[#49483e]',
-        primary: 'bg-[#a6e22e]',
-        secondary: 'bg-[#66d9ef]',
-        highlight: 'text-[#f92672]',
-        buttonText: 'text-[#272822]'
-    },
-    // Solarized Dark 風格
-    solarized: {
-        bg: 'bg-[#002b36]',
-        text: 'text-[#839496]',
-        card: 'bg-[#073642]',
-        border: 'border-[#586e75]',
-        primary: 'bg-[#268bd2]',
-        secondary: 'bg-[#2aa198]',
-        highlight: 'text-[#b58900]',
-        buttonText: 'text-white'
-    },
-    // Dracula 風格
-    dracula: {
-        bg: 'bg-[#282a36]',
-        text: 'text-[#f8f8f2]',
-        card: 'bg-[#44475a]',
-        border: 'border-[#6272a4]',
-        primary: 'bg-[#bd93f9]',
-        secondary: 'bg-[#ff79c6]',
-        highlight: 'text-[#50fa7b]',
-        buttonText: 'text-[#282a36]'
-    },
-    // Nord 風格
+    // 2. 工程方格・冷冽銀 (Architectural Grid)
     nord: {
-        bg: 'bg-[#2e3440]',
-        text: 'text-[#d8dee9]',
-        card: 'bg-[#3b4252]',
-        border: 'border-[#4c566a]',
-        primary: 'bg-[#88c0d0]',
-        secondary: 'bg-[#81a1c1]',
-        highlight: 'text-[#8fbcbb]',
-        buttonText: 'text-[#2e3440]'
-    },
-    // One Dark Pro 風格
-    onedark: {
-        bg: 'bg-[#282c34]',
-        text: 'text-[#abb2bf]',
-        card: 'bg-[#21252b]',
-        border: 'border-[#181a1f]',
-        primary: 'bg-[#61afef]',
-        secondary: 'bg-[#c678dd]',
-        highlight: 'text-[#98c379]',
-        buttonText: 'text-white'
-    },
-    // System (跟隨系統)
-    system: {
-        bg: 'bg-[#f3f3f3]',
-        text: 'text-[#1e1e1e]',
+        bg: 'bg-[#f1f5f9]',
+        text: 'text-slate-800',
         card: 'bg-white',
-        border: 'border-[#e5e5e5]',
-        primary: 'bg-[#007acc]',
-        secondary: 'bg-[#68217a]',
-        highlight: 'text-[#007acc]',
-        buttonText: 'text-white'
+        border: 'border-slate-200',
+        primary: 'bg-sky-600',
+        secondary: 'bg-slate-700',
+        highlight: 'text-sky-600',
+        buttonText: 'text-white',
+        isDark: false,
+        patternStyle: {
+            backgroundColor: '#f1f5f9',
+            backgroundImage: `
+                radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.85) 0px, transparent 70%),
+                linear-gradient(to right, rgba(100, 116, 139, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(100, 116, 139, 0.08) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 24px 24px, 24px 24px'
+        }
+    },
+    // 3. 工程雙格・溫潤米白 (Technical Dual-Grid)
+    dracula: {
+        bg: 'bg-[#fafaf9]',
+        text: 'text-stone-800',
+        card: 'bg-white',
+        border: 'border-stone-200',
+        primary: 'bg-amber-600',
+        secondary: 'bg-orange-600',
+        highlight: 'text-amber-600',
+        buttonText: 'text-white',
+        isDark: false,
+        patternStyle: {
+            backgroundColor: '#f8f7f4',
+            backgroundImage: `
+                linear-gradient(to right, rgba(120, 113, 108, 0.11) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(120, 113, 108, 0.11) 1px, transparent 1px),
+                linear-gradient(to right, rgba(120, 113, 108, 0.045) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(120, 113, 108, 0.045) 1px, transparent 1px)
+            `,
+            backgroundSize: '96px 96px, 96px 96px, 16px 16px, 16px 16px'
+        }
+    },
+    // 4. 綠能環安・生態點陣 (EHS Eco Matrix)
+    monokai: {
+        bg: 'bg-[#f2fbf7]',
+        text: 'text-slate-800',
+        card: 'bg-white',
+        border: 'border-emerald-200',
+        primary: 'bg-emerald-600',
+        secondary: 'bg-teal-600',
+        highlight: 'text-emerald-600',
+        buttonText: 'text-white',
+        isDark: false,
+        patternStyle: {
+            backgroundColor: '#f2fbf7',
+            backgroundImage: `
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 55%),
+                radial-gradient(rgba(16, 185, 129, 0.22) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 20px 20px'
+        }
+    },
+    // 5. 建築藍圖・CAD 網格 (CAD Blueprint Dark)
+    solarized: {
+        bg: 'bg-[#0b213f]',
+        text: 'text-sky-50',
+        card: 'bg-white',
+        border: 'border-sky-800',
+        primary: 'bg-sky-500',
+        secondary: 'bg-cyan-500',
+        highlight: 'text-sky-400',
+        buttonText: 'text-white',
+        isDark: true,
+        patternStyle: {
+            backgroundColor: '#0b213f',
+            backgroundImage: `
+                radial-gradient(at 50% 0%, rgba(14, 165, 233, 0.16) 0px, transparent 65%),
+                linear-gradient(to right, rgba(56, 189, 248, 0.14) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.14) 1px, transparent 1px),
+                linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 100px 100px, 100px 100px, 20px 20px, 20px 20px'
+        }
+    },
+    // 6. 戰情中控・暗夜方格 (Command Center Dark)
+    dark: {
+        bg: 'bg-[#0f172a]',
+        text: 'text-slate-100',
+        card: 'bg-white',
+        border: 'border-slate-700',
+        primary: 'bg-blue-600',
+        secondary: 'bg-slate-700',
+        highlight: 'text-sky-400',
+        buttonText: 'text-white',
+        isDark: true,
+        patternStyle: {
+            backgroundColor: '#0f172a',
+            backgroundImage: `
+                radial-gradient(at 15% 0%, rgba(59, 130, 246, 0.14) 0px, transparent 50%),
+                radial-gradient(at 85% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                linear-gradient(to right, rgba(148, 163, 184, 0.075) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.075) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 100% 100%, 24px 24px, 24px 24px'
+        }
+    },
+    // 7. 鈦金工業・深邃點陣 (Titanium Dot Matrix)
+    onedark: {
+        bg: 'bg-[#18181b]',
+        text: 'text-zinc-100',
+        card: 'bg-white',
+        border: 'border-zinc-700',
+        primary: 'bg-blue-500',
+        secondary: 'bg-zinc-700',
+        highlight: 'text-blue-400',
+        buttonText: 'text-white',
+        isDark: true,
+        patternStyle: {
+            backgroundColor: '#18181b',
+            backgroundImage: `
+                radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.05) 0px, transparent 60%),
+                radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 18px 18px'
+        }
+    },
+    // 8. 跟隨系統 (System Auto)
+    system: {
+        bg: 'bg-[#f8fafc]',
+        text: 'text-slate-800',
+        card: 'bg-white',
+        border: 'border-slate-200',
+        primary: 'bg-blue-600',
+        secondary: 'bg-indigo-600',
+        highlight: 'text-blue-600',
+        buttonText: 'text-white',
+        isDark: false,
+        patternStyle: {
+            backgroundColor: '#f8fafc',
+            backgroundImage: `
+                radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.07) 0px, transparent 50%),
+                radial-gradient(rgba(100, 116, 139, 0.22) 1px, transparent 1px)
+            `,
+            backgroundSize: '100% 100%, 20px 20px'
+        }
     }
 };
 
@@ -114,13 +197,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    // 1. Initialize from localStorage or default 'light'
     const [theme, setTheme] = useState<ThemeType>(() => {
-        const saved = localStorage.getItem('app-theme');
-        return (saved as ThemeType) || 'light';
+        const saved = localStorage.getItem('app-theme') as ThemeType;
+        return saved && THEME_STYLES[saved] ? saved : 'light';
     });
 
-    // 2. Handle System Theme
     const [resolvedTheme, setResolvedTheme] = useState<ThemeType>('light');
 
     useEffect(() => {
@@ -132,10 +213,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                 setResolvedTheme(mediaQuery.matches ? 'dark' : 'light');
             };
 
-            // Initial check
             handleChange();
-
-            // Listen
             mediaQuery.addEventListener('change', handleChange);
             return () => mediaQuery.removeEventListener('change', handleChange);
         } else {
@@ -143,37 +221,21 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     }, [theme]);
 
-    // 3. Toggle 'dark' class on html element for Tailwind dark mode support
     useEffect(() => {
         const root = document.documentElement;
-        // List of themes that should trigger dark mode
-        const darkThemes: ThemeType[] = ['dark', 'monokai', 'solarized', 'dracula', 'nord', 'onedark'];
+        const activeStyle = THEME_STYLES[resolvedTheme] || THEME_STYLES.light;
 
-        if (darkThemes.includes(resolvedTheme)) {
+        if (activeStyle.isDark) {
             root.classList.add('dark');
         } else {
             root.classList.remove('dark');
         }
     }, [resolvedTheme]);
 
-    // 3. Get currently active styles based on resolved theme (handling system fallback)
-    // Note: If theme is 'system' and resolved is 'dark', we use 'dark' styles.
-    const activeStyles = THEME_STYLES[resolvedTheme === 'system' ? 'light' : resolvedTheme];
-    // Wait, resolvedTheme will be 'dark' or 'light' if system. 
-    // If theme is explicitly 'dark', resolved is 'dark'.
-
-    // Correction: THEME_STYLES should be indexed by resolvedTheme if it's a valid key.
-    // If resolvedTheme is not in THEME_STYLES (shouldn't happen), fallback to light.
     const currentStyles = THEME_STYLES[resolvedTheme] || THEME_STYLES.light;
 
-    const value = {
-        theme,
-        setTheme,
-        styles: currentStyles
-    };
-
     return (
-        <ThemeContext.Provider value={value}>
+        <ThemeContext.Provider value={{ theme, setTheme, styles: currentStyles }}>
             {children}
         </ThemeContext.Provider>
     );
