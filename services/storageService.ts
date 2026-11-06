@@ -119,98 +119,70 @@ export const StorageService = {
 }
   },
 
-// Real-time subscription for Reports
-subscribeToReports(userId: string, year: number | undefined, callback: (reports: InspectionReport[]) => void, organizationId ?: string | null): () => void {
-  if(!db) return() => { };
+  // Real-time subscription for Reports
+  subscribeToReports(userId: string, year: number | undefined, callback: (reports: InspectionReport[]) => void, organizationId?: string | null): () => void {
+    if (!db) return () => { };
 
-const targetYear = year || new Date().getFullYear();
-const collectionName = `reports_${targetYear}`;
-let q;
-let unsubscribe: () => void = () => { };
-let isCancelled = false;
+    let unsubscribe: () => void = () => { };
+    let isCancelled = false;
 
-if (organizationId && organizationId !== '') {
-  q = query(collection(db, collectionName), where('organizationId', '==', organizationId));
-} else {
-  q = query(collection(db, collectionName), where('userId', '==', userId));
-}
-const setupSubscription = async () => {
-  try {
-    let resolvedOrgId = organizationId;
-    if (!resolvedOrgId && this.isGuest && db) {
-      const settings = await this.getSystemSettings();
-      if ((settings?.allowGuestView || settings?.allowGuestHistory || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-        resolvedOrgId = settings.guestOrganizationId;
-      } else {
-        return;
-      }
-    }
-    if (isCancelled) return;
-
-    return onSnapshot(q, async (snapshot) => {
-      let reports = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as InspectionReport));
-      const targetYear = year || new Date().getFullYear();
-      const collectionName = `reports_${targetYear}`;
-      let q;
-
-      // Client-side filtering
-      const currentAuthId = auth?.currentUser?.uid;
-      const isGuestPublicAccess = !organizationId && userId !== currentAuthId;
-
-      if (!isGuestPublicAccess) {
-        if (!organizationId || organizationId === '') {
-          reports = reports.filter(r => !r.organizationId);
-          if (resolvedOrgId && resolvedOrgId !== '') {
-            q = query(collection(db!, collectionName), where('organizationId', '==', resolvedOrgId));
+    const setupSubscription = async () => {
+      try {
+        let resolvedOrgId = organizationId;
+        if (!resolvedOrgId && this.isGuest && db) {
+          const settings = await this.getSystemSettings();
+          if ((settings?.allowGuestView || settings?.allowGuestHistory || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
+            resolvedOrgId = settings.guestOrganizationId;
           } else {
-            reports = reports.filter(r => r.organizationId === organizationId);
-            q = query(collection(db!, collectionName), where('userId', '==', userId));
+            return;
+          }
+        }
+        if (isCancelled) return;
+
+        const targetYear = year || new Date().getFullYear();
+        const collectionName = `reports_${targetYear}`;
+        let q;
+
+        if (resolvedOrgId && resolvedOrgId !== '') {
+          q = query(collection(db!, collectionName), where('organizationId', '==', resolvedOrgId));
+        } else {
+          q = query(collection(db!, collectionName), where('userId', '==', userId));
+        }
+
+        unsubscribe = onSnapshot(q, async (snapshot) => {
+          let reports = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as InspectionReport));
+
+          // Client-side filtering
+          const currentAuthId = auth?.currentUser?.uid;
+          const isGuestPublicAccess = !resolvedOrgId && userId !== currentAuthId;
+
+          if (!isGuestPublicAccess) {
+            if (!resolvedOrgId || resolvedOrgId === '') {
+              reports = reports.filter(r => !r.organizationId);
+            } else {
+              reports = reports.filter(r => r.organizationId === resolvedOrgId);
+            }
           }
 
-          unsubscribe = onSnapshot(q, async (snapshot) => {
-            let reports = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as InspectionReport));
+          // Fetch items for each report
+          await Promise.all(reports.map(async (report) => {
+            const itemsSnap = await getDocs(collection(db!, collectionName, report.id, 'items'));
+            report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
+          }));
 
-            // Client-side filtering
-            const currentAuthId = auth?.currentUser?.uid;
-            const isGuestPublicAccess = !resolvedOrgId && userId !== currentAuthId;
+          if (!isCancelled) {
+            callback(reports.sort((a, b) => b.date - a.date));
+          }
+        }, (error) => {
+          console.error("Reports subscription error", error);
+        });
+      } catch (err) {
+        console.error("Error setting up reports subscription", err);
+      }
+    };
 
-            if (!isGuestPublicAccess) {
-              if (!resolvedOrgId || resolvedOrgId === '') {
-                reports = reports.filter(r => !r.organizationId);
-              } else {
-                reports = reports.filter(r => r.organizationId === resolvedOrgId);
-              }
-            }
+    setupSubscription();
 
-            // Fetch items for each report
-            await Promise.all(reports.map(async (report) => {
-              const itemsSnap = await getDocs(collection(db!, collectionName, report.id, 'items'));
-              report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
-            }));
-
-            if (!isCancelled) {
-              callback(reports.sort((a, b) => b.date - a.date));
-            }
-          }, (error) => {
-            console.error("Reports subscription error", error);
-          });
-        } catch (err) {
-          console.error("Error setting up reports subscription", err);
-        }
-      };
-
-      // Fetch items for each report
-      await Promise.all(reports.map(async (report) => {
-        const itemsSnap = await getDocs(collection(db, collectionName, report.id, 'items'));
-        report.items = itemsSnap.docs.map(d => d.data() as InspectionItem);
-      }));
-      setupSubscription();
-
-      callback(reports.sort((a, b) => b.date - a.date));
-
-    }, (error) => {
-      console.error("Reports subscription error", error);
-    });
     return () => {
       isCancelled = true;
       unsubscribe();
@@ -734,19 +706,18 @@ try {
   // If organizationId is present, we skip this guest check logic as we want explicitly org data
   console.log(`[StorageService] getEquipmentDefinitions: orgId=${organizationId}, isGuest=${this.isGuest}`);
 
-  if(this.isGuest && db) {
-  const settings = await this.getSystemSettings();
-  if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.guestOrganizationId) {
-    if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-      console.log("[StorageService] Guest Access (EquipDefs): Switching to Public Organization ID", settings.guestOrganizationId);
-      // Force organization query
-      organizationId = settings.guestOrganizationId;
-      useCloud = true;
-      fetchedPublicData = true;
-    } else {
-      console.log("[StorageService] Guest Access (EquipDefs): Conditions NOT met.");
+    if (this.isGuest && db) {
+      const settings = await this.getSystemSettings();
+      if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
+        console.log("[StorageService] Guest Access (EquipDefs): Switching to Public Organization ID", settings.guestOrganizationId);
+        // Force organization query
+        organizationId = settings.guestOrganizationId;
+        useCloud = true;
+        fetchedPublicData = true;
+      } else {
+        console.log("[StorageService] Guest Access (EquipDefs): Conditions NOT met.");
+      }
     }
-  }
 
   // If organizationId is provided, we force cloud usage (or specific handling)
   if (organizationId && db) {
@@ -1694,72 +1665,59 @@ let fetchedPublicData = false;
 // that gets replaced.
 let unsubscribe: () => void = () => { };
 
-const setupSubscription = async () => {
-  try {
-    // Guest Logic matching getAbnormalRecords
-    if (!organizationId && this.isGuest && db) {
-      const settings = await this.getSystemSettings();
-      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.publicDataUserId) {
-        console.log('[StorageService] Guest Access (Subscribe): Using Public Data ID:', settings.publicDataUserId);
-        targetUserId = settings.publicDataUserId;
-        fetchedPublicData = true; // Mark as public data
-        if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-          console.log('[StorageService] Guest Access (Subscribe Abnormal): Using Public Org ID:', settings.guestOrganizationId);
-          organizationId = settings.guestOrganizationId;
-          fetchedPublicData = true;
-        } else {
-          return;
-        }
-      }
-
-      let q;
-      if (organizationId && organizationId !== '') {
-        q = query(collection(db, 'abnormalRecords'), where('organizationId', '==', organizationId));
-      } else {
-        q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
-      }
-
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
-
-        // Client-side filtering (Matching getAbnormalRecords)
-        // Identify if we are viewing public data as guest
-        const currentAuthId = auth?.currentUser?.uid;
-        // Logic: If we fetched public data (fetchedPublicData is true), OR if we are guest and target != user
-        // But here in subscription, we might not have updated 'userId' param to be 'targetUserId' in the scope?
-        // Actually targetUserId is local var.
-        // Let's use the same logic:
-        const isGuestPublicAccess = !organizationId && this.isGuest && targetUserId !== userId;
-
-        // Double check with fetchedPublicData flag which is more explicit from our async block
-        const shouldBypassFilter = isGuestPublicAccess || fetchedPublicData;
-
-        if (!shouldBypassFilter) {
-          if (!organizationId || organizationId === '') {
-            records = records.filter(r => !r.organizationId);
+    const setupSubscription = async () => {
+      try {
+        // Guest Logic matching getAbnormalRecords
+        if (!organizationId && this.isGuest && db) {
+          const settings = await this.getSystemSettings();
+          if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
+            console.log('[StorageService] Guest Access (Subscribe Abnormal): Using Public Org ID:', settings.guestOrganizationId);
+            organizationId = settings.guestOrganizationId;
+            fetchedPublicData = true;
           } else {
-            records = records.filter(r => r.organizationId === organizationId);
+            return;
           }
         }
 
-        const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
-        callback(sorted);
-      }, (error) => {
-        console.error("Abnormal records subscription error", error);
-      });
+        let q;
+        if (organizationId && organizationId !== '') {
+          q = query(collection(db, 'abnormalRecords'), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
+        }
 
-    } catch (err) {
-      console.error("Error setting up abnormal records subscription", err);
-    }
-  };
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
 
-  setupSubscription();
+          const isGuestPublicAccess = !organizationId && this.isGuest && targetUserId !== userId;
+          const shouldBypassFilter = isGuestPublicAccess || fetchedPublicData;
 
-  // Return a cleanup function that calls the actual unsubscribe
-  return () => {
-    unsubscribe();
-  };
-},
+          if (!shouldBypassFilter) {
+            if (!organizationId || organizationId === '') {
+              records = records.filter(r => !r.organizationId);
+            } else {
+              records = records.filter(r => r.organizationId === organizationId);
+            }
+          }
+
+          const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
+          callback(sorted);
+        }, (error) => {
+          console.error("Abnormal records subscription error", error);
+        });
+
+      } catch (err) {
+        console.error("Error setting up abnormal records subscription", err);
+      }
+    };
+
+    setupSubscription();
+
+    // Return a cleanup function that calls the actual unsubscribe
+    return () => {
+      unsubscribe();
+    };
+  },
 
   async getAbnormalRecords(userId: string, organizationId?: string | null): Promise<AbnormalRecord[]> {
     console.log('[StorageService] getAbnormalRecords called', { userId, organizationId });
@@ -1770,74 +1728,64 @@ const setupSubscription = async () => {
     // Skip if organizationId is present
     if (!organizationId && this.isGuest && db) {
       const settings = await this.getSystemSettings();
-      // Allow if either View OR Recheck is enabled
-      // Just like abnormal records, we might want to allow seeing history if they are allowed to recheck?
-      // Or at least, if allowGuestView is missing but allowGuestRecheck is on, maybe we should minimal access?
-      // For now, let's allow it if either is true, to be safe and consistent with user request "Guest Mode Data Visibility".
-      if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.publicDataUserId) {
-        console.log('[StorageService] Guest Access (Reports): Using Public Data ID:', settings.publicDataUserId);
-        targetUserId = settings.publicDataUserId;
-        if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-          console.log('[StorageService] Guest Access (AbnormalRecords): Using Public Org ID:', settings.guestOrganizationId);
-          organizationId = settings.guestOrganizationId;
-          useCloud = true;
-        }
-      }
-
-      // Force cloud if orgId provided
-      if (organizationId && db) {
+      if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
+        console.log('[StorageService] Guest Access (AbnormalRecords): Using Public Org ID:', settings.guestOrganizationId);
+        organizationId = settings.guestOrganizationId;
         useCloud = true;
       }
+    }
 
-      if (!useCloud) {
-        const dataStr = localStorage.getItem('firecheck_abnormal_records');
-        if (!dataStr) return [];
-        const records: AbnormalRecord[] = JSON.parse(dataStr);
-        return records.sort((a, b) => b.createdAt - a.createdAt);
-      } else {
-        try {
-          let q;
-          if (organizationId && organizationId !== '') {
-            q = query(collection(db, 'abnormalRecords'), where('organizationId', '==', organizationId));
-          } else {
-            q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
-          }
+    // Force cloud if orgId provided
+    if (organizationId && db) {
+      useCloud = true;
+    }
 
-          const snapshot = await getDocs(q);
-          let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
-
-          // Client-side filtering
-          // If we are in Guest Mode using Public Data ID, we should SHOW parsed records even if they have Org ID
-          // because the Guest doesn't belong to an Org, but wants to see the Admin's data.
-          const isGuestPublicAccess = !organizationId && this.isGuest && targetUserId !== userId;
-
-          if (!Boolean(isGuestPublicAccess)) {
-            if (!organizationId || organizationId === '') {
-              records = records.filter(r => !r.organizationId);
-            } else {
-              records = records.filter(r => r.organizationId === organizationId);
-            }
-          }
-
-          const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
-
-          // Sync to local storage for Guest Access (if Admin AND not Org view)
-          if (!this.isGuest && !organizationId) {
-            localStorage.setItem('firecheck_abnormal_records', JSON.stringify(sorted));
-          }
-
-          return sorted;
-        } catch (e) {
-          console.error("Abnormal records fetch error", e);
-          // Fallback
-          if (!organizationId) {
-            const dataStr = localStorage.getItem('firecheck_abnormal_records');
-            return dataStr ? JSON.parse(dataStr) : [];
-          }
-          return [];
+    if (!useCloud) {
+      const dataStr = localStorage.getItem('firecheck_abnormal_records');
+      if (!dataStr) return [];
+      const records: AbnormalRecord[] = JSON.parse(dataStr);
+      return records.sort((a, b) => b.createdAt - a.createdAt);
+    } else {
+      try {
+        let q;
+        if (organizationId && organizationId !== '') {
+          q = query(collection(db, 'abnormalRecords'), where('organizationId', '==', organizationId));
+        } else {
+          q = query(collection(db, 'abnormalRecords'), where('userId', '==', targetUserId));
         }
+
+        const snapshot = await getDocs(q);
+        let records = snapshot.docs.map(d => ({ ...(d.data() as any), id: d.id } as AbnormalRecord));
+
+        const isGuestPublicAccess = !organizationId && this.isGuest && targetUserId !== userId;
+
+        if (!Boolean(isGuestPublicAccess)) {
+          if (!organizationId || organizationId === '') {
+            records = records.filter(r => !r.organizationId);
+          } else {
+            records = records.filter(r => r.organizationId === organizationId);
+          }
+        }
+
+        const sorted = records.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Sync to local storage for Guest Access (if Admin AND not Org view)
+        if (!this.isGuest && !organizationId) {
+          localStorage.setItem('firecheck_abnormal_records', JSON.stringify(sorted));
+        }
+
+        return sorted;
+      } catch (e) {
+        console.error("Abnormal records fetch error", e);
+        // Fallback
+        if (!organizationId) {
+          const dataStr = localStorage.getItem('firecheck_abnormal_records');
+          return dataStr ? JSON.parse(dataStr) : [];
+        }
+        return [];
       }
-    },
+    }
+  },
 
   async updateAbnormalRecord(record: AbnormalRecord): Promise < void> {
       const { id, ...data } = record;
@@ -1882,43 +1830,40 @@ const setupSubscription = async () => {
 
   // --- Light Settings Methods ---
 
-  async getLightSettings(userId: string, organizationId ?: string | null): Promise < any > {
-  const isPersonal = !organizationId || organizationId === '';
-  const KEY = isPersonal ? `lights_${userId}` : `lights_${organizationId}`;
-  let resolvedOrgId = organizationId;
-  if(!resolvedOrgId && this.isGuest && db) {
-  const settings = await this.getSystemSettings();
-  if (settings?.guestOrganizationId) {
-    resolvedOrgId = settings.guestOrganizationId;
-  }
-}
-const isPersonal = !resolvedOrgId || resolvedOrgId === '';
-const KEY = isPersonal ? `lights_${userId}` : `lights_${resolvedOrgId}`;
-const defaults = {
-  red: { days: 2, color: '#ef4444' },
-  yellow: { days: 5, color: '#facc15' },
-  green: { days: 7, color: '#10b981' }
-};
-
-if (this.isGuest || !db) {
-  if ((this.isGuest && !resolvedOrgId) || !db) {
-    const data = localStorage.getItem(KEY);
-    return data ? JSON.parse(data) : defaults;
-  } else {
-    try {
-      const docRef = doc(db, 'settings', KEY);
-      const snapshot = await getDoc(docRef);
-      if (snapshot.exists()) {
-        return { ...defaults, ...snapshot.data() };
+  async getLightSettings(userId: string, organizationId?: string | null): Promise<any> {
+    let resolvedOrgId = organizationId;
+    if (!resolvedOrgId && this.isGuest && db) {
+      const settings = await this.getSystemSettings();
+      if (settings?.guestOrganizationId) {
+        resolvedOrgId = settings.guestOrganizationId;
       }
-      return defaults;
-    } catch (e) {
-      console.error("Fetch light settings error", e);
+    }
+    const isPersonal = !resolvedOrgId || resolvedOrgId === '';
+    const KEY = isPersonal ? `lights_${userId}` : `lights_${resolvedOrgId}`;
+    const defaults = {
+      red: { days: 2, color: '#ef4444' },
+      yellow: { days: 5, color: '#facc15' },
+      green: { days: 7, color: '#10b981' }
+    };
+
+    if ((this.isGuest && !resolvedOrgId) || !db) {
       const data = localStorage.getItem(KEY);
       return data ? JSON.parse(data) : defaults;
+    } else {
+      try {
+        const docRef = doc(db, 'settings', KEY);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          return { ...defaults, ...snapshot.data() };
+        }
+        return defaults;
+      } catch (e) {
+        console.error("Fetch light settings error", e);
+        const data = localStorage.getItem(KEY);
+        return data ? JSON.parse(data) : defaults;
+      }
     }
-  }
-},
+  },
 
   async saveLightSettings(settings: any, userId: string, organizationId ?: string | null): Promise < void> {
   const isPersonal = !organizationId || organizationId === '';
