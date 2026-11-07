@@ -2314,7 +2314,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    版本 V2.6.2
+                                    V 2.6.3
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
@@ -2894,15 +2894,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         )
                     }
 
-                    {/* FAB (Maintained for quick access) */}
-                    {!user.isGuest && (
+                    {/* FAB (Quick Barcode Scan for Equipment Passport) */}
+                    {(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorQuickSearch !== false) : systemSettings?.allowGuestQuickSearch !== false) && (
                         <button
-                            onClick={onCreateNew}
-                            className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 hover:rotate-90 active:scale-95 transition-all z-30 ring-4 ring-white/50"
+                            onClick={() => setIsQuickScanOpen(true)}
+                            className="fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all z-30 ring-4 ring-white/50"
                             style={{ backgroundColor: THEME_COLORS.primary }}
-                            aria-label="新增檢查"
+                            title="掃描條碼查看設備履歷"
+                            aria-label="掃描條碼查看設備履歷"
                         >
-                            <Plus className="w-7 h-7" />
+                            <ScanLine className="w-6 h-6" />
                         </button>
                     )}
 
