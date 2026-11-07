@@ -3264,9 +3264,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                         {/* PROFILE TAB */}
                                         {settingsTab === 'PROFILE' && (
-                                            <div className="space-y-4">
-                                                <div className="flex items-center justify-center mb-1">
-                                                    <div className="w-14 h-14 rounded-full border-2 border-slate-100 overflow-hidden shadow-sm relative group">
+                                            <div className="space-y-3.5">
+                                                <div className="flex items-center justify-center">
+                                                    <div className="w-14 h-14 rounded-full border-2 border-slate-200 overflow-hidden shadow-sm relative group">
                                                         <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
                                                         {isUpdating && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-[8px] text-center z-10 px-0.5">{t('uploading')}</div>}
 
@@ -3280,20 +3280,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="space-y-3 px-1">
-                                                    <div className="grid grid-cols-5 gap-3">
+                                                <div className="space-y-2.5 px-1">
+                                                    <div className="flex items-center justify-center gap-3">
                                                         {CARTOON_AVATARS.map((url, idx) => (
                                                             <button
                                                                 key={idx}
                                                                 onClick={() => setSelectedAvatar(url)}
-                                                                className={`aspect-square rounded-full overflow-hidden border-2 transition-all ${selectedAvatar === url ? 'border-red-600 ring-4 ring-red-50' : 'border-slate-100 hover:border-red-400'} `}
+                                                                className={`w-11 h-11 rounded-full overflow-hidden border-2 transition-all shrink-0 ${selectedAvatar === url ? 'border-red-600 ring-2 ring-red-100 scale-105' : 'border-slate-100 hover:border-red-400 opacity-85 hover:opacity-100'}`}
                                                             >
                                                                 <img src={url} alt={`Avatar ${idx}`} className="w-full h-full object-cover" />
                                                             </button>
                                                         ))}
                                                     </div>
                                                     {!user.isGuest && (
-                                                        <div className="pt-1 flex gap-2">
+                                                        <div className="pt-0.5 flex gap-2">
                                                             <input
                                                                 type="file"
                                                                 ref={fileInputRef}
@@ -3304,18 +3304,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             <button
                                                                 onClick={() => fileInputRef.current?.click()}
                                                                 disabled={isUpdating}
-                                                                className="flex-1 py-2.5 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-2 group"
+                                                                className="flex-1 py-2 border border-dashed border-slate-300 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-50 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-1.5 group"
                                                             >
-                                                                <UploadCloud className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                                                <UploadCloud className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                                                                 {t('uploadPhoto')}
                                                             </button>
                                                             <button
                                                                 onClick={handleRestoreGooglePhoto}
                                                                 disabled={isUpdating}
-                                                                className="flex-1 py-2.5 border-2 border-slate-200 rounded-xl text-slate-500 text-xs font-bold hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center justify-center gap-2 group"
+                                                                className="flex-1 py-2 border border-slate-200 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all flex items-center justify-center gap-1.5 group"
                                                                 title={t('restoreOriginalPhoto')}
                                                             >
-                                                                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                                                                <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
                                                                 {t('originalPhoto')}
                                                             </button>
                                                         </div>
@@ -3328,30 +3328,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         type="text"
                                                         value={displayName}
                                                         onChange={(e) => setDisplayName(e.target.value)}
-                                                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none text-sm"
+                                                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:border-red-500 focus:outline-none text-sm font-medium"
                                                         disabled={user.isGuest}
                                                     />
                                                 </div>
 
                                                 {!user.isGuest && (
-                                                    <div className="space-y-2.5 pt-1">
+                                                    <div className="space-y-3 pt-1">
                                                         <button
                                                             onClick={handleUpdateProfile}
                                                             disabled={isUpdating}
-                                                            className="w-full py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 text-sm"
+                                                            className="w-full py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-[0.99] transition-all shadow-md shadow-red-200/80 text-sm sm:text-base"
                                                         >
                                                             {isUpdating ? 'Updating...' : t('saveChanges')}
                                                         </button>
-                                                        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-100">
+                                                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => {
                                                                     setIsSettingsOpen(false);
                                                                     setShowOrgManager(true);
                                                                 }}
-                                                                className="w-full py-2.5 bg-blue-50/80 hover:bg-blue-100 text-blue-700 border border-blue-200/80 font-bold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5 px-2 truncate"
+                                                                className="w-full py-3.5 px-3 bg-blue-50 hover:bg-blue-100/90 active:scale-[0.99] text-blue-700 border border-blue-200 font-bold rounded-xl transition-all text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm truncate"
                                                             >
-                                                                <Building className="w-4 h-4 shrink-0" />
+                                                                <Building className="w-5 h-5 shrink-0 text-blue-600" />
                                                                 <span className="truncate">{user.currentOrganizationId ? currentOrgName : t('personalOrganization')}</span>
                                                             </button>
                                                             <button
@@ -3360,9 +3360,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     setIsSettingsOpen(false);
                                                                     onLogout();
                                                                 }}
-                                                                className="w-full py-2.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 font-bold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5"
+                                                                className="w-full py-3.5 px-3 bg-slate-100 hover:bg-rose-50 active:scale-[0.99] text-slate-700 hover:text-rose-600 border border-slate-200/90 hover:border-rose-200 font-bold rounded-xl transition-all text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm"
                                                             >
-                                                                <LogOut className="w-4 h-4 shrink-0" />
+                                                                <LogOut className="w-5 h-5 shrink-0" />
                                                                 <span>登出帳號</span>
                                                             </button>
                                                         </div>
@@ -3502,21 +3502,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                         ))}
                                                     </div>
                                                 </div>
-
-
-                                                <div className="pt-4 border-t border-slate-100 space-y-3">
-
-                                                    <button
-                                                        onClick={handleClearCache}
-                                                        className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-red-50 transition-colors text-left text-sm font-medium text-red-600"
-                                                    >
-                                                        <span className="flex items-center"><Trash2 className="w-4 h-4 mr-2" /> {t('clearCache')}</span>
-                                                    </button>
-                                                </div>
-
-
-
-
                                             </div>
                                         )}
 
