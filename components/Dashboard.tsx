@@ -4828,4 +4828,4 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     );
 };
 
-export defau
+export default Dashboard;
