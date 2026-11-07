@@ -1618,14 +1618,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     return (
         <div className={`flex flex-col h-full ${styles.bg} ${styles.text} transition-colors duration-300`}>
             {/* Modern Gradient Header */}
-            <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white py-4 px-4 shadow-xl flex-shrink-0">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3 group px-2">
-                        <div className="relative flex items-center justify-center">
+            <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 text-white py-3 sm:py-4 px-3 sm:px-4 shadow-xl flex-shrink-0">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 group sm:px-2 min-w-0 shrink-0">
+                        <div className="relative flex items-center justify-center shrink-0">
                             {/* American Badge Styled Container */}
                             <div className="relative p-0.5 bg-gradient-to-b from-amber-200 via-amber-500 to-amber-700 rounded-lg border border-amber-300 transform group-hover:scale-105 transition-all duration-300">
                                 <span className="sr-only">Badge Logo</span>
-                                <svg viewBox="0 0 24 24" className="w-8 h-8 fill-none stroke-slate-900 stroke-[1]" strokeLinecap="round" strokeLinejoin="round">
+                                <svg viewBox="0 0 24 24" className="w-7 h-7 sm:w-8 sm:h-8 fill-none stroke-slate-900 stroke-[1]" strokeLinecap="round" strokeLinejoin="round">
                                     {/* 7-Point Star (Classic Badge Component) */}
                                     <path d="M12 2l2.5 5.5 6 .5-4.5 4.5 1.5 6-5.5-3-5.5 3 1.5-6-4.5-4.5 6-.5z" className="fill-amber-400/90" />
                                     {/* Central Shield Seal */}
@@ -1638,10 +1638,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-bold text-2xl tracking-tight bg-gradient-to-r from-amber-100 via-white to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] uppercase italic leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                            <span className="font-bold text-xl sm:text-2xl tracking-tight bg-gradient-to-r from-amber-100 via-white to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] uppercase italic leading-none pr-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                 {t('appName')}
                             </span>
-                            <span className="text-[8px] font-semibold text-amber-400/80 tracking-[0.2em] uppercase mt-0.5 ml-0.5 drop-shadow-sm">
+                            <span className="text-[7px] sm:text-[8px] font-semibold text-amber-400/80 tracking-[0.18em] sm:tracking-[0.2em] uppercase mt-0.5 ml-0.5 drop-shadow-sm whitespace-nowrap">
                                 Professional Edition
                             </span>
                         </div>
@@ -1653,7 +1653,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <button
                             onClick={handleManualRefresh}
                             className={`p-2 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm ${isRefreshing ? 'opacity-50' : ''}`}
@@ -1667,31 +1667,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                 <button
                                     onClick={() => setShowOrgManager(true)}
-                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg flex items-center gap-2 transition-all mr-1"
+                                    className="hidden sm:flex px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg items-center gap-2 transition-all mr-1"
                                     title={t('switchOrganization')}
                                 >
-                                    <span className="text-sm font-medium hidden sm:inline-block max-w-[100px] truncate">
+                                    <span className="text-sm font-medium inline-block max-w-[100px] truncate">
                                         {user.currentOrganizationId ? currentOrgName : t('personalOrganization')}
                                     </span>
                                     <Building className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => setIsGuestShareModalOpen(true)}
-                                    className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
+                                    className="p-2 sm:p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
                                     title="消防稽查／訪客通行碼 (QR Code)"
                                 >
                                     <QrCode className="w-5 h-5" />
                                 </button>
                                 {/* Management Button Removed */}
                                 {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
-                                    <button onClick={() => { setSettingsModalMode('full'); setSettingsTab('PROFILE'); setIsSettingsOpen(true); }} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
+                                    <button onClick={() => { setSettingsModalMode('full'); setSettingsTab('PROFILE'); setIsSettingsOpen(true); }} className="p-2 sm:p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title={t('settings')}>
                                         <Settings className="w-5 h-5" />
                                     </button>
                                 )}
                                 <NotificationBell
                                     userId={user.uid}
                                     organizationId={user.currentOrganizationId}
-                                    className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
+                                    className="p-2 sm:p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
                                     iconClassName="text-white w-5 h-5"
                                     systemSettings={systemSettings}
                                     isAdmin={isAdmin}
@@ -1716,7 +1716,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 />
                             </>
                         )}
-                        <button onClick={onLogout} className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm" title="登出">
+                        <button
+                            onClick={onLogout}
+                            className={`${!user.isGuest ? 'hidden sm:inline-flex' : 'inline-flex'} p-2 sm:p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm`}
+                            title="登出"
+                        >
                             <LogOut className="w-5 h-5" />
                         </button>
                     </div>
@@ -3330,13 +3334,39 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </div>
 
                                                 {!user.isGuest && (
-                                                    <button
-                                                        onClick={handleUpdateProfile}
-                                                        disabled={isUpdating}
-                                                        className="w-full py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 text-sm"
-                                                    >
-                                                        {isUpdating ? 'Updating...' : t('saveChanges')}
-                                                    </button>
+                                                    <div className="space-y-2.5 pt-1">
+                                                        <button
+                                                            onClick={handleUpdateProfile}
+                                                            disabled={isUpdating}
+                                                            className="w-full py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-200 text-sm"
+                                                        >
+                                                            {isUpdating ? 'Updating...' : t('saveChanges')}
+                                                        </button>
+                                                        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-100">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsSettingsOpen(false);
+                                                                    setShowOrgManager(true);
+                                                                }}
+                                                                className="w-full py-2.5 bg-blue-50/80 hover:bg-blue-100 text-blue-700 border border-blue-200/80 font-bold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5 px-2 truncate"
+                                                            >
+                                                                <Building className="w-4 h-4 shrink-0" />
+                                                                <span className="truncate">{user.currentOrganizationId ? currentOrgName : t('personalOrganization')}</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setIsSettingsOpen(false);
+                                                                    onLogout();
+                                                                }}
+                                                                className="w-full py-2.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 font-bold rounded-xl transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5"
+                                                            >
+                                                                <LogOut className="w-4 h-4 shrink-0" />
+                                                                <span>登出帳號</span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
