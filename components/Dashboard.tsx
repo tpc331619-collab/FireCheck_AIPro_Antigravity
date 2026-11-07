@@ -117,6 +117,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateLightSettings, useLightSettings, useEquipment, useHistoryReports, HISTORY_KEYS, useAbnormalRecords } from '../hooks/useSystemData';
 import { EquipmentStatsExpanded } from './dashboard/EquipmentStatsExpanded';
 
+declare const __APP_UPDATE_TIME__: string;
+
 interface DashboardProps {
     user: UserProfile;
     onCreateNew: () => void;
@@ -1392,8 +1394,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         return t('evening');
     };
 
-    // Clock State
+    // Clock State & GitHub Commit Update Timestamp
     const [currentDateTime, setCurrentDateTime] = useState(new Date());
+    const [gitUpdateTime, setGitUpdateTime] = useState<string>(() =>
+        typeof __APP_UPDATE_TIME__ !== 'undefined' ? __APP_UPDATE_TIME__ : '26/11/07 11:26'
+    );
+
+    useEffect(() => {
+        const cached = sessionStorage.getItem('fsippro_github_update_time');
+        if (cached) {
+            setGitUpdateTime(cached);
+            return;
+        }
+        fetch('https://api.github.com/repos/tpc331619-collab/FireCheck_AIPro_GoogleAIStudio/commits/main')
+            .then(res => (res.ok ? res.json() : null))
+            .then(data => {
+                const iso = data?.commit?.committer?.date || data?.commit?.author?.date;
+                if (iso) {
+                    const d = new Date(iso);
+                    if (!isNaN(d.getTime())) {
+                        const yy = String(d.getFullYear()).slice(-2);
+                        const mm = String(d.getMonth() + 1).padStart(2, '0');
+                        const dd = String(d.getDate()).padStart(2, '0');
+                        const hh = String(d.getHours()).padStart(2, '0');
+                        const min = String(d.getMinutes()).padStart(2, '0');
+                        const formatted = `${yy}/${mm}/${dd} ${hh}:${min}`;
+                        setGitUpdateTime(formatted);
+                        sessionStorage.setItem('fsippro_github_update_time', formatted);
+                    }
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -2282,11 +2314,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    FSIPPRO v2.6.0 Pro
+                                    版本 V2.6.2
+                                </span>
+                                <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
+                                <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
+                                    更新日期{gitUpdateTime}
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className="font-medium tracking-wide">
-                                    © 2026 {currentOrgName || '北部儲運中心'} · FSIPPRO Team. All Rights Reserved.
+                                    © 2026 FSIPPRO Team. All Rights Reserved.
                                 </span>
                             </footer>
                         );
