@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService, WhitelistEntry } from '../services/storageService';
 import { Organization, OrganizationRole, SystemSettings } from '../types';
-import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2, ChevronRight, Info, Settings } from 'lucide-react';
+import { ShieldCheck, User, Users, Check, X, Search, RefreshCw, LogOut, Clock, Building, Building2, Trash2, ChevronRight, Info, Settings, QrCode } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import GuestShareModal from './GuestShareModal';
 
 
 interface AdminDashboardProps {
@@ -38,6 +39,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
     const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'blocked' | 'settings'>('all');
     const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
     const [systemSettings, setSystemSettings] = useState<SystemSettings>({ allowGuestView: false });
+    const [isGuestShareOpen, setIsGuestShareOpen] = useState(false);
     const initialLoadRef = React.useRef(true);
 
     const toggleExpand = (email: string) => {
@@ -323,10 +325,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
 
                 {filterStatus === 'settings' ? (
                     <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden p-6 animate-in fade-in duration-200">
-                        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Settings className="w-5 h-5 text-blue-600" />
-                            {t('guestModeSettings') || '訪客模式設定'}
-                        </h2>
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                                <Settings className="w-5 h-5 text-blue-600" />
+                                {t('guestModeSettings') || '訪客模式設定'}
+                            </h2>
+                            <button
+                                onClick={() => setIsGuestShareOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-blue-200 transition-all active:scale-95"
+                            >
+                                <QrCode className="w-4 h-4" />
+                                產生訪客通行 QR Code / 分享連結
+                            </button>
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 flex flex-col justify-between">
@@ -368,9 +379,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                                     </div>
                                 </div>
                                 {systemSettings.guestOrganizationId && (
-                                    <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-blue-600 font-bold bg-blue-50/80 px-3 py-1.5 rounded-lg border border-blue-100">
-                                        <Info className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="truncate">{t('currentPublicOrg') || '目前公開組織'}: {systemSettings.guestOrganizationName}</span>
+                                    <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-blue-600 font-bold bg-blue-50/80 px-3 py-1.5 rounded-lg border border-blue-100">
+                                        <div className="flex items-center gap-1.5 truncate">
+                                            <Info className="w-3.5 h-3.5 shrink-0" />
+                                            <span className="truncate">{t('currentPublicOrg') || '目前公開組織'}: {systemSettings.guestOrganizationName}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsGuestShareOpen(true)}
+                                            className="text-[11px] font-extrabold text-indigo-600 hover:text-indigo-800 underline shrink-0"
+                                        >
+                                            開啟 QR 碼
+                                        </button>
                                     </div>
                                 )}
                             </div>
@@ -746,6 +765,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onClose })
                 )}
             </main>
             </div>
+            {isGuestShareOpen && (
+                <GuestShareModal
+                    isOpen={isGuestShareOpen}
+                    onClose={() => setIsGuestShareOpen(false)}
+                    organizationId={systemSettings.guestOrganizationId || organizations[0]?.id}
+                    organizationName={systemSettings.guestOrganizationName || organizations[0]?.name}
+                    systemSettings={systemSettings}
+                    isAdmin={true}
+                    onEnableGuestForCurrentOrg={async () => {
+                        const targetOrg = organizations.find(o => o.id === systemSettings.guestOrganizationId) || organizations[0];
+                        if (!targetOrg) return;
+                        const updated: SystemSettings = {
+                            ...systemSettings,
+                            allowGuestView: true,
+                            guestOrganizationId: targetOrg.id,
+                            guestOrganizationName: targetOrg.name
+                        };
+                        setSystemSettings(updated);
+                        await StorageService.saveSystemSettings(updated);
+                    }}
+                />
+            )}
         </div>
     );
 };

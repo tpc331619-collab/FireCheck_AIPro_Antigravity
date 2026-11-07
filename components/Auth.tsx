@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, googleProvider } from '../services/firebase';
 import { signInWithPopup, signInAnonymously } from 'firebase/auth';
 import { ShieldCheck, User, AlertCircle, Zap, Shield, ChevronRight } from 'lucide-react';
@@ -18,6 +18,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, showPendingMessage, isChecking, sh
   const { t } = useLanguage();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const autoGuestTriggeredRef = useRef(false);
 
   const handleGuestLogin = async () => {
     try {
@@ -40,6 +41,27 @@ const Auth: React.FC<AuthProps> = ({ onLogin, showPendingMessage, isChecking, sh
       setLoading(false);
     }
   };
+
+  // Auto-enter Guest Mode when scanning the Fire Inspection Guest Pass QR Code (?guest=1)
+  useEffect(() => {
+    if (autoGuestTriggeredRef.current || showPendingMessage || showUnregisteredMessage || isChecking) return;
+    const params = new URLSearchParams(window.location.search);
+    const isGuestLink = params.get('guest') === '1' || params.get('guest') === 'true' || params.get('mode') === 'guest';
+    const sharedOrgId = params.get('orgId');
+    if (sharedOrgId) {
+      localStorage.setItem('guest_shared_orgId', sharedOrgId);
+    }
+    if (isGuestLink) {
+      autoGuestTriggeredRef.current = true;
+      // Clean ?guest=1 from URL so logging out later returns cleanly to the login screen
+      params.delete('guest');
+      if (params.get('mode') === 'guest') params.delete('mode');
+      const cleanSearch = params.toString();
+      const newUrl = `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', newUrl);
+      handleGuestLogin();
+    }
+  }, [showPendingMessage, showUnregisteredMessage, isChecking]);
 
   const handleGoogleLogin = async () => {
     if (!auth || !googleProvider) {

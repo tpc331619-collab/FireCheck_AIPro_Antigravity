@@ -98,6 +98,18 @@ const App: React.FC = () => {
   const [accessStatus, setAccessStatus] = useState<'approved' | 'pending' | 'blocked' | 'checking' | 'idle' | 'unregistered'>('idle');
 
   useEffect(() => {
+    const initialParams = new URLSearchParams(window.location.search);
+    const sharedOrgFromUrl = initialParams.get('orgId');
+    const isFreshGuestScan = initialParams.get('guest') === '1' || initialParams.get('guest') === 'true' || initialParams.get('mode') === 'guest';
+    if (sharedOrgFromUrl) {
+      localStorage.setItem('guest_shared_orgId', sharedOrgFromUrl);
+    }
+    if (isFreshGuestScan) {
+      // Reset 30-minute guest timer on fresh QR scan
+      const freshExpiry = Date.now() + GUEST_SESSION_DURATION;
+      localStorage.setItem('guest_expiry', freshExpiry.toString());
+    }
+
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
@@ -105,6 +117,7 @@ const App: React.FC = () => {
           const isSuperAdmin = firebaseUser.email?.toLowerCase() === 'b28803078@gmail.com';
           const localAvatar = localStorage.getItem(`avatar_${firebaseUser.uid}`);
           const lastOrgId = localStorage.getItem(`lastOrgId_${firebaseUser.uid}`);
+          const sharedGuestOrgId = localStorage.getItem('guest_shared_orgId');
           const cachedRole = localStorage.getItem(`cached_role_${firebaseUser.uid}`) as 'admin' | 'user' | null;
           const cachedAccess = localStorage.getItem(`cached_access_${firebaseUser.uid}`);
 
@@ -118,14 +131,14 @@ const App: React.FC = () => {
               photoURL: localAvatar || firebaseUser.photoURL,
               isGuest,
               role: isSuperAdmin ? 'admin' : (cachedRole || 'user'),
-              currentOrganizationId: lastOrgId || undefined
+              currentOrganizationId: isGuest ? (sharedGuestOrgId || lastOrgId || undefined) : (lastOrgId || undefined)
             });
             StorageService.setGuestMode(isGuest);
             setInitializing(false);
           }
 
           let userRole: 'admin' | 'user' = isSuperAdmin ? 'admin' : (cachedRole || 'user');
-          let resolvedOrgId: string | undefined = lastOrgId || undefined;
+          let resolvedOrgId: string | undefined = isGuest ? (sharedGuestOrgId || lastOrgId || undefined) : (lastOrgId || undefined);
 
           if (!isGuest) {
             const whitelistTask = isSuperAdmin
@@ -177,6 +190,16 @@ const App: React.FC = () => {
             }
           } else {
             setAccessStatus('approved');
+            if (!resolvedOrgId) {
+              try {
+                const sysSettings = await StorageService.getSystemSettings();
+                if (sysSettings?.guestOrganizationId) {
+                  resolvedOrgId = sysSettings.guestOrganizationId;
+                }
+              } catch (e) {
+                console.warn('[App] Could not fetch guest org id:', e);
+              }
+            }
           }
 
           const userProfile: UserProfile = {
@@ -229,13 +252,25 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Keep Guest's currentOrganizationId synced with shared org or systemSettings.guestOrganizationId
+  useEffect(() => {
+    if (user?.isGuest) {
+      const targetGuestOrg = localStorage.getItem('guest_shared_orgId') || systemSettings?.guestOrganizationId;
+      if (targetGuestOrg && user.currentOrganizationId !== targetGuestOrg) {
+        setUser(prev => prev ? { ...prev, currentOrganizationId: targetGuestOrg } : null);
+      }
+    }
+  }, [user?.isGuest, user?.currentOrganizationId, systemSettings?.guestOrganizationId]);
+
   const handleLogin = (userData: any, isGuest: boolean) => {
+    const sharedGuestOrgId = localStorage.getItem('guest_shared_orgId') || systemSettings?.guestOrganizationId;
     const profile: UserProfile = {
       uid: userData.uid,
       email: userData.email,
       displayName: userData.displayName || '訪客',
       photoURL: userData.photoURL || null,
-      isGuest: isGuest
+      isGuest: isGuest,
+      currentOrganizationId: isGuest ? (sharedGuestOrgId || undefined) : undefined
     };
     if (isGuest) setAccessStatus('approved');
     setUser(profile);
@@ -256,6 +291,7 @@ const App: React.FC = () => {
       }
     }
     localStorage.removeItem('guest_expiry');
+    localStorage.removeItem('guest_shared_orgId');
     setGuestExpiry(null);
     setUser(null);
     setAccessStatus('idle');

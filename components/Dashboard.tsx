@@ -23,6 +23,7 @@ import { SyncStatus, SyncStatusBadge } from './SyncStatus';
 const BarcodeInputModal = lazy(() => import('./BarcodeInputModal'));
 const EquipmentPassportModal = lazy(() => import('./EquipmentPassportModal'));
 const AdminDashboard = lazy(() => import('./AdminDashboard'));
+const GuestShareModal = lazy(() => import('./GuestShareModal'));
 const MapViewInspection = lazy(() => import('./MapViewInspection'));
 const AbnormalRecheckList = lazy(() => import('./AbnormalRecheckList'));
 const HistoryTable = lazy(() => import('./HistoryTable'));
@@ -105,7 +106,8 @@ import {
     ListPlus,
     PieChart,
     ScrollText,
-    HeartPulse
+    HeartPulse,
+    QrCode
 } from 'lucide-react';
 import { THEME_COLORS } from '../constants';
 import { auth, storage } from '../services/firebase';
@@ -455,6 +457,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
     const [editingHealthIndicator, setEditingHealthIndicator] = useState<HealthIndicator | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isGuestShareModalOpen, setIsGuestShareModalOpen] = useState(false);
     const systemSettings = systemSettingsFromProps || { allowGuestView: false };
 
     const handleManualRefresh = async () => {
@@ -1659,21 +1662,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         >
                             <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                         </button>
-                        <div className="hidden sm:block mr-2">
-                            <SyncStatus />
-                        </div>
                         {!user.isGuest && (
                             <>
 
                                 <button
                                     onClick={() => setShowOrgManager(true)}
-                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg flex items-center gap-2 transition-all mr-2"
+                                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg flex items-center gap-2 transition-all mr-1"
                                     title={t('switchOrganization')}
                                 >
                                     <span className="text-sm font-medium hidden sm:inline-block max-w-[100px] truncate">
                                         {user.currentOrganizationId ? currentOrgName : t('personalOrganization')}
                                     </span>
                                     <Building className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setIsGuestShareModalOpen(true)}
+                                    className="p-2.5 hover:bg-white/20 rounded-xl transition-all backdrop-blur-sm"
+                                    title="消防稽查／訪客通行碼 (QR Code)"
+                                >
+                                    <QrCode className="w-5 h-5" />
                                 </button>
                                 {/* Management Button Removed */}
                                 {(isAdmin || systemSettings?.allowInspectorProfile !== false) && (
@@ -4197,10 +4204,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     <div className="space-y-6">
                                         {/* (0) 訪客權限 (Guest Access) Block */}
                                         <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 px-1">
-                                                <User className="w-3.5 h-3.5" />
-                                                {t('sectionGuestAccess')}
-                                            </label>
+                                            <div className="flex items-center justify-between gap-2 px-1">
+                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                                                    <User className="w-3.5 h-3.5" />
+                                                    {t('sectionGuestAccess')}
+                                                </label>
+                                                <button
+                                                    onClick={() => setIsGuestShareModalOpen(true)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200/80 rounded-lg text-xs font-bold transition-all active:scale-95"
+                                                >
+                                                    <QrCode className="w-3.5 h-3.5" />
+                                                    訪客通行 QR 碼
+                                                </button>
+                                            </div>
                                             <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 transition-colors hover:border-slate-300">
                                                 <div>
                                                     <div className="font-bold text-slate-700 text-sm">{t('allowGuestQuickSearch')}</div>
@@ -4785,8 +4801,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 onSave={handleSaveCardOrder}
                 onReset={handleResetCardOrder}
             />
+
+            {/* Guest Share Pass QR Code Modal */}
+            {isGuestShareModalOpen && (
+                <Suspense fallback={null}>
+                    <GuestShareModal
+                        isOpen={isGuestShareModalOpen}
+                        onClose={() => setIsGuestShareModalOpen(false)}
+                        organizationId={user.currentOrganizationId}
+                        organizationName={user.currentOrganizationId ? currentOrgName : t('personalOrganization')}
+                        systemSettings={systemSettings}
+                        isAdmin={isAdmin}
+                        onEnableGuestForCurrentOrg={async () => {
+                            if (!user.currentOrganizationId) return;
+                            await handleSaveSystemSettings({
+                                ...systemSettings,
+                                allowGuestView: true,
+                                guestOrganizationId: user.currentOrganizationId,
+                                guestOrganizationName: currentOrgName
+                            });
+                        }}
+                    />
+                </Suspense>
+            )}
         </div>
     );
 };
 
-export default Dashboard;
+export defau

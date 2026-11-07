@@ -45,13 +45,14 @@ export const StorageService = {
 
   async getReports(userId: string, year?: number, withItems: boolean = false, organizationId?: string | null): Promise<InspectionReport[]> {
     if (this.isGuest) {
-      // First check if Guest View / QuickSearch / History is allowed globally
+      // First check if Guest View / QuickSearch / History is allowed globally or shared via QR orgId
       if (db) {
         try {
             const settings = await this.getSystemSettings();
-            if ((settings?.allowGuestView || settings?.allowGuestHistory || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-              console.log("[StorageService] Guest Mode: Fetching public data for Organization", settings.guestOrganizationId);
-              return this._fetchFirestoreReports('', year, withItems, settings.guestOrganizationId);
+            const targetGuestOrgId = organizationId || localStorage.getItem('guest_shared_orgId') || settings?.guestOrganizationId;
+            if ((settings?.allowGuestView !== false || settings?.allowGuestHistory !== false || settings?.allowGuestQuickSearch !== false) && targetGuestOrgId) {
+              console.log("[StorageService] Guest Mode: Fetching public data for Organization", targetGuestOrgId);
+              return this._fetchFirestoreReports('', year, withItems, targetGuestOrgId);
             } else {
               console.log("[StorageService] Guest Mode: Guest View NOT allowed or Organization ID missing", settings);
             }
@@ -128,10 +129,10 @@ export const StorageService = {
 
     const setupSubscription = async () => {
       try {
-        let resolvedOrgId = organizationId;
+        let resolvedOrgId = organizationId || (this.isGuest ? localStorage.getItem('guest_shared_orgId') : null);
         if (!resolvedOrgId && this.isGuest && db) {
           const settings = await this.getSystemSettings();
-          if ((settings?.allowGuestView || settings?.allowGuestHistory || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
+          if ((settings?.allowGuestView !== false || settings?.allowGuestHistory !== false || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
             resolvedOrgId = settings.guestOrganizationId;
           } else {
             return;
@@ -708,10 +709,11 @@ try {
 
     if (this.isGuest && db) {
       const settings = await this.getSystemSettings();
-      if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-        console.log("[StorageService] Guest Access (EquipDefs): Switching to Public Organization ID", settings.guestOrganizationId);
+      const targetGuestOrgId = organizationId || localStorage.getItem('guest_shared_orgId') || settings?.guestOrganizationId;
+      if ((settings?.allowGuestView !== false || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && targetGuestOrgId) {
+        console.log("[StorageService] Guest Access (EquipDefs): Switching to Public Organization ID", targetGuestOrgId);
         // Force organization query
-        organizationId = settings.guestOrganizationId;
+        organizationId = targetGuestOrgId;
         useCloud = true;
         fetchedPublicData = true;
       } else {
@@ -830,32 +832,40 @@ try {
 
   async getEquipmentHierarchy(userId: string, organizationId ?: string | null): Promise < EquipmentHierarchy | null > {
     const HIERARCHY_KEY = `hierarchy_${userId}`;
-    if(this.isGuest || !db) {
-  const data = localStorage.getItem(HIERARCHY_KEY);
-  return data ? JSON.parse(data) : null;
-} else {
-  try {
-    const isPersonal = !organizationId || organizationId === '';
-    const targetId = isPersonal ? userId : organizationId;
-    const docRef = doc(db, 'hierarchies', targetId);
-    const snapshot = await getDoc(docRef);
-    if (snapshot.exists()) {
-      return snapshot.data() as EquipmentHierarchy;
+    let resolvedOrgId = organizationId || (this.isGuest ? localStorage.getItem('guest_shared_orgId') : null);
+    if (this.isGuest && !resolvedOrgId && db) {
+      try {
+        const settings = await this.getSystemSettings();
+        if (settings?.guestOrganizationId) {
+          resolvedOrgId = settings.guestOrganizationId;
+        }
+      } catch { }
     }
-    return null;
-  } catch (e: any) {
-    if (e.code === 'permission-denied') {
-      console.warn("Firestore permission denied, falling back to local storage");
-      // Only fallback if NOT organization view, as local storage doesn't have org data
-      if (!organizationId) {
-        const data = localStorage.getItem(HIERARCHY_KEY);
-        return data ? JSON.parse(data) : null;
+    if ((this.isGuest && !resolvedOrgId) || !db) {
+      const data = localStorage.getItem(HIERARCHY_KEY);
+      return data ? JSON.parse(data) : null;
+    } else {
+      try {
+        const isPersonal = !resolvedOrgId || resolvedOrgId === '';
+        const targetId = isPersonal ? userId : resolvedOrgId;
+        const docRef = doc(db, 'hierarchies', targetId);
+        const snapshot = await getDoc(docRef);
+        if (snapshot.exists()) {
+          return snapshot.data() as EquipmentHierarchy;
+        }
+        return null;
+      } catch (e: any) {
+        if (e.code === 'permission-denied') {
+          console.warn("Firestore permission denied, falling back to local storage");
+          if (!resolvedOrgId) {
+            const data = localStorage.getItem(HIERARCHY_KEY);
+            return data ? JSON.parse(data) : null;
+          }
+        }
+        console.error("Fetch hierarchy error", e);
+        return null;
       }
     }
-    console.error("Fetch hierarchy error", e);
-    return null;
-  }
-}
   },
 
 onHierarchyChange(userId: string, organizationId: string | null | undefined, callback: (hierarchy: EquipmentHierarchy | null) => void): () => void {
@@ -911,49 +921,58 @@ return onSnapshot(docRef, (snapshot) => {
 
   async getDeclarationSettings(userId: string, organizationId ?: string | null): Promise < DeclarationSettings | null > {
   const SETTINGS_KEY = `declaration_${userId}`;
-  if(this.isGuest || !db) {
-  const data = localStorage.getItem(SETTINGS_KEY);
-  return data ? JSON.parse(data) : null;
-} else {
-  try {
-    const isPersonal = !organizationId || organizationId === '';
-    const targetId = isPersonal ? userId : organizationId;
-
-    // 1. Read from dedicated root collection 'declarations'
-    const newDocRef = doc(db, 'declarations', targetId);
-    const newSnapshot = await getDoc(newDocRef);
-    if (newSnapshot.exists()) {
-      return newSnapshot.data() as DeclarationSettings;
-    }
-
-    // 2. Fallback to old 'settings' collection for backward compatibility & auto-migration
-    const legacyDocId = isPersonal ? `declaration_${userId}` : `declaration_${organizationId}`;
-    const legacyDocRef = doc(db, 'settings', legacyDocId);
-    const legacySnapshot = await getDoc(legacyDocRef);
-    if (legacySnapshot.exists()) {
-      const data = legacySnapshot.data() as DeclarationSettings;
-      // Auto migrate to new 'declarations' root collection
-      await setDoc(newDocRef, data);
-      // Clean up legacy doc
-      try {
-        await deleteDoc(legacyDocRef);
-      } catch { }
-      return data;
-    }
-
-    return null;
-  } catch (e: any) {
-    if (e.code === 'permission-denied') {
-      console.warn("Firestore permission denied, falling back to local storage");
-      if (!organizationId) {
-        const data = localStorage.getItem(SETTINGS_KEY);
-        return data ? JSON.parse(data) : null;
+  let resolvedOrgId = organizationId || (this.isGuest ? localStorage.getItem('guest_shared_orgId') : null);
+  if (this.isGuest && !resolvedOrgId && db) {
+    try {
+      const settings = await this.getSystemSettings();
+      if (settings?.guestOrganizationId) {
+        resolvedOrgId = settings.guestOrganizationId;
       }
-    }
-    console.error("Fetch declaration settings error", e);
-    return null;
+    } catch { }
   }
-}
+  if ((this.isGuest && !resolvedOrgId) || !db) {
+    const data = localStorage.getItem(SETTINGS_KEY);
+    return data ? JSON.parse(data) : null;
+  } else {
+    try {
+      const isPersonal = !resolvedOrgId || resolvedOrgId === '';
+      const targetId = isPersonal ? userId : resolvedOrgId;
+
+      // 1. Read from dedicated root collection 'declarations'
+      const newDocRef = doc(db, 'declarations', targetId);
+      const newSnapshot = await getDoc(newDocRef);
+      if (newSnapshot.exists()) {
+        return newSnapshot.data() as DeclarationSettings;
+      }
+
+      // 2. Fallback to old 'settings' collection for backward compatibility & auto-migration
+      const legacyDocId = isPersonal ? `declaration_${userId}` : `declaration_${resolvedOrgId}`;
+      const legacyDocRef = doc(db, 'settings', legacyDocId);
+      const legacySnapshot = await getDoc(legacyDocRef);
+      if (legacySnapshot.exists()) {
+        const data = legacySnapshot.data() as DeclarationSettings;
+        if (!this.isGuest) {
+          await setDoc(newDocRef, data);
+          try {
+            await deleteDoc(legacyDocRef);
+          } catch { }
+        }
+        return data;
+      }
+
+      return null;
+    } catch (e: any) {
+      if (e.code === 'permission-denied') {
+        console.warn("Firestore permission denied, falling back to local storage");
+        if (!resolvedOrgId) {
+          const data = localStorage.getItem(SETTINGS_KEY);
+          return data ? JSON.parse(data) : null;
+        }
+      }
+      console.error("Fetch declaration settings error", e);
+      return null;
+    }
+  }
   },
 
   async saveDeclarationSettings(settings: DeclarationSettings, userId: string, organizationId ?: string | null): Promise < void> {
@@ -1043,23 +1062,28 @@ return onSnapshot(docRef, (snapshot) => {
 
   async getEquipmentMaps(userId: string, organizationId ?: string | null): Promise < EquipmentMap[] > {
   // Check for Public Guest Access
-  // If organizationId is present, we skip this guest check logic
   console.log(`[StorageService] getEquipmentMaps: orgId=${organizationId}, isGuest=${this.isGuest}`);
+  let useCloud = !this.isGuest && !!db;
 
-  if(this.isGuest && db) {
-  const settings = await this.getSystemSettings();
-  if ((settings?.allowGuestView || settings?.allowGuestRecheck) && settings?.guestOrganizationId) {
-    console.log("[StorageService] Guest Access (Map): Switching to Public Organization ID", settings.guestOrganizationId);
-    // Force organization query
-    organizationId = settings.guestOrganizationId;
+  if (this.isGuest && db) {
+    const settings = await this.getSystemSettings();
+    const targetGuestOrgId = organizationId || localStorage.getItem('guest_shared_orgId') || settings?.guestOrganizationId;
+    if ((settings?.allowGuestView !== false || settings?.allowGuestRecheck) && targetGuestOrgId) {
+      console.log("[StorageService] Guest Access (Map): Switching to Public Organization ID", targetGuestOrgId);
+      organizationId = targetGuestOrgId;
+      useCloud = true;
+    }
   }
-}
 
-const KEY = `maps_${userId}`;
-if (this.isGuest || !db) {
-  const data = localStorage.getItem(KEY);
-  return data ? JSON.parse(data) : [];
-} else {
+  if (organizationId && db) {
+    useCloud = true;
+  }
+
+  const KEY = `maps_${userId}`;
+  if (!useCloud) {
+    const data = localStorage.getItem(KEY);
+    return data ? JSON.parse(data) : [];
+  } else {
   try {
     let q;
     if (organizationId && organizationId !== '') {
@@ -1534,17 +1558,26 @@ return addedCount;
 
   async getHealthIndicators(userId: string, organizationId ?: string | null): Promise < HealthIndicator[] > {
   const KEY = `health_${userId}`;
-  if(this.isGuest || !db) {
-  const data = localStorage.getItem(KEY);
-  return data ? JSON.parse(data) : [];
-} else {
-  try {
-    let q;
-    if (organizationId) {
-      q = query(collection(db, 'health'), where('organizationId', '==', organizationId));
-    } else {
-      q = query(collection(db, 'health'), where('userId', '==', userId));
-    }
+  let resolvedOrgId = organizationId || (this.isGuest ? localStorage.getItem('guest_shared_orgId') : null);
+  if (this.isGuest && !resolvedOrgId && db) {
+    try {
+      const settings = await this.getSystemSettings();
+      if (settings?.guestOrganizationId) {
+        resolvedOrgId = settings.guestOrganizationId;
+      }
+    } catch { }
+  }
+  if ((this.isGuest && !resolvedOrgId) || !db) {
+    const data = localStorage.getItem(KEY);
+    return data ? JSON.parse(data) : [];
+  } else {
+    try {
+      let q;
+      if (resolvedOrgId) {
+        q = query(collection(db, 'health'), where('organizationId', '==', resolvedOrgId));
+      } else {
+        q = query(collection(db, 'health'), where('userId', '==', userId));
+      }
 
     const snapshot = await getDocs(q);
 
@@ -1668,11 +1701,12 @@ let unsubscribe: () => void = () => { };
     const setupSubscription = async () => {
       try {
         // Guest Logic matching getAbnormalRecords
-        if (!organizationId && this.isGuest && db) {
+        if (this.isGuest && db) {
           const settings = await this.getSystemSettings();
-          if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-            console.log('[StorageService] Guest Access (Subscribe Abnormal): Using Public Org ID:', settings.guestOrganizationId);
-            organizationId = settings.guestOrganizationId;
+          const targetGuestOrgId = organizationId || localStorage.getItem('guest_shared_orgId') || settings?.guestOrganizationId;
+          if ((settings?.allowGuestView !== false || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && targetGuestOrgId) {
+            console.log('[StorageService] Guest Access (Subscribe Abnormal): Using Public Org ID:', targetGuestOrgId);
+            organizationId = targetGuestOrgId;
             fetchedPublicData = true;
           } else {
             return;
@@ -1725,12 +1759,12 @@ let unsubscribe: () => void = () => { };
     let useCloud = !this.isGuest && !!db;
 
     // Check for Public Guest Access
-    // Skip if organizationId is present
-    if (!organizationId && this.isGuest && db) {
+    if (this.isGuest && db) {
       const settings = await this.getSystemSettings();
-      if ((settings?.allowGuestView || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && settings?.guestOrganizationId) {
-        console.log('[StorageService] Guest Access (AbnormalRecords): Using Public Org ID:', settings.guestOrganizationId);
-        organizationId = settings.guestOrganizationId;
+      const targetGuestOrgId = organizationId || localStorage.getItem('guest_shared_orgId') || settings?.guestOrganizationId;
+      if ((settings?.allowGuestView !== false || settings?.allowGuestRecheck || settings?.allowGuestQuickSearch !== false) && targetGuestOrgId) {
+        console.log('[StorageService] Guest Access (AbnormalRecords): Using Public Org ID:', targetGuestOrgId);
+        organizationId = targetGuestOrgId;
         useCloud = true;
       }
     }
