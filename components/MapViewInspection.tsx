@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown, Footprints, Activity } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -93,7 +93,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
     const [renderKey, setRenderKey] = useState(0);
 
-    // 方案 C: 導航模式狀態與手機實體羅盤
+    // 方案 C: 導航模式狀態與手機實體羅盤 + PDR 行走推算
     const [isNavActive, setIsNavActive] = useState(true);
     const [userLocation, setUserLocation] = useState<{
         x: number;
@@ -104,6 +104,31 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     } | null>(null);
     const [compassHeading, setCompassHeading] = useState<number | null>(null);
 
+    // PDR (Pedestrian Dead Reckoning) 狀態
+    const [isPdrActive, setIsPdrActive] = useState<boolean>(true);
+    const [stepCount, setStepCount] = useState<number>(0);
+    const [sessionSteps, setSessionSteps] = useState<number>(0);
+    const [isStepPulsing, setIsStepPulsing] = useState<boolean>(false);
+    const [lastCalibrationMsg, setLastCalibrationMsg] = useState<string>('');
+
+    // 每步前進距離 (圖面百分比，預設 0.85%，儲存於 localStorage)
+    const [stepSizePercent, setStepSizePercent] = useState<number>(() => {
+        try {
+            return Number(localStorage.getItem('pdr_step_size_percent') || 0.85);
+        } catch {
+            return 0.85;
+        }
+    });
+
+    // 邁步感測靈敏度 (加速度閾值，預設 1.8 m/s²)
+    const [stepSensitivity, setStepSensitivity] = useState<number>(() => {
+        try {
+            return Number(localStorage.getItem('pdr_step_sensitivity') || 1.8);
+        } catch {
+            return 1.8;
+        }
+    });
+
     // 羅盤圖面方位偏差校準角 (Compass Calibration Offset)
     const [compassOffset, setCompassOffset] = useState<number>(() => {
         try {
@@ -113,6 +138,26 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         }
     });
     const [showCalibrationModal, setShowCalibrationModal] = useState(false);
+
+    // Refs 同步確保事件監聽閉包內始終取得最新值
+    const isPdrActiveRef = useRef(isPdrActive);
+    const userLocationRef = useRef(userLocation);
+    const compassHeadingRef = useRef(compassHeading);
+    const compassOffsetRef = useRef(compassOffset);
+    const rotationRef = useRef(0);
+    const stepSizePercentRef = useRef(stepSizePercent);
+    const stepSensitivityRef = useRef(stepSensitivity);
+    const sessionStepsRef = useRef(sessionSteps);
+    const lastStepTimeRef = useRef(0);
+    const isPeakRef = useRef(false);
+
+    useEffect(() => { isPdrActiveRef.current = isPdrActive; }, [isPdrActive]);
+    useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
+    useEffect(() => { compassHeadingRef.current = compassHeading; }, [compassHeading]);
+    useEffect(() => { compassOffsetRef.current = compassOffset; }, [compassOffset]);
+    useEffect(() => { stepSizePercentRef.current = stepSizePercent; }, [stepSizePercent]);
+    useEffect(() => { stepSensitivityRef.current = stepSensitivity; }, [stepSensitivity]);
+    useEffect(() => { sessionStepsRef.current = sessionSteps; }, [sessionSteps]);
 
     const updateCompassOffset = (newOffset: number) => {
         const normalized = ((newOffset % 360) + 360) % 360;
@@ -127,21 +172,49 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     // 一鍵將「當前手機朝向」校準為圖面指定方向（例如：90°=右方走廊, 0°=上方, 180°=下方, 270°=左方）
     const snapCompassToTarget = (targetScreenAngle: number) => {
         if (compassHeading === null) return;
-        // targetScreenAngle = (compassHeading + offset - rotation) % 360
-        // => offset = targetScreenAngle - compassHeading + rotation
-        const calculatedOffset = targetScreenAngle - compassHeading + rotation;
+        const calculatedOffset = targetScreenAngle - compassHeading + rotationRef.current;
         updateCompassOffset(calculatedOffset);
+    };
+
+    // 步伐推算：每走一步把紅點依當前朝向往前推進
+    const triggerStep = (customStepSize?: number) => {
+        if (!userLocationRef.current) return;
+
+        // 計算目前朝向圖面的旋轉角度 (0°=上方, 90°=右方, 180°=下方, 270°=左方)
+        let screenAngle = 0;
+        if (compassHeadingRef.current !== null) {
+            screenAngle = ((compassHeadingRef.current + compassOffsetRef.current - rotationRef.current) % 360 + 360) % 360;
+        }
+
+        const rad = (screenAngle * Math.PI) / 180;
+        const stride = customStepSize || stepSizePercentRef.current;
+        const dx = Math.sin(rad) * stride;
+        const dy = -Math.cos(rad) * stride;
+
+        setUserLocation(prev => {
+            if (!prev) return null;
+            const newX = Math.max(1, Math.min(99, prev.x + dx));
+            const newY = Math.max(1, Math.min(99, prev.y + dy));
+            return {
+                ...prev,
+                x: Number(newX.toFixed(2)),
+                y: Number(newY.toFixed(2))
+            };
+        });
+
+        setStepCount(s => s + 1);
+        setSessionSteps(s => s + 1);
+        setIsStepPulsing(true);
+        setTimeout(() => setIsStepPulsing(false), 300);
     };
 
     // 啟動實體陀螺儀 / 指南針監聽
     const startCompassListener = () => {
         const handleOrientation = (e: any) => {
             let heading: number | null = null;
-            // 1. iOS WebKit 專屬絕對方位角 (0-360, 0=正北)
             if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
                 heading = e.webkitCompassHeading;
             } else if (e.alpha !== null && e.alpha !== undefined) {
-                // 2. Android Chrome: 依據 absolute 旗標或 alpha 計算
                 heading = (360 - e.alpha) % 360;
             }
 
@@ -154,36 +227,119 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         window.addEventListener('deviceorientationabsolute' as any, handleOrientation, true);
     };
 
-    // 請求手機羅盤權限 (iOS 13+ 必須由使用者點擊按鈕主動請求授權)
-    const requestCompass = async () => {
+    // 啟動加速度計邁步感應監聽 (PDR Step Detection)
+    const startMotionListener = () => {
+        const handleMotion = (e: DeviceMotionEvent) => {
+            if (!isPdrActiveRef.current) return;
+
+            let dynamicMagnitude = 0;
+            if (e.acceleration && e.acceleration.x !== null && e.acceleration.y !== null && e.acceleration.z !== null) {
+                dynamicMagnitude = Math.hypot(e.acceleration.x, e.acceleration.y, e.acceleration.z);
+            } else if (e.accelerationIncludingGravity && e.accelerationIncludingGravity.x !== null && e.accelerationIncludingGravity.y !== null && e.accelerationIncludingGravity.z !== null) {
+                const rawMag = Math.hypot(
+                    e.accelerationIncludingGravity.x,
+                    e.accelerationIncludingGravity.y,
+                    e.accelerationIncludingGravity.z
+                );
+                dynamicMagnitude = Math.abs(rawMag - 9.80665);
+            }
+
+            const now = Date.now();
+            // 步伐波峰判定 (閾值 1.8m/s²，間隔 > 320ms 防止連發)
+            if (dynamicMagnitude > stepSensitivityRef.current && !isPeakRef.current && (now - lastStepTimeRef.current > 320)) {
+                isPeakRef.current = true;
+                lastStepTimeRef.current = now;
+                triggerStep();
+            } else if (dynamicMagnitude < 0.8) {
+                isPeakRef.current = false;
+            }
+        };
+
+        window.addEventListener('devicemotion', handleMotion, true);
+    };
+
+    // 請求手機羅盤與動作感應權限 (iOS 13+ 必須由使用者點擊按鈕主動請求授權)
+    const requestSensors = async () => {
         if (typeof window === 'undefined') return;
 
+        let hasError = false;
+
+        // 1. 羅盤方向
         if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
             try {
                 const response = await (DeviceOrientationEvent as any).requestPermission();
                 if (response === 'granted') {
                     startCompassListener();
                 } else {
-                    showAlert('未取得手機動作與方向感應權限。\n\n請至 iPhone【設定】>【Safari】> 開啟【動作與方向取用權限】後重試。', '羅盤未啟用');
+                    hasError = true;
                 }
             } catch (err: any) {
                 console.error('Compass permission error:', err);
-                showAlert('啟動羅盤感測器失敗，請確認瀏覽器支援情況。', '啟動失敗');
+                hasError = true;
             }
         } else {
-            // Android 或非 iOS 系統直接啟動
             startCompassListener();
+        }
+
+        // 2. 加速度計 (PDR 步伐推算)
+        if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
+            try {
+                const response = await (DeviceMotionEvent as any).requestPermission();
+                if (response === 'granted') {
+                    startMotionListener();
+                }
+            } catch (err: any) {
+                console.error('Motion permission error:', err);
+            }
+        } else {
+            startMotionListener();
+        }
+
+        if (hasError) {
+            showAlert('未取得手機動作與方向感應權限。\n\n請至 iPhone【設定】>【Safari】> 開啟【動作與方向取用權限】後重試。', '感應器未啟用');
         }
     };
 
-    // 掛載時非 iOS 直接嘗試啟動監聽
+    // 掛載時非 iOS 自動嘗試啟動監聽
     useEffect(() => {
-        if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+        if (typeof window !== 'undefined') {
             if (typeof (DeviceOrientationEvent as any)?.requestPermission !== 'function') {
                 startCompassListener();
             }
+            if (typeof (DeviceMotionEvent as any)?.requestPermission !== 'function') {
+                startMotionListener();
+            }
         }
     }, []);
+
+    // 到達設備時執行校準歸零 (Snap to Checkpoint & Dynamic Stride Learning)
+    const snapToCheckpoint = (marker: EquipmentMarker, equipment: EquipmentDefinition) => {
+        if (userLocationRef.current && sessionStepsRef.current >= 4) {
+            // 動態步長微調學習：計算起訖真實距離與步數
+            const dx = marker.x - userLocationRef.current.x;
+            const dy = marker.y - userLocationRef.current.y;
+            const dist = Math.hypot(dx, dy);
+            const learned = dist / sessionStepsRef.current;
+            if (learned >= 0.3 && learned <= 3.0) {
+                const blended = Number((stepSizePercentRef.current * 0.7 + learned * 0.3).toFixed(2));
+                setStepSizePercent(blended);
+                try {
+                    localStorage.setItem('pdr_step_size_percent', String(blended));
+                } catch (e) { }
+            }
+        }
+
+        setSessionSteps(0);
+        setUserLocation({
+            x: marker.x,
+            y: marker.y,
+            markerId: marker.id,
+            name: equipment.name,
+            barcode: equipment.barcode
+        });
+        setLastCalibrationMsg(`🎯 已於【${equipment.name}】精準歸零！`);
+        setTimeout(() => setLastCalibrationMsg(''), 4500);
+    };
 
     // Transform State
     const [zoom, setZoom] = useState(1);
@@ -191,6 +347,10 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, y: 0 });
+
+    useEffect(() => {
+        rotationRef.current = rotation;
+    }, [rotation]);
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -302,14 +462,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             return;
         }
 
-        // 點擊標註點時同步更新導航定位
-        setUserLocation({
-            x: marker.x,
-            y: marker.y,
-            markerId: marker.id,
-            name: equipment.name,
-            barcode: equipment.barcode
-        });
+        // 點擊標註點時自動校準歸零導航定位
+        snapToCheckpoint(marker, equipment);
 
         // 1. 檢查是否已檢查過 (Override、報表中已存在或 COMPLETED)
         const overrideTime = inspectedOverrides[marker.equipmentId] || inspectedOverrides[equipment.id];
@@ -391,16 +545,10 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             return;
         }
 
-        // 掃描條碼成功，立即更新當前導航位置到該設備
+        // 掃描條碼成功，立即校準歸零當前導航位置到該設備
         const targetMarker = selectedMarker || currentMap?.markers.find(m => m.equipmentId === equipment.barcode || m.equipmentId === equipment.id);
         if (targetMarker) {
-            setUserLocation({
-                x: targetMarker.x,
-                y: targetMarker.y,
-                markerId: targetMarker.id,
-                name: equipment.name,
-                barcode: equipment.barcode
-            });
+            snapToCheckpoint(targetMarker, equipment);
         }
 
         // Load check items
@@ -1035,6 +1183,67 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             </div>
                         </div>
 
+                        {/* PDR 行走計步與步長推算設定 */}
+                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 mb-4">
+                            <div className="flex items-center justify-between mb-2.5">
+                                <div className="text-[11px] font-bold text-emerald-300 flex items-center gap-1.5">
+                                    <Footprints className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>👣 手機計步航位推算 (PDR)</span>
+                                </div>
+                                <button
+                                    onClick={() => setIsPdrActive(prev => !prev)}
+                                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer ${
+                                        isPdrActive
+                                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
+                                            : 'bg-slate-700 text-slate-400 border-slate-600'
+                                    }`}
+                                >
+                                    {isPdrActive ? '已啟用' : '已關閉'}
+                                </button>
+                            </div>
+
+                            <div className="space-y-2 text-xs">
+                                <div className="flex items-center justify-between text-slate-300">
+                                    <span className="text-slate-400">每步前進距離 (圖面比例)：</span>
+                                    <span className="font-mono font-bold text-emerald-400">{stepSizePercent}%</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            const next = Math.max(0.2, Number((stepSizePercent - 0.15).toFixed(2)));
+                                            setStepSizePercent(next);
+                                            try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
+                                        }}
+                                        className="flex-1 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200 active:scale-95 cursor-pointer"
+                                    >
+                                        - 小步 (0.15%)
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setStepSizePercent(0.85);
+                                            try { localStorage.setItem('pdr_step_size_percent', '0.85'); } catch (e) { }
+                                        }}
+                                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-[10px] text-slate-400 font-bold active:scale-95 cursor-pointer"
+                                    >
+                                        預設
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const next = Math.min(3.0, Number((stepSizePercent + 0.15).toFixed(2)));
+                                            setStepSizePercent(next);
+                                            try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
+                                        }}
+                                        className="flex-1 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200 active:scale-95 cursor-pointer"
+                                    >
+                                        + 大步 (0.15%)
+                                    </button>
+                                </div>
+                                <div className="text-[10px] text-slate-400 leading-tight pt-1">
+                                    💡 每次走到設備掃描 QR Code 時，系統會自動比對步數與實際距離，自動智慧修正步長並清除累積漂移！
+                                </div>
+                            </div>
+                        </div>
+
                         <button
                             onClick={() => setShowCalibrationModal(false)}
                             className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all text-sm cursor-pointer"
@@ -1184,38 +1393,69 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             <Navigation className="w-4 h-4 text-red-500 animate-pulse" />
                             <span>巡檢實時導航</span>
                             {compassHeading !== null ? (
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
-                                        <Compass className="w-3 h-3 text-emerald-400" />
-                                        {((compassHeading + compassOffset - rotation + 360) % 360)}°
-                                    </span>
-                                    <button
-                                        onClick={() => setShowCalibrationModal(true)}
-                                        className="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 border border-amber-400/40 font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer"
-                                        title="校準手機朝向與地圖方向"
-                                    >
-                                        <Sliders className="w-2.5 h-2.5 text-amber-400" />
-                                        校準方位
-                                    </button>
-                                </div>
+                                <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
+                                    <Compass className="w-3 h-3 text-emerald-400" />
+                                    {((compassHeading + compassOffset - rotation + 360) % 360)}°
+                                </span>
                             ) : (
                                 <button
-                                    onClick={requestCompass}
+                                    onClick={requestSensors}
                                     className="text-[10px] bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer animate-pulse"
-                                    title="點擊啟用手機陀螺儀羅盤"
+                                    title="點擊啟用手機羅盤與動作計步感應"
                                 >
                                     <Compass className="w-3 h-3" />
-                                    點我啟用羅盤轉向
+                                    啟用羅盤與計步
                                 </button>
                             )}
                         </div>
-                        <button
-                            onClick={() => setIsNavActive(false)}
-                            className="text-slate-400 hover:text-white text-xs font-bold px-2 py-0.5 hover:bg-slate-800 rounded transition-colors cursor-pointer"
-                        >
-                            關閉
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setShowCalibrationModal(true)}
+                                className="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 border border-amber-400/50 font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer transition-all"
+                                title="開啟方位校準與步長設定面板"
+                            >
+                                <Sliders className="w-2.5 h-2.5 text-amber-400" />
+                                校準設定
+                            </button>
+                            <button
+                                onClick={() => setIsNavActive(false)}
+                                className="text-slate-400 hover:text-white text-xs font-bold px-2 py-0.5 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                            >
+                                關閉
+                            </button>
+                        </div>
                     </div>
+
+                    {/* PDR 行走計步與即時前進狀態列 */}
+                    {isPdrActive && (
+                        <div className="flex items-center justify-between gap-2 mb-2 p-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 text-[11px]">
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg transition-all ${
+                                isStepPulsing
+                                    ? 'bg-emerald-500/30 text-emerald-300 font-bold ring-1 ring-emerald-400 scale-105'
+                                    : 'text-slate-300'
+                            }`}>
+                                <Footprints className={`w-3.5 h-3.5 ${isStepPulsing ? 'text-emerald-400 animate-bounce' : 'text-slate-400'}`} />
+                                <span>步伐推算：<strong className="text-white font-mono text-xs">{stepCount}</strong> 步</span>
+                            </div>
+
+                            <button
+                                onClick={() => triggerStep()}
+                                className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 active:scale-95 text-blue-300 border border-blue-400/40 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                                title="點擊模擬前進一步 (亦可拿手機實體走路測試)"
+                            >
+                                <Activity className="w-3 h-3 text-blue-400" />
+                                模擬走1步
+                            </button>
+                        </div>
+                    )}
+
+                    {/* 抵達設備校準歸零提示 */}
+                    {lastCalibrationMsg && (
+                        <div className="mb-2 p-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in duration-150">
+                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span className="truncate">{lastCalibrationMsg}</span>
+                        </div>
+                    )}
 
                     <div className="space-y-1.5 text-xs">
                         <div className="flex items-center justify-between text-slate-300">
@@ -1259,7 +1499,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             focusMarker(userLocation.x, userLocation.y);
                         }
                         if (compassHeading === null) {
-                            requestCompass();
+                            requestSensors();
                         }
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-90 flex items-center gap-1.5 shrink-0 cursor-pointer ${
