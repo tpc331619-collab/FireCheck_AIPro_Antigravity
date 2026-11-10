@@ -96,6 +96,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     // 方案 C: 導航模式狀態與手機實體羅盤 + PDR 行走推算
     const [isNavActive, setIsNavActive] = useState(true);
     const [isHudCollapsed, setIsHudCollapsed] = useState(false);
+    const [navHeadingMode, setNavHeadingMode] = useState<'COMPASS' | 'TARGET'>('TARGET'); // 預設 TARGET (鎖定路線首選，防室內鋼筋磁場干擾)
     const [userLocation, setUserLocation] = useState<{
         x: number;
         y: number;
@@ -142,6 +143,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
     // Refs 同步確保事件監聽閉包內始終取得最新值
     const isPdrActiveRef = useRef(isPdrActive);
+    const navHeadingModeRef = useRef(navHeadingMode);
     const userLocationRef = useRef(userLocation);
     const compassHeadingRef = useRef(compassHeading);
     const compassOffsetRef = useRef(compassOffset);
@@ -149,10 +151,14 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const stepSizePercentRef = useRef(stepSizePercent);
     const stepSensitivityRef = useRef(stepSensitivity);
     const sessionStepsRef = useRef(sessionSteps);
+    const nextTargetRef = useRef<any>(null);
     const lastStepTimeRef = useRef(0);
     const isPeakRef = useRef(false);
+    const smoothedHeadingRef = useRef<number | null>(null);
+    const lastCompassUpdateRef = useRef<number>(0);
 
     useEffect(() => { isPdrActiveRef.current = isPdrActive; }, [isPdrActive]);
+    useEffect(() => { navHeadingModeRef.current = navHeadingMode; }, [navHeadingMode]);
     useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
     useEffect(() => { compassHeadingRef.current = compassHeading; }, [compassHeading]);
     useEffect(() => { compassOffsetRef.current = compassOffset; }, [compassOffset]);
@@ -170,20 +176,41 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         }
     };
 
-    // 一鍵將「當前手機朝向」校準為圖面指定方向（例如：90°=右方走廊, 0°=上方, 180°=下方, 270°=左方）
-    const snapCompassToTarget = (targetScreenAngle: number) => {
-        if (compassHeading === null) return;
-        const calculatedOffset = targetScreenAngle - compassHeading + rotationRef.current;
+    // 方案 B: 一鍵將「手機朝向」直接校準為「下一站設備方位」
+    const alignCompassToNextTarget = () => {
+        if (!nextTargetRef.current || !userLocationRef.current) {
+            showAlert('目前沒有下一個推薦目標設備');
+            return;
+        }
+        if (compassHeadingRef.current === null) {
+            requestSensors();
+            return;
+        }
+
+        const dx = nextTargetRef.current.marker.x - userLocationRef.current.x;
+        const dy = nextTargetRef.current.marker.y - userLocationRef.current.y;
+        const angleToTarget = ((Math.atan2(dx, -dy) * 180 / Math.PI) + 360) % 360;
+
+        const calculatedOffset = angleToTarget - compassHeadingRef.current + rotationRef.current;
         updateCompassOffset(calculatedOffset);
+
+        setLastCalibrationMsg(`🎯 已成功對齊！手機朝向已與【${nextTargetRef.current.eq.name}】精準同步！`);
+        setTimeout(() => {
+            setShowCalibrationModal(false);
+        }, 500);
     };
 
     // 步伐推算：每走一步把紅點依當前朝向往前推進
     const triggerStep = (customStepSize?: number) => {
         if (!userLocationRef.current) return;
 
-        // 計算目前朝向圖面的旋轉角度 (0°=上方, 90°=右方, 180°=下方, 270°=左方)
+        // 計算目前前進角度 (若為 TARGET 鎖定模式直接往下一站走，若為 COMPASS 模式則依羅盤方向)
         let screenAngle = 0;
-        if (compassHeadingRef.current !== null) {
+        if (navHeadingModeRef.current === 'TARGET' && nextTargetRef.current && userLocationRef.current) {
+            const dxTarget = nextTargetRef.current.marker.x - userLocationRef.current.x;
+            const dyTarget = nextTargetRef.current.marker.y - userLocationRef.current.y;
+            screenAngle = ((Math.atan2(dxTarget, -dyTarget) * 180 / Math.PI) + 360) % 360;
+        } else if (compassHeadingRef.current !== null) {
             screenAngle = ((compassHeadingRef.current + compassOffsetRef.current - rotationRef.current) % 360 + 360) % 360;
         }
 
@@ -209,18 +236,40 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         setTimeout(() => setIsStepPulsing(false), 300);
     };
 
-    // 啟動實體陀螺儀 / 指南針監聽
+    // 啟動實體陀螺儀 / 指南針監聽 (加入 EMA 低通濾波與 2° 死區防手震，徹底消除指針飄移)
     const startCompassListener = () => {
         const handleOrientation = (e: any) => {
-            let heading: number | null = null;
+            let rawHeading: number | null = null;
             if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
-                heading = e.webkitCompassHeading;
+                rawHeading = e.webkitCompassHeading;
             } else if (e.alpha !== null && e.alpha !== undefined) {
-                heading = (360 - e.alpha) % 360;
+                rawHeading = (360 - e.alpha) % 360;
             }
 
-            if (heading !== null && !isNaN(heading)) {
-                setCompassHeading(Math.round(heading));
+            if (rawHeading === null || isNaN(rawHeading)) return;
+
+            const now = Date.now();
+            if (smoothedHeadingRef.current === null) {
+                smoothedHeadingRef.current = rawHeading;
+                setCompassHeading(Math.round(rawHeading));
+                return;
+            }
+
+            // 最短旋轉差值 (-180 ~ +180) 防止 0°/360° 跨越時反轉
+            let diff = rawHeading - smoothedHeadingRef.current;
+            while (diff > 180) diff -= 360;
+            while (diff < -180) diff += 360;
+
+            // 死區防手震：若轉動幅度小於 2 度，直接忽視，消除微小手抖造成指針抖動
+            if (Math.abs(diff) < 2) return;
+
+            // EMA 低通平滑濾波 (平滑係數 0.22)
+            smoothedHeadingRef.current = ((smoothedHeadingRef.current + diff * 0.22) % 360 + 360) % 360;
+
+            // 節流更新 state（每 45ms 最多更新一次，避免 React 重繪卡頓）
+            if (now - lastCompassUpdateRef.current > 45) {
+                lastCompassUpdateRef.current = now;
+                setCompassHeading(Math.round(smoothedHeadingRef.current));
             }
         };
 
@@ -443,6 +492,20 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         pool.sort((a, b) => a.dist - b.dist);
         return pool[0];
     }, [userLocation, currentMap, allEquipment, lightSettings, reports, inspectedOverrides]);
+
+    useEffect(() => {
+        nextTargetRef.current = nextTarget;
+    }, [nextTarget]);
+
+    // 當前光錐指向角度：若為 TARGET 鎖定模式自動精準指向下一站目標，若為 COMPASS 模式跟隨手機羅盤
+    const activeVisionAngle = useMemo(() => {
+        if (navHeadingMode === 'TARGET' && nextTarget && userLocation) {
+            const dx = nextTarget.marker.x - userLocation.x;
+            const dy = nextTarget.marker.y - userLocation.y;
+            return ((Math.atan2(dx, -dy) * 180 / Math.PI) + 360) % 360;
+        }
+        return (((compassHeading || 0) + compassOffset - rotation) % 360 + 360) % 360;
+    }, [navHeadingMode, nextTarget, userLocation, compassHeading, compassOffset, rotation]);
 
     const focusMarker = (targetX: number, targetY: number) => {
         const dx = (50 - targetX) * 4;
@@ -1082,174 +1145,105 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 onCancel={alertConfig.onCancel || (() => setAlertConfig(prev => ({ ...prev, isOpen: false })))}
             />
 
-            {/* 羅盤方位校準彈窗 */}
+            {/* 羅盤方位校準彈窗 (方案 B：極簡一鍵對齊，完全不用看角度) */}
             {showCalibrationModal && (
                 <div
                     className="fixed inset-0 z-[70] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
                     onClick={() => setShowCalibrationModal(false)}
                 >
                     <div
-                        className="bg-slate-900 text-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-700 animate-in zoom-in-95 duration-200"
+                        className="bg-slate-900 text-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border-2 border-slate-700 animate-in zoom-in-95 duration-200"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
                             <div className="flex items-center gap-2">
                                 <Compass className="w-5 h-5 text-amber-400" />
-                                <h3 className="font-bold text-base text-white">校準手機與圖面方位</h3>
+                                <h3 className="font-extrabold text-base text-white">一鍵對齊手機方位</h3>
                             </div>
                             <button
                                 onClick={() => setShowCalibrationModal(false)}
-                                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800"
+                                className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                            手機頂端指向現場走廊或目標時，若與圖面箭頭有偏差，可點選下方<strong>一鍵對齊</strong>：
-                        </p>
+                        {/* 方案 B：核心超大單鍵對齊 */}
+                        <div className="mb-5">
+                            <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                                {nextTarget ? (
+                                    <>人拿著手機，將<strong>手機頂端對準前方的【{nextTarget.eq.name}】</strong>，點擊下方大按鈕即可：</>
+                                ) : (
+                                    <>人拿著手機正對前方走廊，點擊下方大按鈕即可：</>
+                                )}
+                            </p>
 
-                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 mb-4">
-                            <div className="text-[11px] font-bold text-amber-300 mb-2">⚡ 一鍵快速對齊（手機正對該方向時點選）：</div>
-                            <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                                <button
-                                    onClick={() => snapCompassToTarget(90)}
-                                    className="p-2.5 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 rounded-xl flex items-center justify-center gap-1.5 text-blue-300 active:scale-95 cursor-pointer"
-                                >
-                                    <ArrowRight className="w-4 h-4 text-blue-400" />
-                                    正對圖面右方 (走廊)
-                                </button>
-                                <button
-                                    onClick={() => snapCompassToTarget(0)}
-                                    className="p-2.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center gap-1.5 text-slate-200 active:scale-95 cursor-pointer"
-                                >
-                                    <ArrowUp className="w-4 h-4 text-emerald-400" />
-                                    正對圖面上方
-                                </button>
-                                <button
-                                    onClick={() => snapCompassToTarget(270)}
-                                    className="p-2.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center gap-1.5 text-slate-200 active:scale-95 cursor-pointer"
-                                >
-                                    <ArrowLeft className="w-4 h-4 text-purple-400" />
-                                    正對圖面左方
-                                </button>
-                                <button
-                                    onClick={() => snapCompassToTarget(180)}
-                                    className="p-2.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center gap-1.5 text-slate-200 active:scale-95 cursor-pointer"
-                                >
-                                    <ArrowDown className="w-4 h-4 text-amber-400" />
-                                    正對圖面下方
-                                </button>
-                            </div>
+                            <button
+                                onClick={alignCompassToNextTarget}
+                                className="w-full py-4 px-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-400 active:scale-95 text-white font-black rounded-2xl shadow-xl shadow-blue-500/30 border border-blue-400/40 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all"
+                            >
+                                <div className="flex items-center gap-2 text-base">
+                                    <Crosshair className="w-5 h-5 text-amber-300 animate-pulse" />
+                                    <span>🎯 朝向下一站，按我一鍵對齊！</span>
+                                </div>
+                                {nextTarget && (
+                                    <span className="text-[11px] text-blue-200 font-normal">
+                                        目標：{nextTarget.eq.name} ({nextTarget.eq.barcode})
+                                    </span>
+                                )}
+                            </button>
                         </div>
 
-                        {/* 微調控制 */}
-                        <div className="space-y-2 mb-4">
-                            <div className="flex items-center justify-between text-xs">
-                                <span className="text-slate-400">手動微調旋轉偏差：</span>
-                                <span className="font-mono font-bold text-amber-400">+{compassOffset}°</span>
+                        {/* 步長微調 */}
+                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 mb-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold text-slate-300">每步前進距離：</span>
+                                <span className="font-mono font-bold text-emerald-400 text-xs">{stepSizePercent}%</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={() => updateCompassOffset(compassOffset - 15)}
-                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
+                                    onClick={() => {
+                                        const next = Math.max(0.2, Number((stepSizePercent - 0.15).toFixed(2)));
+                                        setStepSizePercent(next);
+                                        try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
+                                    }}
+                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-xs font-bold text-slate-200 rounded-xl cursor-pointer"
                                 >
-                                    -15°
+                                    - 步子小點
                                 </button>
                                 <button
-                                    onClick={() => updateCompassOffset(compassOffset - 5)}
-                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
+                                    onClick={() => {
+                                        setStepSizePercent(0.85);
+                                        try { localStorage.setItem('pdr_step_size_percent', '0.85'); } catch (e) { }
+                                    }}
+                                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-[11px] font-bold text-slate-400 rounded-xl cursor-pointer"
                                 >
-                                    -5°
+                                    預設
                                 </button>
                                 <button
-                                    onClick={() => updateCompassOffset(0)}
-                                    className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-400 flex items-center justify-center gap-1 cursor-pointer"
+                                    onClick={() => {
+                                        const next = Math.min(3.0, Number((stepSizePercent + 0.15).toFixed(2)));
+                                        setStepSizePercent(next);
+                                        try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
+                                    }}
+                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-xs font-bold text-slate-200 rounded-xl cursor-pointer"
                                 >
-                                    <RotateCcw className="w-3 h-3" />
-                                    歸零
-                                </button>
-                                <button
-                                    onClick={() => updateCompassOffset(compassOffset + 5)}
-                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
-                                >
-                                    +5°
-                                </button>
-                                <button
-                                    onClick={() => updateCompassOffset(compassOffset + 15)}
-                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
-                                >
-                                    +15°
+                                    + 步子大點
                                 </button>
                             </div>
                         </div>
 
-                        {/* PDR 行走計步與步長推算設定 */}
-                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 mb-4">
-                            <div className="flex items-center justify-between mb-2.5">
-                                <div className="text-[11px] font-bold text-emerald-300 flex items-center gap-1.5">
-                                    <Footprints className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>👣 手機計步航位推算 (PDR)</span>
-                                </div>
-                                <button
-                                    onClick={() => setIsPdrActive(prev => !prev)}
-                                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border transition-all cursor-pointer ${
-                                        isPdrActive
-                                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400'
-                                            : 'bg-slate-700 text-slate-400 border-slate-600'
-                                    }`}
-                                >
-                                    {isPdrActive ? '已啟用' : '已關閉'}
-                                </button>
-                            </div>
-
-                            <div className="space-y-2 text-xs">
-                                <div className="flex items-center justify-between text-slate-300">
-                                    <span className="text-slate-400">每步前進距離 (圖面比例)：</span>
-                                    <span className="font-mono font-bold text-emerald-400">{stepSizePercent}%</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => {
-                                            const next = Math.max(0.2, Number((stepSizePercent - 0.15).toFixed(2)));
-                                            setStepSizePercent(next);
-                                            try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
-                                        }}
-                                        className="flex-1 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200 active:scale-95 cursor-pointer"
-                                    >
-                                        - 小步 (0.15%)
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setStepSizePercent(0.85);
-                                            try { localStorage.setItem('pdr_step_size_percent', '0.85'); } catch (e) { }
-                                        }}
-                                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-[10px] text-slate-400 font-bold active:scale-95 cursor-pointer"
-                                    >
-                                        預設
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            const next = Math.min(3.0, Number((stepSizePercent + 0.15).toFixed(2)));
-                                            setStepSizePercent(next);
-                                            try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
-                                        }}
-                                        className="flex-1 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-xs font-bold text-slate-200 active:scale-95 cursor-pointer"
-                                    >
-                                        + 大步 (0.15%)
-                                    </button>
-                                </div>
-                                <div className="text-[10px] text-slate-400 leading-tight pt-1">
-                                    💡 每次走到設備掃描 QR Code 時，系統會自動比對步數與實際距離，自動智慧修正步長並清除累積漂移！
-                                </div>
-                            </div>
-                        </div>
-
+                        {/* 恢復預設角度 */}
                         <button
-                            onClick={() => setShowCalibrationModal(false)}
-                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all text-sm cursor-pointer"
+                            onClick={() => {
+                                updateCompassOffset(0);
+                                setLastCalibrationMsg('已重設為原始羅盤朝向');
+                                setTimeout(() => setShowCalibrationModal(false), 500);
+                            }}
+                            className="w-full py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-slate-700/60"
                         >
-                            完成校準並儲存
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            恢復預設方位角 (歸零)
                         </button>
                     </div>
                 </div>
@@ -1346,11 +1340,11 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                         transform: `translate(-50%, -50%) scale(${1 / zoom})`
                                     }}
                                 >
-                                    {/* 手機實體羅盤朝向光錐（純硬體偵測，免網路） */}
+                                    {/* 朝向光錐（支援低通平滑濾波與目標鎖定模式，徹底防抖） */}
                                     <div
-                                        className="absolute -inset-12 flex items-center justify-center transition-transform duration-100 ease-linear pointer-events-none"
+                                        className="absolute -inset-12 flex items-center justify-center transition-transform duration-200 ease-out pointer-events-none"
                                         style={{
-                                            transform: `rotate(${((compassHeading || 0) + compassOffset - rotation)}deg)`
+                                            transform: `rotate(${activeVisionAngle}deg)`
                                         }}
                                     >
                                         {/* 扇形探索光錐 */}
@@ -1369,15 +1363,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     <div className="absolute -inset-3.5 rounded-full bg-red-500/40 animate-ping pointer-events-none" />
                                     <div className="absolute -inset-2 rounded-full bg-red-500/25 animate-pulse pointer-events-none" />
 
-                                    {/* 實體中心紅點 (Google Maps 風格) */}
+                                    {/* 實體中心紅點 (Google Maps 風格 - 已移除遮擋路徑的下方黑色標籤) */}
                                     <div className="relative w-5 h-5 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center ring-2 ring-red-400">
                                         <div className="w-2 h-2 rounded-full bg-white shadow-inner" />
-                                    </div>
-
-                                    {/* 當前位置氣泡標籤 */}
-                                    <div className="absolute top-6 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-bold rounded-full whitespace-nowrap shadow-xl border border-red-500/40 flex items-center gap-1.5 pointer-events-auto">
-                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                                        <span className="truncate max-w-[130px]">{userLocation.name}</span>
                                     </div>
                                 </div>
                             )}
@@ -1425,12 +1413,28 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     <Navigation className="w-3.5 h-3.5 text-red-500 animate-pulse" />
                                 </div>
                                 <span className="font-extrabold text-xs sm:text-sm text-white truncate">實時導航</span>
-                                {compassHeading !== null ? (
-                                    <span className="text-[10px] sm:text-xs text-emerald-300 font-mono font-bold bg-emerald-950/80 border border-emerald-500/40 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 shadow-sm">
-                                        <Compass className="w-3 h-3 text-emerald-400" />
-                                        {((compassHeading + compassOffset - rotation + 360) % 360)}°
-                                    </span>
-                                ) : (
+                                <button
+                                    onClick={() => setNavHeadingMode(prev => prev === 'COMPASS' ? 'TARGET' : 'COMPASS')}
+                                    className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg border transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                                        navHeadingMode === 'TARGET'
+                                            ? 'bg-blue-600/30 text-blue-300 border-blue-400/60 shadow-sm'
+                                            : 'bg-emerald-600/30 text-emerald-300 border-emerald-400/60 shadow-sm'
+                                    }`}
+                                    title={navHeadingMode === 'TARGET' ? '目前為【鎖定下一站目標】(不飄移)，點擊切換為【實體羅盤隨身轉向】' : '目前為【實體羅盤隨身轉向】，點擊切換為【鎖定下一站目標】'}
+                                >
+                                    {navHeadingMode === 'TARGET' ? (
+                                        <>
+                                            <Crosshair className="w-3 h-3 text-blue-400" />
+                                            <span>鎖定目標</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Compass className="w-3 h-3 text-emerald-400" />
+                                            <span>羅盤轉向 {compassHeading !== null ? `${((compassHeading + compassOffset - rotation + 360) % 360)}°` : ''}</span>
+                                        </>
+                                    )}
+                                </button>
+                                {navHeadingMode === 'COMPASS' && compassHeading === null && (
                                     <button
                                         onClick={requestSensors}
                                         className="text-[10px] sm:text-xs bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 shrink-0 animate-pulse cursor-pointer"

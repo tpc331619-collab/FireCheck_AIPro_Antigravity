@@ -2314,7 +2314,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    V 2.7.3
+                                    V 2.7.5
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
