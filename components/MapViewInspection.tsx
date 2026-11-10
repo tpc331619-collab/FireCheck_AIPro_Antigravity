@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown, Footprints, Activity } from 'lucide-react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown, Footprints, Activity, ChevronUp, ChevronDown } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -95,6 +95,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
     // 方案 C: 導航模式狀態與手機實體羅盤 + PDR 行走推算
     const [isNavActive, setIsNavActive] = useState(true);
+    const [isHudCollapsed, setIsHudCollapsed] = useState(false);
     const [userLocation, setUserLocation] = useState<{
         x: number;
         y: number;
@@ -1385,109 +1386,166 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 </div>
             </div>
 
-            {/* 方案 C: 頂部導航資訊卡 (HUD) */}
+            {/* 方案 C: 頂部導航資訊卡 (HUD) - 手機板 RWD 響應式與一鍵收合優化 */}
             {isNavActive && userLocation && (
-                <div className="absolute top-16 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 z-40 bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-3 shadow-2xl border border-slate-700/80 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
-                            <Navigation className="w-4 h-4 text-red-500 animate-pulse" />
-                            <span>巡檢實時導航</span>
-                            {compassHeading !== null ? (
-                                <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
-                                    <Compass className="w-3 h-3 text-emerald-400" />
-                                    {((compassHeading + compassOffset - rotation + 360) % 360)}°
-                                </span>
-                            ) : (
-                                <button
-                                    onClick={requestSensors}
-                                    className="text-[10px] bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer animate-pulse"
-                                    title="點擊啟用手機羅盤與動作計步感應"
-                                >
-                                    <Compass className="w-3 h-3" />
-                                    啟用羅盤與計步
-                                </button>
+                isHudCollapsed ? (
+                    /* 手機收合狀態：僅佔用極小頂部單行空間，讓手機巡檢能完整看清圖面 */
+                    <div
+                        onClick={() => setIsHudCollapsed(false)}
+                        className="absolute top-2 left-2 right-2 sm:left-auto sm:right-4 sm:w-[380px] z-40 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl p-2 px-3 shadow-xl border border-slate-700/80 flex items-center justify-between gap-2 cursor-pointer active:scale-95 transition-all animate-in fade-in select-none"
+                    >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                            <span className="text-xs font-bold text-white truncate max-w-[90px] sm:max-w-[110px]">{userLocation.name}</span>
+                            {nextTarget && (
+                                <>
+                                    <span className="text-slate-500 text-xs shrink-0">➔</span>
+                                    <span className="text-xs font-bold text-amber-300 truncate max-w-[100px] sm:max-w-[120px]">{nextTarget.eq.name}</span>
+                                </>
                             )}
                         </div>
-                        <div className="flex items-center gap-1">
-                            <button
-                                onClick={() => setShowCalibrationModal(true)}
-                                className="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 border border-amber-400/50 font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer transition-all"
-                                title="開啟方位校準與步長設定面板"
-                            >
-                                <Sliders className="w-2.5 h-2.5 text-amber-400" />
-                                校準設定
-                            </button>
-                            <button
-                                onClick={() => setIsNavActive(false)}
-                                className="text-slate-400 hover:text-white text-xs font-bold px-2 py-0.5 hover:bg-slate-800 rounded transition-colors cursor-pointer"
-                            >
-                                關閉
-                            </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                            {isPdrActive && (
+                                <span className="text-[10px] font-mono text-emerald-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-700">
+                                    👣 {stepCount}步
+                                </span>
+                            )}
+                            <span className="text-[11px] text-blue-400 font-bold flex items-center gap-0.5 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/30">
+                                展開 <ChevronDown className="w-3 h-3" />
+                            </span>
                         </div>
                     </div>
-
-                    {/* PDR 行走計步與即時前進狀態列 */}
-                    {isPdrActive && (
-                        <div className="flex items-center justify-between gap-2 mb-2 p-1.5 bg-slate-800/80 rounded-xl border border-slate-700/60 text-[11px]">
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg transition-all ${
-                                isStepPulsing
-                                    ? 'bg-emerald-500/30 text-emerald-300 font-bold ring-1 ring-emerald-400 scale-105'
-                                    : 'text-slate-300'
-                            }`}>
-                                <Footprints className={`w-3.5 h-3.5 ${isStepPulsing ? 'text-emerald-400 animate-bounce' : 'text-slate-400'}`} />
-                                <span>步伐推算：<strong className="text-white font-mono text-xs">{stepCount}</strong> 步</span>
+                ) : (
+                    /* 手機展開狀態：完全相容 360px+ 手機螢幕不溢出不擠壓 */
+                    <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 sm:w-[400px] z-40 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-2xl border border-slate-700/80 animate-in fade-in slide-in-from-top-2 duration-200">
+                        {/* Header 頂部列 */}
+                        <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-800 mb-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center shrink-0">
+                                    <Navigation className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                                </div>
+                                <span className="font-extrabold text-xs sm:text-sm text-white truncate">實時導航</span>
+                                {compassHeading !== null ? (
+                                    <span className="text-[10px] sm:text-xs text-emerald-300 font-mono font-bold bg-emerald-950/80 border border-emerald-500/40 px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shrink-0 shadow-sm">
+                                        <Compass className="w-3 h-3 text-emerald-400" />
+                                        {((compassHeading + compassOffset - rotation + 360) % 360)}°
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={requestSensors}
+                                        className="text-[10px] sm:text-xs bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 shrink-0 animate-pulse cursor-pointer"
+                                        title="點擊啟用手機羅盤與計步感應"
+                                    >
+                                        <Compass className="w-3 h-3" />
+                                        啟用感應
+                                    </button>
+                                )}
                             </div>
 
-                            <button
-                                onClick={() => triggerStep()}
-                                className="px-2.5 py-1 bg-slate-700 hover:bg-slate-600 active:scale-95 text-blue-300 border border-blue-400/40 rounded-lg font-bold text-[10px] flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                                title="點擊模擬前進一步 (亦可拿手機實體走路測試)"
-                            >
-                                <Activity className="w-3 h-3 text-blue-400" />
-                                模擬走1步
-                            </button>
-                        </div>
-                    )}
-
-                    {/* 抵達設備校準歸零提示 */}
-                    {lastCalibrationMsg && (
-                        <div className="mb-2 p-1.5 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in duration-150">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span className="truncate">{lastCalibrationMsg}</span>
-                        </div>
-                    )}
-
-                    <div className="space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between text-slate-300">
-                            <span className="text-slate-400">目前所在：</span>
-                            <span className="font-bold text-white truncate max-w-[200px]">{userLocation.name}</span>
-                        </div>
-
-                        {nextTarget ? (
-                            <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                    <div className="text-[10px] text-slate-400">下一個推薦目標：</div>
-                                    <div className="font-bold text-amber-300 text-sm truncate flex items-center gap-1">
-                                        <span>{nextTarget.eq.name}</span>
-                                        <span className="text-[10px] text-slate-400 font-mono">({nextTarget.eq.barcode})</span>
-                                    </div>
-                                </div>
+                            <div className="flex items-center gap-1 shrink-0">
                                 <button
-                                    onClick={() => focusMarker(nextTarget.marker.x, nextTarget.marker.y)}
-                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-md transition-all shrink-0 cursor-pointer"
+                                    onClick={() => setShowCalibrationModal(true)}
+                                    className="text-[10px] sm:text-xs bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300 border border-amber-400/50 font-bold px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-0.5 cursor-pointer"
+                                    title="開啟方位校準與步長設定面板"
                                 >
-                                    <Crosshair className="w-3.5 h-3.5" />
-                                    聚焦目標
+                                    <Sliders className="w-3 h-3 text-amber-400" />
+                                    校準
+                                </button>
+                                <button
+                                    onClick={() => setIsHudCollapsed(true)}
+                                    className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                                    title="收合為精簡頂部條"
+                                >
+                                    <ChevronUp className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setIsNavActive(false)}
+                                    className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                                    title="關閉導航卡"
+                                >
+                                    <X className="w-4 h-4" />
                                 </button>
                             </div>
-                        ) : (
-                            <div className="pt-2 border-t border-slate-800 text-emerald-400 font-bold flex items-center gap-1 text-xs">
-                                <CheckCircle className="w-4 h-4" />
-                                <span>地圖上所有設備皆已巡檢完成！</span>
+                        </div>
+
+                        {/* PDR 行走計步與即時前進狀態列 */}
+                        {isPdrActive && (
+                            <div className="flex items-center justify-between gap-2 mb-2 p-1.5 bg-slate-800/80 rounded-xl border border-slate-700/70">
+                                <div className={`flex items-center gap-1.5 min-w-0 px-2 py-0.5 rounded-lg transition-all ${
+                                    isStepPulsing
+                                        ? 'bg-emerald-500/30 text-emerald-300 font-bold ring-2 ring-emerald-400 scale-105'
+                                        : 'text-slate-200'
+                                }`}>
+                                    <Footprints className={`w-3.5 h-3.5 shrink-0 ${isStepPulsing ? 'text-emerald-400 animate-bounce' : 'text-emerald-400'}`} />
+                                    <span className="text-[11px] font-bold text-slate-300 shrink-0">步伐推算：</span>
+                                    <span className="text-sm sm:text-base font-black text-white font-mono">{stepCount}</span>
+                                    <span className="text-[10px] text-slate-400">步</span>
+                                </div>
+
+                                <button
+                                    onClick={() => triggerStep()}
+                                    className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 active:scale-95 text-white font-bold rounded-lg text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer shadow shrink-0"
+                                    title="點擊模擬前進一步 (亦可拿手機實體走路測試)"
+                                >
+                                    <Activity className="w-3 h-3" />
+                                    模擬走1步
+                                </button>
                             </div>
                         )}
+
+                        {/* 抵達設備校準歸零提示 */}
+                        {lastCalibrationMsg && (
+                            <div className="mb-2 p-1.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-in fade-in duration-150 shadow-sm">
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span className="truncate">{lastCalibrationMsg}</span>
+                            </div>
+                        )}
+
+                        {/* 當前位置與下一推薦目標卡片 */}
+                        <div className="space-y-1.5">
+                            {/* 當前所在卡片 */}
+                            <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-red-400/50 shrink-0" />
+                                    <span className="text-[11px] sm:text-xs font-bold text-slate-300">目前所在：</span>
+                                </div>
+                                <span className="font-bold text-xs sm:text-sm text-white truncate max-w-[190px] sm:max-w-[240px] drop-shadow-sm">{userLocation.name}</span>
+                            </div>
+
+                            {/* 下一個目標推薦卡片 */}
+                            {nextTarget ? (
+                                <div className="p-2 sm:p-2.5 bg-gradient-to-r from-blue-950/70 via-slate-800/90 to-blue-900/50 border border-blue-500/40 rounded-xl flex items-center justify-between gap-2 shadow-md">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-[10px] font-bold text-blue-300 flex items-center gap-1 mb-0.5">
+                                            <span>👉 下一站推薦：</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className="font-black text-amber-300 text-xs sm:text-sm drop-shadow-sm truncate max-w-[130px] sm:max-w-[180px]">
+                                                {nextTarget.eq.name}
+                                            </span>
+                                            <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
+                                                {nextTarget.eq.barcode}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => focusMarker(nextTarget.marker.x, nextTarget.marker.y)}
+                                        className="px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-xl text-[11px] sm:text-xs flex items-center gap-1 shadow-md shadow-blue-500/30 transition-all shrink-0 cursor-pointer"
+                                        title="在畫面中聚焦此設備標籤"
+                                    >
+                                        <Crosshair className="w-3.5 h-3.5 shrink-0" />
+                                        <span>聚焦</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="p-2 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
+                                    <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                                    <span>地圖上所有設備皆已巡檢完成！</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )
             )}
 
             {/* Floating Controls Toolbar (RWD Optimized) */}

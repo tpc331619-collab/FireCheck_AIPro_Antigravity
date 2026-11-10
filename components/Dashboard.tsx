@@ -1424,7 +1424,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     }
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -2110,8 +2110,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </div>
                                                 {nameCount > 0 && (
                                                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${inspectionProgress.pendingCount > 0
-                                                            ? 'bg-red-50 text-red-600 border-red-200'
-                                                            : 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                                        ? 'bg-red-50 text-red-600 border-red-200'
+                                                        : 'bg-emerald-50 text-emerald-600 border-emerald-200'
                                                         }`}>
                                                         達成率 {inspectionProgress.rate}%
                                                     </span>
@@ -2314,7 +2314,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    V 2.7.1
+                                    V 2.7.3
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
@@ -4848,7 +4848,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         equipment={passportEquipment}
                         user={user}
                         lightSettings={currentLightSettings}
-                            onStartInspection = {(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorStartInspection !== false) : systemSettings?.allowGuestStartInspection === true) ? () => onCreateNew() : undefined
+                        onStartInspection={(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorStartInspection !== false) : systemSettings?.allowGuestStartInspection === true) ? () => onCreateNew() : undefined
                         }
                         onViewFullHistory={(!user.isGuest ? (isAdmin || systemSettings?.allowInspectorHistory !== false) : systemSettings?.allowGuestHistory !== false) ? (code) => {
                             setSearchTerm(code.toUpperCase());
