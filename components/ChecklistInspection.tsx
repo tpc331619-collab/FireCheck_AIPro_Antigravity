@@ -21,6 +21,7 @@ interface ChecklistInspectionProps {
 const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack }) => {
     const { t } = useLanguage();
     const queryClient = useQueryClient();
+    const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
     const [loading, setLoading] = useState(true);
 
     // Selection State
@@ -108,6 +109,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         onCancel?: () => void;
         secondaryText?: string;
         onSecondary?: () => void;
+        confirmText?: string;
+        cancelText?: string;
     }>({
         isOpen: false,
         message: '',
@@ -346,8 +349,27 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
         // Block if already completed or unnecessary
         if (freqStatus === 'COMPLETED') {
+            const timeStr = inspectionItem ? new Date(inspectionItem.timestamp || Date.now()).toLocaleString() : '未知';
+
+            if (isAdmin) {
+                setAlertConfig({
+                    isOpen: true,
+                    title: '修改今日檢查紀錄',
+                    message: `設備「${item.name}」今日已完成檢查\n\n檢查時間: ${timeStr}\n\n您具有【管理員權限】，可重新開啟填寫表單並覆蓋修正今日紀錄。`,
+                    type: 'confirm',
+                    confirmText: '✏️ 重新填寫並覆蓋',
+                    cancelText: '取消',
+                    onConfirm: () => {
+                        setAlertConfig(prev => ({ ...prev, isOpen: false }));
+                        openInspectionForm(item, inspectionItem?.forcedFromDueDate || null);
+                    },
+                    onCancel: () => setAlertConfig(prev => ({ ...prev, isOpen: false }))
+                });
+                return;
+            }
+
             showAlert(
-                `設備「${item.name}」已經檢查過了\n\n檢查時間: ${inspectionItem ? new Date(inspectionItem.timestamp || Date.now()).toLocaleString() : '未知'}\n\n如需修改,請從清單中點選該設備。`,
+                `設備「${item.name}」今日已完成檢查\n\n檢查時間: ${timeStr}\n\n今日巡檢已建檔完成，不需重複檢查。`,
                 '無法檢查'
             );
             return;
@@ -1111,13 +1133,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         }
                                     }
 
-                                    // Lock Logic: Unnecessary or Completed items are locked
-                                    const isLocked = freqStatus === 'UNNECESSARY' || freqStatus === 'COMPLETED';
+                                    // Lock Logic: 只有非管理員且已完成檢查時鎖定；管理員可點選重新填寫修改
+                                    const isCompleted = freqStatus === 'COMPLETED';
+                                    const isLocked = !isAdmin && isCompleted;
 
                                     return (
                                         <div key={item.id}
                                             onClick={() => {
-                                                if (isLocked) return;
                                                 handleSelectItem(item);
                                             }}
                                             className={`bg-white p-4 rounded-xl border transition-all flex items-center justify-between shadow-sm relative overflow-hidden ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md'} ${rowBorder}`}
@@ -1154,6 +1176,12 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                             </div>
                                                         )}
                                                         {isLocked && <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                                                        {isAdmin && isCompleted && (
+                                                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded border border-blue-200 shrink-0 flex items-center gap-1">
+                                                                <Edit2 className="w-2.5 h-2.5" />
+                                                                管理員可修改
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] font-medium text-slate-500">
                                                         <div className="flex items-center gap-1 shrink-0">
@@ -2027,10 +2055,12 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 title={alertConfig.title}
                 message={alertConfig.message}
                 type={alertConfig.type}
+                confirmText={alertConfig.confirmText}
+                cancelText={alertConfig.cancelText}
                 onConfirm={alertConfig.onConfirm}
                 secondaryText={alertConfig.secondaryText}
                 onSecondary={alertConfig.onSecondary}
-                onCancel={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
+                onCancel={alertConfig.onCancel || (() => setAlertConfig(prev => ({ ...prev, isOpen: false })))}
             />
 
             {/* 設備照片放大預覽燈箱 (Lightbox) */}

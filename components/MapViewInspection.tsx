@@ -18,6 +18,7 @@ interface MapViewInspectionProps {
 const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onClose }) => {
     const { t } = useLanguage();
     const queryClient = useQueryClient();
+    const isAdmin = user.role === 'admin' || user.email?.toLowerCase() === 'b28803078@gmail.com';
     // Map Selection State
     const [maps, setMaps] = useState<EquipmentMap[]>([]);
     const [currentMap, setCurrentMap] = useState<EquipmentMap | null>(null);
@@ -68,6 +69,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         onCancel?: () => void;
         secondaryText?: string;
         onSecondary?: () => void;
+        confirmText?: string;
+        cancelText?: string;
     }>({
         isOpen: false,
         message: '',
@@ -156,8 +159,28 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 : overrideTime
                     ? new Date(overrideTime).toLocaleString()
                     : (equipment.lastInspectedDate ? new Date(equipment.lastInspectedDate).toLocaleString() : '已完成');
+
+            if (isAdmin) {
+                setAlertConfig({
+                    isOpen: true,
+                    title: '修改今日檢查紀錄',
+                    message: `設備「${equipment.name}」今日已完成檢查\n\n檢查時間: ${timeStr}\n\n您具有【管理員權限】，可重新開啟填寫表單並覆蓋修正今日紀錄。`,
+                    type: 'confirm',
+                    confirmText: '✏️ 重新填寫並覆蓋',
+                    cancelText: '取消',
+                    onConfirm: () => {
+                        setAlertConfig(prev => ({ ...prev, isOpen: false }));
+                        setForcedDueDate(inspectionItem?.forcedFromDueDate || null);
+                        setSelectedMarker(marker);
+                        setIsScanningBarcode(true);
+                    },
+                    onCancel: () => setAlertConfig(prev => ({ ...prev, isOpen: false }))
+                });
+                return;
+            }
+
             showAlert(
-                `設備「${equipment.name}」已經檢查過了\n\n檢查時間: ${timeStr}\n\n如需修改，請從清單中點選該設備。`,
+                `設備「${equipment.name}」今日已完成檢查\n\n檢查時間: ${timeStr}\n\n今日巡檢已建檔完成，不需重複檢查。`,
                 '無法檢查'
             );
             return;
@@ -722,10 +745,12 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 title={alertConfig.title}
                 message={alertConfig.message}
                 type={alertConfig.type}
+                confirmText={alertConfig.confirmText}
+                cancelText={alertConfig.cancelText}
                 onConfirm={alertConfig.onConfirm}
                 secondaryText={alertConfig.secondaryText}
                 onSecondary={alertConfig.onSecondary}
-                onCancel={alertConfig.onCancel}
+                onCancel={alertConfig.onCancel || (() => setAlertConfig(prev => ({ ...prev, isOpen: false })))}
             />
 
             {/* Map Container */}
