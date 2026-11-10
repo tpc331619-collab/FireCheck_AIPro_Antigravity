@@ -104,30 +104,56 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     } | null>(null);
     const [compassHeading, setCompassHeading] = useState<number | null>(null);
 
-    // 監聽手機實體陀螺儀 / 指南針（純硬體晶片，零網路亦可運作）
-    useEffect(() => {
-        const handleOrientation = (e: DeviceOrientationEvent) => {
+    // 啟動實體陀螺儀 / 指南針監聽
+    const startCompassListener = () => {
+        const handleOrientation = (e: any) => {
             let heading: number | null = null;
-            // iOS WebKit
-            if ((e as any).webkitCompassHeading !== undefined) {
-                heading = (e as any).webkitCompassHeading;
-            } else if (e.alpha !== null) {
-                // Android Chrome: alpha 0-360
+            // 1. iOS WebKit 專屬絕對方位角 (0-360, 0=正北)
+            if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+                heading = e.webkitCompassHeading;
+            } else if (e.alpha !== null && e.alpha !== undefined) {
+                // 2. Android Chrome: 依據 absolute 旗標或 alpha 計算
                 heading = (360 - e.alpha) % 360;
             }
+
             if (heading !== null && !isNaN(heading)) {
                 setCompassHeading(Math.round(heading));
             }
         };
 
-        if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
-            window.addEventListener('deviceorientation', handleOrientation, true);
-        }
-        return () => {
-            if (typeof window !== 'undefined') {
-                window.removeEventListener('deviceorientation', handleOrientation, true);
+        window.addEventListener('deviceorientation', handleOrientation, true);
+        window.addEventListener('deviceorientationabsolute' as any, handleOrientation, true);
+    };
+
+    // 請求手機羅盤權限 (iOS 13+ 必須由使用者點擊按鈕主動請求授權)
+    const requestCompass = async () => {
+        if (typeof window === 'undefined') return;
+
+        if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
+            try {
+                const response = await (DeviceOrientationEvent as any).requestPermission();
+                if (response === 'granted') {
+                    startCompassListener();
+                } else {
+                    showAlert('未取得手機動作與方向感應權限。\n\n請至 iPhone【設定】>【Safari】> 開啟【動作與方向取用權限】後重試。', '羅盤未啟用');
+                }
+            } catch (err: any) {
+                console.error('Compass permission error:', err);
+                showAlert('啟動羅盤感測器失敗，請確認瀏覽器支援情況。', '啟動失敗');
             }
-        };
+        } else {
+            // Android 或非 iOS 系統直接啟動
+            startCompassListener();
+        }
+    };
+
+    // 掛載時非 iOS 直接嘗試啟動監聽
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+            if (typeof (DeviceOrientationEvent as any)?.requestPermission !== 'function') {
+                startCompassListener();
+            }
+        }
     }, []);
 
     // Transform State
@@ -1013,12 +1039,21 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                     <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
                             <Navigation className="w-4 h-4 text-red-500 animate-pulse" />
-                            <span>巡檢實時導航模式</span>
-                            {compassHeading !== null && (
-                                <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 flex items-center gap-1">
+                            <span>巡檢實時導航</span>
+                            {compassHeading !== null ? (
+                                <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
                                     <Compass className="w-3 h-3 text-emerald-400" />
                                     {compassHeading}°
                                 </span>
+                            ) : (
+                                <button
+                                    onClick={requestCompass}
+                                    className="text-[10px] bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer animate-pulse"
+                                    title="點擊啟用手機陀螺儀羅盤"
+                                >
+                                    <Compass className="w-3 h-3" />
+                                    點我啟用羅盤轉向
+                                </button>
                             )}
                         </div>
                         <button
@@ -1069,6 +1104,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                         setIsNavActive(prev => !prev);
                         if (!isNavActive && userLocation) {
                             focusMarker(userLocation.x, userLocation.y);
+                        }
+                        if (compassHeading === null) {
+                            requestCompass();
                         }
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-90 flex items-center gap-1.5 shrink-0 cursor-pointer ${
