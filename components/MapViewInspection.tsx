@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -93,6 +93,43 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
     const [renderKey, setRenderKey] = useState(0);
 
+    // 方案 C: 導航模式狀態與手機實體羅盤
+    const [isNavActive, setIsNavActive] = useState(true);
+    const [userLocation, setUserLocation] = useState<{
+        x: number;
+        y: number;
+        markerId?: string;
+        name: string;
+        barcode: string;
+    } | null>(null);
+    const [compassHeading, setCompassHeading] = useState<number | null>(null);
+
+    // 監聽手機實體陀螺儀 / 指南針（純硬體晶片，零網路亦可運作）
+    useEffect(() => {
+        const handleOrientation = (e: DeviceOrientationEvent) => {
+            let heading: number | null = null;
+            // iOS WebKit
+            if ((e as any).webkitCompassHeading !== undefined) {
+                heading = (e as any).webkitCompassHeading;
+            } else if (e.alpha !== null) {
+                // Android Chrome: alpha 0-360
+                heading = (360 - e.alpha) % 360;
+            }
+            if (heading !== null && !isNaN(heading)) {
+                setCompassHeading(Math.round(heading));
+            }
+        };
+
+        if (typeof window !== 'undefined' && window.DeviceOrientationEvent) {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+        }
+        return () => {
+            if (typeof window !== 'undefined') {
+                window.removeEventListener('deviceorientation', handleOrientation, true);
+            }
+        };
+    }, []);
+
     // Transform State
     const [zoom, setZoom] = useState(1);
     const [rotation, setRotation] = useState(0);
@@ -129,6 +166,71 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         setCurrentMap(map);
         setViewMode('INSPECT');
         setRotation(map.rotation || 0);
+
+        // 初始化導航定位：若地圖有標註點，設定預設所在位置
+        if (map.markers && map.markers.length > 0) {
+            const firstMarker = map.markers.find(m => m.equipmentId) || map.markers[0];
+            if (firstMarker) {
+                const eq = allEquipment.find(e => e.barcode === firstMarker.equipmentId || e.id === firstMarker.equipmentId);
+                setUserLocation({
+                    x: firstMarker.x,
+                    y: firstMarker.y,
+                    markerId: firstMarker.id,
+                    name: eq?.name || firstMarker.equipmentId || '初始起點',
+                    barcode: eq?.barcode || firstMarker.equipmentId || ''
+                });
+            }
+        }
+    };
+
+    // 智能推薦：從當前所在位置計算「下一個最接近的待檢查設備」
+    const nextTarget = useMemo(() => {
+        if (!userLocation || !currentMap?.markers || currentMap.markers.length === 0) return null;
+
+        const candidates = currentMap.markers.filter(m => m.id !== userLocation.markerId && m.equipmentId);
+        if (candidates.length === 0) return null;
+
+        const pending: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
+        const canInspect: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
+        const others: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
+
+        const today = new Date().setHours(0, 0, 0, 0);
+        const targetBuildingName = currentMap.name;
+        const todayReport = reports.find(r => r.buildingName === targetBuildingName && r.date >= today);
+
+        candidates.forEach(m => {
+            const eq = allEquipment.find(e => e.barcode === m.equipmentId || e.id === m.equipmentId);
+            if (!eq) return;
+
+            const isDone = (todayReport?.items || []).some((i: any) => i.equipmentId === eq.id) || inspectedOverrides[m.equipmentId];
+            if (isDone) return; // 今日已完成的設備不重複推薦
+
+            const status = getFrequencyStatus(eq, lightSettings);
+            const dist = Math.hypot(m.x - userLocation.x, m.y - userLocation.y);
+
+            if (status === 'PENDING') {
+                pending.push({ marker: m, dist, eq });
+            } else if (status === 'CAN_INSPECT') {
+                canInspect.push({ marker: m, dist, eq });
+            } else {
+                others.push({ marker: m, dist, eq });
+            }
+        });
+
+        // 優先度：紅燈（需檢查） > 黃燈（可檢查） > 其他未檢
+        const pool = pending.length > 0 ? pending : canInspect.length > 0 ? canInspect : others;
+        if (pool.length === 0) return null;
+
+        // 依幾何直線距離由近到遠排序
+        pool.sort((a, b) => a.dist - b.dist);
+        return pool[0];
+    }, [userLocation, currentMap, allEquipment, lightSettings, reports, inspectedOverrides]);
+
+    const focusMarker = (targetX: number, targetY: number) => {
+        const dx = (50 - targetX) * 4;
+        const dy = (50 - targetY) * 4;
+        setPosition({ x: dx, y: dy });
+        setZoom(1.5);
     };
 
     const handleMarkerClick = (marker: EquipmentMarker) => {
@@ -142,6 +244,15 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             showAlert(`找不到設備編號或代碼 ${marker.equipmentId}`);
             return;
         }
+
+        // 點擊標註點時同步更新導航定位
+        setUserLocation({
+            x: marker.x,
+            y: marker.y,
+            markerId: marker.id,
+            name: equipment.name,
+            barcode: equipment.barcode
+        });
 
         // 1. 檢查是否已檢查過 (Override、報表中已存在或 COMPLETED)
         const overrideTime = inspectedOverrides[marker.equipmentId] || inspectedOverrides[equipment.id];
@@ -221,6 +332,18 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             showAlert(`找不到設備編號 ${barcode}`);
             setSelectedMarker(null);
             return;
+        }
+
+        // 掃描條碼成功，立即更新當前導航位置到該設備
+        const targetMarker = selectedMarker || currentMap?.markers.find(m => m.equipmentId === equipment.barcode || m.equipmentId === equipment.id);
+        if (targetMarker) {
+            setUserLocation({
+                x: targetMarker.x,
+                y: targetMarker.y,
+                markerId: targetMarker.id,
+                name: equipment.name,
+                barcode: equipment.barcode
+            });
         }
 
         // Load check items
@@ -777,6 +900,30 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                 draggable={false}
                                 onDragStart={(e) => e.preventDefault()}
                             />
+
+                            {/* 方案 C: 導航動態虛線路線 (連接當前所在位置與下一個推薦目標) */}
+                            {isNavActive && userLocation && nextTarget && (
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
+                                    <defs>
+                                        <linearGradient id="navLineGrad" x1={`${userLocation.x}%`} y1={`${userLocation.y}%`} x2={`${nextTarget.marker.x}%`} y2={`${nextTarget.marker.y}%`} gradientUnits="userSpaceOnUse">
+                                            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.9" />
+                                            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.9" />
+                                        </linearGradient>
+                                    </defs>
+                                    <line
+                                        x1={`${userLocation.x}%`}
+                                        y1={`${userLocation.y}%`}
+                                        x2={`${nextTarget.marker.x}%`}
+                                        y2={`${nextTarget.marker.y}%`}
+                                        stroke="url(#navLineGrad)"
+                                        strokeWidth="3.5"
+                                        strokeDasharray="6 4"
+                                        strokeLinecap="round"
+                                    >
+                                        <animate attributeName="stroke-dashoffset" from="40" to="0" dur="1s" repeatCount="indefinite" />
+                                    </line>
+                                </svg>
+                            )}
                             {/* Markers */}
                             {currentMap.markers.map(marker => {
                                 // 所有標註點均可點擊（由 handleMarkerClick 統一處理未到期強制檢查、已完成提醒或一般檢查）
@@ -809,13 +956,132 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     </button>
                                 );
                             })}
+
+                            {/* 方案 C: 當前巡檢位置紅點 + 手機實體羅盤視角光錐 */}
+                            {isNavActive && userLocation && (
+                                <div
+                                    className="absolute pointer-events-none z-30 transition-all duration-300"
+                                    style={{
+                                        left: `${userLocation.x}%`,
+                                        top: `${userLocation.y}%`,
+                                        transform: `translate(-50%, -50%) scale(${1 / zoom})`
+                                    }}
+                                >
+                                    {/* 手機實體羅盤朝向光錐（純硬體偵測，免網路） */}
+                                    <div
+                                        className="absolute -inset-12 flex items-center justify-center transition-transform duration-100 ease-linear pointer-events-none"
+                                        style={{
+                                            transform: `rotate(${((compassHeading || 0) - rotation)}deg)`
+                                        }}
+                                    >
+                                        {/* 扇形探索光錐 */}
+                                        <div
+                                            className="w-20 h-24 -top-12 absolute opacity-70 pointer-events-none"
+                                            style={{
+                                                background: 'radial-gradient(ellipse at 50% 100%, rgba(239, 68, 68, 0.45) 0%, rgba(239, 68, 68, 0) 70%)',
+                                                clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)'
+                                            }}
+                                        />
+                                        {/* 頂端方向導引箭頭 */}
+                                        <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[10px] border-b-red-600 -top-4 absolute drop-shadow-md" />
+                                    </div>
+
+                                    {/* 雷達波紋動畫 (Radar Ping) */}
+                                    <div className="absolute -inset-3.5 rounded-full bg-red-500/40 animate-ping pointer-events-none" />
+                                    <div className="absolute -inset-2 rounded-full bg-red-500/25 animate-pulse pointer-events-none" />
+
+                                    {/* 實體中心紅點 (Google Maps 風格) */}
+                                    <div className="relative w-5 h-5 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center ring-2 ring-red-400">
+                                        <div className="w-2 h-2 rounded-full bg-white shadow-inner" />
+                                    </div>
+
+                                    {/* 當前位置氣泡標籤 */}
+                                    <div className="absolute top-6 left-1/2 -translate-x-1/2 px-2.5 py-1 bg-slate-900/90 backdrop-blur-md text-white text-[10px] font-bold rounded-full whitespace-nowrap shadow-xl border border-red-500/40 flex items-center gap-1.5 pointer-events-auto">
+                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+                                        <span className="truncate max-w-[130px]">{userLocation.name}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             </div>
 
+            {/* 方案 C: 頂部導航資訊卡 (HUD) */}
+            {isNavActive && userLocation && (
+                <div className="absolute top-16 left-4 right-4 sm:left-auto sm:right-4 sm:w-96 z-40 bg-slate-900/90 backdrop-blur-md text-white rounded-2xl p-3 shadow-2xl border border-slate-700/80 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-red-400">
+                            <Navigation className="w-4 h-4 text-red-500 animate-pulse" />
+                            <span>巡檢實時導航模式</span>
+                            {compassHeading !== null && (
+                                <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 flex items-center gap-1">
+                                    <Compass className="w-3 h-3 text-emerald-400" />
+                                    {compassHeading}°
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setIsNavActive(false)}
+                            className="text-slate-400 hover:text-white text-xs font-bold px-2 py-0.5 hover:bg-slate-800 rounded transition-colors cursor-pointer"
+                        >
+                            關閉
+                        </button>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between text-slate-300">
+                            <span className="text-slate-400">目前所在：</span>
+                            <span className="font-bold text-white truncate max-w-[200px]">{userLocation.name}</span>
+                        </div>
+
+                        {nextTarget ? (
+                            <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <div className="text-[10px] text-slate-400">下一個推薦目標：</div>
+                                    <div className="font-bold text-amber-300 text-sm truncate flex items-center gap-1">
+                                        <span>{nextTarget.eq.name}</span>
+                                        <span className="text-[10px] text-slate-400 font-mono">({nextTarget.eq.barcode})</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => focusMarker(nextTarget.marker.x, nextTarget.marker.y)}
+                                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-md transition-all shrink-0 cursor-pointer"
+                                >
+                                    <Crosshair className="w-3.5 h-3.5" />
+                                    聚焦目標
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="pt-2 border-t border-slate-800 text-emerald-400 font-bold flex items-center gap-1 text-xs">
+                                <CheckCircle className="w-4 h-4" />
+                                <span>地圖上所有設備皆已巡檢完成！</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             {/* Floating Controls Toolbar (RWD Optimized) */}
             <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-2 bg-white/90 backdrop-blur shadow-2xl rounded-full px-4 py-2 sm:px-4 sm:py-2 border border-slate-200 z-40 max-w-[98vw] overflow-x-auto no-scrollbar [&::-webkit-scrollbar]:hidden">
+                <button
+                    onClick={() => {
+                        setIsNavActive(prev => !prev);
+                        if (!isNavActive && userLocation) {
+                            focusMarker(userLocation.x, userLocation.y);
+                        }
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-90 flex items-center gap-1.5 shrink-0 cursor-pointer ${
+                        isNavActive
+                            ? 'bg-red-500 text-white shadow-md shadow-red-500/30'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    }`}
+                    title="切換巡檢導航模式"
+                >
+                    <Navigation className="w-3.5 h-3.5" />
+                    <span>導航</span>
+                </button>
+                <div className="w-px h-5 sm:h-4 bg-slate-300 mx-1 shrink-0"></div>
                 <button
                     onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
                     className="p-2 sm:p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors active:scale-90"
