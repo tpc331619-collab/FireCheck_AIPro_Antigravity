@@ -56,6 +56,8 @@ export interface InspectionItem {
   abnormalItems?: string[]; // List of original abnormal items (preserved even after repair)
   inspectionDate?: number; // Original inspection/discovery date
   tags?: string[]; // Snapshot of tags at time of inspection
+  isForced?: boolean; // 未到期提前強制檢查
+  forcedFromDueDate?: number; // 強制檢查當下原本的下次到期日 (稽核用)
 }
 
 export interface InspectionStats {

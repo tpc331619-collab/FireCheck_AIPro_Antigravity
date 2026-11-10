@@ -51,6 +51,8 @@ interface TimelineEntry {
     abnormalValue?: string;
     fixedDate?: number;
     fixedNotes?: string;
+    isForced?: boolean;
+    forcedFromDueDate?: number;
     checkResults?: Array<{
         name: string;
         value: string;
@@ -164,7 +166,9 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
                     abnormalValue: matchedAbnormal?.abnormalValue,
                     fixedDate: matchedAbnormal?.fixedDate || (item as any).repairDate,
                     fixedNotes: matchedAbnormal?.fixedNotes || (item as any).repairNotes,
-                    checkResults: item.checkResults
+                    checkResults: item.checkResults,
+                    isForced: item.isForced,
+                    forcedFromDueDate: item.forcedFromDueDate
                 });
             });
         });
@@ -179,7 +183,7 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
                     id: `AB_${ar.id}`,
                     date: ar.inspectionDate,
                     status: ar.status === 'fixed' ? 'FIXED' : 'ABNORMAL',
-                    inspectorName: ar.inspectorName || '檢查員',
+                    inspectorName: (ar as any).inspectorName || '檢查員',
                     abnormalReason: ar.abnormalReason,
                     abnormalItems: ar.abnormalItems,
                     abnormalValue: ar.abnormalValue,
@@ -434,11 +438,19 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
                                                         }`}
                                                     >
                                                         {isNormal
-                                                            ? '✓ 定期檢查正常'
+                                                            ? (entry.isForced ? '✓ 提前檢查正常' : '✓ 定期檢查正常')
                                                             : isFixed
                                                             ? '🔧 異常複檢已修復'
-                                                            : '⚠️ 檢查發現異常'}
+                                                            : (entry.isForced ? '⚠️ 提前檢查發現異常' : '⚠️ 檢查發現異常')}
                                                     </span>
+                                                    {entry.isForced && (
+                                                        <span
+                                                            className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-amber-500/10 text-amber-700 border border-amber-300 rounded-md text-[11px] font-extrabold cursor-help"
+                                                            title={entry.forcedFromDueDate ? `原定到期日: ${new Date(entry.forcedFromDueDate).toLocaleDateString(language)}` : '提前強制檢查'}
+                                                        >
+                                                            ⚡提前
+                                                        </span>
+                                                    )}
                                                     <span className="text-xs font-bold text-slate-700 font-mono">
                                                         {new Date(entry.date).toLocaleDateString(language)}
                                                     </span>

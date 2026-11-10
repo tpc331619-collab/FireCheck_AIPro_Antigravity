@@ -2711,9 +2711,17 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 <div className={`bg-white rounded-3xl w-full ${settingsTab === 'DECLARATION' ? 'max-w-2xl' : 'max-w-lg'} shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[88vh]`}>
                                     {/* Modal Header */}
                                     <div className={`p-6 border-b flex justify-between items-center shrink-0 ${activeModal.type === 'INSPECTION' ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'}`}>
-                                        <h3 className={`font-bold text-lg flex items-center gap-2 ${activeModal.type === 'INSPECTION' ? 'text-blue-800' : 'text-red-800'}`}>
+                                        <h3 className={`font-bold text-lg flex items-center gap-2 flex-wrap ${activeModal.type === 'INSPECTION' ? 'text-blue-800' : 'text-red-800'}`}>
                                             {activeModal.type === 'INSPECTION' ? <ClipboardList className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-                                            {activeModal.type === 'INSPECTION' ? '詳細查檢紀錄' : '異常複檢資訊'}
+                                            <span>{activeModal.type === 'INSPECTION' ? '詳細查檢紀錄' : '異常複檢資訊'}</span>
+                                            {activeModal.item?.isForced && (
+                                                <span
+                                                    className="px-2.5 py-0.5 bg-amber-500/10 text-amber-700 border border-amber-300 rounded-full text-xs font-bold"
+                                                    title={activeModal.item.forcedFromDueDate ? `原定到期日: ${new Date(activeModal.item.forcedFromDueDate).toLocaleDateString('zh-TW')}` : '提前強制檢查'}
+                                                >
+                                                    ⚡提前
+                                                </span>
+                                            )}
                                         </h3>
                                         <button
                                             onClick={() => setActiveModal(null)}
@@ -2725,6 +2733,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                     {/* Modal Content */}
                                     <div className="p-0 overflow-y-auto custom-scrollbar flex-1">
+                                        {activeModal.item?.isForced && (
+                                            <div className="m-4 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium flex items-center gap-2">
+                                                <span>⚡ <strong>提前強制檢查紀錄</strong>：此設備在週期未到期前執行提前檢查{activeModal.item.forcedFromDueDate ? `（原定到期日：${new Date(activeModal.item.forcedFromDueDate).toLocaleDateString('zh-TW')}）` : ''}，下次檢查週期已依當天重算。</span>
+                                            </div>
+                                        )}
                                         {activeModal.type === 'INSPECTION' ? (
                                             <div className="p-0">
                                                 {/* Inspection Table View */}

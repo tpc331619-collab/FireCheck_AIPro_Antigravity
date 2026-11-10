@@ -13,6 +13,8 @@ export interface ExportItem {
     notes?: string;
     inspectorName?: string;
     checkResults?: any[];
+    isForced?: boolean;
+    forcedFromDueDate?: number;
 }
 
 const formatStatus = (status: string) => {
@@ -55,8 +57,24 @@ export const exportToExcel = async (
         building: { title: '建築物', getValue: (item) => item.buildingName || '', defaultWidth: 18 },
         equipment: { title: '設備名稱', getValue: (item) => item.name, defaultWidth: 22 },
         barcode: { title: '條碼編號', getValue: (item) => item.barcode, defaultWidth: 16 },
-        result: { title: '檢查結果', getValue: (item) => formatStatus(item.status), defaultWidth: 12 },
-        notes: { title: '備註', getValue: (item) => item.notes || '', defaultWidth: 30 },
+        result: {
+            title: '檢查結果',
+            getValue: (item) => {
+                const base = formatStatus(item.status);
+                return item.isForced ? `${base} (⚡提前)` : base;
+            },
+            defaultWidth: 15
+        },
+        notes: {
+            title: '備註',
+            getValue: (item) => {
+                const forcedPrefix = item.isForced
+                    ? (item.forcedFromDueDate ? `[⚡提前強制檢查, 原到期: ${formatDate(item.forcedFromDueDate)}] ` : '[⚡提前強制檢查] ')
+                    : '';
+                return `${forcedPrefix}${item.notes || ''}`.trim();
+            },
+            defaultWidth: 32
+        },
         inspector: { title: '檢查人員', getValue: (item) => item.inspectorName || '', defaultWidth: 14 }
     };
 

@@ -3,7 +3,7 @@ import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Sa
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
-import { getFrequencyStatus } from '../utils/inspectionUtils';
+import { getFrequencyStatus, getNextInspectionDate } from '../utils/inspectionUtils';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useLightSettings, HISTORY_KEYS, EQUIPMENT_KEYS } from '../hooks/useSystemData';
 import CustomAlertModal from './CustomAlertModal';
@@ -66,11 +66,16 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         type?: 'alert' | 'confirm' | 'success';
         onConfirm: () => void;
         onCancel?: () => void;
+        secondaryText?: string;
+        onSecondary?: () => void;
     }>({
         isOpen: false,
         message: '',
         onConfirm: () => { }
     });
+
+    // 未到期提前強制檢查：記錄當下原本的到期日 (null = 一般檢查)
+    const [forcedDueDate, setForcedDueDate] = useState<number | null>(null);
 
     const showAlert = (message: string, title?: string, type: 'alert' | 'success' = 'alert') => {
         setAlertConfig({
@@ -128,6 +133,58 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             showAlert('此標註點尚未綁定設備');
             return;
         }
+
+        const equipment = allEquipment.find(e => e.barcode === marker.equipmentId || e.id === marker.equipmentId);
+        if (!equipment) {
+            showAlert(`找不到設備編號或代碼 ${marker.equipmentId}`);
+            return;
+        }
+
+        // 1. 檢查是否已檢查過 (Override、報表中已存在或 COMPLETED)
+        const overrideTime = inspectedOverrides[marker.equipmentId] || inspectedOverrides[equipment.id];
+        const isOverridden = overrideTime && (Date.now() - overrideTime < 24 * 60 * 60 * 1000);
+        const freqStatus = getFrequencyStatus(equipment, lightSettings);
+
+        const today = new Date().setHours(0, 0, 0, 0);
+        const targetBuildingName = equipment.buildingName || currentMap?.name;
+        const todayReport = reports.find(r => r.buildingName === targetBuildingName && r.date >= today);
+        const inspectionItem = (todayReport?.items || []).find((i: any) => i.equipmentId === equipment.id);
+
+        if (isOverridden || freqStatus === 'COMPLETED' || inspectionItem) {
+            const timeStr = inspectionItem?.timestamp
+                ? new Date(inspectionItem.timestamp).toLocaleString()
+                : overrideTime
+                    ? new Date(overrideTime).toLocaleString()
+                    : (equipment.lastInspectedDate ? new Date(equipment.lastInspectedDate).toLocaleString() : '已完成');
+            showAlert(
+                `設備「${equipment.name}」已經檢查過了\n\n檢查時間: ${timeStr}\n\n如需修改，請從清單中點選該設備。`,
+                '無法檢查'
+            );
+            return;
+        }
+
+        // 2. 檢查是否不需檢查 (未到期綠燈 -> 提供強制檢查按鈕)
+        if (freqStatus === 'UNNECESSARY') {
+            const dueDate = getNextInspectionDate(equipment);
+            setAlertConfig({
+                isOpen: true,
+                title: '不需檢查',
+                message: `設備「${equipment.name}」目前不需要檢查\n\n下次檢查日期: ${new Date(dueDate).toLocaleDateString()}\n\n⚠️ 強制檢查後，下次到期日將從今天重新起算。`,
+                type: 'alert',
+                secondaryText: '⚡ 強制檢查此設備',
+                onSecondary: () => {
+                    setAlertConfig(prev => ({ ...prev, isOpen: false }));
+                    setForcedDueDate(dueDate);
+                    setSelectedMarker(marker);
+                    setIsScanningBarcode(true);
+                },
+                onConfirm: () => setAlertConfig(prev => ({ ...prev, isOpen: false }))
+            });
+            return;
+        }
+
+        // 3. 正常需檢查 / 可檢查
+        setForcedDueDate(null);
         setSelectedMarker(marker);
         setIsScanningBarcode(true);
     };
@@ -289,7 +346,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 notes: notes || '',
                 tags: inspectingTags, // Snapshot tags
                 // Photo upload removed
-                lastUpdated: now
+                lastUpdated: now,
+                ...(forcedDueDate ? { isForced: true, forcedFromDueDate: forcedDueDate } : {})
             };
 
             // 3. Deep Sanitation (Crucial for Firebase)
@@ -488,6 +546,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             // But realistically, user will just try again.
         } finally {
             setTimeout(() => {
+                setForcedDueDate(null);
                 setCurrentEquipment(null);
                 setSelectedMarker(null);
                 setCheckResults({});
@@ -664,6 +723,8 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 message={alertConfig.message}
                 type={alertConfig.type}
                 onConfirm={alertConfig.onConfirm}
+                secondaryText={alertConfig.secondaryText}
+                onSecondary={alertConfig.onSecondary}
                 onCancel={alertConfig.onCancel}
             />
 
@@ -693,34 +754,14 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             />
                             {/* Markers */}
                             {currentMap.markers.map(marker => {
-                                // Determine status for interaction logic
-                                let isInteractable = true;
-                                const equipment = allEquipment.find(e => e.barcode === marker.equipmentId);
-
-                                if (equipment) {
-                                    // 1. Check Override (Optimistic Completed)
-                                    const overrideTime = inspectedOverrides[marker.equipmentId] || inspectedOverrides[equipment.id];
-                                    const isOverridden = overrideTime && (Date.now() - overrideTime < 24 * 60 * 60 * 1000);
-
-                                    // 2. Check Real Status
-                                    const freqStatus = getFrequencyStatus(equipment, lightSettings);
-
-                                    // Disable if Completed (Real or Optimistic) or Unnecessary
-                                    // Exception: If it is Abnormal, we might still want to allow clicking? 
-                                    // User said "Completed" or "Unnecessary" cannot be clicked.
-                                    // Usually "Abnormal" shows as Orange/Red, distinct from Completed/Unnecessary (Green).
-                                    // We assume Abnormal should still be clickable if needed, but if the status *category* is Completed, it overrides.
-                                    // Actually, let's stick to the color logic: Green = No Click.
-
-                                    if (isOverridden || freqStatus === 'COMPLETED' || freqStatus === 'UNNECESSARY') {
-                                        isInteractable = false;
-                                    }
-                                }
+                                // 所有標註點均可點擊（由 handleMarkerClick 統一處理未到期強制檢查、已完成提醒或一般檢查）
+                                const equipment = allEquipment.find(e => e.barcode === marker.equipmentId || e.id === marker.equipmentId);
+                                const isInteractable = !!marker.equipmentId;
 
                                 return (
                                     <button
                                         key={`${marker.id}-${renderKey}`}
-                                        onClick={() => isInteractable && handleMarkerClick(marker)}
+                                        onClick={() => handleMarkerClick(marker)}
                                         disabled={!isInteractable}
                                         // Optimized Sizes for RWD (Matches Editor)
                                         // Mobile: w-3 h-3 (12px), text-[6px]

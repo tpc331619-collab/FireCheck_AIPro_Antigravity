@@ -15,6 +15,8 @@ interface HistoryItem {
     checkResults?: any[];
     repairDate?: number; // Changed from string to number to match InspectionItem
     repairNotes?: string;
+    isForced?: boolean;
+    forcedFromDueDate?: number;
 }
 
 interface HistoryTableProps {
@@ -149,28 +151,46 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
     // Helper to render status badge
     const renderStatusBadge = (item: HistoryItem) => {
-        const { status, repairDate } = item;
+        const { status, repairDate, isForced, forcedFromDueDate } = item;
         const isFixed = repairDate || status === 'Fixed' || status === '已改善';
 
+        let badge = null;
         if (isFixed) {
-            return (
+            badge = (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
                     <CheckCircle className="w-3.5 h-3.5" /> 已改善
                 </span>
             );
         } else if (status === 'Abnormal' || status === '異常') {
-            return (
+            badge = (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
                     <AlertTriangle className="w-3.5 h-3.5" /> 異常
                 </span>
             );
         } else {
-            return (
+            badge = (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
                     <CheckCircle className="w-3.5 h-3.5" /> 正常
                 </span>
             );
         }
+
+        if (isForced) {
+            const tip = forcedFromDueDate ? `原定到期日: ${new Date(forcedFromDueDate).toLocaleDateString('zh-TW')}` : '提前強制檢查';
+            return (
+                <div className="inline-flex items-center gap-1.5 flex-wrap">
+                    {badge}
+                    <span
+                        className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-600 rounded-full text-[11px] font-extrabold shadow-xs cursor-help"
+                        title={tip}
+                    >
+                        ⚡提前
+                    </span>
+                </div>
+            );
+        }
+
+        return badge;
     };
 
     // Helper to render date

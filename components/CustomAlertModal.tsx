@@ -12,6 +12,8 @@ interface CustomAlertModalProps {
     onCancel?: () => void;
     confirmText?: string;
     cancelText?: string;
+    secondaryText?: string;
+    onSecondary?: () => void;
 }
 
 const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
@@ -22,9 +24,17 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
     onConfirm,
     onCancel,
     confirmText,
-    cancelText
+    cancelText,
+    secondaryText,
+    onSecondary
 }) => {
     const { t } = useLanguage();
+    const isClosingRef = useRef(false);
+
+    // 每次重新開啟時重置，避免第二次開啟後關閉鈕失效
+    useEffect(() => {
+        if (isOpen) isClosingRef.current = false;
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -49,8 +59,6 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
                 return 'from-red-600 to-rose-600';
         }
     };
-
-    const isClosingRef = useRef(false);
 
     const handleClose = (e: React.MouseEvent | React.TouchEvent | React.PointerEvent) => {
         e.preventDefault();
@@ -115,6 +123,22 @@ const CustomAlertModal: React.FC<CustomAlertModalProps> = ({
                 </div>
 
                 <div className="px-6 pb-8 flex flex-col gap-3">
+                    {onSecondary && secondaryText && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (isClosingRef.current) return;
+                                isClosingRef.current = true;
+                                onSecondary();
+                            }}
+                            className="w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all active:scale-95 cursor-pointer bg-amber-500 hover:bg-amber-600"
+                            style={{ backgroundColor: '#f59e0b', color: '#ffffff', isolation: 'isolate', touchAction: 'manipulation' }}
+                        >
+                            {secondaryText}
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={handleClose}

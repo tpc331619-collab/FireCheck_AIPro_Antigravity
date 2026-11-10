@@ -106,11 +106,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         type?: 'alert' | 'confirm' | 'success';
         onConfirm: () => void;
         onCancel?: () => void;
+        secondaryText?: string;
+        onSecondary?: () => void;
     }>({
         isOpen: false,
         message: '',
         onConfirm: () => { }
     });
+
+    // 未到期提前強制檢查：記錄當下原本的到期日 (null = 一般檢查)
+    const [forcedDueDate, setForcedDueDate] = useState<number | null>(null);
 
     const showAlert = (message: string, title?: string, type: 'alert' | 'success' = 'alert') => {
         setAlertConfig({
@@ -349,13 +354,27 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         }
 
         if (freqStatus === 'UNNECESSARY') {
-            showAlert(
-                `設備「${item.name}」目前不需要檢查\n\n下次檢查日期: ${new Date(getNextInspectionDate(item)).toLocaleDateString()}\n\n如需強制檢查,請從清單中點選該設備。`,
-                '不需檢查'
-            );
+            const dueDate = getNextInspectionDate(item);
+            setAlertConfig({
+                isOpen: true,
+                title: '不需檢查',
+                message: `設備「${item.name}」目前不需要檢查\n\n下次檢查日期: ${new Date(dueDate).toLocaleDateString()}\n\n⚠️ 強制檢查後，下次到期日將從今天重新起算。`,
+                type: 'alert',
+                secondaryText: '⚡ 強制檢查此設備',
+                onSecondary: () => {
+                    setAlertConfig(prev => ({ ...prev, isOpen: false }));
+                    openInspectionForm(item, dueDate);
+                },
+                onConfirm: () => setAlertConfig(prev => ({ ...prev, isOpen: false }))
+            });
             return;
         }
 
+        openInspectionForm(item, null);
+    };
+
+    const openInspectionForm = (item: EquipmentDefinition, forcedFrom: number | null) => {
+        setForcedDueDate(forcedFrom);
         setInspectingItem(item);
         setInspectingTags(item.tags || []);
         setShowTagInput(false); // Reset to closed
@@ -473,7 +492,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             checkFrequency: inspectingItem.checkFrequency,
             checkPoints: sanitizedPoints,
             checkResults: checkResultsSnapshot,
-            lastUpdated: now
+            lastUpdated: now,
+            ...(forcedDueDate ? { isForced: true, forcedFromDueDate: forcedDueDate } : {})
         };
 
         try {
@@ -615,6 +635,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
             }
 
             showToast(`✅ 檢查完成！\n設備：${inspectingItem.name}`);
+            setForcedDueDate(null);
             setInspectingItem(null);
             setActiveInspectionItem(null);
             setInspectingTags([]);
@@ -643,15 +664,6 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     <h1 className="font-bold text-lg text-slate-800">{t('startInspection')}</h1>
                 </div>
             </div>
-
-            <CustomAlertModal
-                isOpen={alertConfig.isOpen}
-                title={alertConfig.title}
-                message={alertConfig.message}
-                type={alertConfig.type}
-                onConfirm={alertConfig.onConfirm}
-                onCancel={alertConfig.onCancel}
-            />
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                 <div className="max-w-3xl mx-auto space-y-6">
@@ -1722,6 +1734,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                                 <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold border border-emerald-200">
                                                                     正常
                                                                 </span>
+                                                                {item.isForced && (
+                                                                    <span
+                                                                        className="px-2 py-0.5 bg-amber-500/10 text-amber-700 border border-amber-300 rounded-full text-[11px] font-bold"
+                                                                        title={item.forcedFromDueDate ? `原定到期日: ${new Date(item.forcedFromDueDate).toLocaleDateString()}` : '提前強制檢查'}
+                                                                    >
+                                                                        ⚡提前
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1908,6 +1928,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                                 <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold border border-orange-200">
                                                                     異常
                                                                 </span>
+                                                                {item.isForced && (
+                                                                    <span
+                                                                        className="px-2 py-0.5 bg-amber-500/10 text-amber-700 border border-amber-300 rounded-full text-[11px] font-bold"
+                                                                        title={item.forcedFromDueDate ? `原定到期日: ${new Date(item.forcedFromDueDate).toLocaleDateString()}` : '提前強制檢查'}
+                                                                    >
+                                                                        ⚡提前
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -2000,6 +2028,8 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 message={alertConfig.message}
                 type={alertConfig.type}
                 onConfirm={alertConfig.onConfirm}
+                secondaryText={alertConfig.secondaryText}
+                onSecondary={alertConfig.onSecondary}
                 onCancel={() => setAlertConfig(prev => ({ ...prev, isOpen: false }))}
             />
 
