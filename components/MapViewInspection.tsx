@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin } from 'lucide-react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -103,6 +103,35 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         barcode: string;
     } | null>(null);
     const [compassHeading, setCompassHeading] = useState<number | null>(null);
+
+    // 羅盤圖面方位偏差校準角 (Compass Calibration Offset)
+    const [compassOffset, setCompassOffset] = useState<number>(() => {
+        try {
+            return Number(localStorage.getItem('compass_calibration_offset') || 0);
+        } catch {
+            return 0;
+        }
+    });
+    const [showCalibrationModal, setShowCalibrationModal] = useState(false);
+
+    const updateCompassOffset = (newOffset: number) => {
+        const normalized = ((newOffset % 360) + 360) % 360;
+        setCompassOffset(normalized);
+        try {
+            localStorage.setItem('compass_calibration_offset', String(normalized));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    // 一鍵將「當前手機朝向」校準為圖面指定方向（例如：90°=右方走廊, 0°=上方, 180°=下方, 270°=左方）
+    const snapCompassToTarget = (targetScreenAngle: number) => {
+        if (compassHeading === null) return;
+        // targetScreenAngle = (compassHeading + offset - rotation) % 360
+        // => offset = targetScreenAngle - compassHeading + rotation
+        const calculatedOffset = targetScreenAngle - compassHeading + rotation;
+        updateCompassOffset(calculatedOffset);
+    };
 
     // 啟動實體陀螺儀 / 指南針監聽
     const startCompassListener = () => {
@@ -221,15 +250,17 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         const others: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
 
         const today = new Date().setHours(0, 0, 0, 0);
-        const targetBuildingName = currentMap.name;
-        const todayReport = reports.find(r => r.buildingName === targetBuildingName && r.date >= today);
 
         candidates.forEach(m => {
             const eq = allEquipment.find(e => e.barcode === m.equipmentId || e.id === m.equipmentId);
             if (!eq) return;
 
-            const isDone = (todayReport?.items || []).some((i: any) => i.equipmentId === eq.id) || inspectedOverrides[m.equipmentId];
-            if (isDone) return; // 今日已完成的設備不重複推薦
+            // 跨所有今日報表精準檢查是否今日已檢查過
+            const isDoneToday = reports.some(r =>
+                r.date >= today && (r.items || []).some((i: any) => i.equipmentId === eq.id)
+            ) || !!inspectedOverrides[m.equipmentId] || !!inspectedOverrides[eq.id];
+
+            if (isDoneToday) return; // 今日已完成的設備不重複推薦
 
             const status = getFrequencyStatus(eq, lightSettings);
             const dist = Math.hypot(m.x - userLocation.x, m.y - userLocation.y);
@@ -902,6 +933,118 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 onCancel={alertConfig.onCancel || (() => setAlertConfig(prev => ({ ...prev, isOpen: false })))}
             />
 
+            {/* 羅盤方位校準彈窗 */}
+            {showCalibrationModal && (
+                <div
+                    className="fixed inset-0 z-[70] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setShowCalibrationModal(false)}
+                >
+                    <div
+                        className="bg-slate-900 text-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border border-slate-700 animate-in zoom-in-95 duration-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                            <div className="flex items-center gap-2">
+                                <Compass className="w-5 h-5 text-amber-400" />
+                                <h3 className="font-bold text-base text-white">校準手機與圖面方位</h3>
+                            </div>
+                            <button
+                                onClick={() => setShowCalibrationModal(false)}
+                                className="p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-slate-300 leading-relaxed mb-4">
+                            手機頂端指向現場走廊或目標時，若與圖面箭頭有偏差，可點選下方<strong>一鍵對齊</strong>：
+                        </p>
+
+                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 mb-4">
+                            <div className="text-[11px] font-bold text-amber-300 mb-2">⚡ 一鍵快速對齊（手機正對該方向時點選）：</div>
+                            <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                                <button
+                                    onClick={() => snapCompassToTarget(90)}
+                                    className="p-2.5 bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 rounded-xl flex items-center justify-center gap-1.5 text-blue-300 active:scale-95 cursor-pointer"
+                                >
+                                    <ArrowRight className="w-4 h-4 text-blue-400" />
+                                    正對圖面右方 (走廊)
+                                </button>
+                                <button
+                                    onClick={() => snapCompassToTarget(0)}
+                                    className="p-2.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center gap-1.5 text-slate-200 active:scale-95 cursor-pointer"
+                                >
+                                    <ArrowUp className="w-4 h-4 text-emerald-400" />
+                                    正對圖面上方
+                                </button>
+                                <button
+                                    onClick={() => snapCompassToTarget(270)}
+                                    className="p-2.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center gap-1.5 text-slate-200 active:scale-95 cursor-pointer"
+                                >
+                                    <ArrowLeft className="w-4 h-4 text-purple-400" />
+                                    正對圖面左方
+                                </button>
+                                <button
+                                    onClick={() => snapCompassToTarget(180)}
+                                    className="p-2.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 rounded-xl flex items-center justify-center gap-1.5 text-slate-200 active:scale-95 cursor-pointer"
+                                >
+                                    <ArrowDown className="w-4 h-4 text-amber-400" />
+                                    正對圖面下方
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 微調控制 */}
+                        <div className="space-y-2 mb-4">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-400">手動微調旋轉偏差：</span>
+                                <span className="font-mono font-bold text-amber-400">+{compassOffset}°</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => updateCompassOffset(compassOffset - 15)}
+                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
+                                >
+                                    -15°
+                                </button>
+                                <button
+                                    onClick={() => updateCompassOffset(compassOffset - 5)}
+                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
+                                >
+                                    -5°
+                                </button>
+                                <button
+                                    onClick={() => updateCompassOffset(0)}
+                                    className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-400 flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                    歸零
+                                </button>
+                                <button
+                                    onClick={() => updateCompassOffset(compassOffset + 5)}
+                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
+                                >
+                                    +5°
+                                </button>
+                                <button
+                                    onClick={() => updateCompassOffset(compassOffset + 15)}
+                                    className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-bold text-slate-300 cursor-pointer"
+                                >
+                                    +15°
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => setShowCalibrationModal(false)}
+                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-lg active:scale-95 transition-all text-sm cursor-pointer"
+                        >
+                            完成校準並儲存
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Map Container */}
             <div className="flex-1 overflow-hidden relative bg-slate-800 touch-none cursor-move select-none">
                 <div
@@ -997,7 +1140,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     <div
                                         className="absolute -inset-12 flex items-center justify-center transition-transform duration-100 ease-linear pointer-events-none"
                                         style={{
-                                            transform: `rotate(${((compassHeading || 0) - rotation)}deg)`
+                                            transform: `rotate(${((compassHeading || 0) + compassOffset - rotation)}deg)`
                                         }}
                                     >
                                         {/* 扇形探索光錐 */}
@@ -1041,10 +1184,20 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                             <Navigation className="w-4 h-4 text-red-500 animate-pulse" />
                             <span>巡檢實時導航</span>
                             {compassHeading !== null ? (
-                                <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
-                                    <Compass className="w-3 h-3 text-emerald-400" />
-                                    {compassHeading}°
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] text-slate-300 font-mono bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 flex items-center gap-1">
+                                        <Compass className="w-3 h-3 text-emerald-400" />
+                                        {((compassHeading + compassOffset - rotation + 360) % 360)}°
+                                    </span>
+                                    <button
+                                        onClick={() => setShowCalibrationModal(true)}
+                                        className="text-[10px] bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-300 border border-amber-400/40 font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 cursor-pointer"
+                                        title="校準手機朝向與地圖方向"
+                                    >
+                                        <Sliders className="w-2.5 h-2.5 text-amber-400" />
+                                        校準方位
+                                    </button>
+                                </div>
                             ) : (
                                 <button
                                     onClick={requestCompass}
