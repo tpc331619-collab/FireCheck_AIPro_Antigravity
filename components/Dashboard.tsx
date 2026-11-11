@@ -53,6 +53,8 @@ import {
     Database,
     History,
     Clock,
+    Building2,
+    Tag,
     RefreshCw,
     PlayCircle,
     Wrench,
@@ -458,9 +460,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     const [healthIndicators, setHealthIndicators] = useState<HealthIndicator[]>([]);
     const [editingHealthIndicator, setEditingHealthIndicator] = useState<HealthIndicator | null>(null);
+    const [expandedHealthIds, setExpandedHealthIds] = useState<Set<string>>(new Set());
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isGuestShareModalOpen, setIsGuestShareModalOpen] = useState(false);
     const systemSettings = systemSettingsFromProps || { allowGuestView: false };
+
+    // 每次打開效期追蹤彈窗時，預設保持所有項目閉合不展開
+    useEffect(() => {
+        if (isHealthModalOpen) {
+            setExpandedHealthIds(new Set());
+            setEditingHealthIndicator(null);
+        }
+    }, [isHealthModalOpen]);
 
     const handleManualRefresh = async () => {
         setIsRefreshing(true);
@@ -556,6 +567,52 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         }
     };
 
+
+    const handleApplyReplacementCycle = (customDate?: string) => {
+        if (!editingHealthIndicator) return;
+        const targetDateStr = customDate || editingHealthIndicator.replacementDate;
+        if (!targetDateStr) return;
+
+        const rep = new Date(targetDateStr);
+        if (isNaN(rep.getTime())) return;
+
+        // 計算既有起始與到期之時間差 (週期)，若無則預設 3 年
+        let yearDiff = 3;
+        let monthDiff = 0;
+        let dayDiff = 0;
+
+        if (editingHealthIndicator.startDate && editingHealthIndicator.endDate) {
+            const s = new Date(editingHealthIndicator.startDate);
+            const e = new Date(editingHealthIndicator.endDate);
+            if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && e > s) {
+                yearDiff = e.getFullYear() - s.getFullYear();
+                monthDiff = e.getMonth() - s.getMonth();
+                dayDiff = e.getDate() - s.getDate();
+            }
+        }
+
+        const newEnd = new Date(rep);
+        newEnd.setFullYear(newEnd.getFullYear() + yearDiff);
+        newEnd.setMonth(newEnd.getMonth() + monthDiff);
+        newEnd.setDate(newEnd.getDate() + dayDiff);
+
+        const formatYMD = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        };
+
+        setEditingHealthIndicator(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                replacementDate: targetDateStr,
+                startDate: targetDateStr,
+                endDate: formatYMD(newEnd)
+            };
+        });
+    };
 
     const handleSaveHealthIndicator = async () => {
         if (!user?.uid || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
@@ -2314,7 +2371,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    V 2.7.5
+                                    V 2.8.1
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
@@ -2941,82 +2998,192 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <div className="space-y-6">
                                             <div className="flex justify-between items-center mb-4">
                                                 <h4 className="font-bold text-slate-700">{t('indicatorList')}</h4>
-                                                <button
-                                                    onClick={() => setEditingHealthIndicator({} as HealthIndicator)}
-                                                    className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm shadow-red-200"
-                                                >
-                                                    <Plus className="w-4 h-4" /> {t('addIndicator')}
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    {healthIndicators.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (expandedHealthIds.size === healthIndicators.length) {
+                                                                    setExpandedHealthIds(new Set());
+                                                                } else {
+                                                                    setExpandedHealthIds(new Set(healthIndicators.map(i => i.id)));
+                                                                }
+                                                            }}
+                                                            className="px-2.5 py-1 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all border border-slate-200"
+                                                        >
+                                                            {expandedHealthIds.size === healthIndicators.length ? '全部閉合' : '全部展開'}
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setEditingHealthIndicator({} as HealthIndicator)}
+                                                        className="px-3.5 py-1.5 bg-red-600 text-white rounded-xl text-xs md:text-sm font-bold hover:bg-red-700 transition-colors flex items-center gap-1 shadow-sm shadow-red-200"
+                                                    >
+                                                        <Plus className="w-4 h-4" /> {t('addIndicator')}
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {editingHealthIndicator && (
-                                                <div className="bg-white p-6 rounded-2xl border-l-4 border-l-indigo-500 shadow-lg shadow-indigo-100/50 mb-8 animate-in fade-in slide-in-from-top-2 relative">
-                                                    <h5 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                                        <Edit2 className="w-4 h-4" />
-                                                        {editingHealthIndicator.id ? t('editIndicator') : t('addIndicator')}
-                                                    </h5>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('buildingName')}</label>
-                                                            <input
-                                                                type="text"
-                                                                value={editingHealthIndicator.buildingName || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, buildingName: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                                placeholder={t('enterBuildingName')}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('equipmentName')}</label>
-                                                            <input
-                                                                type="text"
-                                                                value={editingHealthIndicator.equipmentName || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, equipmentName: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                                placeholder={t('enterEquipmentName')}
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('validityStartDate')}</label>
-                                                            <input
-                                                                type="date"
-                                                                value={editingHealthIndicator.startDate || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, startDate: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('validityEndDate')}</label>
-                                                            <input
-                                                                type="date"
-                                                                value={editingHealthIndicator.endDate || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, endDate: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all font-bold text-slate-700"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-bold text-slate-500">{t('replacementDate')} ({t('optional')})</label>
-                                                            <input
-                                                                type="date"
-                                                                value={editingHealthIndicator.replacementDate || ''}
-                                                                onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, replacementDate: e.target.value }))}
-                                                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-bold text-slate-700"
-                                                                placeholder={t('leaveBlankIfNoReplacement')}
-                                                            />
-                                                        </div>
-
+                                                <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-200 shadow-xl mb-6 animate-in fade-in slide-in-from-top-2 relative space-y-4">
+                                                    {/* Header */}
+                                                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                                        <h5 className="font-bold text-slate-800 flex items-center gap-2 text-base">
+                                                            <Edit2 className="w-4 h-4 text-indigo-600" />
+                                                            {editingHealthIndicator.id ? t('editIndicator') : t('addIndicator')}
+                                                        </h5>
+                                                        <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 font-bold text-slate-500">
+                                                            {editingHealthIndicator.id ? '編修中' : '新增中'}
+                                                        </span>
                                                     </div>
 
+                                                    {/* 區域 1: 基本資料與效期 */}
+                                                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4">
+                                                        <div className="flex items-center gap-2 mb-3">
+                                                            <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                                            <span className="font-bold text-slate-700 text-sm">基本資料與效期</span>
+                                                        </div>
 
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                                                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                                                                    {t('buildingName')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingHealthIndicator.buildingName || ''}
+                                                                    onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, buildingName: e.target.value }))}
+                                                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-bold text-slate-700 text-sm"
+                                                                    placeholder={t('enterBuildingName')}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                                                    <Tag className="w-3.5 h-3.5 text-slate-400" />
+                                                                    {t('equipmentName')}
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={editingHealthIndicator.equipmentName || ''}
+                                                                    onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, equipmentName: e.target.value }))}
+                                                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-bold text-slate-700 text-sm"
+                                                                    placeholder={t('enterEquipmentName')}
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                                                    <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                                                                    {t('validityStartDate')}（起始日）
+                                                                </label>
+                                                                <input
+                                                                    type="date"
+                                                                    value={editingHealthIndicator.startDate || ''}
+                                                                    onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, startDate: e.target.value }))}
+                                                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-bold text-slate-700 text-sm"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                                                    <Calendar className="w-3.5 h-3.5 text-rose-500" />
+                                                                    {t('validityEndDate')}（到期日）
+                                                                </label>
+                                                                <input
+                                                                    type="date"
+                                                                    value={editingHealthIndicator.endDate || ''}
+                                                                    onChange={e => setEditingHealthIndicator(prev => ({ ...prev!, endDate: e.target.value }))}
+                                                                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all font-bold text-slate-700 text-sm"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
-                                                    <div className="flex justify-end gap-2">
+                                                    {/* 區域 2: 設備更換 / 效期更新 */}
+                                                    {editingHealthIndicator.id ? (
+                                                        <div className="bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm relative">
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <div className="flex items-center gap-2">
+                                                                    <RefreshCw className="w-4 h-4 text-emerald-600" />
+                                                                    <span className="font-bold text-emerald-800 text-sm">
+                                                                        設備更換 / 效期更新
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
+                                                                    自動留存履歷
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="space-y-2">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <div className="flex-1 min-w-[180px]">
+                                                                        <input
+                                                                            type="date"
+                                                                            value={editingHealthIndicator.replacementDate || ''}
+                                                                            onChange={e => {
+                                                                                const val = e.target.value;
+                                                                                setEditingHealthIndicator(prev => ({ ...prev!, replacementDate: val }));
+                                                                            }}
+                                                                            className="w-full px-3 py-2 rounded-xl border-2 border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-600 transition-all font-bold text-slate-800 text-sm shadow-inner"
+                                                                        />
+                                                                    </div>
+
+                                                                    {/* 設為今日按鈕 */}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const today = new Date();
+                                                                            const y = today.getFullYear();
+                                                                            const m = String(today.getMonth() + 1).padStart(2, '0');
+                                                                            const d = String(today.getDate()).padStart(2, '0');
+                                                                            const todayStr = `${y}-${m}-${d}`;
+                                                                            handleApplyReplacementCycle(todayStr);
+                                                                        }}
+                                                                        className="px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 active:scale-95 transition-all flex items-center gap-1 shadow-sm shrink-0"
+                                                                    >
+                                                                        <Calendar className="w-3.5 h-3.5" /> 設為今日
+                                                                    </button>
+
+                                                                    {/* 清除更換日 */}
+                                                                    {editingHealthIndicator.replacementDate && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => setEditingHealthIndicator(prev => ({ ...prev!, replacementDate: '' }))}
+                                                                            className="px-2.5 py-2 text-slate-400 hover:text-slate-600 text-xs font-semibold hover:bg-slate-100 rounded-xl transition-all shrink-0"
+                                                                        >
+                                                                            清除
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+
+                                                                {editingHealthIndicator.replacementDate && (
+                                                                    <div className="mt-2 text-xs bg-emerald-100/70 border border-emerald-200 text-emerald-800 rounded-xl p-2.5 flex items-center justify-between">
+                                                                        <span className="flex items-center gap-1.5 font-bold">
+                                                                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                                                                            已設更換日：{editingHealthIndicator.replacementDate}
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleApplyReplacementCycle()}
+                                                                            className="text-[11px] underline font-bold text-emerald-700 hover:text-emerald-900 shrink-0"
+                                                                        >
+                                                                            重新推算起訖
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
+
+                                                    {/* Buttons */}
+                                                    <div className="flex justify-end items-center gap-2.5 pt-2 border-t border-slate-100">
                                                         <button
+                                                            type="button"
                                                             onClick={() => setEditingHealthIndicator(null)}
-                                                            className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-bold transition-colors"
+                                                            className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-xl font-bold transition-colors text-sm"
                                                         >
                                                             {t('cancel')}
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             onClick={() => {
                                                                 if (!editingHealthIndicator.buildingName || !editingHealthIndicator.equipmentName || !editingHealthIndicator.startDate || !editingHealthIndicator.endDate) {
                                                                     alert(t('fillAllFields'));
@@ -3024,9 +3191,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                 }
                                                                 handleSaveHealthIndicator();
                                                             }}
-                                                            className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
+                                                            className="px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 active:scale-95 transition-all shadow-md shadow-emerald-200 text-sm flex items-center gap-1.5"
                                                         >
-                                                            {t('saveSettings')}
+                                                            <Save className="w-4 h-4" /> {t('saveSettings')}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -3049,74 +3216,137 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                             const cycleFormatted = formatLifespan(indicator.endDate, t, indicator.startDate);
                                                             const remainingFormatted = formatLifespan(indicator.endDate, t);
+                                                            const isExpanded = expandedHealthIds.has(indicator.id);
+
+                                                            const toggleExpand = () => {
+                                                                setExpandedHealthIds(prev => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(indicator.id)) {
+                                                                        next.delete(indicator.id);
+                                                                    } else {
+                                                                        next.add(indicator.id);
+                                                                    }
+                                                                    return next;
+                                                                });
+                                                            };
 
                                                             return (
-                                                                <div key={indicator.id} className="bg-gradient-to-br from-blue-50/50 via-white to-cyan-50/30 p-4 rounded-2xl border border-blue-100 shadow-sm hover:shadow-lg flex items-center justify-between gap-3 group hover:border-blue-300 transition-all duration-300 hover:-translate-y-0.5">
-                                                                    <div className="flex-1 flex flex-col gap-2.5 min-w-0 pr-2">
-                                                                        {/* Line 1: Names */}
-                                                                        <div className="flex items-center gap-2.5 min-w-0">
-                                                                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shrink-0 text-white font-black text-xs shadow-sm">
+                                                                <div
+                                                                    key={indicator.id}
+                                                                    className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden shadow-sm hover:shadow ${
+                                                                        isExpanded
+                                                                            ? 'border-blue-300 ring-2 ring-blue-100/50'
+                                                                            : 'border-slate-200 hover:border-slate-300'
+                                                                    }`}
+                                                                >
+                                                                    {/* Summary Header (點擊整行展開/閉合) */}
+                                                                    <div
+                                                                        onClick={toggleExpand}
+                                                                        className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-50/80 transition-colors"
+                                                                    >
+                                                                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white font-black text-xs shadow-sm ${
+                                                                                isExpired ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                                                                            }`}>
                                                                                 {index + 1}
                                                                             </div>
-                                                                            <div className="flex items-baseline gap-2 min-w-0">
-                                                                                <span className="font-black text-slate-800 text-base leading-tight truncate">
+                                                                            <div className="flex items-baseline gap-1.5 min-w-0">
+                                                                                <span className="font-black text-slate-800 text-sm md:text-base truncate">
                                                                                     {indicator.buildingName}
                                                                                 </span>
-                                                                                <span className="text-slate-300 shrink-0 text-sm font-bold">/</span>
-                                                                                <span className="truncate text-slate-600 text-sm font-bold">
+                                                                                <span className="text-slate-300 shrink-0 text-xs font-bold">/</span>
+                                                                                <span className="truncate text-slate-600 text-xs md:text-sm font-bold">
                                                                                     {indicator.equipmentName}
                                                                                 </span>
                                                                             </div>
                                                                         </div>
 
-                                                                        {/* Line 2: Stats */}
-                                                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 ml-8">
-                                                                            <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
-                                                                                <span className="text-[9px] text-blue-600 uppercase font-black tracking-wider leading-none">{t('lifespanCycle')}</span>
-                                                                                <span className="text-xs font-bold text-blue-700">{cycleFormatted}</span>
-                                                                            </div>
-                                                                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black transition-all ${isExpired ? 'bg-red-50 border border-red-300 text-red-600' : 'bg-amber-50 border border-amber-300 text-amber-700'}`}>
-                                                                                <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-red-500' : 'text-amber-500'}`} />
-                                                                                <span className="text-[9px] uppercase mr-0.5">{t('remainingDays')}</span>
-                                                                                {remainingFormatted}
+                                                                        {/* 右側：簡要狀態膠囊 + 折疊箭頭 */}
+                                                                        <div className="flex items-center gap-2 shrink-0">
+                                                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                                                                                isExpired
+                                                                                    ? 'bg-red-50 border border-red-300 text-red-600'
+                                                                                    : 'bg-amber-50 border border-amber-300 text-amber-700'
+                                                                            }`}>
+                                                                                {isExpired ? '已過期' : remainingFormatted}
+                                                                            </span>
+
+                                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition-transform duration-200 ${
+                                                                                isExpanded ? 'rotate-180 bg-blue-50 text-blue-600' : ''
+                                                                            }`}>
+                                                                                <ChevronDown className="w-4 h-4" />
                                                                             </div>
                                                                         </div>
                                                                     </div>
 
-                                                                    <div className="flex items-center gap-1 border-l border-slate-200 pl-2 ml-1">
-                                                                        {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
-                                                                            <>
-                                                                                <button
-                                                                                    onClick={() => handleViewHistory(indicator)}
-                                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all hover:scale-110 relative"
-                                                                                    title={t('viewHistory')}
-                                                                                >
-                                                                                    <History className="w-4 h-4" />
-                                                                                    {historyCounts[indicator.id] > 0 && (
-                                                                                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-red-500 to-orange-500 rounded-full text-[9px] text-white flex items-center justify-center border-2 border-white font-black shadow-md">
-                                                                                            {historyCounts[indicator.id]}
-                                                                                        </span>
+                                                                    {/* 展開之細節區塊 */}
+                                                                    {isExpanded && (
+                                                                        <div className="px-4 pb-4 pt-2 border-t border-slate-100 bg-gradient-to-br from-blue-50/30 via-white to-cyan-50/20 animate-in fade-in duration-200">
+                                                                            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                                                                                {/* Line 2: Stats */}
+                                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                                    <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                                                                                        <span className="text-[9px] text-blue-600 uppercase font-black tracking-wider leading-none">{t('lifespanCycle')}</span>
+                                                                                        <span className="text-xs font-bold text-blue-700">{cycleFormatted}</span>
+                                                                                    </div>
+                                                                                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black transition-all ${isExpired ? 'bg-red-50 border border-red-300 text-red-600' : 'bg-amber-50 border border-amber-300 text-amber-700'}`}>
+                                                                                        <Clock className={`w-3.5 h-3.5 ${isExpired ? 'text-red-500' : 'text-amber-500'}`} />
+                                                                                        <span className="text-[9px] uppercase mr-0.5">{t('remainingDays')}</span>
+                                                                                        {remainingFormatted}
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600">
+                                                                                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                                                                        <span>{indicator.startDate ? `${indicator.startDate} ~ ` : '到期日：'}{indicator.endDate}</span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {/* 操作按鈕 */}
+                                                                                <div className="flex items-center gap-1 border-l border-slate-200 pl-2 ml-1">
+                                                                                    {(isAdmin || systemSettings?.allowInspectorEditHealth !== false) && (
+                                                                                        <>
+                                                                                            <button
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    handleViewHistory(indicator);
+                                                                                                }}
+                                                                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all hover:scale-110 relative"
+                                                                                                title={t('viewHistory')}
+                                                                                            >
+                                                                                                <History className="w-4 h-4" />
+                                                                                                {historyCounts[indicator.id] > 0 && (
+                                                                                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-red-500 to-orange-500 rounded-full text-[9px] text-white flex items-center justify-center border-2 border-white font-black shadow-md">
+                                                                                                        {historyCounts[indicator.id]}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    setEditingHealthIndicator(indicator);
+                                                                                                }}
+                                                                                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all hover:scale-110"
+                                                                                                title={t('edit')}
+                                                                                            >
+                                                                                                <Edit2 className="w-4 h-4" />
+                                                                                            </button>
+                                                                                        </>
                                                                                     )}
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={() => setEditingHealthIndicator(indicator)}
-                                                                                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all hover:scale-110"
-                                                                                    title={t('edit')}
-                                                                                >
-                                                                                    <Edit2 className="w-4 h-4" />
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                        {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
-                                                                            <button
-                                                                                onClick={() => handleDeleteHealthIndicator(indicator.id)}
-                                                                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all hover:scale-110"
-                                                                                title={t('delete')}
-                                                                            >
-                                                                                <Trash2 className="w-4 h-4" />
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
+                                                                                    {(isAdmin || systemSettings?.allowInspectorDeleteHealth !== false) && (
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                handleDeleteHealthIndicator(indicator.id);
+                                                                                            }}
+                                                                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all hover:scale-110"
+                                                                                            title={t('delete')}
+                                                                                        >
+                                                                                            <Trash2 className="w-4 h-4" />
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         })}
@@ -4094,15 +4324,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                         renewalTarget && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
                                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200 border-t-4 border-red-500">
-                                    <div className="flex items-start gap-4 mb-6">
+                                    <div className="flex items-start gap-4 mb-5">
                                         <div className="p-3 bg-red-100 rounded-full shrink-0">
                                             <AlertTriangle className="w-8 h-8 text-red-600" />
                                         </div>
                                         <div>
-                                            <h3 className="text-xl font-black text-slate-800">{t('equipmentExpiredTitle')}</h3>
-                                            <p className="text-sm text-slate-500 mt-1 font-bold">
-                                                {t('equipmentPrefix')} <span className="text-slate-900 bg-slate-100 px-1 rounded">{renewalTarget.equipmentName || renewalTarget.name || 'Unknown'}</span> {t('needsReplacement')}
+                                            <h3 className="text-lg sm:text-xl font-black text-slate-800 leading-snug">
+                                                <span className="text-blue-700">
+                                                    "{renewalTarget.buildingName ? `${renewalTarget.buildingName} ` : ''}{renewalTarget.equipmentName || renewalTarget.name || '設備'}"
+                                                </span>
+                                                <span className="text-slate-900 ml-1.5">使用期限已到</span>
+                                            </h3>
+                                            <p className="text-xs text-slate-500 mt-1 font-medium">
+                                                以下項目之使用效期已屆滿，請更換並填寫新的起訖日期
                                             </p>
+                                        </div>
+                                    </div>
+
+                                    {/* 查檢場所名稱與設備資訊卡 */}
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/90 mb-5 space-y-2.5 text-xs shadow-inner">
+                                        {/* 查檢場所名稱 */}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-slate-500 font-bold flex items-center gap-1.5 shrink-0">
+                                                <Building2 className="w-4 h-4 text-blue-600" />
+                                                查檢場所名稱：
+                                            </span>
+                                            <span className="font-black text-blue-700 text-sm bg-blue-100/70 px-2.5 py-0.5 rounded-lg border border-blue-200 truncate max-w-[200px]" title={renewalTarget.buildingName || '全區 / 未指定場所'}>
+                                                {renewalTarget.buildingName || '全區 / 未指定場所'}
+                                            </span>
+                                        </div>
+
+                                        {/* 設備 / 追蹤項目 */}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-slate-500 font-bold flex items-center gap-1.5 shrink-0">
+                                                <Tag className="w-4 h-4 text-amber-600" />
+                                                設備 / 追蹤項目：
+                                            </span>
+                                            <span className="font-black text-slate-900 text-sm truncate max-w-[200px]" title={renewalTarget.equipmentName || renewalTarget.name || '未指定設備'}>
+                                                {renewalTarget.equipmentName || renewalTarget.name || '未指定設備'}
+                                            </span>
+                                        </div>
+
+                                        {/* 原定到期日 */}
+                                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/70">
+                                            <span className="text-slate-500 font-bold flex items-center gap-1.5 shrink-0">
+                                                <Calendar className="w-4 h-4 text-rose-500" />
+                                                原定到期日：
+                                            </span>
+                                            <span className="font-black text-rose-600 font-mono text-xs bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                                {renewalTarget.endDate ? renewalTarget.endDate.replace(/-/g, '/') : '已到期'}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -4122,6 +4393,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <input
                                                     type="date"
                                                     name="replacementDate"
+                                                    defaultValue={new Date().toISOString().split('T')[0]}
                                                     required
                                                     className="w-full p-2.5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none font-bold text-slate-700"
                                                 />
@@ -4144,13 +4416,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             <button
                                                 type="button"
                                                 onClick={handleRenewalCancel}
-                                                className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl font-bold transition-colors"
+                                                className="px-5 py-2.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
                                             >
                                                 {t('remindLater')}
                                             </button>
                                             <button
                                                 type="submit"
-                                                className="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95"
+                                                className="px-5 py-2.5 bg-red-600 text-white hover:bg-red-700 rounded-xl font-bold shadow-lg shadow-red-200 transition-all hover:scale-105 active:scale-95 cursor-pointer"
                                             >
                                                 {t('confirmUpdate')}
                                             </button>

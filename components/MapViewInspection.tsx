@@ -93,10 +93,11 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [inspectedOverrides, setInspectedOverrides] = useState<Record<string, number>>({});
     const [renderKey, setRenderKey] = useState(0);
 
-    // 方案 C: 導航模式狀態與手機實體羅盤 + PDR 行走推算
+    // 巡檢導引狀態：記錄目前位置與是否開啟導引 HUD
     const [isNavActive, setIsNavActive] = useState(true);
     const [isHudCollapsed, setIsHudCollapsed] = useState(false);
-    const [navHeadingMode, setNavHeadingMode] = useState<'COMPASS' | 'TARGET'>('TARGET'); // 預設 TARGET (鎖定路線首選，防室內鋼筋磁場干擾)
+    const [showFullRoute, setShowFullRoute] = useState(false); // 預設只顯示「現在 ➔ 推薦下一個」，保持畫面極簡乾淨
+    const [routeStepIndex, setRouteStepIndex] = useState(0); // 當前預覽站點索引
     const [userLocation, setUserLocation] = useState<{
         x: number;
         y: number;
@@ -104,282 +105,14 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         name: string;
         barcode: string;
     } | null>(null);
-    const [compassHeading, setCompassHeading] = useState<number | null>(null);
 
-    // PDR (Pedestrian Dead Reckoning) 狀態
-    const [isPdrActive, setIsPdrActive] = useState<boolean>(true);
-    const [stepCount, setStepCount] = useState<number>(0);
-    const [sessionSteps, setSessionSteps] = useState<number>(0);
-    const [isStepPulsing, setIsStepPulsing] = useState<boolean>(false);
-    const [lastCalibrationMsg, setLastCalibrationMsg] = useState<string>('');
-
-    // 每步前進距離 (圖面百分比，預設 0.85%，儲存於 localStorage)
-    const [stepSizePercent, setStepSizePercent] = useState<number>(() => {
-        try {
-            return Number(localStorage.getItem('pdr_step_size_percent') || 0.85);
-        } catch {
-            return 0.85;
-        }
-    });
-
-    // 邁步感測靈敏度 (加速度閾值，預設 1.8 m/s²)
-    const [stepSensitivity, setStepSensitivity] = useState<number>(() => {
-        try {
-            return Number(localStorage.getItem('pdr_step_sensitivity') || 1.8);
-        } catch {
-            return 1.8;
-        }
-    });
-
-    // 羅盤圖面方位偏差校準角 (Compass Calibration Offset)
-    const [compassOffset, setCompassOffset] = useState<number>(() => {
-        try {
-            return Number(localStorage.getItem('compass_calibration_offset') || 0);
-        } catch {
-            return 0;
-        }
-    });
-    const [showCalibrationModal, setShowCalibrationModal] = useState(false);
-
-    // Refs 同步確保事件監聽閉包內始終取得最新值
-    const isPdrActiveRef = useRef(isPdrActive);
-    const navHeadingModeRef = useRef(navHeadingMode);
-    const userLocationRef = useRef(userLocation);
-    const compassHeadingRef = useRef(compassHeading);
-    const compassOffsetRef = useRef(compassOffset);
-    const rotationRef = useRef(0);
-    const stepSizePercentRef = useRef(stepSizePercent);
-    const stepSensitivityRef = useRef(stepSensitivity);
-    const sessionStepsRef = useRef(sessionSteps);
-    const nextTargetRef = useRef<any>(null);
-    const lastStepTimeRef = useRef(0);
-    const isPeakRef = useRef(false);
-    const smoothedHeadingRef = useRef<number | null>(null);
-    const lastCompassUpdateRef = useRef<number>(0);
-
-    useEffect(() => { isPdrActiveRef.current = isPdrActive; }, [isPdrActive]);
-    useEffect(() => { navHeadingModeRef.current = navHeadingMode; }, [navHeadingMode]);
-    useEffect(() => { userLocationRef.current = userLocation; }, [userLocation]);
-    useEffect(() => { compassHeadingRef.current = compassHeading; }, [compassHeading]);
-    useEffect(() => { compassOffsetRef.current = compassOffset; }, [compassOffset]);
-    useEffect(() => { stepSizePercentRef.current = stepSizePercent; }, [stepSizePercent]);
-    useEffect(() => { stepSensitivityRef.current = stepSensitivity; }, [stepSensitivity]);
-    useEffect(() => { sessionStepsRef.current = sessionSteps; }, [sessionSteps]);
-
-    const updateCompassOffset = (newOffset: number) => {
-        const normalized = ((newOffset % 360) + 360) % 360;
-        setCompassOffset(normalized);
-        try {
-            localStorage.setItem('compass_calibration_offset', String(normalized));
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    // 方案 B: 一鍵將「手機朝向」直接校準為「下一站設備方位」
-    const alignCompassToNextTarget = () => {
-        if (!nextTargetRef.current || !userLocationRef.current) {
-            showAlert('目前沒有下一個推薦目標設備');
-            return;
-        }
-        if (compassHeadingRef.current === null) {
-            requestSensors();
-            return;
-        }
-
-        const dx = nextTargetRef.current.marker.x - userLocationRef.current.x;
-        const dy = nextTargetRef.current.marker.y - userLocationRef.current.y;
-        const angleToTarget = ((Math.atan2(dx, -dy) * 180 / Math.PI) + 360) % 360;
-
-        const calculatedOffset = angleToTarget - compassHeadingRef.current + rotationRef.current;
-        updateCompassOffset(calculatedOffset);
-
-        setLastCalibrationMsg(`🎯 已成功對齊！手機朝向已與【${nextTargetRef.current.eq.name}】精準同步！`);
-        setTimeout(() => {
-            setShowCalibrationModal(false);
-        }, 500);
-    };
-
-    // 步伐推算：每走一步把紅點依當前朝向往前推進
-    const triggerStep = (customStepSize?: number) => {
-        if (!userLocationRef.current) return;
-
-        // 計算目前前進角度 (若為 TARGET 鎖定模式直接往下一站走，若為 COMPASS 模式則依羅盤方向)
-        let screenAngle = 0;
-        if (navHeadingModeRef.current === 'TARGET' && nextTargetRef.current && userLocationRef.current) {
-            const dxTarget = nextTargetRef.current.marker.x - userLocationRef.current.x;
-            const dyTarget = nextTargetRef.current.marker.y - userLocationRef.current.y;
-            screenAngle = ((Math.atan2(dxTarget, -dyTarget) * 180 / Math.PI) + 360) % 360;
-        } else if (compassHeadingRef.current !== null) {
-            screenAngle = ((compassHeadingRef.current + compassOffsetRef.current - rotationRef.current) % 360 + 360) % 360;
-        }
-
-        const rad = (screenAngle * Math.PI) / 180;
-        const stride = customStepSize || stepSizePercentRef.current;
-        const dx = Math.sin(rad) * stride;
-        const dy = -Math.cos(rad) * stride;
-
-        setUserLocation(prev => {
-            if (!prev) return null;
-            const newX = Math.max(1, Math.min(99, prev.x + dx));
-            const newY = Math.max(1, Math.min(99, prev.y + dy));
-            return {
-                ...prev,
-                x: Number(newX.toFixed(2)),
-                y: Number(newY.toFixed(2))
-            };
-        });
-
-        setStepCount(s => s + 1);
-        setSessionSteps(s => s + 1);
-        setIsStepPulsing(true);
-        setTimeout(() => setIsStepPulsing(false), 300);
-    };
-
-    // 啟動實體陀螺儀 / 指南針監聽 (加入 EMA 低通濾波與 2° 死區防手震，徹底消除指針飄移)
-    const startCompassListener = () => {
-        const handleOrientation = (e: any) => {
-            let rawHeading: number | null = null;
-            if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
-                rawHeading = e.webkitCompassHeading;
-            } else if (e.alpha !== null && e.alpha !== undefined) {
-                rawHeading = (360 - e.alpha) % 360;
-            }
-
-            if (rawHeading === null || isNaN(rawHeading)) return;
-
-            const now = Date.now();
-            if (smoothedHeadingRef.current === null) {
-                smoothedHeadingRef.current = rawHeading;
-                setCompassHeading(Math.round(rawHeading));
-                return;
-            }
-
-            // 最短旋轉差值 (-180 ~ +180) 防止 0°/360° 跨越時反轉
-            let diff = rawHeading - smoothedHeadingRef.current;
-            while (diff > 180) diff -= 360;
-            while (diff < -180) diff += 360;
-
-            // 死區防手震：若轉動幅度小於 2 度，直接忽視，消除微小手抖造成指針抖動
-            if (Math.abs(diff) < 2) return;
-
-            // EMA 低通平滑濾波 (平滑係數 0.22)
-            smoothedHeadingRef.current = ((smoothedHeadingRef.current + diff * 0.22) % 360 + 360) % 360;
-
-            // 節流更新 state（每 45ms 最多更新一次，避免 React 重繪卡頓）
-            if (now - lastCompassUpdateRef.current > 45) {
-                lastCompassUpdateRef.current = now;
-                setCompassHeading(Math.round(smoothedHeadingRef.current));
-            }
-        };
-
-        window.addEventListener('deviceorientation', handleOrientation, true);
-        window.addEventListener('deviceorientationabsolute' as any, handleOrientation, true);
-    };
-
-    // 啟動加速度計邁步感應監聽 (PDR Step Detection)
-    const startMotionListener = () => {
-        const handleMotion = (e: DeviceMotionEvent) => {
-            if (!isPdrActiveRef.current) return;
-
-            let dynamicMagnitude = 0;
-            if (e.acceleration && e.acceleration.x !== null && e.acceleration.y !== null && e.acceleration.z !== null) {
-                dynamicMagnitude = Math.hypot(e.acceleration.x, e.acceleration.y, e.acceleration.z);
-            } else if (e.accelerationIncludingGravity && e.accelerationIncludingGravity.x !== null && e.accelerationIncludingGravity.y !== null && e.accelerationIncludingGravity.z !== null) {
-                const rawMag = Math.hypot(
-                    e.accelerationIncludingGravity.x,
-                    e.accelerationIncludingGravity.y,
-                    e.accelerationIncludingGravity.z
-                );
-                dynamicMagnitude = Math.abs(rawMag - 9.80665);
-            }
-
-            const now = Date.now();
-            // 步伐波峰判定 (閾值 1.8m/s²，間隔 > 320ms 防止連發)
-            if (dynamicMagnitude > stepSensitivityRef.current && !isPeakRef.current && (now - lastStepTimeRef.current > 320)) {
-                isPeakRef.current = true;
-                lastStepTimeRef.current = now;
-                triggerStep();
-            } else if (dynamicMagnitude < 0.8) {
-                isPeakRef.current = false;
-            }
-        };
-
-        window.addEventListener('devicemotion', handleMotion, true);
-    };
-
-    // 請求手機羅盤與動作感應權限 (iOS 13+ 必須由使用者點擊按鈕主動請求授權)
-    const requestSensors = async () => {
-        if (typeof window === 'undefined') return;
-
-        let hasError = false;
-
-        // 1. 羅盤方向
-        if (typeof (DeviceOrientationEvent as any)?.requestPermission === 'function') {
-            try {
-                const response = await (DeviceOrientationEvent as any).requestPermission();
-                if (response === 'granted') {
-                    startCompassListener();
-                } else {
-                    hasError = true;
-                }
-            } catch (err: any) {
-                console.error('Compass permission error:', err);
-                hasError = true;
-            }
-        } else {
-            startCompassListener();
-        }
-
-        // 2. 加速度計 (PDR 步伐推算)
-        if (typeof (DeviceMotionEvent as any)?.requestPermission === 'function') {
-            try {
-                const response = await (DeviceMotionEvent as any).requestPermission();
-                if (response === 'granted') {
-                    startMotionListener();
-                }
-            } catch (err: any) {
-                console.error('Motion permission error:', err);
-            }
-        } else {
-            startMotionListener();
-        }
-
-        if (hasError) {
-            showAlert('未取得手機動作與方向感應權限。\n\n請至 iPhone【設定】>【Safari】> 開啟【動作與方向取用權限】後重試。', '感應器未啟用');
-        }
-    };
-
-    // 掛載時非 iOS 自動嘗試啟動監聽
+    // 當目前所在變動時，重設導引預覽為第 1 站
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            if (typeof (DeviceOrientationEvent as any)?.requestPermission !== 'function') {
-                startCompassListener();
-            }
-            if (typeof (DeviceMotionEvent as any)?.requestPermission !== 'function') {
-                startMotionListener();
-            }
-        }
-    }, []);
+        setRouteStepIndex(0);
+    }, [userLocation]);
 
-    // 到達設備時執行校準歸零 (Snap to Checkpoint & Dynamic Stride Learning)
+    // 到達設備或點選標記時更新當前所在
     const snapToCheckpoint = (marker: EquipmentMarker, equipment: EquipmentDefinition) => {
-        if (userLocationRef.current && sessionStepsRef.current >= 4) {
-            // 動態步長微調學習：計算起訖真實距離與步數
-            const dx = marker.x - userLocationRef.current.x;
-            const dy = marker.y - userLocationRef.current.y;
-            const dist = Math.hypot(dx, dy);
-            const learned = dist / sessionStepsRef.current;
-            if (learned >= 0.3 && learned <= 3.0) {
-                const blended = Number((stepSizePercentRef.current * 0.7 + learned * 0.3).toFixed(2));
-                setStepSizePercent(blended);
-                try {
-                    localStorage.setItem('pdr_step_size_percent', String(blended));
-                } catch (e) { }
-            }
-        }
-
-        setSessionSteps(0);
         setUserLocation({
             x: marker.x,
             y: marker.y,
@@ -387,8 +120,6 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
             name: equipment.name,
             barcode: equipment.barcode
         });
-        setLastCalibrationMsg(`🎯 已於【${equipment.name}】精準歸零！`);
-        setTimeout(() => setLastCalibrationMsg(''), 4500);
     };
 
     // Transform State
@@ -397,10 +128,6 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, y: 0 });
-
-    useEffect(() => {
-        rotationRef.current = rotation;
-    }, [rotation]);
 
     const imageContainerRef = useRef<HTMLDivElement>(null);
 
@@ -448,64 +175,62 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         }
     };
 
-    // 智能推薦：從當前所在位置計算「下一個最接近的待檢查設備」
-    const nextTarget = useMemo(() => {
-        if (!userLocation || !currentMap?.markers || currentMap.markers.length === 0) return null;
-
-        const candidates = currentMap.markers.filter(m => m.id !== userLocation.markerId && m.equipmentId);
-        if (candidates.length === 0) return null;
-
-        const pending: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
-        const canInspect: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
-        const others: { marker: EquipmentMarker; dist: number; eq: EquipmentDefinition }[] = [];
+    // 智能巡檢路線規劃：從當前位置出發，使用 Nearest-Neighbor 最佳化演算法產生全場最佳動線路徑圖
+    const inspectionRoute = useMemo(() => {
+        if (!userLocation || !currentMap?.markers || currentMap.markers.length === 0) return [];
 
         const today = new Date().setHours(0, 0, 0, 0);
 
-        candidates.forEach(m => {
-            const eq = allEquipment.find(e => e.barcode === m.equipmentId || e.id === m.equipmentId);
-            if (!eq) return;
+        // 收集所有今日未巡檢的設備標記 (排除當前所在標記)
+        let unvisited = currentMap.markers
+            .filter(m => m.id !== userLocation.markerId && m.equipmentId)
+            .map(m => {
+                const eq = allEquipment.find(e => e.barcode === m.equipmentId || e.id === m.equipmentId);
+                return { marker: m, eq };
+            })
+            .filter((item): item is { marker: EquipmentMarker; eq: EquipmentDefinition } => {
+                if (!item.eq) return false;
+                const isDoneToday = reports.some(r =>
+                    r.date >= today && (r.items || []).some((i: any) => i.equipmentId === item.eq!.id)
+                ) || !!inspectedOverrides[item.marker.equipmentId] || !!inspectedOverrides[item.eq.id];
+                return !isDoneToday;
+            });
 
-            // 跨所有今日報表精準檢查是否今日已檢查過
-            const isDoneToday = reports.some(r =>
-                r.date >= today && (r.items || []).some((i: any) => i.equipmentId === eq.id)
-            ) || !!inspectedOverrides[m.equipmentId] || !!inspectedOverrides[eq.id];
+        if (unvisited.length === 0) return [];
 
-            if (isDoneToday) return; // 今日已完成的設備不重複推薦
+        const route: { marker: EquipmentMarker; eq: EquipmentDefinition; dist: number; step: number }[] = [];
+        let currentPos = { x: userLocation.x, y: userLocation.y };
+        let stepCount = 1;
 
-            const status = getFrequencyStatus(eq, lightSettings);
-            const dist = Math.hypot(m.x - userLocation.x, m.y - userLocation.y);
+        while (unvisited.length > 0) {
+            let bestIndex = 0;
+            let minDist = Infinity;
 
-            if (status === 'PENDING') {
-                pending.push({ marker: m, dist, eq });
-            } else if (status === 'CAN_INSPECT') {
-                canInspect.push({ marker: m, dist, eq });
-            } else {
-                others.push({ marker: m, dist, eq });
+            for (let i = 0; i < unvisited.length; i++) {
+                const d = Math.hypot(unvisited[i].marker.x - currentPos.x, unvisited[i].marker.y - currentPos.y);
+                if (d < minDist) {
+                    minDist = d;
+                    bestIndex = i;
+                }
             }
-        });
 
-        // 優先度：紅燈（需檢查） > 黃燈（可檢查） > 其他未檢
-        const pool = pending.length > 0 ? pending : canInspect.length > 0 ? canInspect : others;
-        if (pool.length === 0) return null;
+            const chosen = unvisited[bestIndex];
+            route.push({
+                marker: chosen.marker,
+                eq: chosen.eq,
+                dist: minDist,
+                step: stepCount++
+            });
 
-        // 依幾何直線距離由近到遠排序
-        pool.sort((a, b) => a.dist - b.dist);
-        return pool[0];
-    }, [userLocation, currentMap, allEquipment, lightSettings, reports, inspectedOverrides]);
-
-    useEffect(() => {
-        nextTargetRef.current = nextTarget;
-    }, [nextTarget]);
-
-    // 當前光錐指向角度：若為 TARGET 鎖定模式自動精準指向下一站目標，若為 COMPASS 模式跟隨手機羅盤
-    const activeVisionAngle = useMemo(() => {
-        if (navHeadingMode === 'TARGET' && nextTarget && userLocation) {
-            const dx = nextTarget.marker.x - userLocation.x;
-            const dy = nextTarget.marker.y - userLocation.y;
-            return ((Math.atan2(dx, -dy) * 180 / Math.PI) + 360) % 360;
+            currentPos = { x: chosen.marker.x, y: chosen.marker.y };
+            unvisited.splice(bestIndex, 1);
         }
-        return (((compassHeading || 0) + compassOffset - rotation) % 360 + 360) % 360;
-    }, [navHeadingMode, nextTarget, userLocation, compassHeading, compassOffset, rotation]);
+
+        return route;
+    }, [userLocation, currentMap, allEquipment, reports, inspectedOverrides]);
+
+    const nextTarget = inspectionRoute.length > 0 ? inspectionRoute[0] : null;
+    const activeTarget = inspectionRoute[routeStepIndex] || nextTarget;
 
     const focusMarker = (targetX: number, targetY: number) => {
         const dx = (50 - targetX) * 4;
@@ -1145,110 +870,6 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 onCancel={alertConfig.onCancel || (() => setAlertConfig(prev => ({ ...prev, isOpen: false })))}
             />
 
-            {/* 羅盤方位校準彈窗 (方案 B：極簡一鍵對齊，完全不用看角度) */}
-            {showCalibrationModal && (
-                <div
-                    className="fixed inset-0 z-[70] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    onClick={() => setShowCalibrationModal(false)}
-                >
-                    <div
-                        className="bg-slate-900 text-white rounded-3xl p-5 max-w-sm w-full shadow-2xl border-2 border-slate-700 animate-in zoom-in-95 duration-200"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-                            <div className="flex items-center gap-2">
-                                <Compass className="w-5 h-5 text-amber-400" />
-                                <h3 className="font-extrabold text-base text-white">一鍵對齊手機方位</h3>
-                            </div>
-                            <button
-                                onClick={() => setShowCalibrationModal(false)}
-                                className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        {/* 方案 B：核心超大單鍵對齊 */}
-                        <div className="mb-5">
-                            <p className="text-xs text-slate-300 leading-relaxed mb-3">
-                                {nextTarget ? (
-                                    <>人拿著手機，將<strong>手機頂端對準前方的【{nextTarget.eq.name}】</strong>，點擊下方大按鈕即可：</>
-                                ) : (
-                                    <>人拿著手機正對前方走廊，點擊下方大按鈕即可：</>
-                                )}
-                            </p>
-
-                            <button
-                                onClick={alignCompassToNextTarget}
-                                className="w-full py-4 px-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-400 active:scale-95 text-white font-black rounded-2xl shadow-xl shadow-blue-500/30 border border-blue-400/40 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all"
-                            >
-                                <div className="flex items-center gap-2 text-base">
-                                    <Crosshair className="w-5 h-5 text-amber-300 animate-pulse" />
-                                    <span>🎯 朝向下一站，按我一鍵對齊！</span>
-                                </div>
-                                {nextTarget && (
-                                    <span className="text-[11px] text-blue-200 font-normal">
-                                        目標：{nextTarget.eq.name} ({nextTarget.eq.barcode})
-                                    </span>
-                                )}
-                            </button>
-                        </div>
-
-                        {/* 步長微調 */}
-                        <div className="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-bold text-slate-300">每步前進距離：</span>
-                                <span className="font-mono font-bold text-emerald-400 text-xs">{stepSizePercent}%</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => {
-                                        const next = Math.max(0.2, Number((stepSizePercent - 0.15).toFixed(2)));
-                                        setStepSizePercent(next);
-                                        try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
-                                    }}
-                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-xs font-bold text-slate-200 rounded-xl cursor-pointer"
-                                >
-                                    - 步子小點
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setStepSizePercent(0.85);
-                                        try { localStorage.setItem('pdr_step_size_percent', '0.85'); } catch (e) { }
-                                    }}
-                                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-[11px] font-bold text-slate-400 rounded-xl cursor-pointer"
-                                >
-                                    預設
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        const next = Math.min(3.0, Number((stepSizePercent + 0.15).toFixed(2)));
-                                        setStepSizePercent(next);
-                                        try { localStorage.setItem('pdr_step_size_percent', String(next)); } catch (e) { }
-                                    }}
-                                    className="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-xs font-bold text-slate-200 rounded-xl cursor-pointer"
-                                >
-                                    + 步子大點
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* 恢復預設角度 */}
-                        <button
-                            onClick={() => {
-                                updateCompassOffset(0);
-                                setLastCalibrationMsg('已重設為原始羅盤朝向');
-                                setTimeout(() => setShowCalibrationModal(false), 500);
-                            }}
-                            className="w-full py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-400 hover:text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-slate-700/60"
-                        >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            恢復預設方位角 (歸零)
-                        </button>
-                    </div>
-                </div>
-            )}
-
             {/* Map Container */}
             <div className="flex-1 overflow-hidden relative bg-slate-800 touch-none cursor-move select-none">
                 <div
@@ -1330,7 +951,132 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                 );
                             })}
 
-                            {/* 方案 C: 當前巡檢位置紅點 + 手機實體羅盤視角光錐 */}
+                            {/* 智能巡檢引導路徑圖 (SVG 向量動態折線與前進箭頭) */}
+                            {isNavActive && userLocation && inspectionRoute.length > 0 && (
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible">
+                                    <defs>
+                                        {/* 箭頭標記 (Arrow Markers) */}
+                                        <marker
+                                            id="route-arrow-primary"
+                                            viewBox="0 0 10 10"
+                                            refX="6"
+                                            refY="5"
+                                            markerWidth="6"
+                                            markerHeight="6"
+                                            orient="auto-start-reverse"
+                                        >
+                                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#0284c7" />
+                                        </marker>
+                                        <marker
+                                            id="route-arrow-secondary"
+                                            viewBox="0 0 10 10"
+                                            refX="6"
+                                            refY="5"
+                                            markerWidth="5"
+                                            markerHeight="5"
+                                            orient="auto-start-reverse"
+                                        >
+                                            <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#38bdf8" fillOpacity="0.85" />
+                                        </marker>
+                                    </defs>
+
+                                    {/* 1. 從「現在所在」➔「推薦下一個目標」(唯一定向引導粗線 + 箭頭) */}
+                                    {activeTarget && (
+                                        <line
+                                            x1={`${userLocation.x}%`}
+                                            y1={`${userLocation.y}%`}
+                                            x2={`${activeTarget.marker.x}%`}
+                                            y2={`${activeTarget.marker.y}%`}
+                                            stroke="#0284c7"
+                                            strokeWidth="3.5"
+                                            strokeDasharray="8 5"
+                                            strokeLinecap="round"
+                                            markerEnd="url(#route-arrow-primary)"
+                                            className="drop-shadow-md opacity-95 animate-pulse"
+                                        />
+                                    )}
+
+                                    {/* 2. 其餘後續路徑：僅在使用者主動開啟「全路徑」時展開 */}
+                                    {showFullRoute && inspectionRoute.map((item, idx) => {
+                                        if (idx === 0) return null;
+                                        const prev = inspectionRoute[idx - 1];
+                                        return (
+                                            <line
+                                                key={`route-seg-${idx}`}
+                                                x1={`${prev.marker.x}%`}
+                                                y1={`${prev.marker.y}%`}
+                                                x2={`${item.marker.x}%`}
+                                                y2={`${item.marker.y}%`}
+                                                stroke="#38bdf8"
+                                                strokeWidth="2.5"
+                                                strokeDasharray="6 4"
+                                                strokeOpacity="0.75"
+                                                strokeLinecap="round"
+                                                markerEnd="url(#route-arrow-secondary)"
+                                                className="drop-shadow-sm"
+                                            />
+                                        );
+                                    })}
+                                </svg>
+                            )}
+
+                            {/* 站點順序編號徽章：全路徑開啟時顯示全部；平時僅在「推薦下一個」頭頂標示「下一個」 */}
+                            {isNavActive && (
+                                showFullRoute ? (
+                                    inspectionRoute.map((item) => (
+                                        <div
+                                            key={`route-badge-${item.marker.id}`}
+                                            className="absolute pointer-events-none z-28 transition-all duration-300"
+                                            style={{
+                                                left: `${item.marker.x}%`,
+                                                top: `${item.marker.y}%`,
+                                                transform: `translate(-50%, -170%) scale(${1 / zoom})`
+                                            }}
+                                        >
+                                            <div className={`px-1.5 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md border ${
+                                                activeTarget?.marker.id === item.marker.id
+                                                    ? 'bg-blue-600 text-white border-white ring-2 ring-blue-400 scale-110'
+                                                    : 'bg-slate-900/90 text-amber-300 border-slate-700'
+                                            }`}>
+                                                <span>第{item.step}站</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    activeTarget && (
+                                        <div
+                                            key={`route-badge-next-${activeTarget.marker.id}`}
+                                            className="absolute pointer-events-none z-28 transition-all duration-300 animate-bounce"
+                                            style={{
+                                                left: `${activeTarget.marker.x}%`,
+                                                top: `${activeTarget.marker.y}%`,
+                                                transform: `translate(-50%, -170%) scale(${1 / zoom})`
+                                            }}
+                                        >
+                                            <div className="px-2 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-lg bg-blue-600 text-white border-2 border-white ring-2 ring-blue-400">
+                                                <span>👉 下一站</span>
+                                            </div>
+                                        </div>
+                                    )
+                                )
+                            )}
+
+                            {/* 當前目標設備外圍呼吸光環 */}
+                            {isNavActive && activeTarget && (
+                                <div
+                                    className="absolute pointer-events-none z-25 transition-all duration-300"
+                                    style={{
+                                        left: `${activeTarget.marker.x}%`,
+                                        top: `${activeTarget.marker.y}%`,
+                                        transform: `translate(-50%, -50%) scale(${1 / zoom})`
+                                    }}
+                                >
+                                    <div className="absolute -inset-4 rounded-full border-2 border-sky-400 animate-ping opacity-60" />
+                                    <div className="absolute -inset-2.5 rounded-full border-2 border-amber-400 animate-pulse" />
+                                </div>
+                            )}
+
+                            {/* 當前巡檢位置紅點 (清晰定錨點) */}
                             {isNavActive && userLocation && (
                                 <div
                                     className="absolute pointer-events-none z-30 transition-all duration-300"
@@ -1340,30 +1086,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                         transform: `translate(-50%, -50%) scale(${1 / zoom})`
                                     }}
                                 >
-                                    {/* 朝向光錐（支援低通平滑濾波與目標鎖定模式，徹底防抖） */}
-                                    <div
-                                        className="absolute -inset-12 flex items-center justify-center transition-transform duration-200 ease-out pointer-events-none"
-                                        style={{
-                                            transform: `rotate(${activeVisionAngle}deg)`
-                                        }}
-                                    >
-                                        {/* 扇形探索光錐 */}
-                                        <div
-                                            className="w-20 h-24 -top-12 absolute opacity-70 pointer-events-none"
-                                            style={{
-                                                background: 'radial-gradient(ellipse at 50% 100%, rgba(239, 68, 68, 0.45) 0%, rgba(239, 68, 68, 0) 70%)',
-                                                clipPath: 'polygon(50% 100%, 0% 0%, 100% 0%)'
-                                            }}
-                                        />
-                                        {/* 頂端方向導引箭頭 */}
-                                        <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[10px] border-b-red-600 -top-4 absolute drop-shadow-md" />
-                                    </div>
-
-                                    {/* 雷達波紋動畫 (Radar Ping) */}
                                     <div className="absolute -inset-3.5 rounded-full bg-red-500/40 animate-ping pointer-events-none" />
-                                    <div className="absolute -inset-2 rounded-full bg-red-500/25 animate-pulse pointer-events-none" />
-
-                                    {/* 實體中心紅點 (Google Maps 風格 - 已移除遮擋路徑的下方黑色標籤) */}
                                     <div className="relative w-5 h-5 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center ring-2 ring-red-400">
                                         <div className="w-2 h-2 rounded-full bg-white shadow-inner" />
                                     </div>
@@ -1374,180 +1097,177 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 </div>
             </div>
 
-            {/* 方案 C: 頂部導航資訊卡 (HUD) - 手機板 RWD 響應式與一鍵收合優化 */}
+            {/* 巡檢導引資訊卡 (HUD) */}
             {isNavActive && userLocation && (
                 isHudCollapsed ? (
                     /* 手機收合狀態：僅佔用極小頂部單行空間，讓手機巡檢能完整看清圖面 */
                     <div
                         onClick={() => setIsHudCollapsed(false)}
-                        className="absolute top-2 left-2 right-2 sm:left-auto sm:right-4 sm:w-[380px] z-40 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl p-2 px-3 shadow-xl border border-slate-700/80 flex items-center justify-between gap-2 cursor-pointer active:scale-95 transition-all animate-in fade-in select-none"
+                        className="absolute top-2 right-2 sm:right-4 z-40 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl p-2 px-3 shadow-xl border border-slate-700/80 flex items-center justify-between gap-2.5 cursor-pointer active:scale-95 transition-all animate-in fade-in select-none"
                     >
                         <div className="flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
-                            <span className="text-xs font-bold text-white truncate max-w-[90px] sm:max-w-[110px]">{userLocation.name}</span>
-                            {nextTarget && (
+                            <span className="text-xs font-bold text-white truncate max-w-[90px] sm:max-w-[120px]">{userLocation.name}</span>
+                            {activeTarget && (
                                 <>
                                     <span className="text-slate-500 text-xs shrink-0">➔</span>
-                                    <span className="text-xs font-bold text-amber-300 truncate max-w-[100px] sm:max-w-[120px]">{nextTarget.eq.name}</span>
+                                    <span className="text-xs font-bold text-amber-300 truncate max-w-[100px] sm:max-w-[140px]">{activeTarget.eq.name}</span>
                                 </>
                             )}
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                            {isPdrActive && (
-                                <span className="text-[10px] font-mono text-emerald-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-700">
-                                    👣 {stepCount}步
-                                </span>
-                            )}
-                            <span className="text-[11px] text-blue-400 font-bold flex items-center gap-0.5 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/30">
-                                展開 <ChevronDown className="w-3 h-3" />
-                            </span>
-                        </div>
+                        <span className="text-[11px] text-blue-400 font-bold flex items-center gap-0.5 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/30 shrink-0">
+                            展開 <ChevronDown className="w-3 h-3" />
+                        </span>
                     </div>
                 ) : (
-                    /* 手機展開狀態：完全相容 360px+ 手機螢幕不溢出不擠壓 */
-                    <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 sm:w-[400px] z-40 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 shadow-2xl border border-slate-700/80 animate-in fade-in slide-in-from-top-2 duration-200">
-                        {/* Header 頂部列 */}
+                    /* 展開狀態：專注「目前所在」與「下一站推薦 + 實體照片小圖」 */
+                    <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 sm:w-[420px] z-40 bg-slate-900/95 backdrop-blur-xl text-white rounded-2xl sm:rounded-3xl p-3 sm:p-3.5 shadow-2xl border border-slate-700/80 animate-in fade-in slide-in-from-top-2 duration-200">
+                        {/* 頂部微縮列 */}
                         <div className="flex items-center justify-between gap-1.5 pb-2 border-b border-slate-800 mb-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <div className="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center shrink-0">
-                                    <Navigation className="w-3.5 h-3.5 text-red-500 animate-pulse" />
-                                </div>
-                                <span className="font-extrabold text-xs sm:text-sm text-white truncate">實時導航</span>
-                                <button
-                                    onClick={() => setNavHeadingMode(prev => prev === 'COMPASS' ? 'TARGET' : 'COMPASS')}
-                                    className={`text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-lg border transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
-                                        navHeadingMode === 'TARGET'
-                                            ? 'bg-blue-600/30 text-blue-300 border-blue-400/60 shadow-sm'
-                                            : 'bg-emerald-600/30 text-emerald-300 border-emerald-400/60 shadow-sm'
-                                    }`}
-                                    title={navHeadingMode === 'TARGET' ? '目前為【鎖定下一站目標】(不飄移)，點擊切換為【實體羅盤隨身轉向】' : '目前為【實體羅盤隨身轉向】，點擊切換為【鎖定下一站目標】'}
-                                >
-                                    {navHeadingMode === 'TARGET' ? (
-                                        <>
-                                            <Crosshair className="w-3 h-3 text-blue-400" />
-                                            <span>鎖定目標</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Compass className="w-3 h-3 text-emerald-400" />
-                                            <span>羅盤轉向 {compassHeading !== null ? `${((compassHeading + compassOffset - rotation + 360) % 360)}°` : ''}</span>
-                                        </>
-                                    )}
-                                </button>
-                                {navHeadingMode === 'COMPASS' && compassHeading === null && (
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Crosshair className="w-4 h-4 text-blue-400 shrink-0" />
+                                <span className="font-extrabold text-xs sm:text-sm text-white shrink-0">巡檢路徑導引</span>
+                                {inspectionRoute.length > 0 && (
                                     <button
-                                        onClick={requestSensors}
-                                        className="text-[10px] sm:text-xs bg-red-600 hover:bg-red-500 active:scale-95 text-white font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 shrink-0 animate-pulse cursor-pointer"
-                                        title="點擊啟用手機羅盤與計步感應"
+                                        type="button"
+                                        onClick={() => setShowFullRoute(prev => !prev)}
+                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
+                                            showFullRoute
+                                                ? 'bg-blue-600/30 text-blue-300 border-blue-400/60 shadow-sm'
+                                                : 'bg-slate-800 text-slate-400 border-slate-700'
+                                        }`}
+                                        title="開關圖面上的完整全場巡檢路徑圖"
                                     >
-                                        <Compass className="w-3 h-3" />
-                                        啟用感應
+                                        <MapPin className="w-3 h-3 text-blue-400" />
+                                        <span>{showFullRoute ? '全路徑: 開' : '全路徑: 關'}</span>
                                     </button>
                                 )}
                             </div>
-
                             <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    onClick={() => setShowCalibrationModal(true)}
-                                    className="text-[10px] sm:text-xs bg-amber-500/20 hover:bg-amber-500/30 active:scale-95 text-amber-300 border border-amber-400/50 font-bold px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-0.5 cursor-pointer"
-                                    title="開啟方位校準與步長設定面板"
-                                >
-                                    <Sliders className="w-3 h-3 text-amber-400" />
-                                    校準
-                                </button>
                                 <button
                                     onClick={() => setIsHudCollapsed(true)}
                                     className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                                    title="收合為精簡頂部條"
+                                    title="收合卡片"
                                 >
                                     <ChevronUp className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => setIsNavActive(false)}
                                     className="text-slate-400 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-                                    title="關閉導航卡"
+                                    title="關閉導引卡"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* PDR 行走計步與即時前進狀態列 */}
-                        {isPdrActive && (
-                            <div className="flex items-center justify-between gap-2 mb-2 p-1.5 bg-slate-800/80 rounded-xl border border-slate-700/70">
-                                <div className={`flex items-center gap-1.5 min-w-0 px-2 py-0.5 rounded-lg transition-all ${
-                                    isStepPulsing
-                                        ? 'bg-emerald-500/30 text-emerald-300 font-bold ring-2 ring-emerald-400 scale-105'
-                                        : 'text-slate-200'
-                                }`}>
-                                    <Footprints className={`w-3.5 h-3.5 shrink-0 ${isStepPulsing ? 'text-emerald-400 animate-bounce' : 'text-emerald-400'}`} />
-                                    <span className="text-[11px] font-bold text-slate-300 shrink-0">步伐推算：</span>
-                                    <span className="text-sm sm:text-base font-black text-white font-mono">{stepCount}</span>
-                                    <span className="text-[10px] text-slate-400">步</span>
-                                </div>
-
-                                <button
-                                    onClick={() => triggerStep()}
-                                    className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 active:scale-95 text-white font-bold rounded-lg text-[10px] sm:text-xs flex items-center gap-1 transition-all cursor-pointer shadow shrink-0"
-                                    title="點擊模擬前進一步 (亦可拿手機實體走路測試)"
-                                >
-                                    <Activity className="w-3 h-3" />
-                                    模擬走1步
-                                </button>
+                        {/* 當前所在卡片 */}
+                        <div className="flex items-center justify-between p-2 sm:p-2.5 bg-slate-800/80 rounded-xl border border-slate-700/70 mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse ring-2 ring-red-400/50 shrink-0" />
+                                <span className="text-[11px] sm:text-xs font-bold text-slate-300 shrink-0">目前所在：</span>
+                                <span className="font-extrabold text-xs sm:text-sm text-white truncate max-w-[190px] sm:max-w-[240px] drop-shadow-sm">{userLocation.name}</span>
                             </div>
-                        )}
+                            {inspectionRoute.length > 0 && (
+                                <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full shrink-0 font-bold">
+                                    剩餘 {inspectionRoute.length} 站
+                                </span>
+                            )}
+                        </div>
 
-                        {/* 抵達設備校準歸零提示 */}
-                        {lastCalibrationMsg && (
-                            <div className="mb-2 p-1.5 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-in fade-in duration-150 shadow-sm">
-                                <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                <span className="truncate">{lastCalibrationMsg}</span>
-                            </div>
-                        )}
-
-                        {/* 當前位置與下一推薦目標卡片 */}
-                        <div className="space-y-1.5">
-                            {/* 當前所在卡片 */}
-                            <div className="flex items-center justify-between p-2 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-red-400/50 shrink-0" />
-                                    <span className="text-[11px] sm:text-xs font-bold text-slate-300">目前所在：</span>
-                                </div>
-                                <span className="font-bold text-xs sm:text-sm text-white truncate max-w-[190px] sm:max-w-[240px] drop-shadow-sm">{userLocation.name}</span>
-                            </div>
-
-                            {/* 下一個目標推薦卡片 */}
-                            {nextTarget ? (
-                                <div className="p-2 sm:p-2.5 bg-gradient-to-r from-blue-950/70 via-slate-800/90 to-blue-900/50 border border-blue-500/40 rounded-xl flex items-center justify-between gap-2 shadow-md">
-                                    <div className="min-w-0 flex-1">
-                                        <div className="text-[10px] font-bold text-blue-300 flex items-center gap-1 mb-0.5">
-                                            <span>👉 下一站推薦：</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                            <span className="font-black text-amber-300 text-xs sm:text-sm drop-shadow-sm truncate max-w-[130px] sm:max-w-[180px]">
-                                                {nextTarget.eq.name}
+                        {/* 下一個目標推薦卡片 + 實體小圖 */}
+                        {activeTarget ? (
+                            <div className="p-2.5 sm:p-3 bg-gradient-to-r from-blue-950/80 via-slate-800/90 to-blue-900/60 border border-blue-500/50 rounded-xl flex items-center justify-between gap-2.5 shadow-lg">
+                                {/* 左側：推薦文字與編號 */}
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-[11px] font-bold text-blue-300 flex items-center justify-between mb-0.5">
+                                        <span className="flex items-center gap-1">
+                                            👉 推薦順序：
+                                            <span className="bg-blue-500 text-white text-[9px] px-1.5 py-0.2 rounded-md font-black">
+                                                第 {activeTarget.step} / {inspectionRoute.length} 站
                                             </span>
-                                            <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
-                                                {nextTarget.eq.barcode}
-                                            </span>
-                                        </div>
+                                        </span>
                                     </div>
+                                    <div className="flex items-baseline gap-1.5 flex-wrap">
+                                        <span className="font-black text-amber-300 text-xs sm:text-sm drop-shadow-sm truncate max-w-[110px] sm:max-w-[150px]">
+                                            {activeTarget.eq.name}
+                                        </span>
+                                        <span className="text-[9px] sm:text-[10px] font-mono font-bold text-slate-300 bg-slate-900/90 px-1.5 py-0.5 rounded border border-slate-700 shrink-0">
+                                            {activeTarget.eq.barcode}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* 中間：設備實體小圖 (縮圖，點擊可放大預覽) */}
+                                <div className="shrink-0">
+                                    {activeTarget.eq.photoUrl ? (
+                                        <div
+                                            onClick={() => setPreviewPhotoUrl(activeTarget.eq.photoUrl!)}
+                                            className="relative group cursor-pointer"
+                                            title="點擊放大查看設備實體照片"
+                                        >
+                                            <img
+                                                src={activeTarget.eq.photoUrl}
+                                                alt={activeTarget.eq.name}
+                                                className="w-11 h-11 sm:w-12 sm:h-12 object-cover rounded-xl border border-blue-400/60 shadow-md group-hover:scale-105 group-hover:border-blue-300 transition-all"
+                                            />
+                                            <div className="absolute inset-0 bg-black/30 rounded-xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                <Eye className="w-3.5 h-3.5 text-white" />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-slate-800/90 border border-slate-700 flex flex-col items-center justify-center text-slate-400"
+                                            title="此設備暫無現場照片"
+                                        >
+                                            <ImageIcon className="w-4 h-4 text-slate-400 mb-0.5" />
+                                            <span className="text-[8px] text-slate-500 font-bold">無照片</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 右側：聚焦按鈕與站點切換 */}
+                                <div className="flex flex-col gap-1 shrink-0">
                                     <button
-                                        onClick={() => focusMarker(nextTarget.marker.x, nextTarget.marker.y)}
-                                        className="px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-xl text-[11px] sm:text-xs flex items-center gap-1 shadow-md shadow-blue-500/30 transition-all shrink-0 cursor-pointer"
-                                        title="在畫面中聚焦此設備標籤"
+                                        onClick={() => focusMarker(activeTarget.marker.x, activeTarget.marker.y)}
+                                        className="px-2.5 sm:px-3 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-md shadow-blue-500/30 transition-all cursor-pointer"
+                                        title="地圖平移並聚焦此設備"
                                     >
                                         <Crosshair className="w-3.5 h-3.5 shrink-0" />
                                         <span>聚焦</span>
                                     </button>
+
+                                    {inspectionRoute.length > 1 && (
+                                        <div className="flex items-center gap-1 justify-center bg-slate-900/80 px-1 py-0.5 rounded-lg border border-slate-700/60">
+                                            <button
+                                                type="button"
+                                                onClick={() => setRouteStepIndex(i => Math.max(0, i - 1))}
+                                                disabled={routeStepIndex <= 0}
+                                                className="px-1 text-[10px] font-bold text-slate-300 hover:text-white disabled:opacity-25"
+                                                title="上一站"
+                                            >
+                                                ‹
+                                            </button>
+                                            <span className="text-[9px] font-mono text-slate-400">{routeStepIndex + 1}/{inspectionRoute.length}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setRouteStepIndex(i => Math.min(inspectionRoute.length - 1, i + 1))}
+                                                disabled={routeStepIndex >= inspectionRoute.length - 1}
+                                                className="px-1 text-[10px] font-bold text-slate-300 hover:text-white disabled:opacity-25"
+                                                title="下一站"
+                                            >
+                                                ›
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            ) : (
-                                <div className="p-2 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
-                                    <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-                                    <span>地圖上所有設備皆已巡檢完成！</span>
-                                </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : (
+                            <div className="p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl text-emerald-400 font-bold flex items-center gap-1.5 text-xs">
+                                <CheckCircle className="w-4 h-4 shrink-0" />
+                                <span>🎉 本圖所有設備今日皆已巡檢完成！</span>
+                            </div>
+                        )}
                     </div>
                 )
             )}
@@ -1559,20 +1279,19 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                         setIsNavActive(prev => !prev);
                         if (!isNavActive && userLocation) {
                             focusMarker(userLocation.x, userLocation.y);
-                        }
-                        if (compassHeading === null) {
-                            requestSensors();
+                        } else if (!isNavActive && nextTarget) {
+                            focusMarker(nextTarget.marker.x, nextTarget.marker.y);
                         }
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-90 flex items-center gap-1.5 shrink-0 cursor-pointer ${
                         isNavActive
-                            ? 'bg-red-500 text-white shadow-md shadow-red-500/30'
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                     }`}
-                    title="切換巡檢導航模式"
+                    title="切換巡檢導引卡與路徑顯示"
                 >
-                    <Navigation className="w-3.5 h-3.5" />
-                    <span>導航</span>
+                    <Crosshair className="w-3.5 h-3.5" />
+                    <span>導引</span>
                 </button>
                 <div className="w-px h-5 sm:h-4 bg-slate-300 mx-1 shrink-0"></div>
                 <button
