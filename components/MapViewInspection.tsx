@@ -1050,16 +1050,16 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                             style={{
                                                 left: `${activeTarget.marker.x}%`,
                                                 top: `${activeTarget.marker.y}%`,
-                                                // 靠近設備正上方，不遮擋圓點
-                                                transform: `translate(-50%, -190%) scale(${1 / zoom})`
+                                                // 靠近設備正上方
+                                                transform: `translate(-50%, -180%) scale(${1 / zoom})`
                                             }}
                                         >
-                                            {/* 半透明玻璃膠囊：高透黑藍底色 + 藍邊框，清楚看透底圖線條與牆面 */}
-                                            <div className="px-1.5 py-0.5 rounded-full text-[9px] font-bold flex items-center justify-center shadow-sm bg-slate-900/40 backdrop-blur-[2px] text-sky-300 border border-sky-400/50 whitespace-nowrap">
+                                            {/* 黑底黃字、無外框、極致清晰 */}
+                                            <div className="px-2 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md bg-black text-amber-300 whitespace-nowrap">
                                                 <span>下一站</span>
                                             </div>
-                                            {/* 小半透明指示箭頭 */}
-                                            <div className="w-0 h-0 mx-auto border-x-[3px] border-x-transparent border-t-[3px] border-t-sky-400/50" />
+                                            {/* 黑色小倒三角指針 */}
+                                            <div className="w-0 h-0 mx-auto border-x-4 border-x-transparent border-t-4 border-t-black" />
                                         </div>
                                     )
                                 )
