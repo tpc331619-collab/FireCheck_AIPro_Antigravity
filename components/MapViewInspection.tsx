@@ -1046,16 +1046,20 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     activeTarget && (
                                         <div
                                             key={`route-badge-next-${activeTarget.marker.id}`}
-                                            className="absolute pointer-events-none z-28 transition-all duration-300 animate-bounce"
+                                            className="absolute pointer-events-none z-28 transition-all duration-300"
                                             style={{
                                                 left: `${activeTarget.marker.x}%`,
                                                 top: `${activeTarget.marker.y}%`,
-                                                transform: `translate(-50%, -170%) scale(${1 / zoom})`
+                                                // 靠近設備正上方，不遮擋圓點
+                                                transform: `translate(-50%, -190%) scale(${1 / zoom})`
                                             }}
                                         >
-                                            <div className="px-2 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-lg bg-blue-600 text-white border-2 border-white ring-2 ring-blue-400">
-                                                <span>👉 下一站</span>
+                                            {/* 半透明玻璃膠囊：高透黑藍底色 + 藍邊框，清楚看透底圖線條與牆面 */}
+                                            <div className="px-1.5 py-0.5 rounded-full text-[9px] font-bold flex items-center justify-center shadow-sm bg-slate-900/40 backdrop-blur-[2px] text-sky-300 border border-sky-400/50 whitespace-nowrap">
+                                                <span>下一站</span>
                                             </div>
+                                            {/* 小半透明指示箭頭 */}
+                                            <div className="w-0 h-0 mx-auto border-x-[3px] border-x-transparent border-t-[3px] border-t-sky-400/50" />
                                         </div>
                                     )
                                 )
