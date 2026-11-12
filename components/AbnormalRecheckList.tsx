@@ -746,30 +746,30 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                 </div>
             ) : (
                 // 列表頁面 (保持不變)
-                <div className="flex flex-col h-full bg-slate-50 relative">
-                    <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+                <div className="flex flex-col h-full bg-slate-100/80 relative">
+                    <div className="bg-white shadow-sm border-b border-slate-200/80 sticky top-0 z-40">
                         <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                                 <div className="flex items-center gap-2">
-                                    <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                                    <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer">
                                         <ArrowLeft className="w-6 h-6" />
                                     </button>
-                                    <h1 className="font-bold text-lg text-slate-800 whitespace-nowrap">{t('abnormalRecheckList')}</h1>
+                                    <h1 className="font-extrabold text-lg text-slate-900 whitespace-nowrap">{t('abnormalRecheckList')}</h1>
                                     <span className={`sm:hidden ml-auto px-2 py-0.5 rounded-full text-xs font-bold ${viewMode === 'pending'
-                                        ? 'bg-orange-100 text-orange-700'
-                                        : 'bg-green-100 text-green-700'
+                                        ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                                        : 'bg-green-100 text-green-700 border border-green-200'
                                         }`}>
                                         {filteredRecords.length}{t('recordsCountSuffix')}
                                     </span>
                                 </div>
 
                                 {/* 切換按鈕 */}
-                                <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto sm:ml-auto">
+                                <div className="flex bg-slate-200/70 p-1 rounded-xl w-full sm:w-auto sm:ml-auto border border-slate-300/80">
                                     <button
                                         onClick={() => setViewMode('pending')}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'pending'
+                                        className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all cursor-pointer ${viewMode === 'pending'
                                             ? 'bg-white text-red-600 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700'
+                                            : 'text-slate-600 hover:text-slate-900'
                                             }`}
                                     >
                                         <Clock className="w-4 h-4" />
@@ -778,9 +778,9 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                     {(user.role === 'admin' || systemSettings?.allowInspectorViewCompletedRechecks !== false) && (
                                         <button
                                             onClick={() => setViewMode('fixed')}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all ${viewMode === 'fixed'
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg font-bold text-sm transition-all cursor-pointer ${viewMode === 'fixed'
                                                 ? 'bg-white text-emerald-600 shadow-sm'
-                                                : 'text-slate-500 hover:text-slate-700'
+                                                : 'text-slate-600 hover:text-slate-900'
                                                 }`}
                                         >
                                             <CheckCircle2 className="w-4 h-4" />
@@ -789,9 +789,9 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                     )}
                                 </div>
 
-                                <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-sm font-bold ${viewMode === 'pending'
-                                    ? 'bg-orange-100 text-orange-700'
-                                    : 'bg-green-100 text-green-700'
+                                <span className={`hidden sm:inline-block px-3 py-1 rounded-full text-sm font-bold border ${viewMode === 'pending'
+                                    ? 'bg-orange-50 text-orange-800 border-orange-200 shadow-sm'
+                                    : 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-sm'
                                     }`}>
                                     {filteredRecords.length}{t('recordsCountSuffix')}
                                 </span>
@@ -802,15 +802,15 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                         <div className="max-w-4xl mx-auto">
                             <div className="mb-6 relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search className="h-5 w-5 text-slate-400" />
+                                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                    <Search className="h-5 w-5 text-slate-500" />
                                 </div>
                                 <input
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                                     placeholder={t('searchAbnormalPlaceholder')}
-                                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition-all shadow-sm text-base"
+                                    className="block w-full pl-11 pr-3 py-3 border border-slate-300 rounded-xl leading-5 bg-white placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 transition-all shadow-sm text-base text-slate-900 font-semibold"
                                     style={{ fontSize: '16px' }}
                                 />
                             </div>
@@ -820,12 +820,14 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                     <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-orange-600"></div>
                                 </div>
                             ) : filteredRecords.length === 0 ? (
-                                <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
-                                    <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-400" />
-                                    <h3 className="text-lg font-bold text-slate-700">
+                                <div className="text-center py-20 bg-white rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-slate-300/80">
+                                    <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-inner">
+                                        <CheckCircle className="w-12 h-12 text-emerald-500" />
+                                    </div>
+                                    <h3 className="text-xl font-extrabold text-slate-800">
                                         {viewMode === 'pending' ? t('noPendingRecords') : t('noCompletedRecords')}
                                     </h3>
-                                    <p className="text-slate-500 text-sm mt-1">
+                                    <p className="text-slate-500 text-sm mt-2 font-medium">
                                         {viewMode === 'pending' ? t('allAbnormalFixed') : t('noFixedYet')}
                                     </p>
                                 </div>
@@ -837,10 +839,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div
                                                 key={record.id}
                                                 onClick={() => setSelectedRecord(record)}
-                                                className={`relative bg-white p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden ${
+                                                className={`relative bg-white p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 ${
                                                     viewMode === 'pending'
-                                                        ? 'border-orange-200 hover:border-orange-400 hover:shadow-xl'
-                                                        : 'border-emerald-200 hover:border-emerald-400 hover:shadow-xl'
+                                                        ? 'border-orange-300 hover:border-orange-500 hover:shadow-xl'
+                                                        : 'border-emerald-300 hover:border-emerald-500 hover:shadow-xl'
                                                 }`}
                                             >
                                                 {/* 已完成卡片右上斜向微浮水印章 */}
