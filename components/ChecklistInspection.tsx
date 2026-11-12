@@ -52,9 +52,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         const isCompleted = status === 'COMPLETED' || !!inspectionItem;
 
         if (isCompleted) {
-            const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal || 
-                inspectionItem?.status === 'Abnormal' || 
-                inspectionItem?.status === '異常' || 
+            const isAbnormal = inspectionItem?.status === InspectionStatus.Abnormal ||
+                inspectionItem?.status === 'Abnormal' ||
+                inspectionItem?.status === '異常' ||
                 inspectionItem?.status === 'Fail';
             if (isAbnormal) {
                 return 'ABNORMAL';
@@ -773,11 +773,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 1. 需檢查 (PENDING) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'PENDING' ? 'ALL' : 'PENDING')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
-                                                    statusFilter === 'PENDING'
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${statusFilter === 'PENDING'
                                                         ? 'ring-2 ring-red-500 ring-offset-2 shadow-md scale-[1.02] border-red-500'
                                                         : 'hover:border-red-400'
-                                                }`}
+                                                    }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.red?.color || '#ef4444'}20`,
                                                     borderColor: statusFilter === 'PENDING' ? (lightSettings?.red?.color || '#ef4444') : `${lightSettings?.red?.color || '#ef4444'}55`
@@ -799,11 +798,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 2. 已完成 (COMPLETED_NORMAL) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'COMPLETED_NORMAL' ? 'ALL' : 'COMPLETED_NORMAL')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
-                                                    statusFilter === 'COMPLETED_NORMAL'
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${statusFilter === 'COMPLETED_NORMAL'
                                                         ? 'ring-2 ring-blue-500 ring-offset-2 shadow-md scale-[1.02] border-blue-500'
                                                         : 'hover:border-blue-400'
-                                                }`}
+                                                    }`}
                                                 style={{
                                                     backgroundColor: '#3b82f61a',
                                                     borderColor: statusFilter === 'COMPLETED_NORMAL' ? '#3b82f6' : '#3b82f64d'
@@ -841,11 +839,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 3. 異常 (ABNORMAL) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'ABNORMAL' ? 'ALL' : 'ABNORMAL')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
-                                                    statusFilter === 'ABNORMAL'
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${statusFilter === 'ABNORMAL'
                                                         ? 'ring-2 ring-orange-500 ring-offset-2 shadow-md scale-[1.02] border-orange-500'
                                                         : 'hover:border-orange-400'
-                                                }`}
+                                                    }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}20`,
                                                     borderColor: statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') : `${lightSettings?.abnormal?.color || '#f97316'}55`
@@ -883,11 +880,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 4. 不需檢查 (NOT_NEEDED) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'NOT_NEEDED' ? 'ALL' : 'NOT_NEEDED')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
-                                                    statusFilter === 'NOT_NEEDED'
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${statusFilter === 'NOT_NEEDED'
                                                         ? 'ring-2 ring-emerald-600 ring-offset-2 shadow-md scale-[1.02] border-emerald-600'
                                                         : 'hover:border-emerald-400'
-                                                }`}
+                                                    }`}
                                                 style={{
                                                     backgroundColor: `${lightSettings?.green?.color || '#10b981'}20`,
                                                     borderColor: statusFilter === 'NOT_NEEDED' ? (lightSettings?.green?.color || '#10b981') : `${lightSettings?.green?.color || '#10b981'}55`
@@ -983,16 +979,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         <span className="px-2.5 py-0.5 rounded-full font-extrabold text-xs shadow-sm" style={{
                                             backgroundColor: statusFilter === 'PENDING' ? `${lightSettings?.red?.color || '#ef4444'}20` :
                                                 statusFilter === 'COMPLETED_NORMAL' ? `${lightSettings?.completed?.color || '#10b981'}20` :
-                                                statusFilter === 'ABNORMAL' ? `${lightSettings?.abnormal?.color || '#f97316'}20` :
-                                                `${lightSettings?.green?.color || '#10b981'}20`,
+                                                    statusFilter === 'ABNORMAL' ? `${lightSettings?.abnormal?.color || '#f97316'}20` :
+                                                        `${lightSettings?.green?.color || '#10b981'}20`,
                                             color: statusFilter === 'PENDING' ? (lightSettings?.red?.color || '#ef4444') :
                                                 statusFilter === 'COMPLETED_NORMAL' ? (lightSettings?.completed?.color || '#10b981') :
-                                                statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') :
-                                                (lightSettings?.green?.color || '#10b981')
+                                                    statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') :
+                                                        (lightSettings?.green?.color || '#10b981')
                                         }}>
                                             {statusFilter === 'PENDING' ? '🔴 需檢查' :
-                                             statusFilter === 'COMPLETED_NORMAL' ? '🔵 已完成 (正常)' :
-                                             statusFilter === 'ABNORMAL' ? '🟠 已檢查 (異常)' : '🟢 不需檢查'}
+                                                statusFilter === 'COMPLETED_NORMAL' ? '🔵 已完成 (正常)' :
+                                                    statusFilter === 'ABNORMAL' ? '🟠 已檢查 (異常)' : '🟢 不需檢查'}
                                         </span>
                                     </div>
                                     <button
@@ -1265,83 +1261,83 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             {/* Tag Management & Equipment Photo Row */}
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1 space-y-3">
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
-                                        <Tag className="w-4 h-4 mr-1.5" /> 設備標籤
-                                    </label>
-                                    <button
-                                        onClick={() => setShowTagInput(!showTagInput)}
-                                        className={`p-1 rounded-lg transition-all ${showTagInput ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}
-                                        title="新增標籤"
-                                    >
-                                        <Plus className={`w-4 h-4 transition-transform duration-300 ${showTagInput ? 'rotate-45' : ''}`} />
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mb-1 min-h-[32px]">
-                                    {inspectingTags.map((tag, idx) => (
-                                        <span
-                                            key={idx}
-                                            className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 group/tag transition-all hover:bg-blue-100"
-                                        >
-                                            #{tag}
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center">
+                                                <Tag className="w-4 h-4 mr-1.5" /> 設備標籤
+                                            </label>
                                             <button
-                                                onClick={() => setInspectingTags(prev => prev.filter((_, i) => i !== idx))}
-                                                className="ml-1.5 p-0.5 rounded-full hover:bg-blue-200 text-blue-400 hover:text-blue-600 transition-colors"
+                                                onClick={() => setShowTagInput(!showTagInput)}
+                                                className={`p-1 rounded-lg transition-all ${showTagInput ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400 hover:text-blue-500 hover:bg-blue-50'}`}
+                                                title="新增標籤"
                                             >
-                                                <X className="w-3 h-3" />
+                                                <Plus className={`w-4 h-4 transition-transform duration-300 ${showTagInput ? 'rotate-45' : ''}`} />
                                             </button>
-                                        </span>
-                                    ))}
-                                    {inspectingTags.length === 0 && !showTagInput && (
-                                        <span className="text-xs text-slate-400 italic">{t('noTags')}</span>
-                                    )}
-                                </div>
-                                {showTagInput && (
-                                    <div className="relative animate-in slide-in-from-top-2 duration-200">
-                                        <input
-                                            type="text"
-                                            value={tagInput}
-                                            autoFocus
-                                            onChange={(e) => setTagInput(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    const val = tagInput.trim();
-                                                    if (val) {
-                                                        // Support multiple tags separated by comma, space or semicolon
-                                                        const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
-                                                        if (newTags.length > 0) {
-                                                            setInspectingTags(prev => [...prev, ...newTags]);
-                                                        }
-                                                        setTagInput('');
-                                                    }
-                                                }
-                                                if (e.key === 'Escape') {
-                                                    setShowTagInput(false);
-                                                }
-                                            }}
-                                            onBlur={() => {
-                                                if (tagInput.trim()) {
-                                                    const val = tagInput.trim();
-                                                    const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
-                                                    if (newTags.length > 0) {
-                                                        setInspectingTags(prev => [...prev, ...newTags]);
-                                                    }
-                                                    setTagInput('');
-                                                }
-                                                // We don't necessarily hide here if it breaks focus transitions? 
-                                                // Actually, common UX is to hide if click outside.
-                                                // setShowTagInput(false); // Let's try keeping it open if focused elsewhere? No, better hide.
-                                            }}
-                                            placeholder={t('addTagPlaceholder')}
-                                            className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm"
-                                        />
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                                            <span className="text-[10px] font-bold text-slate-300 mr-1">{t('enterToSubmit')}</span>
                                         </div>
+                                        <div className="flex flex-wrap gap-2 mb-1 min-h-[32px]">
+                                            {inspectingTags.map((tag, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100 group/tag transition-all hover:bg-blue-100"
+                                                >
+                                                    #{tag}
+                                                    <button
+                                                        onClick={() => setInspectingTags(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="ml-1.5 p-0.5 rounded-full hover:bg-blue-200 text-blue-400 hover:text-blue-600 transition-colors"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                            {inspectingTags.length === 0 && !showTagInput && (
+                                                <span className="text-xs text-slate-400 italic">{t('noTags')}</span>
+                                            )}
+                                        </div>
+                                        {showTagInput && (
+                                            <div className="relative animate-in slide-in-from-top-2 duration-200">
+                                                <input
+                                                    type="text"
+                                                    value={tagInput}
+                                                    autoFocus
+                                                    onChange={(e) => setTagInput(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            const val = tagInput.trim();
+                                                            if (val) {
+                                                                // Support multiple tags separated by comma, space or semicolon
+                                                                const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+                                                                if (newTags.length > 0) {
+                                                                    setInspectingTags(prev => [...prev, ...newTags]);
+                                                                }
+                                                                setTagInput('');
+                                                            }
+                                                        }
+                                                        if (e.key === 'Escape') {
+                                                            setShowTagInput(false);
+                                                        }
+                                                    }}
+                                                    onBlur={() => {
+                                                        if (tagInput.trim()) {
+                                                            const val = tagInput.trim();
+                                                            const newTags = val.split(/[,，;\s]+/).map(t => t.trim()).filter(t => t !== '' && !inspectingTags.includes(t));
+                                                            if (newTags.length > 0) {
+                                                                setInspectingTags(prev => [...prev, ...newTags]);
+                                                            }
+                                                            setTagInput('');
+                                                        }
+                                                        // We don't necessarily hide here if it breaks focus transitions? 
+                                                        // Actually, common UX is to hide if click outside.
+                                                        // setShowTagInput(false); // Let's try keeping it open if focused elsewhere? No, better hide.
+                                                    }}
+                                                    placeholder={t('addTagPlaceholder')}
+                                                    className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm"
+                                                />
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                                    <span className="text-[10px] font-bold text-slate-300 mr-1">{t('enterToSubmit')}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
                                 </div>
 
                                 {/* 設備照片縮圖（若有照片則顯示於此，點選可放大） */}
@@ -1658,10 +1654,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 // Filter completed items and deduplicate by equipmentId
                 const itemsMap = new Map();
                 (currentReport?.items || []).forEach((item: any) => {
-                    const isNormal = item.status === InspectionStatus.Normal || 
-                        item.status === 'Normal' || 
-                        item.status === '正常' || 
-                        item.status === 'Pass' || 
+                    const isNormal = item.status === InspectionStatus.Normal ||
+                        item.status === 'Normal' ||
+                        item.status === '正常' ||
+                        item.status === 'Pass' ||
                         item.status === 'OK';
                     if (isNormal) {
                         // Keep the latest record for each equipment
@@ -1850,9 +1846,9 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 // Filter abnormal items and deduplicate by equipmentId
                 const itemsMap = new Map();
                 (currentReport?.items || []).forEach((item: any) => {
-                    const isAbnormal = item.status === InspectionStatus.Abnormal || 
-                        item.status === 'Abnormal' || 
-                        item.status === '異常' || 
+                    const isAbnormal = item.status === InspectionStatus.Abnormal ||
+                        item.status === 'Abnormal' ||
+                        item.status === '異常' ||
                         item.status === 'Fail';
                     if (isAbnormal) {
                         // Keep the latest record for each equipment
