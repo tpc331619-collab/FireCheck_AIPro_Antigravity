@@ -672,18 +672,18 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 relative">
+        <div className="flex flex-col h-full bg-slate-100/80 relative">
             {/* Header */}
-            <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+            <div className="bg-white shadow-sm border-b border-slate-200/80 sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
                     <button
                         onClick={onBack}
-                        className="relative z-50 p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors w-11 h-11 flex items-center justify-center"
+                        className="relative z-50 p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors w-11 h-11 flex items-center justify-center cursor-pointer"
                         aria-label="Back"
                     >
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h1 className="font-bold text-lg text-slate-800">{t('startInspection')}</h1>
+                    <h1 className="font-extrabold text-lg text-slate-900 tracking-tight">{t('startInspection')}</h1>
                 </div>
             </div>
 
@@ -691,29 +691,29 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 <div className="max-w-3xl mx-auto space-y-6">
 
                     {/* Filter Section */}
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/90 grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                                <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectLocation')}
+                            <label className="text-xs font-bold text-slate-700 uppercase flex items-center tracking-wider">
+                                <MapPin className="w-3.5 h-3.5 mr-1.5 text-blue-600" /> {t('selectLocation')}
                             </label>
                             <select
                                 value={selectedSite}
                                 onChange={(e) => setSelectedSite(e.target.value)}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none transition-colors"
+                                className="w-full p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors cursor-pointer shadow-inner"
                             >
                                 <option value="">{t('pleaseSelect')}</option>
                                 {sites.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                                <Building2 className="w-3.5 h-3.5 mr-1.5" /> {t('selectBuilding')}
+                            <label className="text-xs font-bold text-slate-700 uppercase flex items-center tracking-wider">
+                                <Building2 className="w-3.5 h-3.5 mr-1.5 text-indigo-600" /> {t('selectBuilding')}
                             </label>
                             <select
                                 value={selectedBuilding}
                                 onChange={(e) => setSelectedBuilding(e.target.value)}
                                 disabled={!selectedSite}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                                className="w-full p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50 transition-colors cursor-pointer shadow-inner"
                             >
                                 <option value="">{t('pleaseSelect')}</option>
                                 <option value="ALL_BUILDINGS">{t('all')}</option>
@@ -721,14 +721,14 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                                <Box className="w-3.5 h-3.5 mr-1.5" /> {t('equipmentName')}
+                            <label className="text-xs font-bold text-slate-700 uppercase flex items-center tracking-wider">
+                                <Box className="w-3.5 h-3.5 mr-1.5 text-amber-600" /> {t('equipmentName')}
                             </label>
                             <select
                                 value={selectedEquipmentName}
                                 onChange={(e) => setSelectedEquipmentName(e.target.value)}
                                 disabled={!selectedSite}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                                className="w-full p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none disabled:opacity-50 transition-colors cursor-pointer shadow-inner"
                             >
                                 <option value="ALL_EQUIPMENT">{t('all')}</option>
                                 {equipmentNames.map(n => <option key={n} value={n}>{n}</option>)}
@@ -773,27 +773,25 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 1. 需檢查 (PENDING) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'PENDING' ? 'ALL' : 'PENDING')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
                                                     statusFilter === 'PENDING'
                                                         ? 'ring-2 ring-red-500 ring-offset-2 shadow-md scale-[1.02] border-red-500'
-                                                        : 'hover:border-red-300'
+                                                        : 'hover:border-red-400'
                                                 }`}
                                                 style={{
-                                                    backgroundColor: `${lightSettings?.red?.color || '#ef4444'}15`,
-                                                    borderColor: statusFilter === 'PENDING' ? (lightSettings?.red?.color || '#ef4444') : `${lightSettings?.red?.color || '#ef4444'}33`
+                                                    backgroundColor: `${lightSettings?.red?.color || '#ef4444'}20`,
+                                                    borderColor: statusFilter === 'PENDING' ? (lightSettings?.red?.color || '#ef4444') : `${lightSettings?.red?.color || '#ef4444'}55`
                                                 }}
                                                 title="點擊篩選需檢查設備（再點一次解除）"
                                             >
                                                 <div className="flex items-center justify-center gap-1.5 mb-1">
-                                                    <p className="text-xs font-bold uppercase tracking-wider"
-                                                        style={{ color: lightSettings?.red?.color || '#ef4444' }}>{t('needInspection')}</p>
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-rose-700">{t('needInspection')}</p>
                                                     {statusFilter === 'PENDING' && (
                                                         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                                                     )}
                                                 </div>
-                                                <p className="text-2xl font-black"
-                                                    style={{ color: lightSettings?.red?.color || '#ef4444' }}>{needInspectionCount}</p>
-                                                <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                                                <p className="text-2xl font-black text-rose-700">{needInspectionCount}</p>
+                                                <p className="text-[10px] text-slate-600 mt-1 font-semibold">
                                                     {statusFilter === 'PENDING' ? '已套用篩選 (點擊解除)' : '點擊過濾此項'}
                                                 </p>
                                             </div>
@@ -801,28 +799,26 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 2. 已完成 (COMPLETED_NORMAL) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'COMPLETED_NORMAL' ? 'ALL' : 'COMPLETED_NORMAL')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
                                                     statusFilter === 'COMPLETED_NORMAL'
-                                                        ? 'ring-2 ring-emerald-500 ring-offset-2 shadow-md scale-[1.02] border-emerald-500'
-                                                        : 'hover:border-emerald-300'
+                                                        ? 'ring-2 ring-blue-500 ring-offset-2 shadow-md scale-[1.02] border-blue-500'
+                                                        : 'hover:border-blue-400'
                                                 }`}
                                                 style={{
-                                                    backgroundColor: `${lightSettings?.completed?.color || '#10b981'}15`,
-                                                    borderColor: statusFilter === 'COMPLETED_NORMAL' ? (lightSettings?.completed?.color || '#10b981') : `${lightSettings?.completed?.color || '#10b981'}33`
+                                                    backgroundColor: '#3b82f61a',
+                                                    borderColor: statusFilter === 'COMPLETED_NORMAL' ? '#3b82f6' : '#3b82f64d'
                                                 }}
                                                 title="點擊篩選已完成設備（再點一次解除）"
                                             >
                                                 <div className="flex items-center justify-center gap-1.5 mb-1">
-                                                    <p className="text-xs font-bold uppercase tracking-wider"
-                                                        style={{ color: lightSettings?.completed?.color || '#10b981' }}>{t('completed')}</p>
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-blue-700">{t('completed')}</p>
                                                     {statusFilter === 'COMPLETED_NORMAL' && (
-                                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                                                     )}
                                                 </div>
-                                                <p className="text-2xl font-black"
-                                                    style={{ color: lightSettings?.completed?.color || '#10b981' }}>{completedNormalCount}</p>
+                                                <p className="text-2xl font-black text-blue-700">{completedNormalCount}</p>
                                                 <div className="flex items-center justify-center gap-2 mt-1">
-                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                    <span className="text-[10px] text-slate-600 font-semibold">
                                                         {statusFilter === 'COMPLETED_NORMAL' ? '已套用篩選' : '點擊過濾'}
                                                     </span>
                                                     {completedNormalCount > 0 && (
@@ -832,7 +828,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                                 e.stopPropagation();
                                                                 setShowCompletedModal(true);
                                                             }}
-                                                            className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold underline inline-flex items-center gap-0.5"
+                                                            className="text-[10px] text-blue-800 hover:text-blue-950 font-bold underline inline-flex items-center gap-0.5"
                                                             title="彈窗查看已完成細項"
                                                         >
                                                             <span>明細</span>
@@ -845,28 +841,26 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 3. 異常 (ABNORMAL) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'ABNORMAL' ? 'ALL' : 'ABNORMAL')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
                                                     statusFilter === 'ABNORMAL'
                                                         ? 'ring-2 ring-orange-500 ring-offset-2 shadow-md scale-[1.02] border-orange-500'
-                                                        : 'hover:border-orange-300'
+                                                        : 'hover:border-orange-400'
                                                 }`}
                                                 style={{
-                                                    backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}15`,
-                                                    borderColor: statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') : `${lightSettings?.abnormal?.color || '#f97316'}33`
+                                                    backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}20`,
+                                                    borderColor: statusFilter === 'ABNORMAL' ? (lightSettings?.abnormal?.color || '#f97316') : `${lightSettings?.abnormal?.color || '#f97316'}55`
                                                 }}
                                                 title="點擊篩選異常設備（再點一次解除）"
                                             >
                                                 <div className="flex items-center justify-center gap-1.5 mb-1">
-                                                    <p className="text-xs font-bold uppercase tracking-wider"
-                                                        style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{t('abnormal')}</p>
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-orange-700">{t('abnormal')}</p>
                                                     {statusFilter === 'ABNORMAL' && (
                                                         <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                                                     )}
                                                 </div>
-                                                <p className="text-2xl font-black"
-                                                    style={{ color: lightSettings?.abnormal?.color || '#f97316' }}>{abnormalCount}</p>
+                                                <p className="text-2xl font-black text-orange-700">{abnormalCount}</p>
                                                 <div className="flex items-center justify-center gap-2 mt-1">
-                                                    <span className="text-[10px] text-slate-500 font-medium">
+                                                    <span className="text-[10px] text-slate-600 font-semibold">
                                                         {statusFilter === 'ABNORMAL' ? '已套用篩選' : '點擊過濾'}
                                                     </span>
                                                     {abnormalCount > 0 && (
@@ -876,7 +870,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                                 e.stopPropagation();
                                                                 setShowAbnormalModal(true);
                                                             }}
-                                                            className="text-[10px] text-orange-700 hover:text-orange-900 font-bold underline inline-flex items-center gap-0.5"
+                                                            className="text-[10px] text-orange-800 hover:text-orange-950 font-bold underline inline-flex items-center gap-0.5"
                                                             title="彈窗查看異常細項"
                                                         >
                                                             <span>明細</span>
@@ -889,25 +883,25 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             {/* 4. 不需檢查 (NOT_NEEDED) */}
                                             <div
                                                 onClick={() => setStatusFilter(prev => prev === 'NOT_NEEDED' ? 'ALL' : 'NOT_NEEDED')}
-                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all hover:shadow-md active:scale-95 relative ${
+                                                className={`p-3.5 sm:p-4 rounded-xl border text-center cursor-pointer select-none transition-all shadow-sm hover:shadow-md active:scale-95 relative ${
                                                     statusFilter === 'NOT_NEEDED'
                                                         ? 'ring-2 ring-emerald-600 ring-offset-2 shadow-md scale-[1.02] border-emerald-600'
-                                                        : 'hover:border-slate-300'
+                                                        : 'hover:border-emerald-400'
                                                 }`}
                                                 style={{
-                                                    backgroundColor: `${lightSettings?.green?.color || '#10b981'}15`,
-                                                    borderColor: statusFilter === 'NOT_NEEDED' ? (lightSettings?.green?.color || '#10b981') : `${lightSettings?.green?.color || '#10b981'}33`
+                                                    backgroundColor: `${lightSettings?.green?.color || '#10b981'}20`,
+                                                    borderColor: statusFilter === 'NOT_NEEDED' ? (lightSettings?.green?.color || '#10b981') : `${lightSettings?.green?.color || '#10b981'}55`
                                                 }}
                                                 title="點擊篩選不需檢查設備（再點一次解除）"
                                             >
                                                 <div className="flex items-center justify-center gap-1.5 mb-1">
-                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('notNeeded')}</p>
+                                                    <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">{t('notNeeded')}</p>
                                                     {statusFilter === 'NOT_NEEDED' && (
                                                         <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
                                                     )}
                                                 </div>
-                                                <p className="text-2xl font-black text-slate-700">{notNeededCount}</p>
-                                                <p className="text-[10px] text-slate-500 mt-1 font-medium">
+                                                <p className="text-2xl font-black text-emerald-800">{notNeededCount}</p>
+                                                <p className="text-[10px] text-slate-600 mt-1 font-semibold">
                                                     {statusFilter === 'NOT_NEEDED' ? '已套用篩選 (點擊解除)' : '點擊過濾此項'}
                                                 </p>
                                             </div>
@@ -920,16 +914,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                     {/* Quick Search Section */}
                     {selectedSite && selectedBuilding && (
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-                            <h3 className="font-bold text-slate-700 flex items-center">
-                                <Search className="w-4 h-4 mr-2" /> {t('quickSearchTitle')}
+                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/90 space-y-4">
+                            <h3 className="font-extrabold text-slate-800 flex items-center">
+                                <Search className="w-4 h-4 mr-2 text-blue-600" /> {t('quickSearchTitle')}
                             </h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {/* Barcode Scanner Button */}
                                 <button
                                     onClick={() => setScannerOpen(true)}
-                                    className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg active:scale-95"
+                                    className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 cursor-pointer"
                                 >
                                     <ScanBarcode className="w-5 h-5" />
                                     <span className="font-bold">{t('scanBarcode')}</span>
@@ -943,16 +937,16 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         onChange={(e) => setManualInput(e.target.value.toUpperCase())}
                                         onKeyPress={(e) => e.key === 'Enter' && handleManualSearch()}
                                         placeholder={t('enterBarcodePlaceholder')}
-                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium text-slate-900 focus:border-blue-500 focus:outline-none transition-colors uppercase"
+                                        className="flex-1 px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-base font-semibold text-slate-900 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors uppercase shadow-inner"
                                         style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     />
                                     <button
                                         onClick={handleManualSearch}
                                         disabled={!manualInput.trim()}
-                                        className="px-4 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                        className="px-5 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-bold cursor-pointer shadow-sm active:scale-95"
                                     >
                                         <Search className="w-4 h-4" />
-                                        <span className="font-bold hidden sm:inline">{t('search')}</span>
+                                        <span className="hidden sm:inline">{t('search')}</span>
                                     </button>
                                 </div>
                             </div>
@@ -963,17 +957,17 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                     {selectedSite && selectedBuilding ? (
                         <div className="space-y-3">
                             <div className="flex items-center justify-between ml-1">
-                                <h3 className="font-bold text-slate-700 flex items-center text-sm sm:text-base">
-                                    <LayoutGrid className="w-4 h-4 mr-2" /> {t('equipmentList')}
-                                    <span className="ml-2 text-xs font-semibold text-slate-500">
-                                        ({displayedEquipment.length} / {filteredEquipment.length} 具)
+                                <h3 className="font-extrabold text-slate-800 flex items-center text-sm sm:text-base">
+                                    <LayoutGrid className="w-4 h-4 mr-2 text-slate-700" /> {t('equipmentList')}
+                                    <span className="ml-2 text-xs font-bold text-slate-600 bg-slate-200/80 px-2 py-0.5 rounded-full">
+                                        {displayedEquipment.length} / {filteredEquipment.length} 具
                                     </span>
                                 </h3>
                                 {statusFilter !== 'ALL' && (
                                     <button
                                         type="button"
                                         onClick={() => setStatusFilter('ALL')}
-                                        className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                                        className="flex items-center gap-1 px-3 py-1 bg-white hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-bold transition-all cursor-pointer shadow-sm border border-slate-300"
                                     >
                                         <span>顯示全部</span>
                                         <X className="w-3.5 h-3.5" />
@@ -983,10 +977,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                             {/* Active Filter Indicator Badge */}
                             {statusFilter !== 'ALL' && (
-                                <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+                                <div className="flex items-center justify-between p-3 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 shadow-sm">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-slate-500">當前狀態過濾：</span>
-                                        <span className="px-2.5 py-0.5 rounded-full font-bold text-xs" style={{
+                                        <span className="font-bold text-slate-600">當前狀態過濾：</span>
+                                        <span className="px-2.5 py-0.5 rounded-full font-extrabold text-xs shadow-sm" style={{
                                             backgroundColor: statusFilter === 'PENDING' ? `${lightSettings?.red?.color || '#ef4444'}20` :
                                                 statusFilter === 'COMPLETED_NORMAL' ? `${lightSettings?.completed?.color || '#10b981'}20` :
                                                 statusFilter === 'ABNORMAL' ? `${lightSettings?.abnormal?.color || '#f97316'}20` :
@@ -1053,7 +1047,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     // Visual Logic
                                     let statusLabel = '需檢查';
                                     let statusColor = 'bg-red-100 text-red-500';
-                                    let rowBorder = 'border-slate-200 hover:border-red-300';
+                                    let rowBorder = 'border-slate-300 hover:border-slate-400';
                                     let iconBg = 'bg-slate-300';
                                     let iconStyle: React.CSSProperties = {};
                                     let labelStyle: React.CSSProperties = {};
@@ -1065,10 +1059,10 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             statusLabel = '已檢查+異常';
                                             statusColor = ''; // Clear default tailwind classes
                                             labelStyle = {
-                                                backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}15`,
-                                                color: lightSettings?.abnormal?.color || '#f97316'
+                                                backgroundColor: `${lightSettings?.abnormal?.color || '#f97316'}20`,
+                                                color: lightSettings?.abnormal?.color || '#c2410c'
                                             };
-                                            rowBorder = 'border-red-200 bg-red-50/30';
+                                            rowBorder = 'border-orange-300 bg-orange-50/40';
 
                                             if (lightSettings?.abnormal?.color) {
                                                 iconStyle = { backgroundColor: lightSettings.abnormal.color };
@@ -1080,56 +1074,56 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         } else {
                                             statusLabel = '已檢查';
                                             statusColor = ''; // Clear default tailwind classes
-                                            rowBorder = 'border-green-200 bg-green-50/30';
+                                            rowBorder = 'border-emerald-300 bg-emerald-50/40';
 
                                             // Normal Completed: Use custom color if set, otherwise default emerald
                                             if (lightSettings?.completed?.color) {
                                                 iconStyle = { backgroundColor: lightSettings.completed.color };
-                                                labelStyle = { backgroundColor: `${lightSettings.completed.color}15`, color: lightSettings.completed.color };
+                                                labelStyle = { backgroundColor: `${lightSettings.completed.color}20`, color: lightSettings.completed.color };
                                                 iconBg = '';
                                             } else {
-                                                iconBg = 'bg-emerald-500';
+                                                iconBg = 'bg-emerald-600';
                                                 iconStyle = {};
-                                                labelStyle = { backgroundColor: '#10b98115', color: '#10b981' }; // Default green
+                                                labelStyle = { backgroundColor: '#10b98120', color: '#047857' }; // Default green
                                             }
                                             iconContent = <CheckCircle className="w-5 h-5 text-white" />;
                                         }
                                     } else if (freqStatus === 'CAN_INSPECT') {
                                         statusLabel = '可以檢查';
                                         statusColor = ''; // Clear default tailwind classes
-                                        rowBorder = 'border-yellow-200 hover:border-yellow-300';
+                                        rowBorder = 'border-amber-300 hover:border-amber-400 bg-amber-50/20';
                                         if (lightSettings?.yellow?.color) {
                                             iconStyle = { backgroundColor: lightSettings.yellow.color };
-                                            labelStyle = { backgroundColor: `${lightSettings.yellow.color}15`, color: lightSettings.yellow.color };
+                                            labelStyle = { backgroundColor: `${lightSettings.yellow.color}25`, color: '#b45309' };
                                             iconBg = '';
                                         } else {
-                                            iconBg = 'bg-yellow-400';
-                                            labelStyle = { backgroundColor: '#facc1515', color: '#facc15' }; // Default yellow
+                                            iconBg = 'bg-amber-400';
+                                            labelStyle = { backgroundColor: '#facc1525', color: '#b45309' }; // Default yellow
                                         }
                                     } else if (freqStatus === 'UNNECESSARY') {
                                         statusLabel = '不須檢查';
                                         statusColor = ''; // Clear default tailwind classes
-                                        rowBorder = 'border-slate-200 opacity-75';
+                                        rowBorder = 'border-slate-300/80 hover:border-slate-400 bg-white';
                                         if (lightSettings?.green?.color) {
                                             iconStyle = { backgroundColor: lightSettings.green.color };
-                                            labelStyle = { backgroundColor: `${lightSettings.green.color}15`, color: lightSettings.green.color };
+                                            labelStyle = { backgroundColor: `${lightSettings.green.color}20`, color: '#047857' };
                                             iconBg = '';
                                         } else {
-                                            iconBg = 'bg-emerald-500';
-                                            labelStyle = { backgroundColor: '#10b98115', color: '#10b981' }; // Default green
+                                            iconBg = 'bg-emerald-600';
+                                            labelStyle = { backgroundColor: '#10b98120', color: '#047857' }; // Default green
                                         }
                                     } else {
                                         // PENDING
                                         statusLabel = '需檢查'; // Ensure label is set
                                         statusColor = ''; // Clear default tailwind classes
-                                        rowBorder = 'border-red-200 hover:border-red-300'; // Ensure border is set
+                                        rowBorder = 'border-red-300 hover:border-red-400 bg-red-50/20'; // Ensure border is set
                                         if (lightSettings?.red?.color) {
                                             iconStyle = { backgroundColor: lightSettings.red.color };
-                                            labelStyle = { backgroundColor: `${lightSettings.red.color}15`, color: lightSettings.red.color };
+                                            labelStyle = { backgroundColor: `${lightSettings.red.color}20`, color: '#b91c1c' };
                                             iconBg = '';
                                         } else {
-                                            iconBg = 'bg-red-500';
-                                            labelStyle = { backgroundColor: '#ef444415', color: '#ef4444' }; // Default red
+                                            iconBg = 'bg-red-600';
+                                            labelStyle = { backgroundColor: '#ef444420', color: '#b91c1c' }; // Default red
                                         }
                                     }
 
@@ -1142,34 +1136,34 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                             onClick={() => {
                                                 handleSelectItem(item);
                                             }}
-                                            className={`bg-white p-4 rounded-xl border transition-all flex items-center justify-between shadow-sm relative overflow-hidden ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md'} ${rowBorder}`}
+                                            className={`bg-white p-4 sm:p-5 rounded-2xl border transition-all flex items-center justify-between shadow-[0_2px_8px_rgba(0,0,0,0.04)] relative overflow-hidden ${isLocked ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md hover:-translate-y-0.5'} ${rowBorder}`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex-shrink-0 text-slate-400 font-bold text-sm min-w-[1.25rem]">
+                                            <div className="flex items-center gap-3.5">
+                                                <span className="flex-shrink-0 text-slate-500 font-extrabold text-sm min-w-[1.5rem]">
                                                     {index + 1}.
                                                 </span>
                                                 <div
-                                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 ${iconBg}`}
+                                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm ${iconBg}`}
                                                     style={iconStyle}
                                                 >
                                                     {freqStatus === 'COMPLETED' && inspectionItem?.status === InspectionStatus.Normal ? (
-                                                        <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                                        <CheckCircle className="w-4 h-4 text-white" />
                                                     ) : iconContent}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
-                                                        <h4 className="font-bold text-slate-800 text-sm sm:text-base leading-tight">
+                                                        <h4 className="font-extrabold text-slate-900 text-sm sm:text-base leading-tight">
                                                             {item.name}
                                                         </h4>
                                                         {item.barcode && (
-                                                            <span className="text-[11px] sm:text-xs text-slate-500 font-mono bg-slate-100 px-1.5 py-0.5 rounded leading-none shrink-0 border border-slate-200">
+                                                            <span className="text-[11px] sm:text-xs text-slate-700 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded leading-none shrink-0 border border-slate-300">
                                                                 {item.barcode}
                                                             </span>
                                                         )}
                                                         {item.tags && item.tags.length > 0 && (
                                                             <div className="flex flex-wrap gap-1 shrink-0">
                                                                 {item.tags.map(tag => (
-                                                                    <span key={tag} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded border border-blue-100 leading-none">
+                                                                    <span key={tag} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-extrabold rounded-md border border-blue-200 leading-none">
                                                                         #{tag}
                                                                     </span>
                                                                 ))}
@@ -1177,27 +1171,27 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                         )}
                                                         {isLocked && <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                                                         {isAdmin && isCompleted && (
-                                                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-bold rounded border border-blue-200 shrink-0 flex items-center gap-1">
+                                                            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-200 shrink-0 flex items-center gap-1">
                                                                 <Edit2 className="w-2.5 h-2.5" />
                                                                 管理員可修改
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] sm:text-[11px] font-medium text-slate-500">
+                                                    <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[11px] font-medium text-slate-600">
                                                         <div className="flex items-center gap-1 shrink-0">
-                                                            <CalendarClock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
-                                                            <span>下次: <span className="text-slate-700">{new Date(getNextInspectionDate(item)).toLocaleDateString()}</span></span>
+                                                            <CalendarClock className="w-3.5 h-3.5 text-slate-500" />
+                                                            <span>下次: <span className="text-slate-900 font-bold">{new Date(getNextInspectionDate(item)).toLocaleDateString()}</span></span>
                                                         </div>
                                                         {item.lastInspectedDate && (
                                                             <div className="flex items-center gap-1 shrink-0">
-                                                                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
-                                                                <span>最近: <span className="text-slate-700">{new Date(item.lastInspectedDate).toLocaleDateString()}</span></span>
+                                                                <Clock className="w-3.5 h-3.5 text-slate-500" />
+                                                                <span>最近: <span className="text-slate-900 font-bold">{new Date(item.lastInspectedDate).toLocaleDateString()}</span></span>
                                                             </div>
                                                         )}
                                                         {inspectionItem && (
                                                             <div className="flex items-center gap-1 shrink-0">
-                                                                <CheckCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-500" />
-                                                                <span className="text-blue-600 font-bold">
+                                                                <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+                                                                <span className="text-blue-700 font-bold">
                                                                     本次已檢: {new Date(inspectionItem.timestamp || Date.now()).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                                                 </span>
                                                             </div>
@@ -1206,19 +1200,19 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2.5 shrink-0">
                                                 {/* Status Light Indicator (Right Side) */}
                                                 {freqStatus === 'PENDING' && (
-                                                    <div className="w-3 h-3 rounded-full shadow-lg"
-                                                        style={{ backgroundColor: lightSettings?.red?.color || '#ef4444', boxShadow: `0 0 10px ${lightSettings?.red?.color || '#ef4444'}66` }}></div>
+                                                    <div className="w-3.5 h-3.5 rounded-full shadow-md"
+                                                        style={{ backgroundColor: lightSettings?.red?.color || '#ef4444', boxShadow: `0 0 8px ${lightSettings?.red?.color || '#ef4444'}80` }}></div>
                                                 )}
                                                 {freqStatus === 'CAN_INSPECT' && (
-                                                    <div className="w-3 h-3 rounded-full shadow-lg"
-                                                        style={{ backgroundColor: lightSettings?.yellow?.color || '#facc15', boxShadow: `0 0 10px ${lightSettings?.yellow?.color || '#facc15'}66` }}></div>
+                                                    <div className="w-3.5 h-3.5 rounded-full shadow-md"
+                                                        style={{ backgroundColor: lightSettings?.yellow?.color || '#facc15', boxShadow: `0 0 8px ${lightSettings?.yellow?.color || '#facc15'}80` }}></div>
                                                 )}
                                                 {freqStatus === 'UNNECESSARY' && (
-                                                    <div className="w-3 h-3 rounded-full shadow-lg"
-                                                        style={{ backgroundColor: lightSettings?.green?.color || '#10b981', boxShadow: `0 0 10px ${lightSettings?.green?.color || '#10b981'}66` }}></div>
+                                                    <div className="w-3.5 h-3.5 rounded-full shadow-md"
+                                                        style={{ backgroundColor: lightSettings?.green?.color || '#10b981', boxShadow: `0 0 8px ${lightSettings?.green?.color || '#10b981'}80` }}></div>
                                                 )}
                                                 {freqStatus === 'COMPLETED' && (() => {
                                                     const inspectionItem = (currentReport?.items || []).find((i: any) => i.equipmentId === item.id);
@@ -1226,14 +1220,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                                                     if (isAbnormal) {
                                                         const color = lightSettings?.abnormal?.color || '#f97316';
-                                                        return <div className="w-3 h-3 rounded-full shadow-lg" style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}66` }} />;
+                                                        return <div className="w-3.5 h-3.5 rounded-full shadow-md" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}80` }} />;
                                                     } else {
-                                                        // Completed Normal - Custom color or default emerald
-                                                        return <div className="w-3 h-3 rounded-full" style={{ backgroundColor: lightSettings?.completed?.color || '#10b981' }}></div>;
+                                                        return <div className="w-3.5 h-3.5 rounded-full shadow-md" style={{ backgroundColor: lightSettings?.completed?.color || '#10b981', boxShadow: `0 0 8px ${lightSettings?.completed?.color || '#10b981'}80` }}></div>;
                                                     }
                                                 })()}
 
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`} style={labelStyle}>
+                                                <span className={`px-3 py-1 rounded-full text-xs font-black shadow-sm ${statusColor}`} style={labelStyle}>
                                                     {statusLabel}
                                                 </span>
                                             </div>
