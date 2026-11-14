@@ -16,7 +16,8 @@ import {
     Box,
     ChevronDown,
     ChevronUp,
-    ShieldCheck
+    ShieldCheck,
+    Camera
 } from 'lucide-react';
 import {
     EquipmentDefinition,
@@ -51,6 +52,8 @@ interface TimelineEntry {
     abnormalValue?: string;
     fixedDate?: number;
     fixedNotes?: string;
+    abnormalPhotoUrl?: string;
+    repairPhotoUrl?: string;
     isForced?: boolean;
     forcedFromDueDate?: number;
     checkResults?: Array<{
@@ -151,21 +154,38 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
 
                 // Match corresponding abnormal record if any for richer details
                 const itemDate = typeof report.date === 'number' ? report.date : new Date(report.date).getTime();
-                const matchedAbnormal = equipAbnormalList.find(
-                    ar => Math.abs((ar.inspectionDate || 0) - itemDate) < 86400000 * 2
-                );
+                const matchedAbnormal =
+                    equipAbnormalList.find(ar => Math.abs((ar.inspectionDate || 0) - itemDate) < 60000) ||
+                    equipAbnormalList.find(ar => Math.abs((ar.inspectionDate || 0) - itemDate) < 86400000 * 2);
+
+                const cleanItemNotes = item.notes
+                    ? item.notes.replace(/\s*\[異常複檢\s*-\s*已修復\]/g, '').trim()
+                    : undefined;
+
+                const abnormalPhotoUrl =
+                    (item as any).abnormalPhotoUrl ||
+                    matchedAbnormal?.abnormalPhotoUrl ||
+                    matchedAbnormal?.photoUrl ||
+                    (mappedStatus !== 'NORMAL' ? item.photoUrl : undefined);
+
+                const repairPhotoUrl =
+                    (item as any).repairPhotoUrl ||
+                    (item as any).fixedPhotoUrl ||
+                    matchedAbnormal?.fixedPhotoUrl;
 
                 entries.push({
                     id: `${report.id}_${item.id || item.barcode}`,
                     date: itemDate,
                     status: matchedAbnormal?.status === 'fixed' ? 'FIXED' : mappedStatus,
                     inspectorName: report.inspectorName || '檢查員',
-                    notes: item.notes,
-                    abnormalReason: matchedAbnormal?.abnormalReason || (mappedStatus !== 'NORMAL' ? item.notes : undefined),
+                    notes: cleanItemNotes,
+                    abnormalReason: matchedAbnormal?.abnormalReason || (mappedStatus !== 'NORMAL' ? cleanItemNotes : undefined),
                     abnormalItems: matchedAbnormal?.abnormalItems || (item as any).abnormalItems,
                     abnormalValue: matchedAbnormal?.abnormalValue,
                     fixedDate: matchedAbnormal?.fixedDate || (item as any).repairDate,
                     fixedNotes: matchedAbnormal?.fixedNotes || (item as any).repairNotes,
+                    abnormalPhotoUrl,
+                    repairPhotoUrl,
                     checkResults: item.checkResults,
                     isForced: item.isForced,
                     forcedFromDueDate: item.forcedFromDueDate
@@ -188,7 +208,9 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
                     abnormalItems: ar.abnormalItems,
                     abnormalValue: ar.abnormalValue,
                     fixedDate: ar.fixedDate,
-                    fixedNotes: ar.fixedNotes
+                    fixedNotes: ar.fixedNotes,
+                    abnormalPhotoUrl: ar.abnormalPhotoUrl || ar.photoUrl,
+                    repairPhotoUrl: ar.fixedPhotoUrl
                 });
             }
         });
@@ -486,7 +508,7 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
 
                                             {/* Abnormal & Repair Details */}
                                             {!isNormal && (
-                                                <div className="mt-2 pt-2 border-t border-slate-100 space-y-1.5 text-xs">
+                                                <div className="mt-2 pt-2 border-t border-slate-100 space-y-2 text-xs">
                                                     {(entry.abnormalReason || entry.notes) && (
                                                         <div className="text-red-600 font-semibold flex items-start gap-1.5">
                                                             <span className="shrink-0 bg-red-100 text-red-700 px-1.5 py-0.2 rounded text-[10px] font-bold">
@@ -512,6 +534,59 @@ const EquipmentPassportModal: React.FC<EquipmentPassportModalProps> = ({
                                                             </span>
                                                         </div>
                                                     )}
+
+                                                    {/* 改善前後照片對比 */}
+                                                    <div className="grid grid-cols-2 gap-2.5 pt-1">
+                                                        {/* 異常現場照片 */}
+                                                        <div className="bg-red-50/60 border border-red-200/80 rounded-xl p-2 flex flex-col">
+                                                            <div className="text-[10px] font-extrabold text-red-700 mb-1.5 flex items-center gap-1">
+                                                                <Camera className="w-3 h-3 text-red-500 shrink-0" />
+                                                                <span>異常現場照片</span>
+                                                            </div>
+                                                            {entry.abnormalPhotoUrl ? (
+                                                                <div
+                                                                    onClick={() => setEnlargedPhoto(entry.abnormalPhotoUrl!)}
+                                                                    className="relative group/photo rounded-lg overflow-hidden border border-red-200 bg-white cursor-zoom-in"
+                                                                    title="點擊放大檢視異常現場照片"
+                                                                >
+                                                                    <img
+                                                                        src={entry.abnormalPhotoUrl}
+                                                                        alt="異常現場照片"
+                                                                        className="w-full h-24 object-cover group-hover/photo:scale-105 transition-transform duration-200"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-24 rounded-lg border border-dashed border-red-200 bg-white/60 flex items-center justify-center text-[11px] font-bold text-slate-400">
+                                                                    無照片
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* 改善後照片 */}
+                                                        <div className="bg-teal-50/60 border border-teal-200/80 rounded-xl p-2 flex flex-col">
+                                                            <div className="text-[10px] font-extrabold text-teal-800 mb-1.5 flex items-center gap-1">
+                                                                <Camera className="w-3 h-3 text-teal-600 shrink-0" />
+                                                                <span>改善後照片</span>
+                                                            </div>
+                                                            {entry.repairPhotoUrl ? (
+                                                                <div
+                                                                    onClick={() => setEnlargedPhoto(entry.repairPhotoUrl!)}
+                                                                    className="relative group/photo rounded-lg overflow-hidden border border-teal-200 bg-white cursor-zoom-in"
+                                                                    title="點擊放大檢視改善後照片"
+                                                                >
+                                                                    <img
+                                                                        src={entry.repairPhotoUrl}
+                                                                        alt="改善後照片"
+                                                                        className="w-full h-24 object-cover group-hover/photo:scale-105 transition-transform duration-200"
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-24 rounded-lg border border-dashed border-teal-200 bg-white/60 flex items-center justify-center text-[11px] font-bold text-slate-400">
+                                                                    {isFixed ? '無照片' : '待複檢上傳'}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
 
