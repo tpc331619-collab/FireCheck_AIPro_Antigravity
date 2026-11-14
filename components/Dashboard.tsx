@@ -2202,24 +2202,51 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setShowAbnormalRecheck(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] flex items-center justify-between gap-3"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <AlertOctagon className="w-24 h-24 text-amber-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                                                <AlertOctagon className="w-5 h-5 text-white" />
-                                                {abnormalCount > 0 && (
-                                                    <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
-                                                    </span>
-                                                )}
+                                            <div className="min-w-0">
+                                                <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
+                                                    <AlertOctagon className="w-5 h-5 text-white" />
+                                                    {abnormalCount > 0 && (
+                                                        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
+                                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                            <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('abnormalRecheck')}</h3>
+                                                <p className={`text-[11px] font-bold leading-tight tracking-tight ${abnormalCount > 0 ? 'text-red-600' : 'text-slate-500'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                    {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
+                                                </p>
                                             </div>
-                                            <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('abnormalRecheck')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                                                {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
-                                            </p>
+
+                                            {/* 右側明顯異常筆數顯示 */}
+                                            <div className={`relative z-10 shrink-0 flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-2xl border transition-all ${
+                                                abnormalCount > 0
+                                                    ? 'bg-red-50/90 border-red-200 shadow-sm shadow-red-100 group-hover:bg-red-100/80'
+                                                    : 'bg-emerald-50/70 border-emerald-200/80'
+                                            }`}>
+                                                <div className="flex items-baseline gap-0.5">
+                                                    <span className={`text-3xl font-black tabular-nums leading-none tracking-tight ${
+                                                        abnormalCount > 0 ? 'text-red-600' : 'text-emerald-600'
+                                                    }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                        {abnormalCount}
+                                                    </span>
+                                                    <span className={`text-xs font-extrabold ${
+                                                        abnormalCount > 0 ? 'text-red-500' : 'text-emerald-600'
+                                                    }`}>
+                                                        筆
+                                                    </span>
+                                                </div>
+                                                <span className={`text-[10px] font-extrabold mt-1 tracking-wider ${
+                                                    abnormalCount > 0 ? 'text-red-600' : 'text-emerald-700'
+                                                }`}>
+                                                    {abnormalCount > 0 ? '待複檢' : '全數正常'}
+                                                </span>
+                                            </div>
                                         </button>
                                     );
 
