@@ -157,19 +157,19 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
         let badge = null;
         if (isFixed) {
             badge = (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-300 rounded-full text-xs font-extrabold shadow-xs">
                     <CheckCircle className="w-3.5 h-3.5" /> 已改善
                 </span>
             );
         } else if (status === 'Abnormal' || status === '異常') {
             badge = (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 rounded-full text-xs font-bold">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-300 rounded-full text-xs font-extrabold shadow-xs">
                     <AlertTriangle className="w-3.5 h-3.5" /> 異常
                 </span>
             );
         } else {
             badge = (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-full text-xs font-extrabold shadow-xs">
                     <CheckCircle className="w-3.5 h-3.5" /> 正常
                 </span>
             );
@@ -222,10 +222,10 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
         if (key === 'index' && isAdmin && onBatchDelete) {
             return (
-                <th key="select-all" className="px-4 py-3 w-16 text-center">
+                <th key="select-all" className="px-4 py-3.5 w-16 text-center">
                     <button
                         onClick={toggleSelectAll}
-                        className="p-1 hover:bg-slate-200 rounded transition-colors text-slate-500"
+                        className="p-1 hover:bg-slate-200 rounded transition-colors text-slate-600"
                     >
                         {selectedItems.size > 0 && selectedItems.size === paginatedData.length ? (
                             <CheckSquare className="w-5 h-5 text-blue-600" />
@@ -241,11 +241,11 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             <th
                 key={key}
                 onClick={() => handleSort(key)}
-                className={`px-4 py-3 cursor-pointer select-none hover:bg-slate-100 transition-colors group ${key === 'index' || key === 'actions' ? 'text-center' : 'text-left'}`}
+                className={`px-4 py-3.5 cursor-pointer select-none hover:bg-slate-200/70 transition-colors group ${key === 'index' || key === 'actions' ? 'text-center' : 'text-left'}`}
             >
                 <div className={`flex items-center gap-1.5 ${key === 'index' || key === 'actions' ? 'justify-center' : ''}`}>
                     {label}
-                    <Icon className={`w-3.5 h-3.5 transition-colors ${isSorted ? 'text-blue-600 stroke-[3px]' : 'text-slate-300 group-hover:text-slate-400'}`} />
+                    <Icon className={`w-3.5 h-3.5 transition-colors ${isSorted ? 'text-blue-600 stroke-[3px]' : 'text-slate-400 group-hover:text-slate-600'}`} />
                 </div>
             </th>
         );
@@ -256,7 +256,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             case 'index':
                 if (isAdmin && onBatchDelete) {
                     return (
-                        <td key={`select-${row.equipmentId}`} className="px-4 py-3 text-center">
+                        <td key={`select-${row.equipmentId}`} className="px-4 py-3.5 text-center">
                             <button
                                 onClick={(e) => { e.stopPropagation(); toggleSelectItem(row.equipmentId); }}
                                 className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-blue-600 transition-colors"
@@ -270,21 +270,33 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                         </td>
                     );
                 }
-                return <td key={key} className="px-4 py-3 text-center text-slate-700 font-bold">{(currentPage - 1) * itemsPerPage + index + 1}</td>;
-            case 'date': return <td key={key} className="px-4 py-3 text-slate-900 font-medium">{renderDate(row.date)}</td>;
-            case 'building': return <td key={key} className="px-4 py-3 text-slate-900">{row.buildingName || '-'}</td>;
-            case 'equipment': return <td key={key} className="px-4 py-3 text-slate-900 font-bold">{row.name || '未命名項目'}</td>;
-            case 'barcode': return <td key={key} className="px-4 py-3 font-mono text-xs text-slate-600">{row.barcode || '-'}</td>;
-            case 'result': return <td key={key} className="px-4 py-3">{renderStatusBadge(row)}</td>;
-            case 'notes': return <td key={key} className="px-4 py-3 text-xs text-slate-700 font-medium">{(row.notes || '').replace('[異常複檢 - 已修復]', '').trim() || '-'}</td>;
-            case 'inspector': return <td key={key} className="px-4 py-3 text-slate-900">{row.inspectorName || '未知'}</td>;
+                return (
+                    <td key={key} className="px-4 py-3.5 text-center">
+                        <span className="inline-flex items-center justify-center min-w-[28px] h-7 px-2 rounded-lg bg-slate-100 text-slate-700 font-extrabold text-xs border border-slate-300/80 shadow-2xs">
+                            {(currentPage - 1) * itemsPerPage + index + 1}
+                        </span>
+                    </td>
+                );
+            case 'date': return <td key={key} className="px-4 py-3.5 text-slate-800 font-bold">{renderDate(row.date)}</td>;
+            case 'building': return <td key={key} className="px-4 py-3.5 text-slate-800 font-semibold">{row.buildingName || '-'}</td>;
+            case 'equipment': return <td key={key} className="px-4 py-3.5 text-slate-900 font-extrabold">{row.name || '未命名項目'}</td>;
+            case 'barcode': return (
+                <td key={key} className="px-4 py-3.5">
+                    <span className="px-2.5 py-1 rounded-md font-mono text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300/80">
+                        {row.barcode || '-'}
+                    </span>
+                </td>
+            );
+            case 'result': return <td key={key} className="px-4 py-3.5">{renderStatusBadge(row)}</td>;
+            case 'notes': return <td key={key} className="px-4 py-3.5 text-xs text-slate-700 font-semibold">{(row.notes || '').replace('[異常複檢 - 已修復]', '').trim() || '-'}</td>;
+            case 'inspector': return <td key={key} className="px-4 py-3.5 text-slate-800 font-semibold">{row.inspectorName || '未知'}</td>;
             case 'actions': return (
-                <td key={key} className="px-4 py-3 text-center">
+                <td key={key} className="px-4 py-3.5 text-center">
                     <div className="flex items-center justify-center gap-2">
                         {row.checkResults && row.checkResults.length > 0 && (isAdmin || systemSettings?.allowInspectorViewHistoryDetail !== false) && (
                             <button
                                 onClick={() => onViewDetails(row)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors shadow-sm border border-blue-100"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-extrabold hover:bg-blue-100 hover:border-blue-300 transition-all shadow-xs border border-blue-200 active:scale-95"
                                 title="內容"
                             >
                                 <ClipboardList className="w-3.5 h-3.5" />
@@ -294,7 +306,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                         {(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常') && (isAdmin || systemSettings?.allowInspectorViewCompleted !== false) && (
                             <button
                                 onClick={() => onViewRecheck(row)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm border border-red-100"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-xs font-extrabold hover:bg-red-100 hover:border-red-300 transition-all shadow-xs border border-red-200 active:scale-95"
                                 title="檢修"
                             >
                                 <Wrench className="w-3.5 h-3.5" />
@@ -309,7 +321,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                         onDelete(row);
                                     }
                                 }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors shadow-sm border border-red-100"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-extrabold hover:bg-red-100 hover:border-red-300 transition-all shadow-xs border border-red-200 active:scale-95"
                                 title="刪除"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -328,8 +340,8 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
             {/* Batch Actions Toolbar */}
             {selectedItems.size > 0 && isAdmin && onBatchDelete && (
-                <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex items-center justify-between mb-4 animate-in slide-in-from-top-2">
-                    <div className="flex items-center gap-2 text-red-700 font-bold px-2">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between mb-4 animate-in slide-in-from-top-2 shadow-sm">
+                    <div className="flex items-center gap-2 text-red-700 font-extrabold px-2">
                         <CheckSquare className="w-5 h-5" />
                         <span>已選取 {selectedItems.size} 項目</span>
                     </div>
@@ -344,19 +356,28 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             )}
 
             {/* Desktop Table View (Hidden on Mobile) */}
-            <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="hidden md:block bg-white rounded-2xl shadow-md border border-slate-300 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                        <thead className="bg-slate-100/95 text-slate-800 font-extrabold border-b-2 border-slate-300 tracking-wide">
                             <tr>
                                 {columnOrder.map(key =>
                                     visibleColumns[key as keyof typeof visibleColumns] ? renderHeader(key) : null
                                 )}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-200/90">
                             {paginatedData.map((row, index) => (
-                                <tr key={`${row.reportId}-${index}`} className={`transition-colors ${selectedItems.has(row.equipmentId) ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}>
+                                <tr
+                                    key={`${row.reportId}-${index}`}
+                                    className={`transition-colors ${
+                                        selectedItems.has(row.equipmentId)
+                                            ? 'bg-blue-50/70'
+                                            : index % 2 === 1
+                                                ? 'bg-slate-50/80 hover:bg-blue-50/40'
+                                                : 'bg-white hover:bg-blue-50/40'
+                                    }`}
+                                >
                                     {columnOrder.map(key =>
                                         visibleColumns[key as keyof typeof visibleColumns] ? renderCell(key, row, index) : null
                                     )}
@@ -364,7 +385,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                             ))}
                             {paginatedData.length === 0 && (
                                 <tr>
-                                    <td colSpan={columnOrder.filter(key => visibleColumns[key as keyof typeof visibleColumns]).length} className="px-4 py-8 text-center text-slate-400">
+                                    <td colSpan={columnOrder.filter(key => visibleColumns[key as keyof typeof visibleColumns]).length} className="px-4 py-12 text-center text-slate-500 font-bold">
                                         無相關資料
                                     </td>
                                 </tr>
@@ -377,7 +398,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             {/* Mobile Card View (Visible on Mobile) */}
             <div className="md:hidden space-y-4">
                 {paginatedData.map((row, index) => (
-                    <div key={`${row.reportId}-${index}-mobile`} className={`bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden ${selectedItems.has(row.equipmentId) ? 'ring-2 ring-blue-500' : ''}`}>
+                    <div key={`${row.reportId}-${index}-mobile`} className={`bg-white rounded-2xl shadow-sm border border-slate-300 overflow-hidden ${selectedItems.has(row.equipmentId) ? 'ring-2 ring-blue-500' : ''}`}>
                         {/* Selection Overlay for Mobile */}
                         {isAdmin && onBatchDelete && (
                             <div className="absolute top-4 right-4 z-10">
@@ -395,11 +416,11 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                         )}
 
                         {/* Card Header */}
-                        <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                        <div className="p-4 bg-slate-100/80 border-b border-slate-200 flex justify-between items-center">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-400">#{(currentPage - 1) * itemsPerPage + index + 1}</span>
-                                <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-                                    <Calendar className="w-4 h-4 text-slate-400" />
+                                <span className="px-2 py-0.5 rounded-md bg-white border border-slate-300 text-xs font-extrabold text-slate-700">#{(currentPage - 1) * itemsPerPage + index + 1}</span>
+                                <div className="flex items-center gap-1.5 text-sm font-extrabold text-slate-800">
+                                    <Calendar className="w-4 h-4 text-slate-500" />
                                     {renderDate(row.date)}
                                 </div>
                             </div>
@@ -411,18 +432,18 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 {visibleColumns.equipment && (
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                                            <Box className="w-3 h-3" /> 設備名稱
+                                        <label className="text-xs font-extrabold text-slate-500 flex items-center gap-1">
+                                            <Box className="w-3 h-3 text-amber-600" /> 設備名稱
                                         </label>
-                                        <p className="font-bold text-slate-800">{row.name || '未命名項目'}</p>
+                                        <p className="font-extrabold text-slate-900">{row.name || '未命名項目'}</p>
                                     </div>
                                 )}
                                 {visibleColumns.building && (
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                                            <MapPin className="w-3 h-3" /> 建築位置
+                                        <label className="text-xs font-extrabold text-slate-500 flex items-center gap-1">
+                                            <MapPin className="w-3 h-3 text-blue-600" /> 建築位置
                                         </label>
-                                        <p className="text-sm font-medium text-slate-700 truncate">{row.buildingName || '-'}</p>
+                                        <p className="text-sm font-semibold text-slate-800 truncate">{row.buildingName || '-'}</p>
                                     </div>
                                 )}
                             </div>
@@ -430,30 +451,30 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 {visibleColumns.barcode && (
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                                            <Hash className="w-3 h-3" /> 編號
+                                        <label className="text-xs font-extrabold text-slate-500 flex items-center gap-1">
+                                            <Hash className="w-3 h-3 text-indigo-600" /> 編號
                                         </label>
-                                        <p className="font-mono text-xs font-medium text-slate-600 bg-slate-100 rounded px-1.5 py-0.5 inline-block">
+                                        <p className="font-mono text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded px-2 py-0.5 inline-block">
                                             {row.barcode || '-'}
                                         </p>
                                     </div>
                                 )}
                                 {visibleColumns.inspector && (
                                     <div className="space-y-1">
-                                        <label className="text-xs font-bold text-slate-400 flex items-center gap-1">
-                                            <User className="w-3 h-3" /> 檢查員
+                                        <label className="text-xs font-extrabold text-slate-500 flex items-center gap-1">
+                                            <User className="w-3 h-3 text-teal-600" /> 檢查員
                                         </label>
-                                        <p className="text-sm font-medium text-slate-700">{row.inspectorName || '-'}</p>
+                                        <p className="text-sm font-semibold text-slate-800">{row.inspectorName || '-'}</p>
                                     </div>
                                 )}
                             </div>
 
                             {visibleColumns.notes && row.notes && (
-                                <div className="pt-2 border-t border-slate-50">
-                                    <label className="text-xs font-bold text-slate-400 flex items-center gap-1 mb-1">
+                                <div className="pt-2 border-t border-slate-200/80">
+                                    <label className="text-xs font-extrabold text-slate-500 flex items-center gap-1 mb-1">
                                         <FileText className="w-3 h-3" /> 備註
                                     </label>
-                                    <p className="text-xs text-slate-600 italic">
+                                    <p className="text-xs text-slate-700 font-medium italic">
                                         {(row.notes || '').replace('[異常複檢 - 已修復]', '').trim() || '-'}
                                     </p>
                                 </div>
@@ -462,13 +483,13 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
 
                         {/* Card Footer - Actions */}
                         {visibleColumns.actions && (
-                            <div className="p-3 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-3">
+                            <div className="p-3 bg-slate-50 border-t border-slate-200 grid grid-cols-2 gap-3">
                                 <button
                                     onClick={() => onViewDetails(row)}
                                     disabled={!row.checkResults || row.checkResults.length === 0}
-                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${(!row.checkResults || row.checkResults.length === 0)
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-extrabold text-sm transition-all ${(!row.checkResults || row.checkResults.length === 0)
                                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        : 'bg-white text-blue-600 border border-blue-200 shadow-sm hover:bg-blue-50 active:scale-95'
+                                        : 'bg-white text-blue-700 border border-blue-200 shadow-sm hover:bg-blue-50 active:scale-95'
                                         }`}
                                 >
                                     <ClipboardList className="w-4 h-4" />
@@ -478,9 +499,9 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                 <button
                                     onClick={() => onViewRecheck(row)}
                                     disabled={!(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常')}
-                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-all ${!(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常')
+                                    className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-extrabold text-sm transition-all ${!(row.repairDate || row.status === 'Fixed' || row.status === '已改善' || row.status === 'Abnormal' || row.status === '異常')
                                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                        : 'bg-white text-red-600 border border-red-200 shadow-sm hover:bg-red-50 active:scale-95'
+                                        : 'bg-white text-red-700 border border-red-200 shadow-sm hover:bg-red-50 active:scale-95'
                                         }`}
                                 >
                                     <Wrench className="w-4 h-4" />
@@ -495,7 +516,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                                                 onDelete(row);
                                             }
                                         }}
-                                        className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm bg-white text-red-600 border border-red-200 shadow-sm hover:bg-red-50 active:scale-95 transition-all"
+                                        className="col-span-2 flex items-center justify-center gap-2 py-2.5 rounded-xl font-extrabold text-sm bg-white text-red-600 border border-red-200 shadow-sm hover:bg-red-50 active:scale-95 transition-all"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                         刪除紀錄
@@ -507,7 +528,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                 ))}
 
                 {paginatedData.length === 0 && (
-                    <div className="text-center py-12 text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed">
+                    <div className="text-center py-12 text-slate-500 font-bold bg-white rounded-2xl border border-slate-300 border-dashed">
                         <p>無相關資料</p>
                     </div>
                 )}
@@ -517,7 +538,7 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
             {
                 sortedData.length > 0 && (
                     <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-2">
-                        <div className="text-sm font-bold text-slate-500 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                        <div className="text-sm font-extrabold text-slate-700 bg-white px-4 py-2 rounded-xl border border-slate-300 shadow-sm">
                             顯示 {startItem} - {endItem} 項，共 {sortedData.length} 項
                         </div>
 
@@ -525,19 +546,19 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+                                className="px-4 py-2 bg-white border border-slate-300 rounded-xl text-slate-700 font-extrabold text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
                             >
                                 上一頁
                             </button>
 
-                            <span className="text-sm font-bold text-slate-600 bg-slate-100 px-3 py-2 rounded-lg min-w-[5rem] text-center">
+                            <span className="text-sm font-extrabold text-slate-800 bg-white border border-slate-300 px-3.5 py-2 rounded-xl min-w-[5rem] text-center shadow-sm">
                                 第 {currentPage} 頁 / 共 {totalPages} 頁
                             </span>
 
                             <button
                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
-                                className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-600 font-bold text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+                                className="px-4 py-2 bg-white border border-slate-300 rounded-xl text-slate-700 font-extrabold text-sm hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
                             >
                                 下一頁
                             </button>
