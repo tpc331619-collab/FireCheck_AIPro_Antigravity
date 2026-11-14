@@ -370,13 +370,12 @@ const HistoryTable: React.FC<HistoryTableProps> = ({
                             {paginatedData.map((row, index) => (
                                 <tr
                                     key={`${row.reportId}-${index}`}
-                                    className={`transition-colors ${
-                                        selectedItems.has(row.equipmentId)
+                                    className={`transition-colors ${selectedItems.has(row.equipmentId)
                                             ? 'bg-blue-50/70'
                                             : index % 2 === 1
                                                 ? 'bg-slate-50/80 hover:bg-blue-50/40'
                                                 : 'bg-white hover:bg-blue-50/40'
-                                    }`}
+                                        }`}
                                 >
                                     {columnOrder.map(key =>
                                         visibleColumns[key as keyof typeof visibleColumns] ? renderCell(key, row, index) : null
