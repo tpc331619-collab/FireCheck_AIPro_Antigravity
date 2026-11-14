@@ -1264,16 +1264,83 @@ try {
   const path = organizationId ? `equipments/${organizationId}/${timestamp}_${cleanFileName}` : `equipments/${userId}/${timestamp}_${cleanFileName}`;
   const storageRef = ref(storage, path);
 
-  const snapshot = await uploadBytes(storageRef, file);
-  const downloadURL = await getDownloadURL(snapshot.ref);
-  return downloadURL;
-} catch (e) {
-  console.error("Upload equipment photo error", e);
-  throw e;
-}
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  } catch (e) {
+    console.error("Upload equipment photo error", e);
+    throw e;
+  }
+    },
+
+  async uploadInspectionPhoto(file: File, userId: string, organizationId?: string | null, prefix: string = 'inspect'): Promise<string> {
+    // Auto-compress image via Canvas so mobile camera photos (5-10MB) shrink to ~120KB
+    const compressImageToBlob = (inputFile: File): Promise<{ blob: Blob; dataUrl: string }> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const maxDim = 1200;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              reject(new Error('Canvas context unavailable'));
+              return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) resolve({ blob, dataUrl });
+                else reject(new Error('Canvas compression failed'));
+              },
+              'image/jpeg',
+              0.8
+            );
+          };
+          img.onerror = () => reject(new Error('Image load failed'));
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error('File read failed'));
+        reader.readAsDataURL(inputFile);
+      });
+    };
+
+    const { blob, dataUrl } = await compressImageToBlob(file);
+
+    if (this.isGuest || !storage) {
+      return dataUrl;
+    }
+
+    try {
+      const timestamp = Date.now();
+      const path = organizationId
+        ? `equipments/${organizationId}/${prefix}_${timestamp}.jpg`
+        : `equipments/${userId}/${prefix}_${timestamp}.jpg`;
+      const storageRef = ref(storage, path);
+      const snapshot = await uploadBytes(storageRef, blob);
+      return await getDownloadURL(snapshot.ref);
+    } catch (e) {
+      console.error("Upload inspection photo error", e);
+      throw e;
+    }
   },
 
-  async deleteEquipmentPhoto(url: string): Promise < void> {
+    async deleteEquipmentPhoto(url: string): Promise < void> {
   if(this.isGuest || !storage || !url || !url.includes('firebasestorage')) return;
   try {
     const photoRef = ref(storage, url);

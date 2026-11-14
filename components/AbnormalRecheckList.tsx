@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText, Clock, CheckCircle2, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertTriangle, Calendar, Search, ChevronRight, Printer, FileText, Clock, CheckCircle2, Trash2, Camera, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query'; // Import queryClient
 import { AbnormalRecord, UserProfile, InspectionStatus, LightSettings, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
@@ -94,9 +94,28 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
     // 修復表單狀態
     const [fixedDate, setFixedDate] = useState('');
     const [fixedNotes, setFixedNotes] = useState('');
+    const [fixedPhotoUrl, setFixedPhotoUrl] = useState('');
+    const [isUploadingFixedPhoto, setIsUploadingFixedPhoto] = useState(false);
+    const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const printRef = useRef<HTMLDivElement>(null);
+
+    const handleFixedPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsUploadingFixedPhoto(true);
+        try {
+            const url = await StorageService.uploadInspectionPhoto(file, user.uid, user.currentOrganizationId, 'repair');
+            setFixedPhotoUrl(url);
+        } catch (err) {
+            console.error('Failed to upload repair photo:', err);
+            alert('照片上傳失敗，請重試');
+        } finally {
+            setIsUploadingFixedPhoto(false);
+            e.target.value = '';
+        }
+    };
 
     // 初始化修復表單
     useEffect(() => {
@@ -105,10 +124,12 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                 // 已完成：顯示已儲存的資料
                 setFixedDate(selectedRecord.fixedDate ? new Date(selectedRecord.fixedDate).toISOString().split('T')[0] : '');
                 setFixedNotes(selectedRecord.fixedNotes || '');
+                setFixedPhotoUrl(selectedRecord.fixedPhotoUrl || '');
             } else {
                 // 待複檢：清空表單
                 setFixedDate(''); // 預設空白，讓用戶自行選擇
                 setFixedNotes('');
+                setFixedPhotoUrl(selectedRecord.fixedPhotoUrl || '');
             }
         }
     }, [selectedRecord]);
@@ -183,6 +204,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                 status: 'fixed',
                 fixedDate: fixedDateTime,
                 fixedNotes: fixedNotes.trim(),
+                ...(fixedPhotoUrl ? { fixedPhotoUrl } : {}),
                 updatedAt: Date.now()
             });
 
@@ -236,6 +258,8 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                 lastUpdated: fixedDateTime,
                                 repairDate: fixedDateTime,
                                 repairNotes: fixedNotes.trim(),
+                                abnormalPhotoUrl: selectedRecord.abnormalPhotoUrl || selectedRecord.photoUrl || item.abnormalPhotoUrl || item.photoUrl,
+                                ...(fixedPhotoUrl ? { repairPhotoUrl: fixedPhotoUrl } : {}),
                                 abnormalItems: selectedRecord.abnormalItems, // Preserve original abnormal items
                                 inspectionDate: selectedRecord.inspectionDate, // Preserve original inspection date
                                 checkResults: item.checkResults ? item.checkResults.map((result: any) => {
@@ -303,7 +327,9 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                             })),
                             notes: `[異常複檢]\n原因: ${selectedRecord.abnormalReason}\n修復日期: ${new Date(fixedDateTime).toLocaleDateString('zh-TW')}\n修復說明: ${fixedNotes.trim()}`,
                             lastUpdated: fixedDateTime,
-                            photoUrl: selectedRecord.photoUrl || undefined
+                            photoUrl: selectedRecord.abnormalPhotoUrl || selectedRecord.photoUrl || undefined,
+                            abnormalPhotoUrl: selectedRecord.abnormalPhotoUrl || selectedRecord.photoUrl || undefined,
+                            repairPhotoUrl: fixedPhotoUrl || undefined
                         }],
                         note: `[異常複檢修復] ${fixedNotes.trim()}`,
                         organizationId: user.currentOrganizationId,
@@ -488,6 +514,11 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                             {/* Section I: Basic Info */}
                             <table className="strict-table">
+                                <colgroup>
+                                    <col style={{ width: '115px' }} />
+                                    <col />
+                                    <col style={{ width: '148px' }} />
+                                </colgroup>
                                 <thead>
                                     <tr>
                                         <td colSpan={3} className="section-header">
@@ -511,11 +542,13 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             {equipmentPhotoMap[selectedRecord.equipmentId] ? (
                                                 <img
                                                     src={equipmentPhotoMap[selectedRecord.equipmentId]}
-                                                    className="w-full h-auto max-h-[160px] object-contain mx-auto border border-gray-100"
+                                                    onClick={() => setPreviewPhotoUrl(equipmentPhotoMap[selectedRecord.equipmentId])}
+                                                    className="w-full h-auto max-h-[150px] object-contain mx-auto border border-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                                                    title="點擊放大檢視"
                                                     alt="Equip"
                                                 />
                                             ) : (
-                                                <div className="h-32 flex items-center justify-center text-gray-300 border border-dashed border-gray-200">
+                                                <div className="h-32 flex items-center justify-center text-gray-300 border border-dashed border-gray-200 text-xs">
                                                     (NO PHOTO)
                                                 </div>
                                             )}
@@ -560,9 +593,16 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                             {/* Section II: Abnormal record */}
                             <table className="strict-table border-t-0">
+                                <colgroup>
+                                    <col style={{ width: '115px' }} />
+                                    <col />
+                                    <col style={{ width: '115px' }} />
+                                    <col />
+                                    <col style={{ width: '148px' }} />
+                                </colgroup>
                                 <thead>
                                     <tr>
-                                        <td colSpan={4} className="section-header border-t-0">
+                                        <td colSpan={5} className="section-header border-t-0">
                                             二、{t('abnormalInfo')}
                                         </td>
                                     </tr>
@@ -570,16 +610,35 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                                 <tbody>
                                     <tr>
-                                        <td className="label-cell" style={{ width: '15%' }}>
+                                        <td className="label-cell">
                                             <div>{t('discoveryDate')}</div>
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Dated</div>
                                         </td>
-                                        <td className="value-cell text-red-600 font-bold" style={{ width: '35%' }}>{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</td>
-                                        <td className="label-cell" style={{ width: '15%' }}>
+                                        <td className="value-cell text-red-600 font-bold">{new Date(selectedRecord.inspectionDate).toLocaleDateString()}</td>
+                                        <td className="label-cell">
                                             <div>{t('abnormalCategory')}</div>
                                             <div className="text-[9px] text-gray-400 font-normal uppercase leading-tight">Category</div>
                                         </td>
                                         <td className="value-cell text-red-600 font-bold">{selectedRecord.abnormalItems?.join(', ') || 'General'}</td>
+                                        <td rowSpan={4} className="photo-cell">
+                                            <div className="text-[10px] mb-1 font-bold text-red-700">
+                                                <div>異常現場照片</div>
+                                                <div className="text-[8px] text-gray-400 font-normal uppercase">Abnormal Photo</div>
+                                            </div>
+                                            {(selectedRecord.abnormalPhotoUrl || selectedRecord.photoUrl) ? (
+                                                <img
+                                                    src={selectedRecord.abnormalPhotoUrl || selectedRecord.photoUrl}
+                                                    onClick={() => setPreviewPhotoUrl((selectedRecord.abnormalPhotoUrl || selectedRecord.photoUrl)!)}
+                                                    className="w-full h-auto max-h-[140px] object-contain mx-auto border border-red-100 cursor-pointer hover:opacity-90 transition-opacity"
+                                                    title="點擊放大檢視異常照片"
+                                                    alt="Abnormal"
+                                                />
+                                            ) : (
+                                                <div className="h-28 flex items-center justify-center text-gray-300 border border-dashed border-gray-200 text-xs">
+                                                    (NO PHOTO)
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td className="label-cell">
@@ -608,13 +667,9 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                                 } else if (checkItem.thresholdMode === 'lte') {
                                                                     specText = `(標準: ≤ ${checkItem.val1} ${unit})`;
                                                                 }
-                                                                // Also append unit to the value if not already present (optional, but requested unit display)
-                                                                // The user screenshot shows "異常, 5.8 kgf/cm² (gt)" but wants spec range.
-                                                                // Let's just append the spec text.
                                                             }
                                                             return specText && <span className="ml-2 text-red-600 font-bold">{specText}</span>;
                                                         }
-                                                        // Fallback for thresholdMode if no checkItem found (legacy behavior)
                                                         return selectedRecord.thresholdMode && <span className="text-[10px] ml-1 font-bold text-red-600">({selectedRecord.thresholdMode})</span>;
                                                     })()}
                                                 </span>
@@ -629,7 +684,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td colSpan={4} className="h-12 align-top p-4 leading-relaxed whitespace-pre-wrap text-red-600 font-bold">
+                                        <td colSpan={4} className="h-14 align-top p-3 leading-relaxed whitespace-pre-wrap text-red-600 font-bold">
                                             {selectedRecord.abnormalReason}
                                         </td>
                                     </tr>
@@ -638,9 +693,14 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                             {/* Section III: Repair report */}
                             <table className="strict-table border-t-0 relative z-10">
+                                <colgroup>
+                                    <col style={{ width: '115px' }} />
+                                    <col />
+                                    <col style={{ width: '148px' }} />
+                                </colgroup>
                                 <thead>
                                     <tr>
-                                        <td colSpan={2} className="section-header border-t-0">
+                                        <td colSpan={3} className="section-header border-t-0">
                                             三、{t('repairReport')}
                                         </td>
                                     </tr>
@@ -673,6 +733,62 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                 />
                                             )}
                                         </td>
+                                        <td rowSpan={2} className="photo-cell">
+                                            <div className="text-[10px] mb-1 font-bold text-emerald-800">
+                                                <div>改善後照片</div>
+                                                <div className="text-[8px] text-gray-400 font-normal uppercase">Repair Photo</div>
+                                            </div>
+                                            {(fixedPhotoUrl || selectedRecord.fixedPhotoUrl) ? (
+                                                <div className="relative group">
+                                                    <img
+                                                        src={fixedPhotoUrl || selectedRecord.fixedPhotoUrl}
+                                                        onClick={() => setPreviewPhotoUrl((fixedPhotoUrl || selectedRecord.fixedPhotoUrl)!)}
+                                                        className="w-full h-auto max-h-[125px] object-contain mx-auto border border-emerald-100 cursor-pointer hover:opacity-90 transition-opacity"
+                                                        title="點擊放大檢視改善後照片"
+                                                        alt="Repair"
+                                                    />
+                                                    {selectedRecord.status === 'pending' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setFixedPhotoUrl('')}
+                                                            className="no-print mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded text-[10px] font-bold transition-colors cursor-pointer"
+                                                        >
+                                                            <Trash2 className="w-3 h-3" /> 移除重拍
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : selectedRecord.status === 'pending' ? (
+                                                <>
+                                                    <label className={`no-print h-28 flex flex-col items-center justify-center gap-1.5 px-2 text-emerald-700 bg-emerald-50/40 hover:bg-emerald-50 border border-dashed border-emerald-300 rounded cursor-pointer transition-colors ${isUploadingFixedPhoto ? 'opacity-60 pointer-events-none' : ''}`}>
+                                                        {isUploadingFixedPhoto ? (
+                                                            <>
+                                                                <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                                                                <span className="text-[10px] font-bold">上傳中...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Camera className="w-5 h-5 text-emerald-600" />
+                                                                <span className="text-[10px] font-bold leading-tight">拍攝/上傳<br />改善後照片</span>
+                                                            </>
+                                                        )}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={handleFixedPhotoUpload}
+                                                            className="hidden"
+                                                            disabled={isUploadingFixedPhoto}
+                                                        />
+                                                    </label>
+                                                    <div className="hidden print:flex h-28 items-center justify-center text-gray-300 border border-dashed border-gray-200 text-xs">
+                                                        (NO PHOTO)
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="h-28 flex items-center justify-center text-gray-300 border border-dashed border-gray-200 text-xs">
+                                                    (NO PHOTO)
+                                                </div>
+                                            )}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td className="label-cell align-top py-4" style={{ verticalAlign: 'top' }}>
@@ -681,7 +797,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </td>
                                         <td className="p-2">
                                             {selectedRecord.status === 'fixed' ? (
-                                                <div className="px-2 py-2 min-h-[4rem] text-emerald-800 font-bold whitespace-pre-wrap leading-relaxed">
+                                                <div className="px-2 py-2 min-h-[4.5rem] text-emerald-800 font-bold whitespace-pre-wrap leading-relaxed">
                                                     {fixedNotes || selectedRecord.fixedNotes || '---'}
                                                 </div>
                                             ) : (
@@ -954,6 +1070,36 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                         </div>
                     </div>
                 </div >
+            )}
+
+            {/* 照片放大檢視視窗 */}
+            {previewPhotoUrl && (
+                <div
+                    className="fixed inset-0 bg-slate-900/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in no-print"
+                    onClick={() => setPreviewPhotoUrl(null)}
+                >
+                    <div
+                        className="relative max-w-3xl w-full bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-3 bg-slate-900 text-white flex items-center justify-between">
+                            <span className="text-sm font-bold">照片檢視</span>
+                            <button
+                                onClick={() => setPreviewPhotoUrl(null)}
+                                className="p-1 hover:bg-slate-700 rounded-full transition-colors cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="p-4 bg-slate-100 flex items-center justify-center max-h-[80vh]">
+                            <img
+                                src={previewPhotoUrl}
+                                alt="Preview"
+                                className="max-w-full max-h-[72vh] object-contain rounded-lg shadow"
+                            />
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );

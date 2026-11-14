@@ -50,6 +50,8 @@ export interface InspectionItem {
   checkResults?: { name: string; value: any; threshold?: string; unit?: string }[]; // Snapshot of detailed check results
   notes: string;
   photoUrl?: string;
+  abnormalPhotoUrl?: string; // 巡檢發現異常現場照片
+  repairPhotoUrl?: string;   // 異常複檢修復完成照片
   lastUpdated: number;
   repairDate?: number;
   repairNotes?: string;
@@ -201,6 +203,9 @@ export interface AbnormalRecord {
   fixedDate?: number; // 修復時間
   fixedNotes?: string; // 修復情況
   fixedCategory?: string; // 修復類別 (快選項目)
+  photoUrl?: string; // 相容舊照片欄位
+  abnormalPhotoUrl?: string; // 發現異常現場照片
+  fixedPhotoUrl?: string; // 修復完成照片
   createdAt: number;
   updatedAt: number;
   tags?: string[]; // 設備標籤快照
