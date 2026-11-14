@@ -1657,9 +1657,9 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     <button
                                         type="button"
                                         onClick={() => abnormalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                        className="w-full px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-between shadow-md shadow-red-200 cursor-pointer transition-all active:scale-[0.99]"
+                                        className="w-full px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-center shadow-md shadow-red-200 cursor-pointer transition-all active:scale-[0.99]"
                                     >
-                                        <span className="flex items-center gap-1.5 text-left">
+                                        <span className="flex items-center gap-1.5">
                                             <AlertTriangle className="w-4 h-4 shrink-0" />
                                             <span>
                                                 異常必填未完成：
@@ -1670,7 +1670,6 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                                         : '請拍攝或上傳「異常照片」'}
                                             </span>
                                         </span>
-                                        <span className="underline whitespace-nowrap ml-2 bg-white/20 px-2 py-0.5 rounded-md">點此往下填寫 👇</span>
                                     </button>
                                 )}
 
