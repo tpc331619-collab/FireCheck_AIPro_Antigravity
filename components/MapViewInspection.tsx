@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown, Footprints, Activity, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, ArrowLeft, ZoomIn, ZoomOut, RotateCw, CheckCircle, AlertTriangle, Save, Upload, Camera, Trash2, Tag, Plus, ClipboardCheck, Gauge, Eye, Image as ImageIcon, Navigation, Compass, Crosshair, MapPin, Sliders, RotateCcw, ArrowUp, ArrowRight, ArrowDown, Footprints, Activity, ChevronUp, ChevronDown, FileText } from 'lucide-react';
 import { UserProfile, EquipmentMap, EquipmentMarker, EquipmentDefinition, InspectionReport, InspectionItem, InspectionStatus, CustomCheckItem, LightSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import BarcodeInputModal from './BarcodeInputModal';
@@ -41,6 +41,7 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
     const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
     const [abnormalPhotoUrl, setAbnormalPhotoUrl] = useState<string | null>(null);
     const [isUploadingAbnormalPhoto, setIsUploadingAbnormalPhoto] = useState(false);
+    const abnormalSectionRef = useRef<HTMLDivElement>(null);
 
     const handleAbnormalPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -458,10 +459,18 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
         const status = determineStatus();
 
-        // Validate abnormal notes
-        if (status === InspectionStatus.Abnormal && !notes.trim()) {
-            showAlert('檢查結果異常，請務必填寫異常說明！');
-            return;
+        // Validate abnormal notes and photo
+        if (status === InspectionStatus.Abnormal) {
+            if (!notes.trim()) {
+                showAlert('檢查結果異常，請務必填寫異常說明！');
+                abnormalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            if (!abnormalPhotoUrl) {
+                showAlert('檢查結果異常，請務必拍攝或上傳異常現場照片！');
+                abnormalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
         }
 
         setIsSubmitting(true);
@@ -1539,86 +1548,138 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                 )}
                             </div>
 
-                            {/* Notes */}
-                            <div className="space-y-2">
-                                <label className="block text-sm font-bold text-slate-700">
-                                    {determineStatus() === InspectionStatus.Abnormal ? '異常說明' : t('notes')}
-                                    {determineStatus() === InspectionStatus.Abnormal && <span className="text-red-500 ml-1">(必填)</span>}
-                                </label>
-                                <textarea
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    rows={3}
-                                    className={`w-full px-4 py-3 border rounded-xl focus:outline-none resize-none text-slate-900 ${
-                                        determineStatus() === InspectionStatus.Abnormal && !notes.trim()
-                                            ? 'border-red-300 bg-red-50 focus:border-red-500 placeholder:text-red-300'
-                                            : 'border-slate-300 focus:ring-2 focus:ring-purple-500'
-                                    }`}
-                                    placeholder={determineStatus() === InspectionStatus.Abnormal ? "請詳細描述異常原因..." : "填寫檢查備註..."}
-                                />
-
-                                {/* 異常現場照片 (僅在異常時顯示，選填) */}
-                                {determineStatus() === InspectionStatus.Abnormal && (
-                                    <div className="pt-2 space-y-2 animate-in fade-in duration-200">
-                                        <label className="text-xs font-extrabold text-slate-600 uppercase flex items-center">
-                                            <Camera className="w-4 h-4 mr-1.5 text-red-500" />
-                                            異常現場照片 <span className="text-slate-400 font-medium ml-1">(選填，供維修與稽核比對)</span>
-                                        </label>
-
-                                        {abnormalPhotoUrl ? (
-                                            <div className="flex items-center gap-3 p-2.5 bg-red-50/50 border border-red-200 rounded-xl">
-                                                <img
-                                                    src={abnormalPhotoUrl}
-                                                    alt="異常現場照片"
-                                                    onClick={() => setPreviewPhotoUrl(abnormalPhotoUrl)}
-                                                    className="w-16 h-16 object-cover rounded-lg border border-red-200 cursor-pointer hover:opacity-90 transition-opacity bg-white shrink-0"
-                                                    title="點擊放大檢視"
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-extrabold text-red-700">已附加異常現場照片</p>
-                                                    <p className="text-[11px] text-slate-500 mt-0.5">將自動同步至《異常複檢處理單》</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setAbnormalPhotoUrl(null)}
-                                                    className="px-2.5 py-1.5 bg-white hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 shrink-0 cursor-pointer"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" /> 移除
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <label className={`flex items-center justify-center gap-2 w-full py-3 px-4 border-2 border-dashed border-red-300 hover:border-red-400 bg-red-50/30 hover:bg-red-50/70 text-red-700 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${isUploadingAbnormalPhoto ? 'opacity-60 pointer-events-none' : ''}`}>
-                                                {isUploadingAbnormalPhoto ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                                                        <span>正在壓縮與上傳照片...</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Camera className="w-4 h-4 text-red-600" />
-                                                        <span>拍攝或上傳異常照片</span>
-                                                    </>
-                                                )}
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={handleAbnormalPhotoUpload}
-                                                    className="hidden"
-                                                    disabled={isUploadingAbnormalPhoto}
-                                                />
-                                            </label>
-                                        )}
+                            {/* Notes & Abnormal Photo - Side-by-Side Red Box if Abnormal */}
+                            {determineStatus() === InspectionStatus.Abnormal ? (
+                                <div
+                                    ref={abnormalSectionRef}
+                                    className="p-3.5 bg-red-50/70 border-2 border-red-200 rounded-2xl space-y-2.5 animate-in fade-in duration-200"
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-extrabold text-red-700 flex items-center gap-1.5">
+                                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                                            異常回報專區（說明與照片皆為必填）
+                                        </span>
                                     </div>
-                                )}
-                            </div>
+
+                                    <div className="flex gap-3 items-stretch">
+                                        {/* Left: Abnormal Notes */}
+                                        <div className="flex-1 flex flex-col">
+                                            <label className="text-[11px] font-extrabold text-slate-700 mb-1 flex items-center">
+                                                <FileText className="w-3.5 h-3.5 mr-1 text-red-600" />
+                                                異常說明 <span className="text-red-600 ml-0.5">*</span>
+                                            </label>
+                                            <textarea
+                                                value={notes}
+                                                onChange={(e) => setNotes(e.target.value)}
+                                                placeholder="請詳細描述異常原因..."
+                                                className={`w-full flex-1 p-2.5 border rounded-xl text-sm focus:outline-none min-h-[104px] resize-none transition-colors text-slate-900 bg-white ${
+                                                    !notes.trim()
+                                                        ? 'border-red-300 focus:border-red-500 placeholder:text-red-300'
+                                                        : 'border-emerald-300 focus:border-emerald-500'
+                                                }`}
+                                            />
+                                        </div>
+
+                                        {/* Right: Abnormal Photo */}
+                                        <div className="w-32 sm:w-36 shrink-0 flex flex-col">
+                                            <label className="text-[11px] font-extrabold text-slate-700 mb-1 flex items-center">
+                                                <Camera className="w-3.5 h-3.5 mr-1 text-red-600" />
+                                                異常照片 <span className="text-red-600 ml-0.5">*</span>
+                                            </label>
+
+                                            {abnormalPhotoUrl ? (
+                                                <div className="relative flex-1 min-h-[104px] rounded-xl overflow-hidden border-2 border-emerald-400 bg-white shadow-xs group">
+                                                    <img
+                                                        src={abnormalPhotoUrl}
+                                                        alt="異常現場照片"
+                                                        onClick={() => setPreviewPhotoUrl(abnormalPhotoUrl)}
+                                                        className="w-full h-[104px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                        title="點擊放大檢視"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAbnormalPhotoUrl(null)}
+                                                        className="absolute top-1.5 right-1.5 p-1 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-md transition-colors cursor-pointer"
+                                                        title="移除重拍"
+                                                    >
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <div className="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-white text-[10px] font-bold text-center py-0.5">
+                                                        ✓ 已拍照
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <label className={`flex-1 min-h-[104px] p-2 border-2 border-dashed border-red-300 hover:border-red-500 bg-white hover:bg-red-50/60 text-red-600 rounded-xl flex flex-col items-center justify-center gap-1.5 text-center transition-all cursor-pointer ${isUploadingAbnormalPhoto ? 'opacity-60 pointer-events-none' : ''}`}>
+                                                    {isUploadingAbnormalPhoto ? (
+                                                        <>
+                                                            <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                                            <span className="text-[11px] font-extrabold">上傳中...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                                                <Camera className="w-4 h-4 text-red-600" />
+                                                            </div>
+                                                            <span className="text-[11px] font-extrabold leading-tight">點擊拍攝<br />或上傳照片</span>
+                                                        </>
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={handleAbnormalPhotoUpload}
+                                                        className="hidden"
+                                                        disabled={isUploadingAbnormalPhoto}
+                                                    />
+                                                </label>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-bold text-slate-700">{t('notes')}</label>
+                                    <textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        rows={3}
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-900"
+                                        placeholder="填寫檢查備註..."
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         {/* Modal Footer */}
-                        <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+                        <div className="p-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl space-y-2.5">
+                            {/* Sticky Bottom Reminder Banner when Abnormal & Incomplete */}
+                            {determineStatus() === InspectionStatus.Abnormal &&
+                                (!notes.trim() || !abnormalPhotoUrl) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => abnormalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                                        className="w-full px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-between shadow-md shadow-red-200 cursor-pointer transition-all active:scale-[0.99]"
+                                    >
+                                        <span className="flex items-center gap-1.5 text-left">
+                                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                                            <span>
+                                                異常必填未完成：
+                                                {!notes.trim() && !abnormalPhotoUrl
+                                                    ? '請填寫「異常說明」並「拍攝照片」'
+                                                    : !notes.trim()
+                                                        ? '請填寫「異常說明」'
+                                                        : '請拍攝或上傳「異常照片」'}
+                                            </span>
+                                        </span>
+                                        <span className="underline whitespace-nowrap ml-2 bg-white/20 px-2 py-0.5 rounded-md">點此往下填寫 👇</span>
+                                    </button>
+                                )}
+
                             <button
                                 onClick={handleSubmit}
                                 disabled={
                                     isSubmitting ||
+                                    isUploadingAbnormalPhoto ||
+                                    (determineStatus() === InspectionStatus.Abnormal && (!notes.trim() || !abnormalPhotoUrl)) ||
                                     currentEquipment.checkItems.some(item =>
                                         item.inputType === 'number' &&
                                         (checkResults[item.id] === undefined || checkResults[item.id] === '')
