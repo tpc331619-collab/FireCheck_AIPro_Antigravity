@@ -1322,21 +1322,22 @@ try {
 
     const { blob, dataUrl } = await compressImageToBlob(file);
 
-    if (this.isGuest || !storage) {
+    if (!storage) {
       return dataUrl;
     }
 
     try {
       const timestamp = Date.now();
-      const path = organizationId
-        ? `abnormals/${organizationId}/${prefix}_${timestamp}.jpg`
+      const targetOrgId = organizationId || (this.isGuest ? localStorage.getItem('guest_shared_orgId') : null);
+      const path = targetOrgId
+        ? `abnormals/${targetOrgId}/${prefix}_${timestamp}.jpg`
         : `abnormals/${userId}/${prefix}_${timestamp}.jpg`;
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, blob);
       return await getDownloadURL(snapshot.ref);
     } catch (e) {
-      console.error("Upload inspection photo error", e);
-      throw e;
+      console.error("Upload inspection photo error, falling back to dataUrl", e);
+      return dataUrl;
     }
   },
 
