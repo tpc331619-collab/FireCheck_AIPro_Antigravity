@@ -2866,8 +2866,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {(() => {
                                                     const isFixed = activeModal.item.status === 'Fixed' || activeModal.item.status === '已改善' || !!activeModal.item.repairDate;
 
+                                                    // Match corresponding abnormalRecord as fallback for photos/notes
+                                                    const matchedAbnormalRecord = abnormalRecords.find(r =>
+                                                        r.equipmentId === activeModal.item.equipmentId &&
+                                                        (isFixed ? r.status === 'fixed' : r.status === 'pending')
+                                                    ) || abnormalRecords.find(r => r.equipmentId === activeModal.item.equipmentId);
+
+                                                    const abnormalPhoto = activeModal.item.abnormalPhotoUrl || activeModal.item.photoUrl || matchedAbnormalRecord?.abnormalPhotoUrl || matchedAbnormalRecord?.photoUrl;
+                                                    const repairPhoto = activeModal.item.repairPhotoUrl || matchedAbnormalRecord?.fixedPhotoUrl;
+
                                                     // Use preserved abnormalItems if available, otherwise try to detect from checkResults
                                                     const abnormalItems = activeModal.item.abnormalItems?.join('、') ||
+                                                        matchedAbnormalRecord?.abnormalItems?.join('、') ||
                                                         activeModal.item.checkResults
                                                             ?.filter((res: any) => res.value === false || res.value === 'false' || res.status === 'Abnormal' || res.status === '異常')
                                                             .map((res: any) => res.name)
@@ -2943,43 +2953,41 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                     </div>
                                                                 </div>
 
-                                                                {/* 異常現場照片 & 改善後照片對比 */}
-                                                                {((activeModal.item.abnormalPhotoUrl || activeModal.item.photoUrl) || activeModal.item.repairPhotoUrl) && (
-                                                                    <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
-                                                                        <div className="bg-red-50/50 border border-red-200 rounded-xl p-2.5 text-center">
-                                                                            <span className="block text-[11px] font-extrabold text-red-700 mb-1.5">異常現場照片</span>
-                                                                            {(activeModal.item.abnormalPhotoUrl || activeModal.item.photoUrl) ? (
-                                                                                <a href={activeModal.item.abnormalPhotoUrl || activeModal.item.photoUrl} target="_blank" rel="noreferrer">
-                                                                                    <img
-                                                                                        src={activeModal.item.abnormalPhotoUrl || activeModal.item.photoUrl}
-                                                                                        alt="異常現場照片"
-                                                                                        className="w-full h-28 object-contain rounded-lg bg-white border border-red-100 mx-auto"
-                                                                                    />
-                                                                                </a>
-                                                                            ) : (
-                                                                                <div className="h-28 flex items-center justify-center text-xs text-slate-400 bg-white/60 rounded-lg border border-dashed border-slate-200">
-                                                                                    無照片
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-2.5 text-center">
-                                                                            <span className="block text-[11px] font-extrabold text-emerald-700 mb-1.5">改善後照片</span>
-                                                                            {activeModal.item.repairPhotoUrl ? (
-                                                                                <a href={activeModal.item.repairPhotoUrl} target="_blank" rel="noreferrer">
-                                                                                    <img
-                                                                                        src={activeModal.item.repairPhotoUrl}
-                                                                                        alt="改善後照片"
-                                                                                        className="w-full h-28 object-contain rounded-lg bg-white border border-emerald-100 mx-auto"
-                                                                                    />
-                                                                                </a>
-                                                                            ) : (
-                                                                                <div className="h-28 flex items-center justify-center text-xs text-slate-400 bg-white/60 rounded-lg border border-dashed border-slate-200">
-                                                                                    無照片
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
+                                                                {/* 異常現場照片 & 改善後照片對比 (固定顯示) */}
+                                                                <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
+                                                                    <div className="bg-red-50/50 border border-red-200 rounded-xl p-2.5 text-center">
+                                                                        <span className="block text-[11px] font-extrabold text-red-700 mb-1.5">異常現場照片</span>
+                                                                        {abnormalPhoto ? (
+                                                                            <a href={abnormalPhoto} target="_blank" rel="noreferrer" title="點擊放大檢視">
+                                                                                <img
+                                                                                    src={abnormalPhoto}
+                                                                                    alt="異常現場照片"
+                                                                                    className="w-full h-28 object-contain rounded-lg bg-white border border-red-100 mx-auto hover:opacity-90 transition-opacity"
+                                                                                />
+                                                                            </a>
+                                                                        ) : (
+                                                                            <div className="h-28 flex items-center justify-center text-xs font-bold text-slate-400 bg-white/70 rounded-lg border border-dashed border-red-200">
+                                                                                無照片
+                                                                            </div>
+                                                                        )}
                                                                     </div>
-                                                                )}
+                                                                    <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-2.5 text-center">
+                                                                        <span className="block text-[11px] font-extrabold text-emerald-700 mb-1.5">改善後照片</span>
+                                                                        {repairPhoto ? (
+                                                                            <a href={repairPhoto} target="_blank" rel="noreferrer" title="點擊放大檢視">
+                                                                                <img
+                                                                                    src={repairPhoto}
+                                                                                    alt="改善後照片"
+                                                                                    className="w-full h-28 object-contain rounded-lg bg-white border border-emerald-100 mx-auto hover:opacity-90 transition-opacity"
+                                                                                />
+                                                                            </a>
+                                                                        ) : (
+                                                                            <div className="h-28 flex items-center justify-center text-xs font-bold text-slate-400 bg-white/70 rounded-lg border border-dashed border-emerald-200">
+                                                                                {isFixed ? '無照片' : '待修復上傳'}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );
