@@ -1329,8 +1329,8 @@ try {
     try {
       const timestamp = Date.now();
       const path = organizationId
-        ? `equipments/${organizationId}/${prefix}_${timestamp}.jpg`
-        : `equipments/${userId}/${prefix}_${timestamp}.jpg`;
+        ? `abnormals/${organizationId}/${prefix}_${timestamp}.jpg`
+        : `abnormals/${userId}/${prefix}_${timestamp}.jpg`;
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, blob);
       return await getDownloadURL(snapshot.ref);
@@ -1921,6 +1921,13 @@ let unsubscribe: () => void = () => { };
 } else {
   try {
     const recordRef = doc(db, 'abnormalRecords', id);
+    const snap = await getDoc(recordRef);
+    if (snap.exists()) {
+      const data = snap.data() as AbnormalRecord;
+      if (data.abnormalPhotoUrl) await this.deleteEquipmentPhoto(data.abnormalPhotoUrl);
+      else if (data.photoUrl) await this.deleteEquipmentPhoto(data.photoUrl);
+      if (data.fixedPhotoUrl) await this.deleteEquipmentPhoto(data.fixedPhotoUrl);
+    }
     await deleteDoc(recordRef);
   } catch (e) {
     console.error("Abnormal record delete error", e);
