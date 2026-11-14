@@ -169,12 +169,17 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
         if (!selectedRecord) return;
 
         if (!fixedDate) {
-            alert(t('fillRequired'));
+            alert('請選擇「修復完成日期」！');
             return;
         }
 
         if (!fixedNotes.trim()) {
-            alert(t('fillRequired'));
+            alert('請填寫「修復處置說明」！');
+            return;
+        }
+
+        if (!(fixedPhotoUrl || selectedRecord.fixedPhotoUrl)) {
+            alert('請拍攝或上傳「改善後照片」以完成複檢驗收！');
             return;
         }
 
@@ -735,7 +740,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                         </td>
                                         <td rowSpan={2} className="photo-cell">
                                             <div className="text-[10px] mb-1 font-bold text-emerald-800">
-                                                <div>改善後照片</div>
+                                                <div>
+                                                    改善後照片
+                                                    {selectedRecord.status === 'pending' && <span className="text-red-600 ml-0.5 no-print">*</span>}
+                                                </div>
                                                 <div className="text-[8px] text-gray-400 font-normal uppercase">Repair Photo</div>
                                             </div>
                                             {(fixedPhotoUrl || selectedRecord.fixedPhotoUrl) ? (
@@ -759,7 +767,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                 </div>
                                             ) : selectedRecord.status === 'pending' ? (
                                                 <>
-                                                    <label className={`no-print h-28 flex flex-col items-center justify-center gap-1.5 px-2 text-emerald-700 bg-emerald-50/40 hover:bg-emerald-50 border border-dashed border-emerald-300 rounded cursor-pointer transition-colors ${isUploadingFixedPhoto ? 'opacity-60 pointer-events-none' : ''}`}>
+                                                    <label className={`no-print h-28 flex flex-col items-center justify-center gap-1.5 px-2 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100/60 border-2 border-dashed border-emerald-400 rounded-lg cursor-pointer transition-colors ${isUploadingFixedPhoto ? 'opacity-60 pointer-events-none' : ''}`}>
                                                         {isUploadingFixedPhoto ? (
                                                             <>
                                                                 <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
@@ -768,7 +776,7 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                                         ) : (
                                                             <>
                                                                 <Camera className="w-5 h-5 text-emerald-600" />
-                                                                <span className="text-[10px] font-bold leading-tight">拍攝/上傳<br />改善後照片</span>
+                                                                <span className="text-[10px] font-extrabold leading-tight">拍攝/上傳<br />改善後照片 (必填)</span>
                                                             </>
                                                         )}
                                                         <input
@@ -843,11 +851,22 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                             {/* Submit Button (Screen Only) */}
                             {selectedRecord.status === 'pending' && (
-                                <div className="mt-4 mb-2 no-print flex justify-center">
+                                <div className="mt-4 mb-2 no-print flex flex-col items-center gap-2">
+                                    {(!fixedDate || !fixedNotes.trim() || !(fixedPhotoUrl || selectedRecord.fixedPhotoUrl)) && (
+                                        <p className="text-xs font-bold text-red-600 flex items-center gap-1">
+                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                            請完成必填項目後送出：
+                                            {[
+                                                !fixedDate ? '「修復完成日期」' : '',
+                                                !fixedNotes.trim() ? '「修復處置說明」' : '',
+                                                !(fixedPhotoUrl || selectedRecord.fixedPhotoUrl) ? '「改善後照片」' : ''
+                                            ].filter(Boolean).join('、')}
+                                        </p>
+                                    )}
                                     <button
                                         onClick={handleSubmit}
-                                        disabled={isSubmitting}
-                                        className="px-8 py-2.5 bg-slate-800 text-white hover:bg-slate-900 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                                        disabled={isSubmitting || isUploadingFixedPhoto || !fixedDate || !fixedNotes.trim() || !(fixedPhotoUrl || selectedRecord.fixedPhotoUrl)}
+                                        className="px-8 py-2.5 bg-slate-800 text-white hover:bg-slate-900 font-bold rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                                     >
                                         {isSubmitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                                         {t('confirmSubmit')}
