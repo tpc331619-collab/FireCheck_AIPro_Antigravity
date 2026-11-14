@@ -1273,7 +1273,7 @@ try {
   }
     },
 
-  async uploadInspectionPhoto(file: File, userId: string, organizationId?: string | null, prefix: string = 'inspect'): Promise<string> {
+  async uploadInspectionPhoto(file: File, userId: string, organizationId?: string | null, prefix: string = 'inspect', barcode?: string): Promise<string> {
     // Auto-compress image via Canvas so mobile camera photos (5-10MB) shrink to ~120KB
     const compressImageToBlob = (inputFile: File): Promise<{ blob: Blob; dataUrl: string }> => {
       return new Promise((resolve, reject) => {
@@ -1328,10 +1328,12 @@ try {
 
     try {
       const timestamp = Date.now();
+      const cleanBarcode = barcode ? barcode.trim().replace(/[^a-zA-Z0-9_-]/g, '') : '';
+      const fileName = cleanBarcode ? `${prefix}_${cleanBarcode}_${timestamp}.jpg` : `${prefix}_${timestamp}.jpg`;
       const targetOrgId = organizationId || (this.isGuest ? localStorage.getItem('guest_shared_orgId') : null);
       const path = targetOrgId
-        ? `abnormals/${targetOrgId}/${prefix}_${timestamp}.jpg`
-        : `abnormals/${userId}/${prefix}_${timestamp}.jpg`;
+        ? `abnormals/${targetOrgId}/${fileName}`
+        : `abnormals/${userId}/${fileName}`;
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, blob);
       return await getDownloadURL(snapshot.ref);

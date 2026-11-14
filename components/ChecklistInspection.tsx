@@ -90,7 +90,13 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
         if (!file || !activeInspectionItem) return;
         setIsUploadingAbnormalPhoto(true);
         try {
-            const url = await StorageService.uploadInspectionPhoto(file, user.uid, user.currentOrganizationId, 'abnormal');
+            const url = await StorageService.uploadInspectionPhoto(
+                file,
+                user.uid,
+                user.currentOrganizationId,
+                'abnormal',
+                inspectingItem?.barcode || activeInspectionItem.barcode
+            );
             setActiveInspectionItem(prev => prev ? { ...prev, abnormalPhotoUrl: url, photoUrl: url } : prev);
         } catch (err) {
             console.error('Failed to upload abnormal photo:', err);

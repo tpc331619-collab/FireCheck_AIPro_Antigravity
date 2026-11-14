@@ -106,7 +106,13 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
         if (!file) return;
         setIsUploadingFixedPhoto(true);
         try {
-            const url = await StorageService.uploadInspectionPhoto(file, user.uid, user.currentOrganizationId, 'repair');
+            const url = await StorageService.uploadInspectionPhoto(
+                file,
+                user.uid,
+                user.currentOrganizationId,
+                'repair',
+                selectedRecord?.barcode
+            );
             setFixedPhotoUrl(url);
         } catch (err) {
             console.error('Failed to upload repair photo:', err);

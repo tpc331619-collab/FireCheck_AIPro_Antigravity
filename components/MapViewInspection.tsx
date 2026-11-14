@@ -48,7 +48,13 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         if (!file) return;
         setIsUploadingAbnormalPhoto(true);
         try {
-            const url = await StorageService.uploadInspectionPhoto(file, user.uid, user.currentOrganizationId, 'abnormal');
+            const url = await StorageService.uploadInspectionPhoto(
+                file,
+                user.uid,
+                user.currentOrganizationId,
+                'abnormal',
+                currentEquipment?.barcode
+            );
             setAbnormalPhotoUrl(url);
         } catch (err) {
             console.error('Failed to upload abnormal photo:', err);
