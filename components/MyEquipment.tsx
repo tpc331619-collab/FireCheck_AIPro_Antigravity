@@ -329,45 +329,45 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 relative">
+    <div className="flex flex-col h-full bg-slate-100/80 relative">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <div className="bg-white shadow-sm border-b border-slate-200/80 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={onBack} className="relative z-50 p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <button onClick={onBack} className="relative z-50 p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="font-bold text-lg text-slate-800">{t('myEquipment')}</h1>
+          <h1 className="font-extrabold text-lg text-slate-900 tracking-tight">{t('myEquipment')}</h1>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-5">
 
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-red-600"></div>
             </div>
           ) : allEquipment.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200">
+            <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200/90">
               <Database className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-              <h3 className="text-lg font-bold text-slate-700 mb-2">{t('noEquipmentFound')}</h3>
-              <p className="text-slate-500">尚未建立任何設備資料</p>
+              <h3 className="text-lg font-extrabold text-slate-800 mb-2">{t('noEquipmentFound')}</h3>
+              <p className="text-slate-600 font-medium">尚未建立任何設備資料</p>
             </div>
           ) : (
             <>
               {/* 篩選控制器 */}
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 gap-6">
+              <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200/90 gap-6">
                 {/* Search Bar */}
-                <div className="mb-6 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-slate-400" />
+                <div className="mb-5 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-slate-500" />
                   </div>
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
                     placeholder={t('searchEquipmentPlaceholder') || "搜尋名稱、條碼、標籤..."}
-                    className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-red-500 transition-all uppercase text-base"
+                    className="block w-full pl-11 pr-3 py-3 border border-slate-300 rounded-xl leading-5 bg-slate-50 hover:bg-slate-100/60 placeholder-slate-400 text-slate-900 font-semibold shadow-inner focus:outline-none focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/10 transition-all uppercase text-base"
                     style={{ fontSize: '16px' }}
                   />
                   {searchQuery && (
@@ -375,49 +375,49 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                       onClick={() => setSearchQuery('')}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     >
-                      <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                      <X className="h-5 w-5 text-slate-400 hover:text-slate-700" />
                     </button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                      <MapPin className="w-3.5 h-3.5 mr-1.5" /> {t('selectSite')}
+                    <label className="text-xs font-extrabold text-slate-700 uppercase flex items-center tracking-wider">
+                      <MapPin className="w-3.5 h-3.5 mr-1.5 text-blue-600" /> {t('selectSite')}
                     </label>
                     <select
                       value={selectedSite || ''}
                       onChange={(e) => onFilterChange(e.target.value || null, null)}
                       disabled={!!searchQuery}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none transition-colors disabled:opacity-50"
+                      className="w-full p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 shadow-inner focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/10 focus:outline-none transition-all disabled:opacity-50"
                     >
                       <option value="">-- {t('all')} --</option>
                       {sites.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                      <Building2 className="w-3.5 h-3.5 mr-1.5" /> {t('selectBuilding')}
+                    <label className="text-xs font-extrabold text-slate-700 uppercase flex items-center tracking-wider">
+                      <Building2 className="w-3.5 h-3.5 mr-1.5 text-indigo-600" /> {t('selectBuilding')}
                     </label>
                     <select
                       value={selectedBuilding || ''}
                       disabled={!selectedSite || !!searchQuery}
                       onChange={(e) => onFilterChange(selectedSite, e.target.value || null)}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                      className="w-full p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 shadow-inner focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/10 focus:outline-none disabled:opacity-50 transition-all"
                     >
                       <option value="">-- {t('all')} --</option>
                       {buildings.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center tracking-wider">
-                      <Box className="w-3.5 h-3.5 mr-1.5" /> {t('equipmentName') || '設備名稱'}
+                    <label className="text-xs font-extrabold text-slate-700 uppercase flex items-center tracking-wider">
+                      <Box className="w-3.5 h-3.5 mr-1.5 text-amber-600" /> {t('equipmentName') || '設備名稱'}
                     </label>
                     <select
                       value={selectedEquipmentName}
                       onChange={(e) => setSelectedEquipmentName(e.target.value)}
                       disabled={!selectedSite || !!searchQuery}
-                      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:border-red-500 focus:outline-none disabled:opacity-50 transition-colors"
+                      className="w-full p-3 bg-slate-50 hover:bg-slate-100/70 border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 shadow-inner focus:bg-white focus:border-red-500 focus:ring-2 focus:ring-red-500/10 focus:outline-none disabled:opacity-50 transition-all"
                     >
                       <option value="">-- {t('all')} --</option>
                       {equipmentNames.map(n => <option key={n} value={n}>{n}</option>)}
@@ -428,15 +428,15 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
               {/* Batch Select Header */}
               {filteredEquipment.length > 0 && (
-                <div className="flex items-center justify-between px-2">
+                <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-3">
                     {canBatch && (
                       <>
                         <button
                           onClick={handleSelectAll}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm border ${selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow-sm border ${selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 ? 'bg-indigo-600 border-indigo-700 text-white shadow-indigo-100' : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'}`}
                         >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 ? 'bg-white border-white' : 'bg-white border-slate-300'}`}>
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 ? 'bg-white border-white' : 'bg-slate-50 border-slate-400'}`}>
                             {selectedIds.size === filteredEquipment.length && filteredEquipment.length > 0 && <CheckCircle className="w-3 h-3 text-indigo-600" />}
                           </div>
                           <span style={{ fontFamily: "'Outfit', sans-serif" }}>
@@ -446,7 +446,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                         {selectedIds.size > 0 && (
                           <button
                             onClick={() => setSelectedIds(new Set())}
-                            className="text-xs font-bold text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1"
+                            className="text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors flex items-center gap-1 bg-white px-2.5 py-1.5 rounded-lg border border-slate-300 shadow-sm"
                           >
                             <X className="w-3 h-3" /> {t('clearSelection')}
                           </button>
@@ -457,24 +457,24 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                 </div>
               )}
 
-              {/* 設備清單 (條列式) */}
+              {/* 設備清單 (條列式卡片) */}
               {selectedSite || searchQuery ? (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div>
                   {filteredEquipment.length === 0 ? (
-                    <div className="text-center py-20 bg-slate-50/50">
-                      <p className="text-slate-400 font-medium">{t('noEquipmentFound')}</p>
+                    <div className="text-center py-20 bg-white rounded-2xl shadow-sm border border-slate-200/90">
+                      <p className="text-slate-600 font-bold">{t('noEquipmentFound')}</p>
                     </div>
                   ) : (
-                    <div className="divide-y divide-slate-100">
+                    <div className="space-y-3">
                       {filteredEquipment.map((item, index) => {
                         // Logic to determine status color shared with the indicator logic below
                         const status = getFrequencyStatus(item, lightSettings);
-                        let borderColorClass = 'border-l-slate-200'; // Fallback
+                        let borderColorClass = 'border-l-slate-300'; // Fallback
 
                         if (status === 'COMPLETED') borderColorClass = 'border-l-green-500';
                         else if (status === 'CAN_INSPECT') borderColorClass = 'border-l-blue-500';
                         else if (status === 'PENDING') borderColorClass = 'border-l-red-500';
-                        else if (status === 'UNNECESSARY') borderColorClass = 'border-l-slate-300';
+                        else if (status === 'UNNECESSARY') borderColorClass = 'border-l-slate-400';
 
                         // Check for custom colors from lightSettings if needed, but standard classes are safer for now unless we do inline styles.
                         // For simplicity and performance, mapping to Tailwind classes is preferred here.
@@ -482,7 +482,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                         return (
                           <div
                             key={item.id}
-                            className={`p-5 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center gap-4 group border-l-4 ${borderColorClass} shadow-sm mb-2 rounded-r-2xl relative overflow-hidden cursor-pointer ${selectedIds.has(item.id) ? 'bg-indigo-50/40 border-r-indigo-100 ring-2 ring-indigo-500/20 translate-x-1' : 'border-transparent'}`}
+                            className={`bg-white p-5 hover:bg-slate-50/70 transition-all flex flex-col sm:flex-row sm:items-center gap-4 group border border-slate-300/80 border-l-4 ${borderColorClass} shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 hover:border-slate-400 rounded-2xl relative overflow-hidden cursor-pointer ${selectedIds.has(item.id) ? 'bg-indigo-50/50 border-indigo-300 ring-2 ring-indigo-500/20 translate-x-1' : ''}`}
                             onClick={() => setPassportEquipment(item)}
                             title="點擊查看設備近期巡檢與維修履歷"
                           >
@@ -495,7 +495,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                   toggleSelect(item.id);
                                 }}
                               >
-                                <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${selectedIds.has(item.id) ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-200 scale-110' : 'bg-white border-slate-200 group-hover:border-slate-300 opacity-60 group-hover:opacity-100'}`}>
+                                <div className={`w-6 h-6 rounded-xl border-2 flex items-center justify-center transition-all duration-300 ${selectedIds.has(item.id) ? 'bg-indigo-600 border-indigo-600 shadow-md shadow-indigo-200 scale-110' : 'bg-slate-50 border-slate-300 group-hover:border-slate-400'}`}>
                                   {selectedIds.has(item.id) && <CheckCircle className="w-4 h-4 text-white" />}
                                 </div>
                               </div>
@@ -503,21 +503,21 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
 
                             {/* Main Info */}
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="flex-shrink-0 text-slate-400 font-bold text-sm mr-1">
+                              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                <span className="flex-shrink-0 text-slate-500 font-extrabold text-sm mr-0.5">
                                   {index + 1}.
                                 </span>
-                                <h3 className="font-bold text-slate-800 text-lg group-hover:text-red-600 transition-colors truncate">
+                                <h3 className="font-extrabold text-slate-900 text-lg group-hover:text-red-600 transition-colors truncate">
                                   {item.name}
                                 </h3>
-                                <span className="px-3 py-1 rounded-full text-sm font-bold font-mono bg-slate-100 text-slate-600">
+                                <span className="px-2.5 py-0.5 rounded-lg text-sm font-bold font-mono bg-slate-100 text-slate-700 border border-slate-300">
                                   {item.barcode}
                                 </span>
                                 {/* Tags Display - Now next to barcode */}
                                 {item.tags && item.tags.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
                                     {item.tags.map(tag => (
-                                      <span key={tag} className="px-1.5 py-0.5 bg-teal-50 text-teal-700 text-[10px] font-bold rounded border border-teal-100">
+                                      <span key={tag} className="px-2 py-0.5 bg-teal-50 text-teal-700 text-xs font-bold rounded-md border border-teal-200">
                                         #{tag}
                                       </span>
                                     ))}
@@ -526,13 +526,13 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               </div>
 
                               <div className="flex flex-wrap items-center gap-4 text-xs">
-                                <div className="flex items-center text-slate-500" title="新建日期">
-                                  <Calendar className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                                  <span>新建: {new Date(item.createdAt || 0).toLocaleDateString(language)}</span>
+                                <div className="flex items-center text-slate-600 font-medium" title="新建日期">
+                                  <Calendar className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                                  <span>新建: <strong className="text-slate-700">{new Date(item.createdAt || 0).toLocaleDateString(language)}</strong></span>
                                 </div>
-                                <div className="flex items-center text-slate-500" title="最新檢查日期">
-                                  <CalendarClock className="w-3.5 h-3.5 mr-1 text-teal-500" />
-                                  <span>最新檢查: {item.lastInspectedDate ? new Date(item.lastInspectedDate).toLocaleDateString(language) : '尚未檢查'}</span>
+                                <div className="flex items-center text-slate-600 font-medium" title="最新檢查日期">
+                                  <CalendarClock className="w-3.5 h-3.5 mr-1 text-teal-600" />
+                                  <span>最新檢查: <strong className="text-slate-700">{item.lastInspectedDate ? new Date(item.lastInspectedDate).toLocaleDateString(language) : '尚未檢查'}</strong></span>
                                 </div>
                                 <div className="flex items-center">
                                   {(() => {
@@ -547,20 +547,20 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                     // Determine Lable and Default Colors
                                     if (status === 'COMPLETED') {
                                       label = '已檢查';
-                                      colorClass = 'bg-green-50 text-green-600 border-green-200';
+                                      colorClass = 'bg-green-50 text-green-700 border-green-300';
                                       defaultDotColor = '#22c55e'; // green-500
                                     } else if (status === 'CAN_INSPECT') {
                                       label = '可以檢查';
-                                      colorClass = 'bg-blue-50 text-blue-600 border-blue-200';
+                                      colorClass = 'bg-blue-50 text-blue-700 border-blue-300';
                                       defaultDotColor = '#3b82f6'; // blue-500
                                     } else if (status === 'PENDING') {
                                       label = '需檢查';
-                                      colorClass = 'bg-red-50 text-red-600 border-red-200';
+                                      colorClass = 'bg-red-50 text-red-700 border-red-300';
                                       defaultDotColor = '#ef4444'; // red-500
                                     } else if (status === 'UNNECESSARY') {
                                       label = '不須檢查';
-                                      colorClass = 'bg-slate-50 text-slate-500 border-slate-200';
-                                      defaultDotColor = '#94a3b8'; // slate-400
+                                      colorClass = 'bg-slate-100 text-slate-600 border-slate-300';
+                                      defaultDotColor = '#64748b'; // slate-500
                                     }
 
                                     // Check for Custom Colors from Settings
@@ -574,13 +574,13 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                     const dotStyle: React.CSSProperties = { backgroundColor: customColor || defaultDotColor };
                                     const textStyle: React.CSSProperties = customColor ? { color: customColor } : {};
                                     const containerStyle: React.CSSProperties = customColor ? {
-                                      borderColor: customColor + '40', // 25% opacity
-                                      backgroundColor: customColor + '10' // ~6% opacity
+                                      borderColor: customColor + '50', // ~30% opacity
+                                      backgroundColor: customColor + '15' // ~8% opacity
                                     } : {};
 
                                     // Classes
                                     // If custom color is used, we strip the default color classes but keep layout classes
-                                    const containerClass = `flex items-center gap-1.5 px-2 py-0.5 rounded-full font-bold border ${customColor ? '' : colorClass}`;
+                                    const containerClass = `flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-extrabold border ${customColor ? '' : colorClass}`;
                                     // Pulse for pending
                                     const dotClass = `w-2 h-2 rounded-full`;
 
@@ -590,8 +590,8 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                                           <div className={dotClass} style={dotStyle}></div>
                                           <span style={textStyle}>{label}</span>
                                         </div>
-                                        <span className="text-slate-400">下一次檢查:</span>
-                                        <span className="text-slate-700 font-bold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
+                                        <span className="text-slate-500 font-medium">下一次檢查:</span>
+                                        <span className="text-slate-800 font-extrabold">{nextTs ? new Date(nextTs).toLocaleDateString(language) : '-'}</span>
                                       </div>
                                     );
                                   })()}
@@ -606,7 +606,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               {canViewImage && (
                                 <button
                                   onClick={(e) => handleShowPhoto(e, item)}
-                                  className={`p-1.5 rounded-lg border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed'}`}
+                                  className={`p-2 rounded-xl border transition-all ${item.photoUrl || (item as any).photoURL ? 'bg-orange-500 border-orange-600 text-white shadow-sm hover:shadow-md active:scale-95' : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'}`}
                                   title={item.photoUrl || (item as any).photoURL ? '查看照片' : '無照片資料'}
                                   disabled={!(item.photoUrl || (item as any).photoURL)}
                                 >
@@ -616,17 +616,17 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               {canViewBarcode && (
                                 <button
                                   onClick={(e) => handleShowQr(e, item)}
-                                  className="p-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
+                                  className="p-2 bg-slate-50 border border-slate-300 text-slate-700 rounded-xl shadow-sm hover:bg-slate-100 hover:border-slate-400 transition-all active:scale-95"
                                   title={t('viewQr')}
                                 >
                                   <QrCode className="w-4 h-4" />
                                 </button>
                               )}
-                              <div className="w-px h-5 bg-slate-100 mx-1 hidden sm:block"></div>
+                              <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
                               {canEdit && (
                                 <button
                                   onClick={(e) => handleEdit(e, item)}
-                                  className="p-1.5 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition-all active:scale-95"
+                                  className="p-2 bg-blue-50 border border-blue-200 text-blue-600 rounded-xl shadow-sm hover:bg-blue-100 transition-all active:scale-95"
                                   title={t('edit')}
                                 >
                                   <Edit2 className="w-4 h-4" />
@@ -635,7 +635,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               {canCopy && (
                                 <button
                                   onClick={(e) => handleCopy(e, item)}
-                                  className="p-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg shadow-sm hover:bg-slate-100 transition-all active:scale-95"
+                                  className="p-2 bg-slate-50 border border-slate-300 text-slate-700 rounded-xl shadow-sm hover:bg-slate-100 hover:border-slate-400 transition-all active:scale-95"
                                   title={t('copy')}
                                 >
                                   <Copy className="w-4 h-4" />
@@ -644,7 +644,7 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                               {canDelete && (
                                 <button
                                   onClick={(e) => handleDeleteClick(e, item)}
-                                  className="p-1.5 bg-red-50 border border-red-100 text-red-600 rounded-lg shadow-sm hover:bg-red-100 transition-all active:scale-95"
+                                  className="p-2 bg-red-50 border border-red-200 text-red-600 rounded-xl shadow-sm hover:bg-red-100 transition-all active:scale-95"
                                   title={t('delete')}
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -660,10 +660,10 @@ const MyEquipment: React.FC<MyEquipmentProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="text-center py-24 text-slate-400 bg-white/50 rounded-3xl border-2 border-dashed border-slate-200">
-                  <Search className="w-16 h-16 mx-auto mb-4 opacity-10" />
-                  <p className="font-bold text-lg text-slate-400">{t('selectSiteAndBuildingHint')}</p>
-                  <p className="text-sm mt-1">{t('selectSiteAndBuildingDesc')}</p>
+                <div className="text-center py-24 text-slate-500 bg-white rounded-3xl border-2 border-dashed border-slate-300 shadow-sm">
+                  <Search className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <p className="font-extrabold text-lg text-slate-700">{t('selectSiteAndBuildingHint')}</p>
+                  <p className="text-sm mt-1 font-medium text-slate-500">{t('selectSiteAndBuildingDesc')}</p>
                 </div>
               )}
             </>
