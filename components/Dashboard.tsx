@@ -176,9 +176,95 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
 
     // Reports Fetching (React Query)
-    const { data: reports = [], isLoading: isReportsLoading, refetch: refetchReports } = useHistoryReports(user, selectedYear, {
+    const { data: fetchedReports = [], isLoading: isReportsLoading, refetch: refetchReports } = useHistoryReports(user, selectedYear, {
         enabled: !!user.uid
     });
+
+    const reports = React.useMemo(() => {
+        if (!user.isGuest || selectedYear !== new Date().getFullYear()) return fetchedReports;
+        const now = Date.now();
+        const demoSvgAbnormal = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#fef2f2"/><rect x="115" y="45" width="90" height="150" rx="16" fill="#dc2626"/><circle cx="160" cy="85" r="22" fill="#fff" stroke="#ef4444" stroke-width="4"/><path d="M160 85 L146 95" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/><text x="160" y="218" text-anchor="middle" font-size="14" font-weight="bold" fill="#991b1b">壓力偏低 (待檢修) - DN47</text></svg>');
+        const demoSvgFixed = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#ecfdf5"/><rect x="115" y="45" width="90" height="150" rx="16" fill="#16a34a"/><circle cx="160" cy="85" r="22" fill="#fff" stroke="#10b981" stroke-width="4"/><path d="M160 85 L160 68" stroke="#15803d" stroke-width="4" stroke-linecap="round"/><text x="160" y="218" text-anchor="middle" font-size="14" font-weight="bold" fill="#065f46">壓力綠區正常 (已修復) - DN47</text></svg>');
+        return [
+            {
+                id: 'rep_demo_1',
+                date: now - 2 * 86400000,
+                buildingName: '北部儲運中心 > 主倉2F',
+                inspectorName: '魚亞澄',
+                overallStatus: 'Pass',
+                items: [
+                    {
+                        equipmentId: 'demo_eq_dn47',
+                        name: '乾粉滅火器',
+                        barcode: 'DN47',
+                        status: InspectionStatus.Fixed,
+                        notes: '壓力錶指針偏低且噴嘴微滲漏 [異常複檢 - 已修復]',
+                        inspectionDate: now - 3 * 86400000,
+                        repairDate: now - 1 * 86400000,
+                        repairNotes: '更換故障零件，功能恢復正常（已更換新壓力錶與噴嘴並完成氣密測試合格）',
+                        abnormalItems: ['壓力錶綠色區域', '噴嘴與皮管'],
+                        abnormalPhotoUrl: demoSvgAbnormal,
+                        repairPhotoUrl: demoSvgFixed,
+                        checkResults: [
+                            { name: '壓力錶綠色區域', threshold: '正常範圍', value: 'true', status: 'Normal' },
+                            { name: '噴嘴與皮管', threshold: '無龜裂滲漏', value: 'true', status: 'Normal' },
+                            { name: '安全插栓與封條', threshold: '完整無脫落', value: 'true', status: 'Normal' },
+                            { name: '瓶身外觀與標示', threshold: '無鏽蝕', value: 'true', status: 'Normal' }
+                        ]
+                    },
+                    {
+                        equipmentId: 'demo_eq_hy08',
+                        name: '室內消防栓',
+                        barcode: 'HY08',
+                        status: InspectionStatus.Normal,
+                        notes: '水壓測試與水帶狀況良好',
+                        checkResults: [
+                            { name: '放水壓力測試', threshold: 'gte 1.7 kgf/cm²', value: '3.2', unit: ' kgf/cm²', status: 'Normal' },
+                            { name: '水帶接頭與瞄子', threshold: '無滲漏', value: 'true', status: 'Normal' },
+                            { name: '箱門啟閉與指示燈', threshold: '正常亮燈', value: 'true', status: 'Normal' }
+                        ]
+                    },
+                    {
+                        equipmentId: 'demo_eq_co25',
+                        name: '二氧化碳滅火器',
+                        barcode: 'CO25',
+                        status: InspectionStatus.Normal,
+                        notes: '配合設備汰換提前完成檢查',
+                        isForced: true,
+                        forcedFromDueDate: now + 10 * 86400000,
+                        checkResults: [
+                            { name: '鋼瓶秤重檢查', threshold: '不低於標示90%', value: '100', unit: '%', status: 'Normal' },
+                            { name: '噴射喇叭口', threshold: '無破損阻塞', value: 'true', status: 'Normal' }
+                        ]
+                    },
+                    {
+                        equipmentId: 'demo_eq_fa01',
+                        name: '火警受信總機',
+                        barcode: 'FA01',
+                        status: InspectionStatus.Abnormal,
+                        notes: '第3迴路預備電池電壓偏低，已通報電氣班檢修',
+                        abnormalItems: ['預備電源電壓'],
+                        abnormalPhotoUrl: demoSvgAbnormal,
+                        checkResults: [
+                            { name: '預備電源電壓', threshold: 'gte 24 V', value: '21.4', unit: ' V', status: 'Abnormal' },
+                            { name: '火警迴路導通測試', threshold: '正常', value: 'true', status: 'Normal' }
+                        ]
+                    },
+                    {
+                        equipmentId: 'demo_eq_el12',
+                        name: '緊急照明燈',
+                        barcode: 'EL12',
+                        status: InspectionStatus.Normal,
+                        notes: '斷電測試持續照明正常',
+                        checkResults: [
+                            { name: '斷電點燈測試', threshold: '正常亮燈', value: 'true', status: 'Normal' },
+                            { name: '充電指示燈', threshold: '正常', value: 'true', status: 'Normal' }
+                        ]
+                    }
+                ]
+            }
+        ];
+    }, [user.isGuest, selectedYear, fetchedReports]);
 
     // Real-time Abnormal Records Hook
     const { data: abnormalRecords = [], isLoading: isAbnormalLoading, isFetched: isAbnormalFetched } = useAbnormalRecords(user);
@@ -2224,26 +2310,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                             </div>
 
                                             {/* 右側明顯異常筆數顯示 */}
-                                            <div className={`relative z-10 shrink-0 flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-2xl border transition-all ${
-                                                abnormalCount > 0
-                                                    ? 'bg-red-50/90 border-red-200 shadow-sm shadow-red-100 group-hover:bg-red-100/80'
-                                                    : 'bg-emerald-50/70 border-emerald-200/80'
-                                            }`}>
+                                            <div className={`relative z-10 shrink-0 flex flex-col items-center justify-center min-w-[72px] px-3 py-2 rounded-2xl border transition-all ${abnormalCount > 0
+                                                ? 'bg-red-50/90 border-red-200 shadow-sm shadow-red-100 group-hover:bg-red-100/80'
+                                                : 'bg-emerald-50/70 border-emerald-200/80'
+                                                }`}>
                                                 <div className="flex items-baseline gap-0.5">
-                                                    <span className={`text-3xl font-black tabular-nums leading-none tracking-tight ${
-                                                        abnormalCount > 0 ? 'text-red-600' : 'text-emerald-600'
-                                                    }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                    <span className={`text-3xl font-black tabular-nums leading-none tracking-tight ${abnormalCount > 0 ? 'text-red-600' : 'text-emerald-600'
+                                                        }`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                         {abnormalCount}
                                                     </span>
-                                                    <span className={`text-xs font-extrabold ${
-                                                        abnormalCount > 0 ? 'text-red-500' : 'text-emerald-600'
-                                                    }`}>
+                                                    <span className={`text-xs font-extrabold ${abnormalCount > 0 ? 'text-red-500' : 'text-emerald-600'
+                                                        }`}>
                                                         筆
                                                     </span>
                                                 </div>
-                                                <span className={`text-[10px] font-extrabold mt-1 tracking-wider ${
-                                                    abnormalCount > 0 ? 'text-red-600' : 'text-emerald-700'
-                                                }`}>
+                                                <span className={`text-[10px] font-extrabold mt-1 tracking-wider ${abnormalCount > 0 ? 'text-red-600' : 'text-emerald-700'
+                                                    }`}>
                                                     {abnormalCount > 0 ? '待複檢' : '全數正常'}
                                                 </span>
                                             </div>
@@ -3306,11 +3388,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                             return (
                                                                 <div
                                                                     key={indicator.id}
-                                                                    className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden shadow-sm hover:shadow ${
-                                                                        isExpanded
-                                                                            ? 'border-blue-300 ring-2 ring-blue-100/50'
-                                                                            : 'border-slate-200 hover:border-slate-300'
-                                                                    }`}
+                                                                    className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden shadow-sm hover:shadow ${isExpanded
+                                                                        ? 'border-blue-300 ring-2 ring-blue-100/50'
+                                                                        : 'border-slate-200 hover:border-slate-300'
+                                                                        }`}
                                                                 >
                                                                     {/* Summary Header (點擊整行展開/閉合) */}
                                                                     <div
@@ -3318,9 +3399,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                                         className="p-3.5 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-50/80 transition-colors"
                                                                     >
                                                                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white font-black text-xs shadow-sm ${
-                                                                                isExpired ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-blue-500 to-cyan-500'
-                                                                            }`}>
+                                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white font-black text-xs shadow-sm ${isExpired ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                                                                                }`}>
                                                                                 {index + 1}
                                                                             </div>
                                                                             <div className="flex items-baseline gap-1.5 min-w-0">
@@ -3336,17 +3416,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                                                         {/* 右側：簡要狀態膠囊 + 折疊箭頭 */}
                                                                         <div className="flex items-center gap-2 shrink-0">
-                                                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                                                                                isExpired
-                                                                                    ? 'bg-red-50 border border-red-300 text-red-600'
-                                                                                    : 'bg-amber-50 border border-amber-300 text-amber-700'
-                                                                            }`}>
+                                                                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${isExpired
+                                                                                ? 'bg-red-50 border border-red-300 text-red-600'
+                                                                                : 'bg-amber-50 border border-amber-300 text-amber-700'
+                                                                                }`}>
                                                                                 {isExpired ? '已過期' : remainingFormatted}
                                                                             </span>
 
-                                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition-transform duration-200 ${
-                                                                                isExpanded ? 'rotate-180 bg-blue-50 text-blue-600' : ''
-                                                                            }`}>
+                                                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition-transform duration-200 ${isExpanded ? 'rotate-180 bg-blue-50 text-blue-600' : ''
+                                                                                }`}>
                                                                                 <ChevronDown className="w-4 h-4" />
                                                                             </div>
                                                                         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Camera, Keyboard, AlertCircle, CheckCircle } from 'lucide-react';
 import BarcodeScanner from './BarcodeScanner';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -21,6 +21,15 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
     const [manualInput, setManualInput] = useState('');
     const [validationError, setValidationError] = useState<string | null>(null);
     const [isValidating, setIsValidating] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setManualInput('');
+            setValidationError(null);
+            setIsValidating(false);
+            setInputMode('SCAN');
+        }
+    }, [isOpen, expectedBarcode]);
 
     if (!isOpen) return null;
 
@@ -45,8 +54,9 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
 
         // 如果沒有預期編號，直接通過 (用於搜尋模式)
         if (!expectedBarcode) {
+            setIsValidating(false);
+            setManualInput('');
             onScan(barcode);
-            // reset isValidating will be handled by unmount or next open
             return;
         }
 
@@ -58,9 +68,9 @@ const BarcodeInputModal: React.FC<BarcodeInputModalProps> = ({
         }
 
         // 驗證成功
+        setIsValidating(false);
+        setManualInput('');
         onScan(barcode);
-        // Note: Modal will be closed by parent, no need to reset isValidating manually usually,
-        // but if parent doesn't close immediately, this prevents double tap.
     };
 
     const handleClose = () => {

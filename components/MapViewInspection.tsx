@@ -591,6 +591,10 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                 console.log('[handleSubmit] Optimistic Render Triggered');
             }, 0);
 
+            if (user.isGuest) {
+                showToast('✅ 提交成功！');
+                return;
+            }
 
             // 5. ASYNC SAVING (Firebase)
             // Find or create actual report for storage
@@ -790,30 +794,30 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
 
         const equipment = allEquipment.find(e => e.barcode === marker.equipmentId);
 
-        // Check Override first (Robust Multi-Key)
+        if (equipment) {
+            // Check abnormal first (LATEST Only)
+            const relevantReports = reports
+                .filter(r => (r.items || []).some(i => i.equipmentId === equipment.id))
+                .sort((a, b) => b.date - a.date);
+
+            if (relevantReports.length > 0) {
+                const latestItem = (relevantReports[0].items || []).find(i => i.equipmentId === equipment.id);
+                if (latestItem?.status === InspectionStatus.Abnormal) {
+                    if (lightSettings?.abnormal?.color) return { backgroundColor: lightSettings.abnormal.color };
+                    return { backgroundColor: '#f97316' };
+                }
+            }
+        }
+
+        // Check Override (Robust Multi-Key)
         const overrideTime = inspectedOverrides[marker.equipmentId] || (equipment && inspectedOverrides[equipment.id]);
         if (overrideTime && Date.now() - overrideTime < 24 * 60 * 60 * 1000) {
-            // Force Green/Completed Color
-            // DEBUG: Add Yellow Border to Confirm Logic Hit
             return {
                 backgroundColor: lightSettings?.green?.color || '#10b981'
             };
         }
 
         if (!equipment) return {};
-
-        // Check abnormal first (LATEST Only)
-        const relevantReports = reports
-            .filter(r => (r.items || []).some(i => i.equipmentId === equipment.id))
-            .sort((a, b) => b.date - a.date);
-
-        if (relevantReports.length > 0) {
-            const latestItem = (relevantReports[0].items || []).find(i => i.equipmentId === equipment.id);
-            if (latestItem?.status === InspectionStatus.Abnormal) {
-                if (lightSettings?.abnormal?.color) return { backgroundColor: lightSettings.abnormal.color };
-                // else fallback to class
-            }
-        }
 
         const status = getFrequencyStatus(equipment, lightSettings);
         if (status === 'PENDING' && lightSettings?.red?.color) return { backgroundColor: lightSettings.red.color };
