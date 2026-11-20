@@ -1816,8 +1816,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             <span className="font-bold text-xl sm:text-2xl tracking-tight bg-gradient-to-r from-amber-100 via-white to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] uppercase italic leading-none pr-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                 {t('appName')}
                             </span>
-                            <span className="text-[7px] sm:text-[8px] font-semibold text-amber-400/80 tracking-[0.18em] sm:tracking-[0.2em] uppercase mt-0.5 ml-0.5 drop-shadow-sm whitespace-nowrap">
-                                Professional Edition
+                            <span
+                                className="text-[10px] sm:text-[11px] font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-amber-200 bg-clip-text text-transparent tracking-[0.22em] sm:tracking-[0.26em] -mt-0.5 leading-none ml-0.5 drop-shadow-sm whitespace-nowrap"
+                                style={{ fontFamily: "'Noto Serif TC', 'Noto Sans TC', serif" }}
+                            >
+                                消防安全巡檢平台
                             </span>
                         </div>
                         {/* Guest Timer Display */}
@@ -2236,14 +2239,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsInspectionModeOpen(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-blue-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-blue-50/90 to-sky-100/85 backdrop-blur-md p-4 text-left border border-blue-200/80 shadow-md transition-all duration-300 hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                                                <ClipboardCheck className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-500 via-sky-400 to-cyan-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
+                                                <Flame className="w-24 h-24 text-blue-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
                                             <div className="flex items-start justify-between mb-3">
                                                 <div className="relative p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl w-fit shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform">
-                                                    <ClipboardCheck className="w-5 h-5 text-white" />
+                                                    {/* 消防查檢表 + 火苗 */}
+                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <rect x="5" y="4" width="14" height="17" rx="2" />
+                                                        <path d="M9 4V2h6v2" />
+                                                        <path d="M12 9c1.5 1.8 2.5 3.1 2.5 4.5a2.5 2.5 0 0 1-5 0c0-1.4 1-2.7 2.5-4.5z" fill="currentColor" fillOpacity="0.25" />
+                                                        <path d="M9 17.5h6" />
+                                                    </svg>
                                                     {inspectionProgress.pendingCount > 0 && (
                                                         <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
                                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -2288,14 +2298,21 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setShowAbnormalRecheck(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-amber-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] flex items-center justify-between gap-3"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-amber-50/90 to-orange-100/80 backdrop-blur-md p-4 text-left border border-amber-200/80 shadow-md transition-all duration-300 hover:border-amber-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] flex items-center justify-between gap-3"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity pointer-events-none">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-orange-400 to-red-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <AlertOctagon className="w-24 h-24 text-amber-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
-                                                    <AlertOctagon className="w-5 h-5 text-white" />
+                                                <div className="relative p-2.5 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl w-fit mb-3 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform">
+                                                    {/* 消防警鈴 / 異常復歸 */}
+                                                    <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                                                        <path d="M12 7v4" />
+                                                        <circle cx="12" cy="13.5" r="0.6" fill="currentColor" />
+                                                    </svg>
                                                     {abnormalCount > 0 && (
                                                         <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
                                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -2337,13 +2354,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={scrollToHistory}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-indigo-50/90 to-violet-100/80 backdrop-blur-md p-4 text-left border border-indigo-200/80 shadow-md transition-all duration-300 hover:border-indigo-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <ScrollText className="w-24 h-24 text-indigo-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl w-fit mb-3 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
-                                                <ScrollText className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl w-fit mb-3 shadow-lg shadow-indigo-200 group-hover:scale-110 transition-transform">
+                                                {/* 消防安檢紀錄簿 + 認證章 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M6 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                                                    <path d="M8 7h6M8 11h6" />
+                                                    <path d="M12.5 15.5l1.2 1.2 2.3-2.5" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('history')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{flattenedHistory.length} {t('historyRecordsCount')}</p>
@@ -2355,13 +2378,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => onMyEquipment()}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-cyan-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-cyan-50/90 to-teal-100/80 backdrop-blur-md p-4 text-left border border-cyan-200/80 shadow-md transition-all duration-300 hover:border-cyan-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <Building className="w-24 h-24 text-cyan-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl w-fit mb-3 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
-                                                <Building className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-xl w-fit mb-3 shadow-lg shadow-cyan-200 group-hover:scale-110 transition-transform">
+                                                {/* 滅火器圖示 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M15 6.5V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v2.5" />
+                                                    <path d="M9 6.5h6l1.5 2.5v10a2 2 0 0 1-2 2h-5a2 2 0 0 1-2-2V9L9 6.5z" />
+                                                    <path d="M15 4h3.5a1.5 1.5 0 0 1 1.5 1.5V9" />
+                                                    <path d="M10.5 12h3" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipment')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipmentDesc')}</p>
@@ -2373,13 +2403,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsEquipmentMapOpen(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-purple-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-purple-50/90 to-fuchsia-100/80 backdrop-blur-md p-4 text-left border border-purple-200/80 shadow-md transition-all duration-300 hover:border-purple-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <MapPinned className="w-24 h-24 text-purple-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl w-fit mb-3 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
-                                                <MapPinned className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-purple-500 to-fuchsia-600 rounded-xl w-fit mb-3 shadow-lg shadow-purple-200 group-hover:scale-110 transition-transform">
+                                                {/* 消防點位平面圖 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2V6z" />
+                                                    <path d="M12 8.5c1.3 1.4 2 2.4 2 3.5a2 2 0 1 1-4 0c0-1.1.7-2.1 2-3.5z" fill="currentColor" fillOpacity="0.3" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditor')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditorDesc')}</p>
@@ -2391,13 +2426,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <div
                                             key={cardId}
                                             onClick={onAddEquipment}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-emerald-50/90 to-teal-100/80 backdrop-blur-md p-4 text-left border border-emerald-200/80 shadow-md transition-all duration-300 hover:border-emerald-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-green-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <PlusCircle className="w-24 h-24 text-emerald-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl w-fit mb-3 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
-                                                <PlusCircle className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl w-fit mb-3 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
+                                                {/* 消防栓 / 設備建檔 + 加號 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 3v3M8 6h8v3a4 4 0 0 1-8 0V6z" />
+                                                    <path d="M7 10h10v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-7z" />
+                                                    <path d="M12 12v4M10 14h4" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipment')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
@@ -2409,13 +2450,20 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsHealthModalOpen(true)}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-pink-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-pink-50/90 to-rose-100/80 backdrop-blur-md p-4 text-left border border-pink-200/80 shadow-md transition-all duration-300 hover:border-pink-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-pink-500 via-rose-400 to-red-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <Clock className="w-24 h-24 text-pink-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl w-fit mb-3 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
-                                                <Clock className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl w-fit mb-3 shadow-lg shadow-pink-200 group-hover:scale-110 transition-transform">
+                                                {/* 壓力表效期追蹤儀表 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <circle cx="12" cy="12" r="9" />
+                                                    <path d="M12 12l3.5-3.5" />
+                                                    <path d="M8 15.5a5 5 0 0 1 8 0" strokeOpacity="0.6" />
+                                                    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('healthIndicators')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
@@ -2427,13 +2475,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={onManageHierarchy}
-                                            className="group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border border-slate-200/60 transition-all duration-300 hover:border-orange-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+                                            className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-orange-50/90 to-amber-100/80 backdrop-blur-md p-4 text-left border border-orange-200/80 shadow-md transition-all duration-300 hover:border-orange-400 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <ListPlus className="w-24 h-24 text-orange-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl w-fit mb-3 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
-                                                <ListPlus className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl w-fit mb-3 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
+                                                {/* 消防器材分類標籤樹 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M4 6h7l2 2h7v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" />
+                                                    <path d="M12 11c1 1.1 1.6 2 1.6 2.9a1.6 1.6 0 0 1-3.2 0c0-.9.6-1.8 1.6-2.9z" fill="currentColor" fillOpacity="0.3" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameList')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameListDescShort')}</p>
@@ -2445,13 +2498,18 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         <button
                                             key={cardId}
                                             onClick={() => setIsEquipmentExpanded(!isEquipmentExpanded)}
-                                            className={`group relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur-md p-4 text-left border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-100 shadow-md' : 'border-slate-200/60 hover:border-slate-300'}`}
+                                            className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/95 via-slate-100/90 to-slate-200/85 backdrop-blur-md p-4 text-left border shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] ${isEquipmentExpanded ? 'border-slate-400 ring-2 ring-slate-200/80 shadow-lg' : 'border-slate-300/80 hover:border-slate-400'}`}
                                         >
-                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                                            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-slate-500 via-slate-400 to-blue-400" />
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.05] group-hover:opacity-10 transition-opacity pointer-events-none">
                                                 <PieChart className="w-24 h-24 text-slate-600 -mr-8 -mt-8 rotate-12" />
                                             </div>
-                                            <div className="p-2.5 bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl w-fit mb-3 shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform">
-                                                <PieChart className="w-5 h-5 text-white" />
+                                            <div className="p-2.5 bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl w-fit mb-3 shadow-lg shadow-slate-200 group-hover:scale-110 transition-transform">
+                                                {/* 消防設備安全總覽盾牌圖表 */}
+                                                <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 2l7 3v6c0 5-3.5 9-7 11-3.5-2-7-6-7-11V5l7-3z" />
+                                                    <path d="M9 14v-3M12 14V9M15 14v-2" />
+                                                </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
                                             <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
@@ -3620,7 +3678,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                     {
                         isSettingsOpen && (
-                            <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                            <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200 transition-all ${settingsTab === 'GENERAL' ? 'bg-black/20 backdrop-blur-[1px]' : 'bg-slate-900/60 backdrop-blur-sm'}`}>
                                 <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100 flex flex-col max-h-[85vh]">
                                     {/* Header */}
                                     <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
@@ -3900,37 +3958,81 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
                                         {/* GENERAL TAB */}
                                         {settingsTab === 'GENERAL' && (
-                                            <div className="space-y-6">
-                                                {/* Theme Settings */}
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-slate-500 uppercase">{t('themeColor')}</label>
-                                                    <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                                            <div className="space-y-4">
+                                                {/* Live Background Preview */}
+                                                <div
+                                                    className={`rounded-2xl p-3.5 border border-slate-200 shadow-inner transition-colors duration-300 ${styles.text}`}
+                                                    style={styles.patternStyle}
+                                                >
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <span className="text-xs font-extrabold tracking-wide">背景即時預覽 · FSIPPRO</span>
+                                                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/15 backdrop-blur-sm">
+                                                            {theme.startsWith('#') ? theme.toUpperCase() : '預設淺色'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div className="bg-white/95 rounded-lg p-2 text-slate-800 shadow-sm">
+                                                            <div className="w-4 h-1 rounded bg-blue-500 mb-1" />
+                                                            <div className="text-[11px] font-bold">開始檢查</div>
+                                                        </div>
+                                                        <div className="bg-white/95 rounded-lg p-2 text-slate-800 shadow-sm">
+                                                            <div className="w-4 h-1 rounded bg-amber-500 mb-1" />
+                                                            <div className="text-[11px] font-bold">異常複檢</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Solid Background Color Picker */}
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-sm font-bold text-slate-700">選擇您的背景色彩</label>
+                                                        {theme.startsWith('#') && (
+                                                            <span className="text-xs font-mono font-semibold text-slate-500 uppercase">
+                                                                {theme}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="grid grid-cols-8 gap-1.5">
                                                         {[
-                                                            { id: 'light', icon: <Sun className="w-4 h-4" />, label: '極簡點陣', color: 'bg-[#f8fafc] border border-slate-300', darkIcon: true },
-                                                            { id: 'nord', icon: <LayoutGrid className="w-4 h-4" />, label: '工程方格', color: 'bg-[#e2e8f0] border border-slate-300', darkIcon: true },
-                                                            { id: 'dracula', icon: <Ruler className="w-4 h-4" />, label: '暖白雙格', color: 'bg-[#f5f5f4] border border-stone-300', darkIcon: true },
-                                                            { id: 'monokai', icon: <Leaf className="w-4 h-4" />, label: '環安綠陣', color: 'bg-[#dcfce7] border border-emerald-300', darkIcon: true },
-                                                            { id: 'solarized', icon: <Droplets className="w-4 h-4" />, label: '建築藍圖', color: 'bg-[#0b213f]', darkIcon: false },
-                                                            { id: 'dark', icon: <Moon className="w-4 h-4" />, label: '戰情暗格', color: 'bg-[#0f172a]', darkIcon: false },
-                                                            { id: 'onedark', icon: <Zap className="w-4 h-4" />, label: '鈦金點陣', color: 'bg-[#18181b]', darkIcon: false },
-                                                            { id: 'system', icon: <Monitor className="w-4 h-4" />, label: t('followSystemTheme'), color: 'bg-gradient-to-br from-slate-100 to-slate-800', darkIcon: false }
-                                                        ].map((item) => (
-                                                            <button
-                                                                key={item.id}
-                                                                onClick={() => {
-                                                                    setTheme(item.id as ThemeType);
-                                                                }}
-                                                                className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${theme === item.id ? 'border-red-600 ring-2 ring-red-100 bg-red-50/30' : 'border-slate-100 hover:border-slate-300 bg-white'} `}
-                                                                title={item.label}
-                                                            >
-                                                                <div className={`w-8 h-8 rounded-xl shadow-sm flex items-center justify-center ${item.color}`}>
-                                                                    {React.cloneElement(item.icon as React.ReactElement, {
-                                                                        className: `w-4 h-4 ${item.darkIcon ? 'text-slate-700' : 'text-white'}`
-                                                                    })}
-                                                                </div>
-                                                                <span className="text-[10px] font-bold text-slate-600 line-clamp-1 px-1">{item.label}</span>
-                                                            </button>
-                                                        ))}
+                                                            '#ff8c00', '#e81123', '#d13438', '#c30052', '#bf0077', '#9a0089', '#881798', '#744da9',
+                                                            '#10893e', '#107c10', '#008575', '#2d7d9a', '#0063b1', '#6b69d6', '#8e8cd8', '#8764b8',
+                                                            '#038387', '#486860', '#525e54', '#7e735f', '#4c4a48', '#515c6b', '#4a5459', '#000000',
+                                                        ].map((hex) => {
+                                                            const isSelected = theme.toLowerCase() === hex.toLowerCase();
+                                                            return (
+                                                                <button
+                                                                    key={hex}
+                                                                    type="button"
+                                                                    onClick={() => setTheme(hex as ThemeType)}
+                                                                    className={`relative aspect-square rounded-sm transition-transform hover:scale-105 focus:outline-none ${isSelected ? 'ring-2 ring-slate-900 ring-offset-1' : 'hover:ring-1 hover:ring-slate-400'}`}
+                                                                    style={{ backgroundColor: hex }}
+                                                                    title={hex}
+                                                                    aria-label={`選擇背景色 ${hex}`}
+                                                                >
+                                                                    {isSelected && (
+                                                                        <Check className="w-3.5 h-3.5 text-white absolute top-1 right-1 drop-shadow" strokeWidth={3} />
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                                                        <label className="flex items-center gap-2.5 text-xs font-bold text-slate-600 cursor-pointer hover:text-slate-900">
+                                                            <input
+                                                                type="color"
+                                                                value={theme.startsWith('#') ? theme : '#0f172a'}
+                                                                onChange={(e) => setTheme(e.target.value as ThemeType)}
+                                                                className="w-7 h-7 rounded cursor-pointer border border-slate-200 p-0 bg-transparent"
+                                                            />
+                                                            <span>自訂單純底色</span>
+                                                        </label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setTheme('light')}
+                                                            className="text-xs font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                                                        >
+                                                            恢復預設淺色
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>

@@ -1,6 +1,34 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type ThemeType = 'light' | 'dark' | 'monokai' | 'solarized' | 'dracula' | 'nord' | 'onedark' | 'system';
+export type ThemeType = 'light' | 'dark' | 'monokai' | 'solarized' | 'dracula' | 'nord' | 'onedark' | 'system' | `#${string}`;
+
+const isHexColor = (val: string): val is `#${string}` => /^#[0-9a-fA-F]{6}$/.test(val);
+
+const isHexDark = (hex: string): boolean => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 155;
+};
+
+const buildSolidThemeStyles = (hex: string): ThemeStyles => {
+    const isDark = isHexDark(hex);
+    return {
+        bg: '',
+        text: isDark ? 'text-slate-100' : 'text-slate-800',
+        card: 'bg-white',
+        border: isDark ? 'border-white/15' : 'border-slate-200',
+        primary: 'bg-blue-600',
+        secondary: isDark ? 'bg-slate-700' : 'bg-indigo-600',
+        highlight: isDark ? 'text-sky-300' : 'text-blue-600',
+        buttonText: 'text-white',
+        isDark,
+        patternStyle: {
+            backgroundColor: hex,
+            backgroundImage: 'none',
+        },
+    };
+};
 
 export interface ThemeStyles {
     bg: string;
@@ -199,7 +227,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [theme, setTheme] = useState<ThemeType>(() => {
         const saved = localStorage.getItem('app-theme') as ThemeType;
-        return saved && THEME_STYLES[saved] ? saved : 'light';
+        if (saved && (THEME_STYLES[saved as keyof typeof THEME_STYLES] || isHexColor(saved))) {
+            return saved;
+        }
+        return 'light';
     });
 
     const [resolvedTheme, setResolvedTheme] = useState<ThemeType>('light');
@@ -221,18 +252,19 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
     }, [theme]);
 
+    const currentStyles = isHexColor(resolvedTheme)
+        ? buildSolidThemeStyles(resolvedTheme)
+        : (THEME_STYLES[resolvedTheme as keyof typeof THEME_STYLES] || THEME_STYLES.light);
+
     useEffect(() => {
         const root = document.documentElement;
-        const activeStyle = THEME_STYLES[resolvedTheme] || THEME_STYLES.light;
 
-        if (activeStyle.isDark) {
+        if (currentStyles.isDark) {
             root.classList.add('dark');
         } else {
             root.classList.remove('dark');
         }
-    }, [resolvedTheme]);
-
-    const currentStyles = THEME_STYLES[resolvedTheme] || THEME_STYLES.light;
+    }, [currentStyles.isDark]);
 
     return (
         <ThemeContext.Provider value={{ theme, setTheme, styles: currentStyles }}>
