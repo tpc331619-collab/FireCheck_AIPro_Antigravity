@@ -933,35 +933,40 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                 )}
 
                 {/* Header */}
-                <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center shrink-0 shadow-sm z-30">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => {
-                                if (viewMode === 'EDIT') {
-                                    setViewMode('LIST');
-                                } else {
-                                    onClose();
-                                }
-                            }}
-                            className="p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors"
-                            title={t('back')}
+                <div className="bg-white/90 backdrop-blur-md border-b border-slate-300/70 shrink-0 shadow-sm z-30">
+                    <div className="h-1 w-full bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-500" />
+                    <div className="px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    if (viewMode === 'EDIT') {
+                                        setViewMode('LIST');
+                                    } else {
+                                        onClose();
+                                    }
+                                }}
+                                className="p-2 -ml-2 text-slate-500 hover:bg-slate-200/60 rounded-full transition-colors"
+                                title={t('back')}
 
-                        >
-                            <ArrowLeft className="w-6 h-6" />
-                        </button>
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                            <MapPin className="w-6 h-6 text-red-500" />
-                            {viewMode === 'LIST' ? t('mapManager') : t('editMap')}
-                        </h2>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                            <X className="w-6 h-6 text-slate-500" />
-                        </button>
+                            >
+                                <ArrowLeft className="w-6 h-6" />
+                            </button>
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center shadow-sm">
+                                <MapPin className="w-4 h-4 text-white" />
+                            </div>
+                            <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-3">
+                                {viewMode === 'LIST' ? t('mapManager') : t('editMap')}
+                            </h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={onClose} className="p-2 hover:bg-slate-200/60 rounded-full transition-colors">
+                                <X className="w-6 h-6 text-slate-500" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden flex flex-col bg-slate-50">
+                <div className="flex-1 overflow-hidden flex flex-col bg-gradient-to-br from-slate-200/90 via-slate-100 to-zinc-200/80">
                     {viewMode === 'LIST' ? (
                         //  === LIST VIEW ===
                         <div className="flex-1 overflow-y-auto p-4 sm:p-8">
@@ -985,11 +990,11 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                 </div>
 
                                 {/* Map List - Responsive View */}
-                                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="bg-white/95 rounded-2xl shadow-lg border border-purple-200/70 border-t-4 border-t-purple-500 overflow-hidden">
                                     {/* Desktop Table View */}
                                     <div className="hidden md:block">
                                         <table className="w-full text-left border-collapse">
-                                            <thead className="bg-slate-50 border-b border-slate-200">
+                                            <thead className="bg-gradient-to-r from-slate-100 via-purple-50/75 to-indigo-50/75 border-b-2 border-slate-300/80">
                                                 <tr>
                                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-12">#</th>
                                                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-24">{t('preview')}</th>
@@ -1008,7 +1013,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                             setModalMode('SELECT');
                                                             setIsStorageManagerOpen(true);
                                                         }}
-                                                        className="hover:bg-blue-50 transition-colors cursor-pointer group border-b-2 border-slate-100/50"
+                                                        className="bg-gradient-to-r from-blue-50/85 via-indigo-50/65 to-purple-50/50 hover:from-blue-100/80 hover:to-indigo-100/70 transition-colors cursor-pointer group border-b-2 border-slate-200/80"
                                                     >
                                                         <td className="px-6 py-4"></td>
                                                         <td className="px-6 py-4">
@@ -1027,7 +1032,7 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
 
                                                 {/* Existing Maps */}
                                                 {maps.map((map, index) => (
-                                                    <tr key={map.id} onClick={() => editMap(map)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
+                                                    <tr key={map.id} onClick={() => editMap(map)} className={`${index % 2 === 1 ? 'bg-purple-50/40' : 'bg-white'} hover:bg-purple-100/45 transition-colors cursor-pointer group`}>
                                                         <td className="px-6 py-4 text-sm text-slate-500 font-bold">
                                                             {index + 1}
                                                         </td>

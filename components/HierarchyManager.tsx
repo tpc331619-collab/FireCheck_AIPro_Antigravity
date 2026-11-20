@@ -227,16 +227,19 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack, syste
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 relative">
+        <div className="flex flex-col h-full bg-gradient-to-br from-slate-200/90 via-slate-100 to-zinc-200/80 relative text-slate-800">
             {/* Header */}
-            <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+            <div className="bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-300/70 sticky top-0 z-40">
+                <div className="h-1 w-full bg-gradient-to-r from-orange-500 via-amber-500 to-red-500" />
                 <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+                        <button onClick={onBack} className="p-2 -ml-2 text-slate-600 hover:bg-slate-200/60 rounded-full transition-colors">
                             <ArrowLeft className="w-6 h-6" />
                         </button>
-                        <h1 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                            <FolderTree className="w-5 h-5 text-slate-500" />
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-sm">
+                            <FolderTree className="w-4 h-4 text-white" />
+                        </div>
+                        <h1 className="font-extrabold text-lg text-slate-900 flex items-center gap-2">
                             {t('equipmentNameManager')}
                         </h1>
                     </div>
@@ -254,8 +257,8 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack, syste
                 <div className="max-w-7xl mx-auto h-auto md:h-full grid grid-cols-1 md:grid-cols-2 gap-6">
 
                     {/* Column 1: Category */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden">
-                        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className="bg-white/95 rounded-2xl shadow-lg border border-orange-200/70 border-t-4 border-t-orange-500 flex flex-col h-[500px] md:h-full overflow-hidden">
+                        <div className="p-4 border-b border-orange-100/80 bg-gradient-to-r from-white via-orange-50/60 to-amber-50/50">
                             <h3 className="font-bold text-slate-700 mb-2">1. {t('category')}</h3>
                             <div className="flex gap-2">
                                 <input
@@ -300,7 +303,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack, syste
                                     <div
                                         key={cat}
                                         onClick={() => { setSelectedCategory(cat); setSelectedType(null); }}
-                                        className={`flex items-center justify-between p-4 mb-2 rounded-xl cursor-pointer transition-colors border ${selectedCategory === cat ? 'bg-red-50 text-red-700 border-red-200 shadow-sm' : 'bg-white border-transparent hover:bg-slate-50 text-slate-700'}`}
+                                        className={`flex items-center justify-between p-4 mb-2 rounded-xl cursor-pointer transition-all border ${selectedCategory === cat ? 'bg-gradient-to-r from-red-50 via-orange-50/80 to-amber-50/60 text-red-700 border-red-200 border-l-4 border-l-red-500 shadow-sm' : 'bg-slate-50/75 border-slate-200/70 hover:bg-orange-50/50 hover:border-orange-200 text-slate-700'}`}
                                     >
                                         <span className="font-bold text-base">{cat}</span>
                                         <div className="flex items-center gap-2">
@@ -315,8 +318,8 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack, syste
                     </div>
 
                     {/* Column 2: Type */}
-                    <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedCategory ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <div className={`bg-white/95 rounded-2xl shadow-lg border border-amber-200/70 border-t-4 border-t-amber-500 flex flex-col h-[500px] md:h-full overflow-hidden transition-opacity ${!selectedCategory ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="p-4 border-b border-amber-100/80 bg-gradient-to-r from-white via-amber-50/60 to-orange-50/50">
                             <h3 className="font-bold text-slate-700 mb-2">2. {t('type')}</h3>
                             <div className="flex gap-2">
                                 <input
@@ -333,7 +336,7 @@ const HierarchyManager: React.FC<HierarchyManagerProps> = ({ user, onBack, syste
                             {selectedCategory && hierarchy[selectedCategory] && hierarchy[selectedCategory].map(type => (
                                 <div
                                     key={type}
-                                    className={`flex items-center justify-between p-4 mb-2 rounded-xl border bg-white border-transparent hover:bg-slate-50 text-slate-700`}
+                                    className="flex items-center justify-between p-4 mb-2 rounded-xl border bg-slate-50/75 border-slate-200/70 border-l-4 border-l-amber-400 hover:bg-amber-50/50 hover:border-amber-300 shadow-2xs transition-all text-slate-700"
                                 >
                                     <span className="font-bold text-base">{type}</span>
                                     <div className="flex items-center gap-2">

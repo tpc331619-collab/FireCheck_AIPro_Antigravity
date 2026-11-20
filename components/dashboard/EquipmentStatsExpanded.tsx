@@ -133,7 +133,9 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
     };
 
     return (
-        <div className="mt-4 p-5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="mt-4 overflow-hidden bg-gradient-to-br from-slate-100/95 via-slate-50/95 to-indigo-50/85 backdrop-blur-md rounded-2xl border border-white/80 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="h-1 w-full bg-gradient-to-r from-slate-600 via-indigo-500 to-blue-500" />
+            <div className="p-5">
             {totalCount === 0 ? (
                 <div className="text-center py-6 text-slate-400 text-sm">
                     {t('noEquipmentData')}
@@ -156,13 +158,13 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                                 <button
                                     key={idx}
                                     onClick={() => onMyEquipment(item.name)}
-                                    className="flex items-center justify-between p-2.5 bg-slate-50 hover:bg-indigo-50/60 border border-slate-200/80 hover:border-indigo-200 rounded-xl transition-all text-left group"
+                                    className="flex items-center justify-between p-2.5 bg-gradient-to-br from-white via-white to-indigo-50/80 hover:to-indigo-100/80 border border-indigo-200/70 border-l-4 border-l-indigo-500 hover:border-indigo-400 rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-left group"
                                     title={`點擊查看 ${item.name} 清單`}
                                 >
-                                    <span className="text-xs font-medium text-slate-700 group-hover:text-indigo-700 truncate mr-2">
+                                    <span className="text-xs font-bold text-slate-700 group-hover:text-indigo-700 truncate mr-2">
                                         {item.name}
                                     </span>
-                                    <span className="text-xs font-bold px-2 py-0.5 bg-white group-hover:bg-indigo-600 group-hover:text-white text-slate-700 border border-slate-200 group-hover:border-indigo-600 rounded-lg shadow-2xs transition-colors shrink-0">
+                                    <span className="text-xs font-extrabold px-2 py-0.5 bg-indigo-50 group-hover:bg-indigo-600 group-hover:text-white text-indigo-700 border border-indigo-200/80 group-hover:border-indigo-600 rounded-lg transition-colors shrink-0">
                                         {item.count}
                                     </span>
                                 </button>
@@ -171,8 +173,8 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                     </div>
 
                     {/* 切換檢視維度與展開/收合控制 */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-3 border-t border-slate-200/80">
+                        <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 rounded-xl border border-slate-300/70">
                             <button
                                 onClick={() => {
                                     setViewMode('byBuilding');
@@ -180,8 +182,8 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                                 }}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                     viewMode === 'byBuilding'
-                                        ? 'bg-white text-indigo-700 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-800'
+                                        ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-sm'
+                                        : 'text-slate-600 hover:text-slate-900'
                                 }`}
                             >
                                 <Building2 className="w-3.5 h-3.5" />
@@ -194,8 +196,8 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                                 }}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                     viewMode === 'byType'
-                                        ? 'bg-white text-indigo-700 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-800'
+                                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm'
+                                        : 'text-slate-600 hover:text-slate-900'
                                 }`}
                             >
                                 <Layers className="w-3.5 h-3.5" />
@@ -231,13 +233,13 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                                 return (
                                     <div
                                         key={gIdx}
-                                        className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs transition-all"
+                                        className="border border-slate-200/90 border-l-4 border-l-indigo-400 rounded-xl overflow-hidden bg-white/95 shadow-sm hover:shadow-md transition-all"
                                     >
                                         {/* 建築物標題列：點擊展開/收合 */}
                                         <div
                                             onClick={() => toggleExpand(bKey)}
-                                            className={`flex items-center justify-between p-3.5 bg-slate-50/80 hover:bg-slate-100/70 cursor-pointer select-none transition-colors ${
-                                                isExpanded ? 'border-b border-slate-100' : ''
+                                            className={`flex items-center justify-between p-3.5 bg-gradient-to-r from-white via-slate-50/80 to-indigo-50/50 hover:to-indigo-100/50 cursor-pointer select-none transition-colors ${
+                                                isExpanded ? 'border-b border-slate-200/80' : ''
                                             }`}
                                         >
                                             <div className="flex items-center gap-2.5">
@@ -302,12 +304,12 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                                 return (
                                     <div
                                         key={tIdx}
-                                        className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs transition-all"
+                                        className="border border-slate-200/90 border-l-4 border-l-emerald-400 rounded-xl overflow-hidden bg-white/95 shadow-sm hover:shadow-md transition-all"
                                     >
                                         <div
                                             onClick={() => toggleExpand(tKey)}
-                                            className={`flex items-center justify-between p-3.5 bg-slate-50/80 hover:bg-slate-100/70 cursor-pointer select-none transition-colors ${
-                                                isExpanded ? 'border-b border-slate-100' : ''
+                                            className={`flex items-center justify-between p-3.5 bg-gradient-to-r from-white via-slate-50/80 to-emerald-50/50 hover:to-emerald-100/50 cursor-pointer select-none transition-colors ${
+                                                isExpanded ? 'border-b border-slate-200/80' : ''
                                             }`}
                                         >
                                             <div className="flex items-center gap-2.5">
@@ -362,6 +364,7 @@ export const EquipmentStatsExpanded: React.FC<EquipmentStatsExpandedProps> = ({ 
                     )}
                 </div>
             )}
+            </div>
         </div>
     );
 };

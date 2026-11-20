@@ -706,17 +706,21 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-100/80 relative">
+        <div className="flex flex-col h-full bg-gradient-to-br from-slate-200/90 via-slate-100 to-zinc-200/80 relative text-slate-800">
             {/* Header */}
-            <div className="bg-white shadow-sm border-b border-slate-200/80 sticky top-0 z-40">
+            <div className="bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-300/70 sticky top-0 z-40">
+                <div className="h-1 w-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400" />
                 <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
                     <button
                         onClick={onBack}
-                        className="relative z-50 p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors w-11 h-11 flex items-center justify-center cursor-pointer"
+                        className="relative z-50 p-2 -ml-2 text-slate-700 hover:bg-slate-200/60 rounded-full transition-colors w-11 h-11 flex items-center justify-center cursor-pointer"
                         aria-label="Back"
                     >
                         <ArrowLeft className="w-6 h-6" />
                     </button>
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                        <ClipboardCheck className="w-4 h-4 text-white" />
+                    </div>
                     <h1 className="font-extrabold text-lg text-slate-900 tracking-tight">{t('startInspection')}</h1>
                 </div>
             </div>
@@ -725,7 +729,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                 <div className="max-w-3xl mx-auto space-y-6">
 
                     {/* Filter Section */}
-                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/90 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-white via-slate-50/90 to-blue-50/75 p-5 rounded-2xl shadow-md border border-blue-200/70 border-t-4 border-t-blue-500 grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="space-y-2">
                             <label className="text-xs font-bold text-slate-700 uppercase flex items-center tracking-wider">
                                 <MapPin className="w-3.5 h-3.5 mr-1.5 text-blue-600" /> {t('selectLocation')}
@@ -944,7 +948,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
 
                     {/* Quick Search Section */}
                     {selectedSite && selectedBuilding && (
-                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200/90 space-y-4">
+                        <div className="bg-gradient-to-br from-white via-slate-50/90 to-indigo-50/75 p-5 rounded-2xl shadow-md border border-indigo-200/70 border-t-4 border-t-indigo-500 space-y-4">
                             <h3 className="font-extrabold text-slate-800 flex items-center">
                                 <Search className="w-4 h-4 mr-2 text-blue-600" /> {t('quickSearchTitle')}
                             </h3>
@@ -1133,7 +1137,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                     } else if (freqStatus === 'UNNECESSARY') {
                                         statusLabel = '不須檢查';
                                         statusColor = ''; // Clear default tailwind classes
-                                        rowBorder = 'border-slate-300/80 hover:border-slate-400 bg-white';
+                                        rowBorder = 'border-emerald-200/80 border-l-4 border-l-emerald-500 hover:border-emerald-400 bg-gradient-to-r from-white via-slate-50/80 to-emerald-50/65 shadow-sm';
                                         if (lightSettings?.green?.color) {
                                             iconStyle = { backgroundColor: lightSettings.green.color };
                                             labelStyle = { backgroundColor: `${lightSettings.green.color}20`, color: '#047857' };
@@ -1146,7 +1150,7 @@ const ChecklistInspection: React.FC<ChecklistInspectionProps> = ({ user, onBack 
                                         // PENDING
                                         statusLabel = '需檢查'; // Ensure label is set
                                         statusColor = ''; // Clear default tailwind classes
-                                        rowBorder = 'border-red-300 hover:border-red-400 bg-red-50/20'; // Ensure border is set
+                                        rowBorder = 'border-red-300 border-l-4 border-l-red-500 hover:border-red-400 bg-gradient-to-r from-white via-rose-50/80 to-red-100/65 shadow-sm'; // Ensure border is set
                                         if (lightSettings?.red?.color) {
                                             iconStyle = { backgroundColor: lightSettings.red.color };
                                             labelStyle = { backgroundColor: `${lightSettings.red.color}20`, color: '#b91c1c' };

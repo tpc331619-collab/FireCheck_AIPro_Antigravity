@@ -2538,7 +2538,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    V 2.9.1
+                                    V 2.9.2
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
@@ -4724,29 +4724,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     <div key={record.id} className="relative pl-6">
                                                         <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-4 border-emerald-500" />
                                                         <div className="space-y-2">
-                                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                                                <span className="font-bold text-slate-900">
-                                                                    {record.newStartDate.replace(/-/g, '/')}
+                                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                                                                <span className="inline-flex items-center gap-1.5 font-extrabold text-slate-900">
+                                                                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                                                        替換時間
+                                                                    </span>
+                                                                    {(() => {
+                                                                        const raw = record.replacementDate || record.updatedAt;
+                                                                        const d = raw ? new Date(raw) : null;
+                                                                        if (d && !isNaN(d.getTime())) {
+                                                                            return d.toLocaleString('zh-TW', {
+                                                                                year: 'numeric',
+                                                                                month: '2-digit',
+                                                                                day: '2-digit',
+                                                                                hour: '2-digit',
+                                                                                minute: '2-digit',
+                                                                                hour12: false
+                                                                            });
+                                                                        }
+                                                                        return record.newStartDate.replace(/-/g, '/');
+                                                                    })()}
                                                                 </span>
                                                                 <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-bold">
                                                                     {t('replacementOperation')}
                                                                 </span>
-                                                            </div>
-                                                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-sm space-y-2">
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <div>
-                                                                        <div className="text-xs text-slate-400 mb-1">{t('newStartEndDate')}</div>
-                                                                        <div className="font-bold text-slate-700">
-                                                                            {record.newStartDate} ~ {record.newEndDate}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="text-xs text-slate-400 mb-1">{t('oldStartEndDate')}</div>
-                                                                        <div className="font-medium text-slate-500 line-through">
-                                                                            {record.previousStartDate} ~ {record.previousEndDate}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

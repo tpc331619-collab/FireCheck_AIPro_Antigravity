@@ -887,14 +887,18 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                 </div>
             ) : (
                 // 列表頁面 (保持不變)
-                <div className="flex flex-col h-full bg-slate-100/80 relative">
-                    <div className="bg-white shadow-sm border-b border-slate-200/80 sticky top-0 z-40">
+                <div className="flex flex-col h-full bg-gradient-to-br from-slate-200/90 via-slate-100 to-zinc-200/80 relative text-slate-800">
+                    <div className="bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-300/70 sticky top-0 z-40">
+                        <div className={`h-1 w-full bg-gradient-to-r ${viewMode === 'pending' ? 'from-red-500 via-amber-500 to-orange-400' : 'from-emerald-500 via-teal-500 to-cyan-400'}`} />
                         <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                                <div className="flex items-center gap-2">
-                                    <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:bg-slate-100 rounded-full transition-colors cursor-pointer">
+                                <div className="flex items-center gap-2.5">
+                                    <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:bg-slate-200/60 rounded-full transition-colors cursor-pointer">
                                         <ArrowLeft className="w-6 h-6" />
                                     </button>
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-sm ${viewMode === 'pending' ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
+                                        <AlertTriangle className="w-4 h-4 text-white" />
+                                    </div>
                                     <h1 className="font-extrabold text-lg text-slate-900 whitespace-nowrap">{t('abnormalRecheckList')}</h1>
                                     <span className={`sm:hidden ml-auto px-2 py-0.5 rounded-full text-xs font-bold ${viewMode === 'pending'
                                         ? 'bg-orange-100 text-orange-700 border border-orange-200'
@@ -942,6 +946,21 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                         <div className="max-w-4xl mx-auto">
+                            {/* 異常複檢閉環流程條 */}
+                            <div className="mb-4 px-4 py-2.5 rounded-xl bg-gradient-to-r from-slate-800 via-slate-900 to-slate-800 text-slate-100 shadow-md border border-slate-700/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div className="flex items-center gap-2 font-bold">
+                                    <span className="inline-flex items-center gap-1 text-amber-300">
+                                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                        異常複檢閉環
+                                    </span>
+                                    <span className="text-slate-500">|</span>
+                                    <span className="text-slate-300 font-medium">① 發現異常 → ② 改善拍照存證 → ③ 複檢結案</span>
+                                </div>
+                                <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[11px] ${viewMode === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-400/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'}`}>
+                                    {viewMode === 'pending' ? '待改善處理中' : '已完成複檢'}
+                                </span>
+                            </div>
+
                             <div className="mb-6 relative">
                                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                     <Search className="h-5 w-5 text-slate-500" />
@@ -961,14 +980,18 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                     <div className="animate-spin rounded-full h-10 w-10 border-4 border-slate-200 border-t-orange-600"></div>
                                 </div>
                             ) : filteredRecords.length === 0 ? (
-                                <div className="text-center py-20 bg-white rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-slate-300/80">
-                                    <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-inner">
-                                        <CheckCircle className="w-12 h-12 text-emerald-500" />
+                                <div className={`relative overflow-hidden text-center py-16 px-6 rounded-2xl shadow-lg border backdrop-blur-md ${viewMode === 'pending'
+                                    ? 'bg-gradient-to-br from-white via-emerald-50/75 to-teal-100/70 border-emerald-200/80'
+                                    : 'bg-gradient-to-br from-white via-slate-50 to-blue-50/80 border-slate-200/90'
+                                    }`}>
+                                    <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${viewMode === 'pending' ? 'from-emerald-500 via-teal-400 to-cyan-400' : 'from-slate-400 via-blue-400 to-indigo-400'}`} />
+                                    <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md ${viewMode === 'pending' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200' : 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-slate-200'}`}>
+                                        <CheckCircle className="w-11 h-11 text-white" />
                                     </div>
                                     <h3 className="text-xl font-extrabold text-slate-800">
                                         {viewMode === 'pending' ? t('noPendingRecords') : t('noCompletedRecords')}
                                     </h3>
-                                    <p className="text-slate-500 text-sm mt-2 font-medium">
+                                    <p className="text-slate-600 text-sm mt-2 font-medium">
                                         {viewMode === 'pending' ? t('allAbnormalFixed') : t('noFixedYet')}
                                     </p>
                                 </div>
@@ -980,10 +1003,10 @@ const AbnormalRecheckList: React.FC<AbnormalRecheckListProps> = ({
                                             <div
                                                 key={record.id}
                                                 onClick={() => setSelectedRecord(record)}
-                                                className={`relative bg-white p-5 rounded-2xl border transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 ${
+                                                className={`relative p-5 rounded-2xl border border-l-4 transition-all cursor-pointer group flex flex-col sm:flex-row overflow-hidden shadow-md hover:-translate-y-0.5 ${
                                                     viewMode === 'pending'
-                                                        ? 'border-orange-300 hover:border-orange-500 hover:shadow-xl'
-                                                        : 'border-emerald-300 hover:border-emerald-500 hover:shadow-xl'
+                                                        ? 'bg-gradient-to-br from-white via-orange-50/70 to-amber-100/60 border-orange-200/80 border-l-red-500 hover:border-orange-400 hover:shadow-xl'
+                                                        : 'bg-gradient-to-br from-white via-emerald-50/70 to-teal-100/60 border-emerald-200/80 border-l-emerald-500 hover:border-emerald-400 hover:shadow-xl'
                                                 }`}
                                             >
                                                 {/* 已完成卡片右上斜向微浮水印章 */}
