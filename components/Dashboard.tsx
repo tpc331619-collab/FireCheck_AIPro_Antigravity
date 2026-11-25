@@ -31,7 +31,6 @@ const EquipmentMapEditor = lazy(() => import('./EquipmentMapEditor'));
 const OrganizationManager = lazy(() => import('./OrganizationManager').then(m => ({ default: m.OrganizationManager })));
 
 import { useTheme, ThemeType } from '../contexts/ThemeContext'; // Import Theme Hook
-import { exportToExcel, generateMonthlyReport } from '../utils/exportUtils';
 import { formatLifespan } from '../utils/dateUtils';
 import { getFrequencyStatus } from '../utils/inspectionUtils';
 import {
@@ -176,95 +175,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     const [showAbnormalRecheck, setShowAbnormalRecheck] = useState(false);
 
     // Reports Fetching (React Query)
-    const { data: fetchedReports = [], isLoading: isReportsLoading, refetch: refetchReports } = useHistoryReports(user, selectedYear, {
+    const { data: reports = [], isLoading: isReportsLoading, refetch: refetchReports } = useHistoryReports(user, selectedYear, {
         enabled: !!user.uid
     });
-
-    const reports = React.useMemo(() => {
-        if (!user.isGuest || selectedYear !== new Date().getFullYear()) return fetchedReports;
-        const now = Date.now();
-        const demoSvgAbnormal = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#fef2f2"/><rect x="115" y="45" width="90" height="150" rx="16" fill="#dc2626"/><circle cx="160" cy="85" r="22" fill="#fff" stroke="#ef4444" stroke-width="4"/><path d="M160 85 L146 95" stroke="#dc2626" stroke-width="4" stroke-linecap="round"/><text x="160" y="218" text-anchor="middle" font-size="14" font-weight="bold" fill="#991b1b">壓力偏低 (待檢修) - DN47</text></svg>');
-        const demoSvgFixed = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#ecfdf5"/><rect x="115" y="45" width="90" height="150" rx="16" fill="#16a34a"/><circle cx="160" cy="85" r="22" fill="#fff" stroke="#10b981" stroke-width="4"/><path d="M160 85 L160 68" stroke="#15803d" stroke-width="4" stroke-linecap="round"/><text x="160" y="218" text-anchor="middle" font-size="14" font-weight="bold" fill="#065f46">壓力綠區正常 (已修復) - DN47</text></svg>');
-        return [
-            {
-                id: 'rep_demo_1',
-                date: now - 2 * 86400000,
-                buildingName: '北部儲運中心 > 主倉2F',
-                inspectorName: '魚亞澄',
-                overallStatus: 'Pass',
-                items: [
-                    {
-                        equipmentId: 'demo_eq_dn47',
-                        name: '乾粉滅火器',
-                        barcode: 'DN47',
-                        status: InspectionStatus.Fixed,
-                        notes: '壓力錶指針偏低且噴嘴微滲漏 [異常複檢 - 已修復]',
-                        inspectionDate: now - 3 * 86400000,
-                        repairDate: now - 1 * 86400000,
-                        repairNotes: '更換故障零件，功能恢復正常（已更換新壓力錶與噴嘴並完成氣密測試合格）',
-                        abnormalItems: ['壓力錶綠色區域', '噴嘴與皮管'],
-                        abnormalPhotoUrl: demoSvgAbnormal,
-                        repairPhotoUrl: demoSvgFixed,
-                        checkResults: [
-                            { name: '壓力錶綠色區域', threshold: '正常範圍', value: 'true', status: 'Normal' },
-                            { name: '噴嘴與皮管', threshold: '無龜裂滲漏', value: 'true', status: 'Normal' },
-                            { name: '安全插栓與封條', threshold: '完整無脫落', value: 'true', status: 'Normal' },
-                            { name: '瓶身外觀與標示', threshold: '無鏽蝕', value: 'true', status: 'Normal' }
-                        ]
-                    },
-                    {
-                        equipmentId: 'demo_eq_hy08',
-                        name: '室內消防栓',
-                        barcode: 'HY08',
-                        status: InspectionStatus.Normal,
-                        notes: '水壓測試與水帶狀況良好',
-                        checkResults: [
-                            { name: '放水壓力測試', threshold: 'gte 1.7 kgf/cm²', value: '3.2', unit: ' kgf/cm²', status: 'Normal' },
-                            { name: '水帶接頭與瞄子', threshold: '無滲漏', value: 'true', status: 'Normal' },
-                            { name: '箱門啟閉與指示燈', threshold: '正常亮燈', value: 'true', status: 'Normal' }
-                        ]
-                    },
-                    {
-                        equipmentId: 'demo_eq_co25',
-                        name: '二氧化碳滅火器',
-                        barcode: 'CO25',
-                        status: InspectionStatus.Normal,
-                        notes: '配合設備汰換提前完成檢查',
-                        isForced: true,
-                        forcedFromDueDate: now + 10 * 86400000,
-                        checkResults: [
-                            { name: '鋼瓶秤重檢查', threshold: '不低於標示90%', value: '100', unit: '%', status: 'Normal' },
-                            { name: '噴射喇叭口', threshold: '無破損阻塞', value: 'true', status: 'Normal' }
-                        ]
-                    },
-                    {
-                        equipmentId: 'demo_eq_fa01',
-                        name: '火警受信總機',
-                        barcode: 'FA01',
-                        status: InspectionStatus.Abnormal,
-                        notes: '第3迴路預備電池電壓偏低，已通報電氣班檢修',
-                        abnormalItems: ['預備電源電壓'],
-                        abnormalPhotoUrl: demoSvgAbnormal,
-                        checkResults: [
-                            { name: '預備電源電壓', threshold: 'gte 24 V', value: '21.4', unit: ' V', status: 'Abnormal' },
-                            { name: '火警迴路導通測試', threshold: '正常', value: 'true', status: 'Normal' }
-                        ]
-                    },
-                    {
-                        equipmentId: 'demo_eq_el12',
-                        name: '緊急照明燈',
-                        barcode: 'EL12',
-                        status: InspectionStatus.Normal,
-                        notes: '斷電測試持續照明正常',
-                        checkResults: [
-                            { name: '斷電點燈測試', threshold: '正常亮燈', value: 'true', status: 'Normal' },
-                            { name: '充電指示燈', threshold: '正常', value: 'true', status: 'Normal' }
-                        ]
-                    }
-                ]
-            }
-        ];
-    }, [user.isGuest, selectedYear, fetchedReports]);
 
     // Real-time Abnormal Records Hook
     const { data: abnormalRecords = [], isLoading: isAbnormalLoading, isFetched: isAbnormalFetched } = useAbnormalRecords(user);
@@ -1437,7 +1350,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
     }, [filteredReports, searchTerm, locationFilter, keywordSearch, filterStatus]);
 
-    const handleExportFiltered = () => {
+    const handleExportFiltered = async () => {
         if (!flattenedHistory || flattenedHistory.length === 0) {
             alert('目前篩選條件下無任何紀錄可供匯出！');
             return;
@@ -1454,11 +1367,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         const now = new Date();
         const dateStamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
         const fileName = `歷史紀錄_篩選結果${filterDesc}_共${flattenedHistory.length}筆_${dateStamp}`;
+        const { exportToExcel } = await import('../utils/exportUtils');
         exportToExcel(flattenedHistory, fileName, visibleColumns, columnOrder);
         setShowExportMenu(false);
     };
 
-    const handleExportAll = () => {
+    const handleExportAll = async () => {
         const allReportsFlattened: any[] = [];
         reports.forEach(report => {
             if (!report.items || report.items.length === 0) return;
@@ -1480,11 +1394,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         const now = new Date();
         const dateStamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
         const fileName = `歷史紀錄_${selectedYear}年度全資料_共${allReportsFlattened.length}筆_${dateStamp}`;
+        const { exportToExcel } = await import('../utils/exportUtils');
         exportToExcel(allReportsFlattened, fileName, visibleColumns, columnOrder);
         setShowExportMenu(false);
     };
 
-    const handleExportMonthly = () => {
+    const handleExportMonthly = async () => {
         const allReportsFlattened: any[] = [];
         reports.forEach(report => {
             if (!report.items || report.items.length === 0) return;
@@ -1499,6 +1414,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 });
             });
         });
+        const { generateMonthlyReport } = await import('../utils/exportUtils');
         generateMonthlyReport(allReportsFlattened);
         setShowExportMenu(false);
     };

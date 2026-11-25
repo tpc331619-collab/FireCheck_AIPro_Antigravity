@@ -2,8 +2,8 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import Auth from './components/Auth';
-import Dashboard from './components/Dashboard';
-// Lazy load non-critical components
+// Lazy load Dashboard & non-critical components
+const Dashboard = lazy(() => import('./components/Dashboard'));
 const EquipmentManager = lazy(() => import('./components/EquipmentManager'));
 const MyEquipment = lazy(() => import('./components/MyEquipment'));
 const ChecklistInspection = lazy(() => import('./components/ChecklistInspection'));

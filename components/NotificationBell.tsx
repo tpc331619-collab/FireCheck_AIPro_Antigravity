@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, X, Calendar, User, Heart, AlertTriangle, Check, Zap } from 'lucide-react';
+import { Bell, ChevronLeft, Trash2, CheckCheck } from 'lucide-react';
 import { Notification, NotificationType, SystemSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -110,35 +110,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
         }
     };
 
-    const getIcon = (type: NotificationType) => {
-        switch (type) {
-            case 'profile':
-                return <User className="w-4 h-4 text-blue-500" />;
-            case 'health':
-                return <Heart className="w-4 h-4 text-rose-500" />;
-            case 'declaration':
-                return <Calendar className="w-4 h-4 text-orange-500" />;
-            case 'abnormal':
-                return <AlertTriangle className="w-4 h-4 text-red-500" />;
-            case 'lights':
-                return <Zap className="w-4 h-4 text-amber-500" />;
-            default:
-                return <Bell className="w-4 h-4 text-slate-500" />;
-        }
+    const handleMarkAllAsRead = async () => {
+        const unread = notifications.filter(n => !n.read);
+        if (unread.length === 0) return;
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        await Promise.all(unread.map(n => StorageService.markAsRead(n.id, userId).catch(() => {})));
     };
 
     const formatTime = (timestamp: number) => {
-        const now = Date.now();
-        const diff = now - timestamp;
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-
-        if (minutes < 1) return '剛剛';
-        if (minutes < 60) return `${minutes} 分鐘前`;
-        if (hours < 24) return `${hours} 小時前`;
-        if (days < 7) return `${days} 天前`;
-        return new Date(timestamp).toLocaleDateString('zh-TW');
+        const d = new Date(timestamp);
+        if (isNaN(d.getTime())) return '';
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const min = String(d.getMinutes()).padStart(2, '0');
+        return `${yyyy}/${mm}/${dd} ${hh}:${min}`;
     };
 
     const canShow = isAdmin || systemSettings?.allowInspectorNotifications !== false;
@@ -160,109 +147,129 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
                 )}
             </button>
 
-            {/* Notification Panel */}
+            {/* THSR-Style Full-Screen / Sheet Notification List */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-                        <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                            <Bell className="w-5 h-5" />
-                            {t('notifications')}
-                            {unreadCount > 0 && (
-                                <span className="text-xs font-bold text-red-500">({unreadCount})</span>
-                            )}
-                        </h3>
-                        <button
-                            onClick={() => setIsOpen(false)}
-                            className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                        >
-                            <X className="w-5 h-5 text-slate-500" />
-                        </button>
-                    </div>
+                <div className="fixed inset-0 z-[70] flex items-center justify-center sm:p-4 bg-black/50 backdrop-blur-[2px] animate-in fade-in duration-150" onClick={() => setIsOpen(false)}>
+                    <div
+                        className="w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-lg bg-white sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right-4 sm:zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* THSR Dark Header */}
+                        <div className="bg-[#3b3b3f] text-white px-3 py-3.5 flex items-center justify-between shrink-0 shadow-sm">
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className="p-1.5 -ml-1 rounded-full hover:bg-white/10 transition-colors flex items-center justify-center"
+                                aria-label="返回"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <h3 className="font-bold text-base tracking-wide flex items-center gap-1.5">
+                                <span>{t('notifications')}</span>
+                                {unreadCount > 0 && (
+                                    <span className="px-1.5 py-0.5 text-[11px] font-bold bg-[#d9531e] text-white rounded-full leading-none">
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </h3>
+                            <div className="flex items-center gap-1">
+                                {notifications.some(n => !n.read) && (
+                                    <button
+                                        onClick={handleMarkAllAsRead}
+                                        className="p-1.5 rounded-lg hover:bg-white/10 text-slate-200 hover:text-white transition-colors"
+                                        title="全部標為已讀"
+                                    >
+                                        <CheckCheck className="w-5 h-5" />
+                                    </button>
+                                )}
+                                {notifications.length > 0 && (
+                                    <button
+                                        onClick={handleClearAll}
+                                        disabled={loading}
+                                        className="p-1.5 rounded-lg hover:bg-white/10 text-slate-200 hover:text-white transition-colors disabled:opacity-50"
+                                        title="清除所有通知"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+                                {notifications.length === 0 && <div className="w-8" />}
+                            </div>
+                        </div>
 
-                    {/* Notification List */}
-                    <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                        {isAdmin && pendingUsersCount > 0 && (
-                            <div className="p-4 border-b border-amber-100 bg-amber-50/30 hover:bg-amber-50 transition-colors cursor-pointer" onClick={() => (window as any).openAdminDashboard && (window as any).openAdminDashboard()}>
-                                <div className="flex items-start gap-3">
-                                    <div className="shrink-0 mt-0.5">
-                                        <User className="w-4 h-4 text-amber-500" />
-                                    </div>
+                        {/* THSR Clean Divided List */}
+                        <div className="flex-1 overflow-y-auto bg-white divide-y divide-slate-200 custom-scrollbar">
+                            {isAdmin && pendingUsersCount > 0 && (
+                                <div
+                                    className="px-4 py-3.5 hover:bg-orange-50/50 transition-colors cursor-pointer flex items-center gap-3.5"
+                                    onClick={() => {
+                                        if ((window as any).openAdminDashboard) (window as any).openAdminDashboard();
+                                        setIsOpen(false);
+                                    }}
+                                >
+                                    {/* Solid orange 'i' = Unread */}
+                                    <span className="w-6 h-6 rounded-full bg-[#d9531e] text-white flex items-center justify-center font-serif font-bold text-xs shrink-0">
+                                        i
+                                    </span>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2 mb-1">
-                                            <h4 className="font-bold text-sm text-amber-800 truncate">
-                                                {t('pendingAccessRequest') || '存取權限申請'}
-                                            </h4>
-                                            <span className="shrink-0 px-2 py-0.5 bg-amber-500 text-white text-[10px] font-bold rounded-full">
-                                                {pendingUsersCount}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-amber-700 leading-relaxed">
-                                            {t('pendingAccessRequestDesc') || '有新使用者申請加入系統，請前往審核。'}
+                                        <p className="text-[15px] font-semibold text-slate-900 leading-snug">
+                                            {t('pendingAccessRequest') || '存取權限申請'}：有 {pendingUsersCount} 位新使用者申請加入系統，請前往審核。
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-1 font-mono">
+                                            {formatTime(Date.now())}
                                         </p>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {notifications.length === 0 && (!isAdmin || pendingUsersCount === 0) ? (
-                            <div className="p-8 text-center text-slate-400 dark:text-slate-500">
-                                <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                <p className="text-sm">{t('noNotifications')}</p>
-                            </div>
-                        ) : (
-                            notifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    className={`p-4 border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer ${!notification.read ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''
-                                        }`}
-                                    onClick={() => {
-                                        if (!notification.read) handleMarkAsRead(notification.id);
-                                        if (onNotificationNavigate) {
-                                            onNotificationNavigate(notification.type);
-                                            setIsOpen(false);
-                                        } else if (notification.type === 'profile' && (window as any).openAdminDashboard) {
-                                            (window as any).openAdminDashboard();
-                                            setIsOpen(false);
-                                        }
-                                    }}
-                                >
-                                    <div className="flex items-start gap-3">
-                                        <div className="shrink-0 mt-0.5">{getIcon(notification.type)}</div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2 mb-1">
-                                                <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200 truncate">
-                                                    {notification.title}
-                                                </h4>
-                                                {!notification.read && (
-                                                    <span className="shrink-0 w-2 h-2 bg-blue-500 rounded-full mt-1"></span>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-2">
-                                                {notification.message}
-                                            </p>
-                                            <p className="text-xs text-slate-400 dark:text-slate-500">
-                                                {formatTime(notification.timestamp)}
-                                            </p>
-                                        </div>
+                            {notifications.length === 0 && (!isAdmin || pendingUsersCount === 0) ? (
+                                <div className="py-24 text-center text-slate-400">
+                                    <div className="w-12 h-12 rounded-full border-2 border-orange-200 text-orange-300 flex items-center justify-center font-serif font-bold text-xl mx-auto mb-3">
+                                        i
                                     </div>
+                                    <p className="text-sm font-medium">{t('noNotifications')}</p>
                                 </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* Footer */}
-                    {notifications.length > 0 && (
-                        <div className="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
-                            <button
-                                onClick={handleClearAll}
-                                disabled={loading}
-                                className="w-full py-2 text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
-                            >
-                                {loading ? '清除中...' : '清除所有通知'}
-                            </button>
+                            ) : (
+                                notifications.map((notification) => {
+                                    const isUnread = !notification.read;
+                                    return (
+                                        <div
+                                            key={notification.id}
+                                            className="px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer flex items-center gap-3.5"
+                                            onClick={() => {
+                                                if (isUnread) handleMarkAsRead(notification.id);
+                                                if (onNotificationNavigate) {
+                                                    onNotificationNavigate(notification.type);
+                                                    setIsOpen(false);
+                                                } else if (notification.type === 'profile' && (window as any).openAdminDashboard) {
+                                                    (window as any).openAdminDashboard();
+                                                    setIsOpen(false);
+                                                }
+                                            }}
+                                        >
+                                            {/* THSR style: Solid orange circle = Unread, Outlined orange circle = Read */}
+                                            <span
+                                                className={`w-6 h-6 rounded-full flex items-center justify-center font-serif font-bold text-xs shrink-0 transition-colors ${
+                                                    isUnread
+                                                        ? 'bg-[#d9531e] text-white'
+                                                        : 'border-[1.5px] border-[#d9531e] text-[#d9531e] bg-white'
+                                                }`}
+                                            >
+                                                i
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-[15px] leading-snug ${isUnread ? 'font-semibold text-slate-900' : 'font-normal text-slate-700'}`}>
+                                                    {notification.title}
+                                                    {notification.message ? `：${notification.message}` : ''}
+                                                </p>
+                                                <p className="text-xs text-slate-400 mt-1 font-mono">
+                                                    {formatTime(notification.timestamp)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
         </div>
