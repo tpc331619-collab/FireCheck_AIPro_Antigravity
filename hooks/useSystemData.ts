@@ -14,12 +14,37 @@ export const SETTINGS_KEYS = {
     light: (userId: string, orgId?: string | null) => ['settings', 'light', userId, orgId || 'PERSONAL'] as const,
 };
 
+// LocalStorage cache helpers for instant 0ms UI hydration on refresh
+function readCache<T>(key: string): T | undefined {
+    try {
+        const raw = localStorage.getItem(key);
+        return raw ? (JSON.parse(raw) as T) : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function writeCache(key: string, data: unknown) {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch {
+        // Ignore quota exceeded
+    }
+}
+
 // 1. Equipment Hook
 export function useEquipment(user: UserProfile, orgIdOverride?: string | null, options?: { enabled?: boolean }) {
     const orgId = orgIdOverride !== undefined ? orgIdOverride : user.currentOrganizationId;
+    const cacheKey = `rq_eq_${user.uid}_${orgId || 'PERSONAL'}`;
     return useQuery({
         queryKey: EQUIPMENT_KEYS.all(user.uid, orgId),
-        queryFn: () => StorageService.getEquipmentDefinitions(user.uid, orgId),
+        queryFn: async () => {
+            const data = await StorageService.getEquipmentDefinitions(user.uid, orgId);
+            writeCache(cacheKey, data);
+            return data;
+        },
+        initialData: () => (user.uid ? readCache<EquipmentDefinition[]>(cacheKey) : undefined),
+        initialDataUpdatedAt: 0,
         staleTime: 1000 * 60 * 5, // 5 minutes fresh
         enabled: options?.enabled !== false && !!user.uid, // Only fetch if user ID exists
         refetchInterval: user.isGuest ? 10000 : false, // Poll every 10s for guests
@@ -33,11 +58,18 @@ export const ABNORMAL_KEYS = {
 export function useAbnormalRecords(user: UserProfile) {
     const queryClient = useQueryClient();
     const queryKey = ABNORMAL_KEYS.all(user.uid, user.currentOrganizationId);
+    const cacheKey = `rq_ab_${user.uid}_${user.currentOrganizationId || 'PERSONAL'}`;
 
     // Initial fetch + Cache management
     const queryResult = useQuery({
         queryKey: queryKey,
-        queryFn: () => StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId),
+        queryFn: async () => {
+            const data = await StorageService.getAbnormalRecords(user.uid, user.currentOrganizationId);
+            writeCache(cacheKey, data);
+            return data;
+        },
+        initialData: () => (user.uid ? readCache<any[]>(cacheKey) : undefined),
+        initialDataUpdatedAt: 0,
         staleTime: Infinity, // Rely on subscription for updates
         enabled: !!user.uid,
         refetchOnWindowFocus: false, // Prevent redundant fetches
@@ -52,6 +84,7 @@ export function useAbnormalRecords(user: UserProfile) {
             user.currentOrganizationId,
             (records) => {
                 console.log('[useAbnormalRecords] Real-time update received:', records.length);
+                writeCache(cacheKey, records);
                 queryClient.setQueryData(queryKey, records);
             }
         );
@@ -71,10 +104,17 @@ export const HISTORY_KEYS = {
 export function useHistoryReports(user: UserProfile, year: number, options?: { enabled?: boolean }) {
     const queryClient = useQueryClient();
     const queryKey = HISTORY_KEYS.all(user.uid, user.currentOrganizationId, year);
+    const cacheKey = `rq_hist_${user.uid}_${user.currentOrganizationId || 'PERSONAL'}_${year}`;
 
     const queryResult = useQuery({
         queryKey: queryKey,
-        queryFn: () => StorageService.getReports(user.uid, year, true, user.currentOrganizationId),
+        queryFn: async () => {
+            const data = await StorageService.getReports(user.uid, year, true, user.currentOrganizationId);
+            writeCache(cacheKey, data);
+            return data;
+        },
+        initialData: () => (user.uid ? readCache<any[]>(cacheKey) : undefined),
+        initialDataUpdatedAt: 0,
         staleTime: Infinity, // Rely on subscription for updates
         enabled: options?.enabled !== false && !!user.uid,
         refetchOnWindowFocus: false,
@@ -90,6 +130,7 @@ export function useHistoryReports(user: UserProfile, year: number, options?: { e
             year,
             (reports) => {
                 console.log('[useHistoryReports] Real-time update:', reports.length);
+                writeCache(cacheKey, reports);
                 queryClient.setQueryData(queryKey, reports);
             },
             user.currentOrganizationId
@@ -112,9 +153,16 @@ export function useSystemSettings() {
 
 // 3. Light Settings Hook
 export function useLightSettings(user: UserProfile) {
+    const cacheKey = `rq_light_${user.uid}_${user.currentOrganizationId || 'PERSONAL'}`;
     return useQuery({
         queryKey: SETTINGS_KEYS.light(user.uid, user.currentOrganizationId),
-        queryFn: () => StorageService.getLightSettings(user.uid, user.currentOrganizationId),
+        queryFn: async () => {
+            const data = await StorageService.getLightSettings(user.uid, user.currentOrganizationId);
+            writeCache(cacheKey, data);
+            return data;
+        },
+        initialData: () => (user.uid ? readCache<LightSettings>(cacheKey) : undefined),
+        initialDataUpdatedAt: 0,
         staleTime: 1000 * 60 * 10, // 10 mins
         enabled: !!user.uid,
     });
@@ -179,8 +227,22 @@ export function useUpdateLightSettings(user: UserProfile) {
 
     return useMutation({
         mutationFn: (settings: LightSettings) => StorageService.saveLightSettings(settings, user.uid, user.currentOrganizationId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: SETTINGS_KEYS.light(user.uid, user.currentOrganizationId) });
+        onMutate: async (newSettings) => {
+            const key = SETTINGS_KEYS.light(user.uid, user.currentOrganizationId);
+            await queryClient.cancelQueries({ queryKey: key });
+            const previous = queryClient.getQueryData<LightSettings>(key);
+            queryClient.setQueryData(key, newSettings);
+            return { previous, key };
+        },
+        onError: (_err, _newSettings, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(context.key, context.previous);
+            }
+        },
+        onSettled: (_data, _err, _vars, context) => {
+            if (context?.key) {
+                queryClient.invalidateQueries({ queryKey: context.key });
+            }
         },
     });
 }

@@ -94,16 +94,19 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
         }
     };
 
-    const handleClearAll = async () => {
-        if (!confirm('確定要清除所有通知嗎?')) return;
+    const handleClearRead = async () => {
+        if (!notifications.some(n => n.read)) {
+            alert('目前沒有已讀通知可清除');
+            return;
+        }
+        if (!confirm('確定要清除所有已讀通知嗎？（未讀通知將保留）')) return;
 
         try {
             setLoading(true);
-            await StorageService.clearAllNotifications(userId);
-            setNotifications([]);
-            setIsOpen(false);
+            await StorageService.clearReadNotifications(userId);
+            setNotifications(prev => prev.filter(n => !n.read));
         } catch (error) {
-            console.error('Failed to clear notifications:', error);
+            console.error('Failed to clear read notifications:', error);
             alert('清除失敗');
         } finally {
             setLoading(false);
@@ -181,12 +184,12 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
                                         <CheckCheck className="w-5 h-5" />
                                     </button>
                                 )}
-                                {notifications.length > 0 && (
+                                {notifications.some(n => n.read) && (
                                     <button
-                                        onClick={handleClearAll}
+                                        onClick={handleClearRead}
                                         disabled={loading}
                                         className="p-1.5 rounded-lg hover:bg-white/10 text-slate-200 hover:text-white transition-colors disabled:opacity-50"
-                                        title="清除所有通知"
+                                        title="清除已讀通知（保留未讀）"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -236,13 +239,6 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, orga
                                             className="px-4 py-3.5 hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer flex items-center gap-3.5"
                                             onClick={() => {
                                                 if (isUnread) handleMarkAsRead(notification.id);
-                                                if (onNotificationNavigate) {
-                                                    onNotificationNavigate(notification.type);
-                                                    setIsOpen(false);
-                                                } else if (notification.type === 'profile' && (window as any).openAdminDashboard) {
-                                                    (window as any).openAdminDashboard();
-                                                    setIsOpen(false);
-                                                }
                                             }}
                                         >
                                             {/* THSR style: Solid orange circle = Unread, Outlined orange circle = Read */}

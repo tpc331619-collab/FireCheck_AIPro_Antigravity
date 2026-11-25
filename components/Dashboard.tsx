@@ -911,11 +911,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
     // Orphaned calls fix - Wrap in Effect
     useEffect(() => {
         if (user?.uid) {
-            // Reset states during switch to prevent stale data
-            setDeclarationSettings(null);
+            const scopeKey = `${user.uid}_${user.currentOrganizationId || 'PERSONAL'}`;
+            try {
+                const cachedDecl = localStorage.getItem(`cached_decl_${scopeKey}`);
+                setDeclarationSettings(cachedDecl ? JSON.parse(cachedDecl) : null);
+            } catch {
+                setDeclarationSettings(null);
+            }
+            try {
+                const cachedHealth = localStorage.getItem(`cached_health_${scopeKey}`);
+                if (cachedHealth) setHealthIndicators(JSON.parse(cachedHealth));
+            } catch {}
+
             fetchDeclarationSettings();
             fetchHistoryCounts();
-            StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then(setHealthIndicators);
+            StorageService.getHealthIndicators(user.uid, user.currentOrganizationId).then((data) => {
+                setHealthIndicators(data);
+                try {
+                    localStorage.setItem(`cached_health_${scopeKey}`, JSON.stringify(data));
+                } catch {}
+            });
         }
     }, [user?.uid, user?.currentOrganizationId]);
 
@@ -930,7 +945,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         setSavingLights(true);
         try {
             await updateLightSettingsMutation.mutateAsync(lightSettings);
-            await addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc'));
+            // Non-blocking notification write so saving finishes in a single round-trip
+            addNotification('lights', t('lightsUpdated'), t('lightsUpdatedDesc')).catch(console.error);
+            setIsSettingsOpen(false);
+            setSettingsModalMode('full');
             alert(t('settingsSaved'));
         } catch (e) {
             console.error(e);
@@ -944,6 +962,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
         if (user?.uid) {
             const settings = await StorageService.getDeclarationSettings(user.uid, user.currentOrganizationId);
             setDeclarationSettings(settings);
+            try {
+                localStorage.setItem(`cached_decl_${user.uid}_${user.currentOrganizationId || 'PERSONAL'}`, JSON.stringify(settings));
+            } catch {}
         }
     };
 

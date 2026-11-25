@@ -87,7 +87,14 @@ const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [guestExpiry, setGuestExpiry] = useState<number | null>(null);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings | undefined>(undefined);
+  const [systemSettings, setSystemSettings] = useState<SystemSettings | undefined>(() => {
+    try {
+      const cached = localStorage.getItem('cached_system_settings');
+      return cached ? JSON.parse(cached) : undefined;
+    } catch {
+      return undefined;
+    }
+  });
 
   // 保持篩選狀態的變數 (Moved to MyEquipment internal state or URL params ideally, keeping here locally if needed to pass down, but URL is better.
   // For now, we will NOT pass these to MyEquipment via props if we want full Router capability,
@@ -118,11 +125,26 @@ const App: React.FC = () => {
           const localAvatar = localStorage.getItem(`avatar_${firebaseUser.uid}`);
           const lastOrgId = localStorage.getItem(`lastOrgId_${firebaseUser.uid}`);
           const sharedGuestOrgId = localStorage.getItem('guest_shared_orgId');
+          let cachedSysOrgId: string | undefined;
+          try {
+            const rawSys = localStorage.getItem('cached_system_settings');
+            if (rawSys) cachedSysOrgId = JSON.parse(rawSys)?.guestOrganizationId;
+          } catch {}
           const cachedRole = localStorage.getItem(`cached_role_${firebaseUser.uid}`) as 'admin' | 'user' | null;
           const cachedAccess = localStorage.getItem(`cached_access_${firebaseUser.uid}`);
 
           // Optimistic instant boot if user was already approved previously
           if (isGuest || isSuperAdmin || cachedAccess === 'approved') {
+            if (isGuest) {
+              const storedExpiry = localStorage.getItem('guest_expiry');
+              const now = Date.now();
+              let expiry = storedExpiry ? parseInt(storedExpiry, 10) : 0;
+              if (!expiry || expiry <= now) {
+                expiry = now + GUEST_SESSION_DURATION;
+                localStorage.setItem('guest_expiry', expiry.toString());
+              }
+              setGuestExpiry(expiry);
+            }
             setAccessStatus('approved');
             setUser({
               uid: firebaseUser.uid,
@@ -131,7 +153,7 @@ const App: React.FC = () => {
               photoURL: localAvatar || firebaseUser.photoURL,
               isGuest,
               role: isSuperAdmin ? 'admin' : (cachedRole || 'user'),
-              currentOrganizationId: isGuest ? (sharedGuestOrgId || lastOrgId || undefined) : (lastOrgId || undefined)
+              currentOrganizationId: isGuest ? (sharedGuestOrgId || cachedSysOrgId || lastOrgId || undefined) : (lastOrgId || undefined)
             });
             StorageService.setGuestMode(isGuest);
             setInitializing(false);
@@ -241,6 +263,11 @@ const App: React.FC = () => {
       // Listen to system settings changes in real-time
       const unsubscribeSettings = StorageService.onSystemSettingsChange((settings) => {
         setSystemSettings(settings || undefined);
+        if (settings) {
+          try {
+            localStorage.setItem('cached_system_settings', JSON.stringify(settings));
+          } catch {}
+        }
       });
 
       return () => {

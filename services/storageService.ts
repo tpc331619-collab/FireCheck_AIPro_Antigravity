@@ -2117,6 +2117,41 @@ let unsubscribe: () => void = () => { };
 }
   },
 
+  async clearReadNotifications(userId: string): Promise < void> {
+  const KEY = `notifications_${userId}`;
+  if(this.isGuest || !db) {
+  const data = localStorage.getItem(KEY);
+  const notifications = data ? JSON.parse(data) : [];
+  const unreadOnly = notifications.filter((n: any) => !n.read);
+  localStorage.setItem(KEY, JSON.stringify(unreadOnly));
+} else {
+  try {
+    const q = query(collection(db, 'notifications'), where('userId', '==', userId));
+    const snapshot = await getDocs(q);
+    const batch = writeBatch(db);
+    let deletedCount = 0;
+    snapshot.docs.forEach(d => {
+      if (d.data()?.read === true) {
+        batch.delete(d.ref);
+        deletedCount++;
+      }
+    });
+    if (deletedCount > 0) {
+      await batch.commit();
+    }
+  } catch (e: any) {
+    if (e.code === 'permission-denied') {
+      const data = localStorage.getItem(KEY);
+      const notifications = data ? JSON.parse(data) : [];
+      localStorage.setItem(KEY, JSON.stringify(notifications.filter((n: any) => !n.read)));
+      return;
+    }
+    console.error("Clear read notifications error", e);
+    throw e;
+  }
+}
+  },
+
   async clearAllNotifications(userId: string): Promise < void> {
   const KEY = `notifications_${userId}`;
   if(this.isGuest || !db) {
