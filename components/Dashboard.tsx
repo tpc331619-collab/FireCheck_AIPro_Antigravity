@@ -921,7 +921,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             try {
                 const cachedHealth = localStorage.getItem(`cached_health_${scopeKey}`);
                 if (cachedHealth) setHealthIndicators(JSON.parse(cachedHealth));
-            } catch {}
+            } catch { }
 
             fetchDeclarationSettings();
             fetchHistoryCounts();
@@ -929,7 +929,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                 setHealthIndicators(data);
                 try {
                     localStorage.setItem(`cached_health_${scopeKey}`, JSON.stringify(data));
-                } catch {}
+                } catch { }
             });
         }
     }, [user?.uid, user?.currentOrganizationId]);
@@ -964,7 +964,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
             setDeclarationSettings(settings);
             try {
                 localStorage.setItem(`cached_decl_${user.uid}_${user.currentOrganizationId || 'PERSONAL'}`, JSON.stringify(settings));
-            } catch {}
+            } catch { }
         }
     };
 
@@ -1878,15 +1878,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             </div>
                         </div>
 
-                        {/* Compact Quick Search */}
+                        {/* Compact Quick Search with Scanner Viewfinder & Sweep */}
                         {((!user.isGuest && (isAdmin || systemSettings?.allowInspectorQuickSearch !== false)) || (user.isGuest && systemSettings?.allowGuestQuickSearch !== false)) && (
-                            <div className="relative flex-1 max-w-md">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search className="h-4 w-4 text-slate-400" />
+                            <div className="relative flex-1 max-w-md group">
+                                <style>{`
+                                    @keyframes scannerSweepX {
+                                        0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+                                        15% { opacity: 1; }
+                                        55% { opacity: 1; }
+                                        70% { transform: translateX(340%) skewX(-18deg); opacity: 0; }
+                                        100% { transform: translateX(340%) skewX(-18deg); opacity: 0; }
+                                    }
+                                    @keyframes scannerLaserY {
+                                        0%, 100% { transform: translateY(-6px); opacity: 0.45; }
+                                        50% { transform: translateY(6px); opacity: 1; }
+                                    }
+                                `}</style>
+
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                    <Search className="h-4 w-4 text-slate-400 group-focus-within:text-cyan-600 transition-colors" />
                                 </div>
                                 <input
                                     type="text"
-                                    className="block w-full pl-9 pr-10 py-2 border border-slate-200 bg-white rounded-lg text-slate-700 placeholder-slate-400 focus:ring-2 focus:ring-slate-300 focus:border-slate-300 text-base sm:text-sm font-medium transition-all shadow-sm uppercase"
+                                    className="block w-full pl-9 pr-12 py-2 border border-slate-200/90 bg-white/95 rounded-lg text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 focus:border-cyan-400 text-base sm:text-sm font-medium transition-all shadow-sm uppercase"
                                     placeholder={t('quickSearchPlaceholder')}
                                     style={{ fontSize: '16px', textTransform: 'uppercase' }}
                                     value={searchTerm}
@@ -1921,12 +1935,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         }
                                     }}
                                 />
+
+                                {/* 微掃光橫掃光束 */}
+                                <div className="pointer-events-none absolute inset-0 rounded-lg overflow-hidden z-10">
+                                    <div
+                                        className="h-full w-1/3 bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent"
+                                        style={{ animation: 'scannerSweepX 4.2s ease-in-out infinite' }}
+                                    />
+                                </div>
+
                                 <button
                                     onClick={() => setIsQuickScanOpen(true)}
-                                    className="absolute inset-y-0 right-0 pr-2 flex items-center"
+                                    title="開啟相機掃描條碼"
+                                    className="absolute inset-y-0 right-0 pr-1.5 flex items-center z-20"
                                 >
-                                    <div className="p-1 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors">
-                                        <ScanLine className="h-4 w-4 text-slate-600" />
+                                    <div className="relative p-1.5 bg-slate-800 hover:bg-cyan-600 text-cyan-300 hover:text-white rounded-md transition-colors overflow-hidden shadow-sm">
+                                        <ScanLine className="h-4 w-4 relative z-10" />
+                                        <span
+                                            className="pointer-events-none absolute inset-x-1 top-1/2 h-[1.5px] bg-cyan-300 shadow-[0_0_6px_rgba(34,211,238,0.95)]"
+                                            style={{ animation: 'scannerLaserY 1.8s ease-in-out infinite' }}
+                                        />
                                     </div>
                                 </button>
                             </div>
@@ -1935,60 +1963,58 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
 
 
 
-                    {/* Stats Row (Option A: HUD Top Accent Pods - Left KPIs / Right System Controls) */}
+                    {/* Stats Strip (Compact Frosted Pods - Visually distinct from tall pastel action cards below) */}
                     {!user.isGuest && (
-                        <div className={`grid grid-cols-2 gap-3 sm:gap-4 items-stretch ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
+                        <div className={`grid grid-cols-2 gap-2 ${isAdmin ? 'lg:grid-cols-6 md:grid-cols-3' : 'md:grid-cols-4'}`}>
                             {/* 1. Total Equipment (KPI) */}
-                            <div className="relative overflow-hidden bg-white/95 backdrop-blur-md rounded-2xl px-4 py-3.5 border border-slate-200/80 shadow-sm flex items-center justify-between min-h-[6.25rem] h-full transition-all duration-300 hover:shadow-md hover:border-blue-300 group">
-                                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400" />
+                            <div className="bg-white/95 rounded-xl px-3.5 py-2.5 border border-white/70 shadow-sm flex items-center justify-between min-h-[4.4rem] h-full transition-colors hover:bg-white group">
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1 pr-2">
                                     <div className="flex items-center gap-1 whitespace-nowrap">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-blue-900/85 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {t('totalEquipment')}
                                         </p>
-                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200/60 shrink-0">
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-blue-50 text-blue-700 border border-blue-200/60 shrink-0">
                                             列管
                                         </span>
                                     </div>
                                     <div className="flex items-baseline gap-1 min-w-0 my-0.5">
-                                        <p className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight truncate leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <p className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight truncate leading-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {nameCount}
                                         </p>
-                                        <span className="text-[10px] font-bold text-slate-500 shrink-0">具</span>
+                                        <span className="text-[10px] font-bold text-blue-900/70 shrink-0">具</span>
                                     </div>
-                                    <p className="text-[10px] text-slate-400 truncate">
-                                        全區列管消防設備
-                                    </p>
+                                        <p className="text-[11px] font-semibold text-blue-950 truncate">
+                                            全區列管消防設備
+                                        </p>
                                 </div>
-                                <div className="p-2.5 bg-gradient-to-br from-blue-50 to-slate-50/80 border border-blue-100/80 rounded-xl shadow-inner shrink-0 group-hover:bg-blue-100/80 transition-colors">
-                                    <Database className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" />
+                                <div className="p-2 bg-blue-50/80 border border-blue-100 rounded-lg shrink-0 group-hover:bg-blue-100/80 transition-colors">
+                                    <Database className="w-4 h-4 text-blue-600 group-hover:scale-110 transition-transform" />
                                 </div>
                             </div>
 
                             {/* 2. Abnormal Pending (KPI) */}
-                            <div className={`relative overflow-hidden bg-white/95 backdrop-blur-md rounded-2xl px-4 py-3.5 border shadow-sm flex items-center justify-between min-h-[6.25rem] h-full transition-all duration-300 hover:shadow-md group ${abnormalCount > 0 ? 'border-red-200/90 hover:border-red-300' : 'border-slate-200/80 hover:border-emerald-300'}`}>
-                                <div className={`absolute inset-x-0 top-0 h-1 ${abnormalCount > 0 ? 'bg-gradient-to-r from-red-600 via-red-500 to-rose-400' : 'bg-gradient-to-r from-emerald-500 to-teal-400'}`} />
+                            <div className={`rounded-xl px-3.5 py-2.5 border shadow-sm flex items-center justify-between min-h-[4.4rem] h-full transition-colors group ${abnormalCount > 0 ? 'bg-red-50/90 hover:bg-red-50 border-red-200' : 'bg-white/95 hover:bg-white border-white/70'}`}>
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1 pr-2">
                                     <div className="flex items-center gap-1 whitespace-nowrap">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <p className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${abnormalCount > 0 ? 'text-red-800' : 'text-emerald-900/85'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {t('pendingAbnormal')}
                                         </p>
-                                        <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded-md border shrink-0 ${abnormalCount > 0 ? 'bg-red-50 text-red-700 border-red-200/70' : 'bg-emerald-50 text-emerald-700 border-emerald-200/70'}`}>
+                                        <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded border shrink-0 ${abnormalCount > 0 ? 'bg-red-100 text-red-700 border-red-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200/70'}`}>
                                             {abnormalCount > 0 ? '待複檢' : '正常'}
                                         </span>
                                     </div>
                                     <div className="flex items-baseline gap-1 min-w-0 my-0.5">
-                                        <p className={`text-2xl sm:text-3xl font-extrabold tracking-tight truncate leading-none ${abnormalCount > 0 ? 'text-red-600' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <p className={`text-xl sm:text-2xl font-extrabold tracking-tight truncate leading-none ${abnormalCount > 0 ? 'text-red-600' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {abnormalCount}
                                         </p>
-                                        <span className="text-[10px] font-bold text-slate-500 shrink-0">件</span>
+                                        <span className={`text-[10px] font-bold shrink-0 ${abnormalCount > 0 ? 'text-red-700/80' : 'text-emerald-900/70'}`}>件</span>
                                     </div>
-                                    <p className={`text-[10px] truncate ${abnormalCount > 0 ? 'text-red-500/90 font-medium' : 'text-slate-400'}`}>
-                                        {abnormalCount > 0 ? '尚有待改善異常項目' : '目前無待處理異常'}
-                                    </p>
+                                        <p className={`text-[11px] font-semibold truncate ${abnormalCount > 0 ? 'text-red-700' : 'text-emerald-950'}`}>
+                                            {abnormalCount > 0 ? '尚有待改善異常項目' : '目前無待處理異常'}
+                                        </p>
                                 </div>
-                                <div className={`p-2.5 rounded-xl border shadow-inner shrink-0 transition-all ${abnormalCount > 0 ? 'bg-gradient-to-br from-red-50 to-rose-50/50 border-red-100 group-hover:bg-red-100/80' : 'bg-gradient-to-br from-emerald-50/70 to-white border-emerald-100 group-hover:bg-emerald-100/60'}`}>
-                                    <AlertOctagon className={`w-5 h-5 transition-transform group-hover:scale-110 ${abnormalCount > 0 ? 'text-red-500' : 'text-emerald-600'}`} />
+                                <div className={`p-2 rounded-lg border shrink-0 transition-all ${abnormalCount > 0 ? 'bg-red-100/80 border-red-200 group-hover:bg-red-100' : 'bg-emerald-50/80 border-emerald-100 group-hover:bg-emerald-100/70'}`}>
+                                    <AlertOctagon className={`w-4 h-4 transition-transform group-hover:scale-110 ${abnormalCount > 0 ? 'text-red-500' : 'text-emerald-600'}`} />
                                 </div>
                             </div>
 
@@ -2002,39 +2028,38 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                     }
                                 }}
                                 disabled={user.isGuest || (!isAdmin && systemSettings?.allowInspectorDeclaration === false)}
-                                className="relative overflow-hidden bg-white/95 backdrop-blur-md rounded-2xl px-4 py-3.5 border border-slate-200/80 shadow-sm flex items-center justify-between min-h-[6.25rem] h-full transition-all duration-300 hover:shadow-md hover:border-amber-300 hover:bg-white text-left group cursor-pointer disabled:cursor-default"
+                                className="bg-white/95 hover:bg-white rounded-xl px-3.5 py-2.5 border border-white/70 shadow-sm flex items-center justify-between min-h-[4.4rem] h-full transition-colors text-left group cursor-pointer disabled:cursor-default"
                                 title={!user.isGuest && (isAdmin || systemSettings?.allowInspectorDeclaration !== false) ? "點擊設定申報週期與基準日" : undefined}
                             >
-                                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400" />
                                 <div className="flex flex-col justify-between h-full min-w-0 flex-1 pr-2">
                                     <div className="flex items-center gap-1 whitespace-nowrap">
-                                        <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-amber-900/85 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                             {t('declarationCountdown')}
                                         </p>
-                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-amber-100/90 text-amber-800 border border-amber-200/60 shrink-0">
+                                        <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-amber-100/90 text-amber-800 border border-amber-200/60 shrink-0">
                                             {declarationSettings?.cycle === '6_MONTHS' ? '每半年' : '每年'}
                                         </span>
                                     </div>
                                     <div className="flex items-baseline gap-1 min-w-0 my-0.5">
                                         {countdownDays !== null ? (
                                             <>
-                                                <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight truncate leading-none ${countdownDays <= 30 ? 'text-amber-500' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                <span className={`text-xl sm:text-2xl font-extrabold tracking-tight truncate leading-none ${countdownDays <= 30 ? 'text-amber-600' : 'text-slate-800'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                     {countdownDays}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-slate-500 shrink-0 uppercase tracking-wider">{t('days')}</span>
+                                                <span className="text-[10px] font-bold text-amber-900/70 shrink-0 uppercase tracking-wider">{t('days')}</span>
                                             </>
                                         ) : (
-                                            <span className="text-2xl sm:text-3xl font-bold text-slate-200 tracking-tight italic" style={{ fontFamily: "'Outfit', sans-serif" }}>--</span>
+                                            <span className="text-xl sm:text-2xl font-bold text-slate-300 tracking-tight italic" style={{ fontFamily: "'Outfit', sans-serif" }}>--</span>
                                         )}
                                     </div>
-                                    <p className="text-[10px] text-slate-400 group-hover:text-amber-600 transition-colors truncate">
-                                        {declarationSettings?.records && declarationSettings.records.length > 0
-                                            ? `上次申報: ${declarationSettings.records[0].actualDate.replace(/-/g, '/')} (${declarationSettings.records[0].periodLabel})`
-                                            : (declarationDeadline ? `下次截止: ${declarationDeadline.replace(/-/g, '/')}` : '點此設定申報日')}
-                                    </p>
+                                        <p className="text-[11px] font-semibold text-amber-950 group-hover:text-amber-800 transition-colors truncate">
+                                            {declarationSettings?.records && declarationSettings.records.length > 0
+                                                ? `上次申報: ${declarationSettings.records[0].actualDate.replace(/-/g, '/')} (${declarationSettings.records[0].periodLabel})`
+                                                : (declarationDeadline ? `下次截止: ${declarationDeadline.replace(/-/g, '/')}` : '點此設定申報日')}
+                                        </p>
                                 </div>
-                                <div className={`p-2.5 rounded-xl border shadow-inner shrink-0 transition-all ${countdownDays !== null && countdownDays <= 30 ? 'bg-gradient-to-br from-amber-50 to-white border-amber-200 group-hover:bg-amber-100' : 'bg-gradient-to-br from-amber-50/60 to-white border-amber-100/80 group-hover:bg-amber-100/70'}`}>
-                                    <Calendar className={`w-5 h-5 transition-transform group-hover:scale-110 ${countdownDays !== null && countdownDays <= 30 ? 'text-amber-500' : 'text-amber-600'}`} />
+                                <div className="p-2 rounded-lg border bg-amber-50/80 border-amber-100 shrink-0 transition-all group-hover:bg-amber-100/80">
+                                    <Calendar className="w-4 h-4 transition-transform group-hover:scale-110 text-amber-600" />
                                 </div>
                             </button>
 
@@ -2046,15 +2071,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                         setSettingsModalMode('focused');
                                         setIsSettingsOpen(true);
                                     }}
-                                    className="relative overflow-hidden bg-slate-50/95 hover:bg-white backdrop-blur-md rounded-2xl px-4 py-3.5 border border-slate-200/90 shadow-sm flex items-center justify-between min-h-[6.25rem] h-full transition-all duration-300 hover:shadow-md hover:border-orange-300 group"
+                                    className="bg-slate-100/90 hover:bg-white rounded-xl px-3.5 py-2.5 border border-white/70 shadow-sm flex items-center justify-between min-h-[4.4rem] h-full transition-colors group"
                                 >
-                                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500 via-amber-400 to-emerald-500" />
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1 pr-2">
                                         <div className="flex items-center gap-1 whitespace-nowrap">
-                                            <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                            <p className="text-[10px] sm:text-[11px] font-bold text-orange-900/85 uppercase tracking-wider" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                 {t('lightSettings')}
                                             </p>
-                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-orange-100/80 text-orange-700 border border-orange-200/60 shrink-0">
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-orange-100/80 text-orange-700 border border-orange-200/60 shrink-0">
                                                 規則
                                             </span>
                                         </div>
@@ -2068,13 +2092,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm" />
                                             </span>
                                         </div>
-                                        <p className="text-[10px] text-slate-400 group-hover:text-orange-600/80 transition-colors truncate">
-                                            紅 · 黃 · 綠燈預警週期
-                                        </p>
+                                            <p className="text-[11px] font-semibold text-orange-950 group-hover:text-orange-800 transition-colors truncate">
+                                                紅 · 黃 · 綠燈預警週期
+                                            </p>
                                     </div>
-                                    <div className="p-2.5 bg-gradient-to-br from-orange-50 via-amber-50/60 to-white border border-orange-200/70 rounded-xl shadow-inner shrink-0 transition-all group-hover:bg-orange-100/80">
+                                    <div className="p-2 bg-orange-50/90 border border-orange-200/70 rounded-lg shrink-0 transition-all group-hover:bg-orange-100/80">
                                         {/* Custom Traffic Signal Light Icon */}
-                                        <svg className="w-5 h-5 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <svg className="w-4 h-4 transition-transform group-hover:scale-110" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             {/* Side Visors */}
                                             <path d="M4.5 6.5H6.5M17.5 6.5H19.5M4.5 12H6.5M17.5 12H19.5M4.5 17.5H6.5M17.5 17.5H19.5" stroke="#EA580C" strokeWidth="1.75" strokeLinecap="round" />
                                             {/* Signal Housing */}
@@ -2092,15 +2116,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsPermissionsModalOpen(true)}
-                                    className="relative overflow-hidden bg-slate-50/95 hover:bg-white backdrop-blur-md rounded-2xl px-4 py-3.5 border border-slate-200/90 shadow-sm flex items-center justify-between min-h-[6.25rem] h-full transition-all duration-300 hover:shadow-md hover:border-indigo-300 group"
+                                    className="bg-slate-100/90 hover:bg-white rounded-xl px-3.5 py-2.5 border border-white/70 shadow-sm flex items-center justify-between min-h-[4.4rem] h-full transition-colors group"
                                 >
-                                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400" />
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1 pr-2">
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                            <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                            <p className="text-[10px] sm:text-[11px] font-bold text-indigo-900/85 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                 {t('permissions')}
                                             </p>
-                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-50 text-indigo-700 border border-indigo-200/60">
                                                 權限
                                             </span>
                                         </div>
@@ -2113,12 +2136,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shadow-sm transition-all ${systemSettings?.allowCloudGallery ? 'bg-blue-500 scale-110' : 'bg-slate-300'}`} />
                                             </div>
                                         </div>
-                                        <p className="text-[10px] text-slate-400 group-hover:text-indigo-600/80 transition-colors truncate">
-                                            檢查員權限與訪客模式
-                                        </p>
+                                            <p className="text-[11px] font-semibold text-indigo-950 group-hover:text-indigo-800 transition-colors truncate">
+                                                檢查員權限與訪客模式
+                                            </p>
                                     </div>
-                                    <div className="p-2.5 bg-gradient-to-br from-indigo-50/80 to-white border border-indigo-100 rounded-xl shadow-inner shrink-0 transition-all group-hover:bg-indigo-100/80">
-                                        <ShieldCheck className="w-5 h-5 text-indigo-600 transition-transform group-hover:scale-110" />
+                                    <div className="p-2 bg-indigo-50/90 border border-indigo-100 rounded-lg shrink-0 transition-all group-hover:bg-indigo-100/80">
+                                        <ShieldCheck className="w-4 h-4 text-indigo-600 transition-transform group-hover:scale-110" />
                                     </div>
                                 </button>
                             )}
@@ -2127,15 +2150,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                             {isAdmin && (
                                 <button
                                     onClick={() => setIsAdminDashboardOpen(true)}
-                                    className="relative overflow-hidden bg-slate-50/95 hover:bg-white backdrop-blur-md rounded-2xl px-4 py-3.5 border border-slate-200/90 shadow-sm flex items-center justify-between min-h-[6.25rem] h-full transition-all duration-300 hover:shadow-md hover:border-rose-300 group"
+                                    className="bg-slate-100/90 hover:bg-white rounded-xl px-3.5 py-2.5 border border-white/70 shadow-sm flex items-center justify-between min-h-[4.4rem] h-full transition-colors group"
                                 >
-                                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 via-red-500 to-orange-400" />
                                     <div className="flex flex-col justify-between h-full text-left min-w-0 flex-1 pr-2">
                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                            <p className="text-[10px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                            <p className="text-[10px] sm:text-[11px] font-bold text-rose-900/85 uppercase tracking-widest" style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                 {t('systemManagement')}
                                             </p>
-                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-rose-50 text-rose-700 border border-rose-200/60">
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-rose-50 text-rose-700 border border-rose-200/60">
                                                 後台
                                             </span>
                                         </div>
@@ -2144,12 +2166,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 {t('coreAdmin')}
                                             </p>
                                         </div>
-                                        <p className="text-[10px] text-slate-400 group-hover:text-rose-600/80 transition-colors truncate">
-                                            白名單審核與組織管理
-                                        </p>
+                                            <p className="text-[11px] font-semibold text-rose-950 group-hover:text-rose-800 transition-colors truncate">
+                                                白名單審核與組織管理
+                                            </p>
                                     </div>
-                                    <div className="p-2.5 bg-gradient-to-br from-rose-50 to-white border border-rose-100 rounded-xl shadow-inner shrink-0 transition-all group-hover:bg-rose-100/80 relative">
-                                        <Settings className="w-5 h-5 text-rose-500 transition-transform group-hover:scale-110" />
+                                    <div className="p-2 bg-rose-50/90 border border-rose-100 rounded-lg shrink-0 transition-all group-hover:bg-rose-100/80 relative">
+                                        <Settings className="w-4 h-4 text-rose-500 transition-transform group-hover:scale-110" />
                                         {pendingUsersCount > 0 && (
                                             <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4">
                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -2165,7 +2187,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                     )}
 
                     {/* Main Actions Grid (Dynamic Order) */}
-                    <div className={`grid gap-3 ${user.isGuest
+                    <div className={`grid gap-3 ${!user.isGuest ? 'pt-3.5 mt-1 border-t border-white/10' : ''} ${user.isGuest
                         ? 'grid-cols-2'
                         : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                         }`}>
@@ -2225,7 +2247,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
+                                                <p className="text-[11px] font-semibold text-blue-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('startInspectionDesc')}</p>
                                             )}
                                         </button>
                                     );
@@ -2258,7 +2280,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                     )}
                                                 </div>
                                                 <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('abnormalRecheck')}</h3>
-                                                <p className={`text-[11px] font-bold leading-tight tracking-tight ${abnormalCount > 0 ? 'text-red-600' : 'text-slate-500'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
+                                                <p className={`text-[11px] font-bold leading-tight tracking-tight ${abnormalCount > 0 ? 'text-red-600' : 'text-amber-900/80'}`} style={{ fontFamily: "'Outfit', sans-serif" }}>
                                                     {abnormalCount > 0 ? `${abnormalCount}${t('pendingCountSuffix')}` : t('noAbnormalItems')}
                                                 </p>
                                             </div>
@@ -2306,7 +2328,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('history')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{flattenedHistory.length} {t('historyRecordsCount')}</p>
+                                            <p className="text-[11px] font-semibold text-indigo-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{flattenedHistory.length} {t('historyRecordsCount')}</p>
                                         </button>
                                     );
 
@@ -2331,7 +2353,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipment')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipmentDesc')}</p>
+                                            <p className="text-[11px] font-semibold text-teal-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('myEquipmentDesc')}</p>
                                         </button>
                                     );
 
@@ -2354,7 +2376,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditor')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditorDesc')}</p>
+                                            <p className="text-[11px] font-semibold text-purple-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('mapEditorDesc')}</p>
                                         </button>
                                     );
 
@@ -2378,7 +2400,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipment')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
+                                            <p className="text-[11px] font-semibold text-emerald-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addEquipmentDesc')}</p>
                                         </div>
                                     );
 
@@ -2403,7 +2425,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('healthIndicators')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
+                                            <p className="text-[11px] font-semibold text-rose-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{Object.keys(healthIndicators || {}).length} {t('indicatorCountSuffix')}</p>
                                         </button>
                                     );
 
@@ -2426,7 +2448,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameList')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameListDescShort')}</p>
+                                            <p className="text-[11px] font-semibold text-orange-900/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('addNameListDescShort')}</p>
                                         </button>
                                     );
 
@@ -2449,7 +2471,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                                 </svg>
                                             </div>
                                             <h3 className="font-bold text-slate-800 text-base mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverview')}</h3>
-                                            <p className="text-[11px] font-medium text-slate-500 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
+                                            <p className="text-[11px] font-semibold text-slate-800/80 leading-tight tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>{t('equipmentOverviewDesc')}</p>
                                         </button>
                                     );
 
@@ -2475,7 +2497,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onCreateNew, onAddEquipment
                                 }`}>
                                 <span className={`font-bold tracking-wide ${isDarkBg ? 'text-white' : 'text-slate-700'
                                     }`}>
-                                    V 2.9.2
+                                    V 2.9.3
                                 </span>
                                 <span className={isDarkBg ? 'text-white/60' : 'text-slate-400'}>·</span>
                                 <span className={`font-mono font-semibold tracking-tight ${isDarkBg ? 'text-white/90' : 'text-slate-600'}`}>
