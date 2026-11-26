@@ -828,6 +828,53 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
         return {};
     };
 
+    // Display-only collision avoidance for closely placed markers (scales down as user zooms in)
+    const markerDisplayPos = React.useMemo(() => {
+        const map: Record<string, { x: number; y: number }> = {};
+        const list = currentMap?.markers || [];
+        if (list.length === 0) return map;
+
+        const pts = list.map(m => ({ id: m.id, x: m.x, y: m.y }));
+        const isRot90 = Math.abs(rotation % 180) === 90;
+        const minX = (isRot90 ? 4.0 : 8.8) / zoom;
+        const minY = (isRot90 ? 8.8 : 4.0) / zoom;
+
+        for (let iter = 0; iter < 8; iter++) {
+            for (let i = 0; i < pts.length; i++) {
+                for (let j = i + 1; j < pts.length; j++) {
+                    const dx = pts[j].x - pts[i].x;
+                    const dy = pts[j].y - pts[i].y;
+                    const adx = Math.abs(dx);
+                    const ady = Math.abs(dy);
+                    if (adx < minX && ady < minY) {
+                        const overlapX = minX - adx;
+                        const overlapY = minY - ady;
+                        // Prefer separating along the axis with smaller overlap (or Y when stacked/identical)
+                        if (overlapY <= overlapX || (adx < 0.01 && ady < 0.01)) {
+                            const dir = dy >= 0 ? 1 : -1;
+                            const push = overlapY * 0.6;
+                            pts[i].y = Math.max(1.5, Math.min(98.5, pts[i].y - dir * push));
+                            pts[j].y = Math.max(1.5, Math.min(98.5, pts[j].y + dir * push));
+                        } else {
+                            const dir = dx >= 0 ? 1 : -1;
+                            const push = overlapX * 0.6;
+                            pts[i].x = Math.max(1.5, Math.min(98.5, pts[i].x - dir * push));
+                            pts[j].x = Math.max(1.5, Math.min(98.5, pts[j].x + dir * push));
+                        }
+                    }
+                }
+            }
+        }
+
+        pts.forEach(p => {
+            map[p.id] = { x: p.x, y: p.y };
+        });
+        return map;
+    }, [currentMap?.markers, zoom, rotation]);
+
+    const getPos = (marker?: EquipmentMarker | null) =>
+        (marker && markerDisplayPos[marker.id]) || (marker ? { x: marker.x, y: marker.y } : { x: 0, y: 0 });
+
     if (!isOpen) return null;
 
     // Map Selection View
@@ -962,37 +1009,45 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                 // 所有標註點均可點擊（由 handleMarkerClick 統一處理未到期強制檢查、已完成提醒或一般檢查）
                                 const equipment = allEquipment.find(e => e.barcode === marker.equipmentId || e.id === marker.equipmentId);
                                 const isInteractable = !!marker.equipmentId;
+                                const isNextTarget = isNavActive && activeTarget?.marker.id === marker.id;
+                                const isCurrentPos = isNavActive && !!userLocation && (userLocation.markerId === marker.id || (Math.abs(userLocation.x - marker.x) < 0.01 && Math.abs(userLocation.y - marker.y) < 0.01));
+                                const pos = getPos(marker);
 
                                 return (
                                     <button
                                         key={`${marker.id}-${renderKey}`}
                                         onClick={() => handleMarkerClick(marker)}
                                         disabled={!isInteractable}
-                                        // Optimized Sizes for RWD (Matches Editor)
-                                        // Mobile: w-3 h-3 (12px), text-[6px]
-                                        // Tablet: w-4 h-4 (16px), text-[8px]
-                                        // Desktop: w-6 h-6 (24px), text-[10px]
-                                        className={`absolute w-3 h-3 sm:w-4 sm:h-4 md:w-6 md:h-6 rounded-full flex items-center justify-center text-white font-bold text-[6px] sm:text-[8px] md:text-[10px] shadow-sm transition-transform pointer-events-auto 
-                                            ${getMarkerColor(marker)}
+                                        // Compact high-contrast pill: status dot + dark slate text on crisp white pill
+                                        className={`absolute z-20 h-3.5 sm:h-4 md:h-[18px] px-1 sm:px-1.5 rounded-full flex items-center justify-center gap-0.5 sm:gap-1 bg-white/95 text-slate-900 font-extrabold text-[5.5px] sm:text-[6.5px] md:text-[7.5px] leading-none tracking-tight whitespace-nowrap border-[1.5px] border-slate-700/80 shadow-sm transition-transform pointer-events-auto 
                                             ${isInteractable ? 'hover:scale-125 hover:z-50 cursor-pointer' : 'cursor-default opacity-80'}
                                         `}
                                         style={{
-                                            left: `${marker.x}%`,
-                                            top: `${marker.y}%`,
+                                            left: `${pos.x}%`,
+                                            top: `${pos.y}%`,
                                             // CRITICAL: Inverse Scale Logic (1 / zoom)
                                             // This cancels out the parent's zoom scale, keeping marker constant physics size
                                             transform: `translate(-50%, -50%) scale(${1 / zoom}) rotate(${-rotation}deg)`,
-                                            ...getMarkerStyle(marker)
                                         }}
                                     >
-                                        {marker.equipmentId}
+                                        {isCurrentPos && (
+                                            <span className="pointer-events-none absolute -inset-1 rounded-full border-2 border-red-600 shadow-[0_0_8px_rgba(220,38,38,0.85)] animate-pulse" />
+                                        )}
+                                        {isNextTarget && (
+                                            <span className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.95)] animate-pulse" />
+                                        )}
+                                        <span
+                                            className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${getMarkerColor(marker)}`}
+                                            style={getMarkerStyle(marker)}
+                                        />
+                                        <span>{marker.equipmentId}</span>
                                     </button>
                                 );
                             })}
 
                             {/* 智能巡檢引導路徑圖 (SVG 向量動態折線與前進箭頭) */}
                             {isNavActive && userLocation && inspectionRoute.length > 0 && (
-                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible">
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
                                     <defs>
                                         {/* 箭頭標記 (Arrow Markers) */}
                                         <marker
@@ -1020,32 +1075,37 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                     </defs>
 
                                     {/* 1. 從「現在所在」➔「推薦下一個目標」(唯一定向引導粗線 + 箭頭) */}
-                                    {activeTarget && (
-                                        <line
-                                            x1={`${userLocation.x}%`}
-                                            y1={`${userLocation.y}%`}
-                                            x2={`${activeTarget.marker.x}%`}
-                                            y2={`${activeTarget.marker.y}%`}
-                                            stroke="#0284c7"
-                                            strokeWidth="3.5"
-                                            strokeDasharray="8 5"
-                                            strokeLinecap="round"
-                                            markerEnd="url(#route-arrow-primary)"
-                                            className="drop-shadow-md opacity-95 animate-pulse"
-                                        />
-                                    )}
+                                    {activeTarget && (() => {
+                                        const uPos = (userLocation.markerId && markerDisplayPos[userLocation.markerId]) || userLocation;
+                                        const tPos = getPos(activeTarget.marker);
+                                        return (
+                                            <line
+                                                x1={`${uPos.x}%`}
+                                                y1={`${uPos.y}%`}
+                                                x2={`${tPos.x}%`}
+                                                y2={`${tPos.y}%`}
+                                                stroke="#0284c7"
+                                                strokeWidth="4.5"
+                                                strokeDasharray="8 5"
+                                                strokeLinecap="round"
+                                                markerEnd="url(#route-arrow-primary)"
+                                                className="drop-shadow-md opacity-95 animate-pulse"
+                                            />
+                                        );
+                                    })()}
 
                                     {/* 2. 其餘後續路徑：僅在使用者主動開啟「全路徑」時展開 */}
                                     {showFullRoute && inspectionRoute.map((item, idx) => {
                                         if (idx === 0) return null;
-                                        const prev = inspectionRoute[idx - 1];
+                                        const prevPos = getPos(inspectionRoute[idx - 1].marker);
+                                        const currPos = getPos(item.marker);
                                         return (
                                             <line
                                                 key={`route-seg-${idx}`}
-                                                x1={`${prev.marker.x}%`}
-                                                y1={`${prev.marker.y}%`}
-                                                x2={`${item.marker.x}%`}
-                                                y2={`${item.marker.y}%`}
+                                                x1={`${prevPos.x}%`}
+                                                y1={`${prevPos.y}%`}
+                                                x2={`${currPos.x}%`}
+                                                y2={`${currPos.y}%`}
                                                 stroke="#38bdf8"
                                                 strokeWidth="2.5"
                                                 strokeDasharray="6 4"
@@ -1055,86 +1115,81 @@ const MapViewInspection: React.FC<MapViewInspectionProps> = ({ user, isOpen, onC
                                                 className="drop-shadow-sm"
                                             />
                                         );
-                                    })}
+                                    })()}
                                 </svg>
                             )}
 
                             {/* 站點順序編號徽章：全路徑開啟時顯示全部；平時僅在「推薦下一個」頭頂標示「下一個」 */}
                             {isNavActive && (
                                 showFullRoute ? (
-                                    inspectionRoute.map((item) => (
-                                        <div
-                                            key={`route-badge-${item.marker.id}`}
-                                            className="absolute pointer-events-none z-28 transition-all duration-300"
-                                            style={{
-                                                left: `${item.marker.x}%`,
-                                                top: `${item.marker.y}%`,
-                                                transform: `translate(-50%, -170%) scale(${1 / zoom})`
-                                            }}
-                                        >
-                                            <div className={`px-1.5 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md border ${
-                                                activeTarget?.marker.id === item.marker.id
-                                                    ? 'bg-blue-600 text-white border-white ring-2 ring-blue-400 scale-110'
-                                                    : 'bg-slate-900/90 text-amber-300 border-slate-700'
-                                            }`}>
-                                                <span>第{item.step}站</span>
+                                    inspectionRoute.map((item) => {
+                                        const rPos = getPos(item.marker);
+                                        return (
+                                            <div
+                                                key={`route-badge-${item.marker.id}`}
+                                                className="absolute pointer-events-none z-30 transition-all duration-300"
+                                                style={{
+                                                    left: `${rPos.x}%`,
+                                                    top: `${rPos.y}%`,
+                                                    transform: `translate(-50%, -50%) rotate(${-rotation}deg) scale(${1 / zoom}) translateY(-22px)`
+                                                }}
+                                            >
+                                                <div className={`px-1.5 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md border ${
+                                                    activeTarget?.marker.id === item.marker.id
+                                                        ? 'bg-blue-600 text-white border-white ring-2 ring-blue-400 scale-110'
+                                                        : 'bg-slate-900/90 text-amber-300 border-slate-700'
+                                                }`}>
+                                                    <span>第{item.step}站</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 ) : (
-                                    activeTarget && (
-                                        <div
-                                            key={`route-badge-next-${activeTarget.marker.id}`}
-                                            className="absolute pointer-events-none z-28 transition-all duration-300"
-                                            style={{
-                                                left: `${activeTarget.marker.x}%`,
-                                                top: `${activeTarget.marker.y}%`,
-                                                // 靠近設備正上方
-                                                transform: `translate(-50%, -180%) scale(${1 / zoom})`
-                                            }}
-                                        >
-                                            {/* 黑底黃字、無外框、極致清晰 */}
-                                            <div className="px-2 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md bg-black text-amber-300 whitespace-nowrap">
-                                                <span>下一站</span>
+                                    activeTarget && (() => {
+                                        const tPos = getPos(activeTarget.marker);
+                                        return (
+                                            <div
+                                                key={`route-badge-next-${activeTarget.marker.id}`}
+                                                className="absolute pointer-events-none z-30 transition-all duration-300"
+                                                style={{
+                                                    left: `${tPos.x}%`,
+                                                    top: `${tPos.y}%`,
+                                                    // 靠近設備正上方，先抵銷圖面旋轉再垂直位移，確保任何旋轉角度都在正上方
+                                                    transform: `translate(-50%, -50%) rotate(${-rotation}deg) scale(${1 / zoom}) translateY(-22px)`
+                                                }}
+                                            >
+                                                {/* 黑底黃字、無外框、極致清晰 */}
+                                                <div className="px-2 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md bg-black text-amber-300 whitespace-nowrap">
+                                                    <span>下一站</span>
+                                                </div>
+                                                {/* 黑色小倒三角指針 */}
+                                                <div className="w-0 h-0 mx-auto border-x-4 border-x-transparent border-t-4 border-t-black" />
                                             </div>
-                                            {/* 黑色小倒三角指針 */}
-                                            <div className="w-0 h-0 mx-auto border-x-4 border-x-transparent border-t-4 border-t-black" />
-                                        </div>
-                                    )
+                                        );
+                                    })()
                                 )
                             )}
 
                             {/* 當前目標設備外圍呼吸光環 */}
-                            {isNavActive && activeTarget && (
-                                <div
-                                    className="absolute pointer-events-none z-25 transition-all duration-300"
-                                    style={{
-                                        left: `${activeTarget.marker.x}%`,
-                                        top: `${activeTarget.marker.y}%`,
-                                        transform: `translate(-50%, -50%) scale(${1 / zoom})`
-                                    }}
-                                >
-                                    <div className="absolute -inset-4 rounded-full border-2 border-sky-400 animate-ping opacity-60" />
-                                    <div className="absolute -inset-2.5 rounded-full border-2 border-amber-400 animate-pulse" />
-                                </div>
-                            )}
-
-                            {/* 當前巡檢位置紅點 (清晰定錨點) */}
-                            {isNavActive && userLocation && (
-                                <div
-                                    className="absolute pointer-events-none z-30 transition-all duration-300"
-                                    style={{
-                                        left: `${userLocation.x}%`,
-                                        top: `${userLocation.y}%`,
-                                        transform: `translate(-50%, -50%) scale(${1 / zoom})`
-                                    }}
-                                >
-                                    <div className="absolute -inset-3.5 rounded-full bg-red-500/40 animate-ping pointer-events-none" />
-                                    <div className="relative w-5 h-5 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center ring-2 ring-red-400">
-                                        <div className="w-2 h-2 rounded-full bg-white shadow-inner" />
+                            {/* 當前巡檢位置「目前所在」膠囊指標 */}
+                            {isNavActive && userLocation && (() => {
+                                const uPos = (userLocation.markerId && markerDisplayPos[userLocation.markerId]) || userLocation;
+                                return (
+                                    <div
+                                        className="absolute pointer-events-none z-30 transition-all duration-300"
+                                        style={{
+                                            left: `${uPos.x}%`,
+                                            top: `${uPos.y}%`,
+                                            transform: `translate(-50%, -50%) rotate(${-rotation}deg) scale(${1 / zoom}) translateY(22px)`
+                                        }}
+                                    >
+                                        <div className="w-0 h-0 mx-auto border-x-4 border-x-transparent border-b-4 border-b-red-600" />
+                                        <div className="px-2 py-0.5 rounded-full text-[10px] font-black flex items-center justify-center shadow-md bg-red-600 text-white border border-white/80 whitespace-nowrap">
+                                            <span>目前所在</span>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </div>
                     )}
                 </div>

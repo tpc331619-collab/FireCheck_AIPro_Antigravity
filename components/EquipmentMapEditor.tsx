@@ -1238,44 +1238,44 @@ const EquipmentMapEditor: React.FC<EquipmentMapEditorProps> = ({ user, isOpen, o
                                                     const colorClasses = getMarkerColor(marker);
 
                                                     const sizeClasses = {
-                                                        tiny: 'w-1.5 h-1.5 md:w-2 md:h-2 -ml-0.5 -mt-0.5 md:-ml-1 md:-mt-1',
-                                                        small: 'w-2 h-2 md:w-3 md:h-3 -ml-1 -mt-1 md:-ml-1.5 md:-mt-1.5',
-                                                        medium: 'w-3 h-3 md:w-4 md:h-4 -ml-1.5 -mt-1.5 md:-ml-2 md:-mt-2',
-                                                        large: 'w-4 h-4 md:w-6 md:h-6 -ml-2 -mt-2 md:-ml-3 md:-mt-3',
-                                                        huge: 'w-6 h-6 md:w-8 md:h-8 -ml-3 -mt-3 md:-ml-4 md:-mt-4'
+                                                        tiny: 'h-3 min-w-[12px] px-0.5',
+                                                        small: 'h-3.5 min-w-[14px] px-1',
+                                                        medium: 'h-4 sm:h-[18px] min-w-[18px] px-1',
+                                                        large: 'h-5 min-w-[22px] px-1.5',
+                                                        huge: 'h-6 min-w-[26px] px-1.5'
                                                     }[currentSize];
 
                                                     const textSizeClasses = {
-                                                        tiny: 'text-[8px]',
-                                                        small: 'text-[10px]',
-                                                        medium: 'text-xs',
-                                                        large: 'text-sm',
-                                                        huge: 'text-base'
+                                                        tiny: 'text-[5px]',
+                                                        small: 'text-[6px]',
+                                                        medium: 'text-[7px] sm:text-[7.5px]',
+                                                        large: 'text-[8.5px]',
+                                                        huge: 'text-[10px]'
                                                     }[currentSize];
 
                                                     return (
                                                         <div
                                                             key={marker.id}
-                                                            className={`absolute ${sizeClasses} ${colorClasses} rounded-full flex items-center justify-center shadow-sm hover:scale-150 z-10 group cursor-grab 
+                                                            className={`absolute ${sizeClasses} bg-white/95 text-slate-900 rounded-full flex items-center justify-center gap-0.5 sm:gap-1 border-[1.5px] border-slate-700/80 shadow-sm hover:scale-125 z-10 group cursor-grab 
                                                             ${draggingMarkerId === marker.id ? 'opacity-80 scale-125 cursor-grabbing pointer-events-none' : ''}
                                                             ${selectedMarkerId === marker.id ? 'ring-4 ring-blue-400 ring-opacity-75 z-20' : ''}
                                                         `}
                                                             style={{
                                                                 left: `${marker.x}%`,
                                                                 top: `${marker.y}%`,
-                                                                transform: `scale(${1 / zoom})`,
+                                                                transform: `translate(-50%, -50%) scale(${1 / zoom}) rotate(${-rotation}deg)`,
                                                                 transformOrigin: 'center center',
-                                                                ...getMarkerStyle(marker)
                                                             }}
                                                             onMouseDown={(e) => handleMarkerMouseDown(e, marker.id)}
                                                             onClick={(e) => handleMarkerClick(e, marker.id)}
                                                         >
-                                                            <div
-                                                                className="flex items-center justify-center relative w-full h-full pointer-events-none"
-                                                                style={{ transform: `rotate(${-rotation}deg)` }}
-                                                            >
-                                                                <span className={`text-white font-bold select-none leading-none ${textSizeClasses} ${currentSize === 'small' ? 'scale-[0.6]' : ''}`}>
-                                                                    {idx + 1}
+                                                            <div className="flex items-center justify-center gap-0.5 sm:gap-1 relative w-full h-full pointer-events-none">
+                                                                <span
+                                                                    className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${colorClasses}`}
+                                                                    style={getMarkerStyle(marker)}
+                                                                />
+                                                                <span className={`text-slate-900 font-extrabold select-none leading-none tracking-tight whitespace-nowrap ${textSizeClasses}`}>
+                                                                    {marker.equipmentId || idx + 1}
                                                                 </span>
 
                                                                 <div className="absolute bottom-full mb-1 bg-slate-900/90 backdrop-blur text-white text-[10px] px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
